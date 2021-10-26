@@ -1,0 +1,91 @@
+DIGEST bada662ed0a0a8295ebb8bf1a482aec0
+FElo.Map
+R24:37 Coq.Strings.String <> <> lib
+R64:73 Coq.Lists.List <> <> lib
+R100:104 Elo.Array <> <> lib
+def 746:748 <> map
+binder 750:750 <> A:1
+R755:758 Coq.Init.Datatypes <> list ind
+R767:769 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R761:766 Coq.Strings.String <> string ind
+R770:770 Elo.Map <> A:1 var
+def 790:798 <> index_of'
+binder 801:801 <> A:2
+R809:811 Elo.Map <> map def
+R813:813 Elo.Map <> A:2 var
+binder 805:805 <> m:3
+R821:826 Coq.Strings.String <> string ind
+binder 817:817 <> k:4
+R834:836 Coq.Init.Datatypes <> nat ind
+binder 830:830 <> i:5
+R850:850 Elo.Map <> m:3 var
+R861:863 Coq.Init.Datatypes <> nil constr
+R868:871 Coq.Init.Datatypes <> None constr
+R884:887 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R877:877 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R880:881 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R883:883 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R897:899 Coq.Strings.String <> eqb def
+R901:901 Elo.Map <> k:4 var
+R936:944 Elo.Map <> index_of':6 def
+R953:955 Coq.Init.Peano <> ::nat_scope:x_'+'_x not
+R952:952 Elo.Map <> i:5 var
+R949:949 Elo.Map <> k:4 var
+R915:918 Coq.Init.Datatypes <> Some constr
+R920:920 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R922:923 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R925:925 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R921:921 Elo.Map <> i:5 var
+def 978:985 <> index_of
+binder 988:988 <> A:8
+binder 991:991 <> m:9
+binder 993:993 <> k:10
+R999:1007 Elo.Map <> index_of' def
+R1009:1009 Elo.Map <> A:8 var
+R1011:1011 Elo.Map <> m:9 var
+R1013:1013 Elo.Map <> k:10 var
+def 1030:1035 <> update
+binder 1038:1038 <> A:11
+R1046:1048 Elo.Map <> map def
+R1050:1050 Elo.Map <> A:11 var
+binder 1042:1042 <> m:12
+binder 1053:1053 <> k:13
+binder 1055:1055 <> v:14
+R1068:1075 Elo.Map <> index_of def
+R1079:1079 Elo.Map <> k:13 var
+R1077:1077 Elo.Map <> m:12 var
+R1090:1093 Coq.Init.Datatypes <> None constr
+R1098:1100 Elo.Array <> add def
+R1104:1104 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R1106:1107 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R1109:1109 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R1105:1105 Elo.Map <> k:13 var
+R1108:1108 Elo.Map <> v:14 var
+R1102:1102 Elo.Map <> m:12 var
+R1115:1118 Coq.Init.Datatypes <> Some constr
+R1120:1120 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R1122:1123 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R1125:1125 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R1130:1132 Elo.Array <> set def
+R1138:1138 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R1140:1141 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R1143:1143 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R1139:1139 Elo.Map <> k:13 var
+R1142:1142 Elo.Map <> v:14 var
+R1134:1134 Elo.Map <> m:12 var
+def 1164:1169 <> lookup
+binder 1172:1172 <> A:15
+R1180:1182 Elo.Map <> map def
+R1184:1184 Elo.Map <> A:15 var
+binder 1176:1176 <> m:16
+binder 1187:1187 <> k:17
+R1200:1207 Elo.Map <> index_of def
+R1211:1211 Elo.Map <> k:17 var
+R1209:1209 Elo.Map <> m:16 var
+R1222:1225 Coq.Init.Datatypes <> None constr
+R1230:1233 Coq.Init.Datatypes <> None constr
+R1239:1242 Coq.Init.Datatypes <> Some constr
+R1244:1244 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R1246:1247 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R1249:1249 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R1254:1257 Coq.Init.Datatypes <> Some constr
