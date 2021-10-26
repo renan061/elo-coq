@@ -18,28 +18,39 @@ Definition update {A : Type} (m : map A) k v :=
 
 Definition lookup {A : Type} (m : map A) k := m k.
 
+(* Proofs *)
 
+Lemma lookup_update_involutive' : forall {A} (m : map A) k v,
+  update m k v k = Some v.
+Proof.
+  intros.
+  unfold update, Map.update'.
+  rewrite String.eqb_refl.
+  reflexivity.
+Qed.
 
-(* Definition map A := list (string * A).
+Lemma lookup_update_involutive : forall {A} (m : map A) k v,
+  lookup (update m k v) k = Some v.
+Proof.
+  unfold lookup.
+  intros.
+  apply lookup_update_involutive'.
+Qed.
 
-Local Fixpoint index_of' {A} (m : map A) (k : string) (i : nat) :=
-  match m with
-  | nil => None
-  | (k', v) :: m' => if eqb k k'
-    then Some (i, v)
-    else index_of' m' k (i + 1)
-  end.
+Definition includes' {A} (m m' : map A) := forall k v,
+  m' k = Some v -> m k = Some v.
 
-Definition index_of {A} m k := @index_of' A m k 0.
+Infix "includes" := includes' (at level 50, left associativity).
 
-Definition update {A} (m : map A) k v :=
-  match index_of m k with
-  | None => add m (k, v)
-  | Some (i, _) => set m i (k, v)
-  end.
+Lemma update_preserves_inclusion : forall {A} (m m' : map A) k v,
+  m includes m' ->
+  (update m k v) includes (update m' k v).
+Proof.
+  unfold includes'.
+  intros * H k' v' H'.
+  unfold update, update' in *.
+  destruct (String.eqb k k') eqn:E.
+  - assumption.
+  - specialize (H k' v'). auto.
+Qed.
 
-Definition lookup {A} (m : map A) k :=
-  match index_of m k with
-  | None => None
-  | Some (_, v) => Some v
-  end. *)

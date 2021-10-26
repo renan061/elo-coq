@@ -68,21 +68,22 @@ Definition get_tm  := get TM_Nil.
 
 (* Operational Semantics *)
 
-(* TODO : shadowing *)
+Infix "=?" := String.eqb (at level 70, no associativity).
+
 Fixpoint subst (id : name) (x t : tm) : tm :=
   match t with
   | TM_Nil => t
   | TM_Num _ => t
-  | TM_Id id' => if String.eqb id id' then x else t
+  | TM_Id id' => if id =? id' then x else t
   | TM_Asg t' e => TM_Asg ([id := x] t') ([id := x] e)
   | TM_Call f e => TM_Call f ([id := x] e)
   | TM_Seq t1 t2 => TM_Seq ([id := x] t1) ([id := x] t2)
-  | TM_LetVal id' E e t' => if String.eqb id id' then t
-    else TM_LetVal id' E ([id := x] e) ([id := x] t')  
-  | TM_LetVar id' E e t' => if String.eqb id id' then t
-    else TM_LetVar id' E ([id := x] e) ([id := x] t')
-  | TM_LetFun f p P b R t' =>  if String.eqb id p then t
-    else TM_LetFun f p P ([id := x] b) R ([id := x] t')
+  | TM_LetVal id' E e t' => TM_LetVal id' E ([id := x] e)
+    (if id =? id' then t' else ([id := x] t'))
+  | TM_LetVar id' E e t' => TM_LetVar id' E ([id := x] e)
+    (if id =? id' then t' else ([id := x] t'))
+  | TM_LetFun f p P block R t' => TM_LetFun f p P
+    (if id =? p then block else ([id := x] block)) R ([id := x] t')
   | TM_Loc _ => t
   end
   where "'[' id ':=' x ']' t" := (subst id x t).
@@ -128,6 +129,12 @@ Inductive step : defs -> mem -> tm -> defs -> mem -> tm -> Prop :=
     value e ->
     D / m / TM_LetVal id E e t --> D / m' / [id := TM_Loc i] t
 
+  (*
+  | ST_LetVal : forall D m id E e t,
+    value e ->
+    D / m / TM_LetVal id E e t --> D / m' / [id := e] t
+  *)
+
   | ST_LetVar1 : forall D m m' id E e e' t,
     D / m / e --> D / m' / e' ->
     D / m / TM_LetVar id E e t --> D / m' / TM_LetVar id E e' t
@@ -155,17 +162,17 @@ Inductive typeof {D : defs} {mt : memtyp} : (ctx * ctx) -> tm -> typ -> Prop :=
   | T_IdSharedVal : forall Delta Gamma id A,
     lookup Delta id = Some (TY_ImmutRef A) ->
     lookup Gamma id = None ->
-    (Delta, Gamma) |- (TM_Id id) is A
+    (Delta, Gamma) |- (TM_Id id) is (TY_ImmutRef A)
 
   | T_IdLocalVal : forall Delta Gamma id A,
     lookup Delta id = None ->
     lookup Gamma id = Some (TY_ImmutRef A) ->
-    (Delta, Gamma) |- (TM_Id id) is A
+    (Delta, Gamma) |- (TM_Id id) is (TY_ImmutRef A)
 
   | T_IdVar : forall Delta Gamma id A,
     lookup Delta id = None ->
     lookup Gamma id = Some (TY_Ref A) ->
-    (Delta, Gamma) |- (TM_Id id) is A
+    (Delta, Gamma) |- (TM_Id id) is (TY_Ref A)
 
   | T_Asg : forall Delta Gamma t e A,
     (Delta, Gamma) |- t is (TY_Ref A) ->

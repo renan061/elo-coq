@@ -75,14 +75,65 @@ Proof.
       erewrite (get_set_i_neq_j TM_Nil); auto.
 Qed.
 
-(* Lemma aux1 : forall {A} (m : map A) k v,
-  lookup (update m k v) k = Some v.
+Lemma aux : forall id id' T T' D mt Delta Gamma,
+  id <> id' ->
+  (D / mt / (Delta, Gamma) |- TM_Id id is T <->
+  D / mt / (Delta, update Gamma id' T') |- TM_Id id is T).
 Proof.
-Qed. *)
+  intros *.
+Admitted.
+
+Lemma aux2 : forall id U V D mt Delta Gamma t T,
+  D / mt / (Delta, update (update Gamma id U) id V) |- t is T ->
+  D / mt / (Delta, update Gamma id V) |- t is T.
+Proof.
+Admitted.
+
+Lemma gamma_weakening : forall D mt Gamma Gamma' t T,
+  Gamma includes Gamma' ->
+  D / mt / (empty, Gamma') |- t is T ->
+  D / mt / (empty, Gamma)  |- t is T.
+Proof.
+  intros * Hinc Htype.
+  remember (empty, Gamma)  as Context.  
+  remember (empty, Gamma') as Context'.
+  generalize dependent Gamma.
+  induction Htype; intros * Hinc Hc; subst;
+  inversion HeqContext'; subst;
+  eauto using @typeof.
+  - inversion HeqContext'. subst.
+    unfold lookup, empty, Map.empty' in H.
+    discriminate H.
+  - eapply T_Call.
+    + apply H.
+    + apply (IHHtype1 eq_refl Gamma0 Hinc eq_refl).
+    + apply (IHHtype2 eq_refl Gamma0 Hinc eq_refl).
+  (* TODO : remover par do contexto *)
+Qed.
+
+(*
+Lemma weakening : ∀ Gamma Gamma' ST t T,
+     inclusion Gamma Gamma' →
+     Gamma ; ST ⊢ t \in T →
+     Gamma' ; ST ⊢ t \in T.
+Proof.
+  intros Gamma Gamma' ST t T H Ht.
+  generalize dependent Gamma'.
+  induction Ht; eauto using inclusion_update.
+Qed.
+Lemma weakening_empty : ∀ Gamma ST t T,
+     empty ; ST ⊢ t \in T →
+     Gamma ; ST ⊢ t \in T.
+Proof.
+  intros Gamma ST t T.
+  eapply weakening.
+  discriminate.
+Qed.
+*)
 
 Lemma substitution_preserves_typing : forall D mt Delta Gamma id t u T U,
   D / mt / (Delta, update Gamma id U) |- t is T ->
-  D / mt / (nil, nil) |- u is U ->
+  D / mt / (empty, empty) |- u is U ->
   D / mt / (Delta, Gamma) |- [id := u] t is T.
 Proof.
   intros * Ht Hu.
@@ -90,11 +141,36 @@ Proof.
   generalize dependent Gamma.
   induction t;
   intros Gamma T Ht;
-  inversion Ht; simpl; subst; eauto using @typeof.
+  inversion Ht; simpl; subst;
+  eauto using @typeof.
   - destruct String.eqb eqn:E.
     + apply String.eqb_eq in E. subst.
       rewrite lookup_update_involutive in H4.
       discriminate H4.
+    + apply String.eqb_neq in E.
+      eapply (aux n id); eauto.
+  - destruct String.eqb eqn:E.
+    + apply String.eqb_eq in E. subst.
+      rewrite lookup_update_involutive in H4.
+      inversion H4. subst. auto.
+      admit.
+    + apply String.eqb_neq in E.
+      eapply (aux n id); eauto.
+  - destruct String.eqb eqn:E.
+    + apply String.eqb_eq in E. subst.
+      rewrite lookup_update_involutive in H4.
+      admit.
+    + apply String.eqb_neq in E.
+      eapply (aux n id); eauto.
+  - admit.
+  - apply T_LetVal.
+    specialize (IHt1 _ _ H6).
+    apply IHt1.
+    destruct String.eqb eqn:E.
+    + apply String.eqb_eq in E. subst.
+      eauto using aux2.
+    + apply String.eqb_neq in E.
+  - admit.
 Admitted.
 
 Lemma memory_weakening : forall D mt mt' Delta Gamma t T, 
