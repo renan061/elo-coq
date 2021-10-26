@@ -1,5 +1,4 @@
 From Coq Require Init.Nat.
-(* From Coq Require Import PeanoNat. *)
 
 From Elo Require Export Array.
 From Elo Require Export Map.
@@ -205,12 +204,12 @@ Inductive typeof {D : defs} {mt : memtyp} : (ctx * ctx) -> tm -> typ -> Prop :=
 Inductive well_typed : defs -> ctx -> tm -> Prop :=
   | T_DefVal : forall D m Delta Delta' id e E t T,
     Delta' = update Delta id (TY_ImmutRef E) ->
-    D / m / (Delta, nil)  |- e is E ->
-    D / m / (Delta', nil) |- t is T ->
+    D / m / (Delta, empty)  |- e is E ->
+    D / m / (Delta', empty) |- t is T ->
     D / Delta |- TM_LetVal id E e t
 
   | T_DefFun : forall D m Delta f p P b R t,
-    D  / m / (Delta, update nil p P) |- b is R ->
+    D  / m / (Delta, update empty p P) |- b is R ->
     update D f (TM_LetFun f p P b R TM_Nil) / Delta |- t ->
     D  / Delta |- TM_LetFun f p P b R t
 

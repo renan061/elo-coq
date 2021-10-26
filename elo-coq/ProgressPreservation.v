@@ -6,7 +6,7 @@ From Elo Require Export Core.
 
 Definition well_typed_memory D (mt : list typ) (m : mem) :=
   length mt = length m /\
-  (forall i, D / mt / (nil, nil) |- (get_tm m i) is (get_typ mt i)).
+  (forall i, D / mt / (empty, empty) |- (get_tm m i) is (get_typ mt i)).
 
 Inductive extends' : list typ -> list typ -> Prop :=
   | extends_nil : forall mt,
@@ -43,9 +43,8 @@ Proof.
   generalize dependent i.
   induction mt'; intros * Hlen Hext.
   - inversion Hlen.
-  - inversion Hext. destruct i.
-    + apply PeanoNat.Nat.lt_0_succ.
-    + eauto using Lt.lt_n_S, Lt.lt_S_n.
+  - inversion Hext. destruct i;
+    eauto using PeanoNat.Nat.lt_0_succ, Lt.lt_n_S, Lt.lt_S_n.
 Qed.
 
 Lemma extends_add : forall mt x,
@@ -63,7 +62,7 @@ Qed.
 Lemma assignment_preserves_memory_typing : forall D m mt t i,
   i < length mt ->
   well_typed_memory D mt m ->
-  D / mt / (nil, nil) |- t is (get_typ mt i) ->
+  D / mt / (empty, empty) |- t is (get_typ mt i) ->
   well_typed_memory D mt (set m i t).
 Proof.
   intros * Hi [Hlen Htype1] Htype2. split.
@@ -75,33 +74,6 @@ Proof.
     + apply PeanoNat.Nat.eqb_neq in E. subst.
       erewrite (get_set_i_neq_j TM_Nil); auto.
 Qed.
-
-Lemma aux : forall {A} (m : map A) k k' v v',
-  k <> k' ->
-  update (cons (k', v') m) k v = cons (k', v') (update m k v).
-Proof.
-  intros * H.
-  apply String.eqb_neq in H as Hneq.
-  induction m.
-  - unfold update, index_of. simpl. rewrite Hneq. reflexivity.
-  - unfold update, index_of in *. simpl.
-    rewrite Hneq in *.
-Admitted.
-
-Lemma lookup_update_involutive : forall {A} (m : map A) k v,
-  lookup (update m k v) k = Some v.
-Proof.
-  intros *. induction m.
-  - unfold lookup, update, index_of, Map.index_of', add.
-    simpl. rewrite String.eqb_refl. reflexivity.
-  - destruct a as [k' v']. destruct (String.eqb k k') eqn:E.
-    + apply String.eqb_eq in E. subst.
-      unfold lookup, update, index_of, Map.index_of'.
-      rewrite String.eqb_refl. simpl.
-      rewrite String.eqb_refl. reflexivity.
-    + unfold lookup, update, index_of, Map.index_of'.
-      rewrite E. simpl.
-Admitted.
 
 (* Lemma aux1 : forall {A} (m : map A) k v,
   lookup (update m k v) k = Some v.
