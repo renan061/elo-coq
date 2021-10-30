@@ -86,3 +86,17 @@ Proof.
   unfold update, update'.
   destruct (String.eqb k k') eqn:E1; intros; assumption.
 Qed.
+
+Lemma update_empty : forall {A} k1 k2 (v1 v2 : A),
+  k1 <> k2 ->
+  update (update empty k1 v1) k2 v2 includes (update empty k1 v1).
+Proof.
+  intros * Hneq.
+  unfold includes'. intros k v.
+  unfold update, Map.update'.
+  destruct (String.eqb k1 k) eqn:E1, (String.eqb k2 k) eqn:E2.
+  - apply String.eqb_eq in E1, E2. subst. contradiction.
+  - trivial.
+  - unfold empty, Map.empty'. intros F. inversion F.
+  - unfold empty, Map.empty'. intros F. inversion F.
+Qed.
