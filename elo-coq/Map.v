@@ -20,8 +20,8 @@ Definition lookup {A : Type} (m : map A) k := m k.
 
 (* Proofs *)
 
-Lemma lookup_update_involutive' : forall {A} (m : map A) k v,
-  update m k v k = Some v.
+Local Lemma lookup_update_involutive' : forall {A} (m : map A) k v,
+  (update m k v) k = Some v.
 Proof.
   intros.
   unfold update, Map.update'.
@@ -29,14 +29,27 @@ Proof.
   reflexivity.
 Qed.
 
+(* TODO : names *)
 Lemma lookup_update_involutive : forall {A} (m : map A) k v,
   lookup (update m k v) k = Some v.
 Proof.
-  unfold lookup.
-  intros.
+  unfold lookup. intros.
   apply lookup_update_involutive'.
 Qed.
 
+(* TODO : names *)
+Lemma lookup_update_idempotent : forall {A} (m : map A) k k' v,
+  k' <> k ->
+  lookup (update m k' v) k = lookup m k.
+Proof.
+  intros * H.
+  unfold lookup, update, update'.
+  destruct (String.eqb k' k) eqn:E.
+  - apply String.eqb_eq in E. contradiction.
+  - reflexivity.
+Qed.
+
+(* m includes m' *)
 Definition includes' {A} (m m' : map A) := forall k v,
   m' k = Some v -> m k = Some v.
 
@@ -54,3 +67,22 @@ Proof.
   - specialize (H k' v'). auto.
 Qed.
 
+Lemma update_permutation : forall {A} (m : map A) k1 k2 v1 v2,
+  k1 <> k2 ->
+  update (update m k1 v1) k2 v2 includes update (update m k2 v2) k1 v1.
+Proof.
+  unfold includes'. intros * H k v.
+  unfold update, update'.
+  destruct (String.eqb k1 k) eqn:E1;
+  destruct (String.eqb k2 k) eqn:E2;
+  auto.
+  apply String.eqb_eq in E1, E2. subst. contradiction.
+Qed.
+
+Lemma update_overwrite : forall {A} (m : map A) k v v',
+  update m k v includes update (update m k v') k v.
+Proof.
+  intros * k' m'.
+  unfold update, update'.
+  destruct (String.eqb k k') eqn:E1; intros; assumption.
+Qed.

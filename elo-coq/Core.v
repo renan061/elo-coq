@@ -11,12 +11,10 @@ Definition num := nat.
 Reserved Notation "'[' id ':=' x ']' t" (at level 20, id constr).
 Reserved Notation "D / m / t '-->' D' / m' / t'" (at level 40,
   m at next level, t at next level, D' at next level, m' at next level).
-Reserved Notation "Context '|-' t 'is' T" (at level 40,
-  t at next level).
-Reserved Notation "D / mt / Context '|-' t 'is' T" (at level 40,
-  mt at next level, Context at next level).
-Reserved Notation "D / Delta '|-' t" (at level 40,
-  Delta at next level).
+Reserved Notation "Gamma '|--' t 'is' T" (at level 40, t at next level).
+Reserved Notation "D / mt / Gamma '|--' t 'is' T" (at level 40,
+  mt at next level, Gamma at next level).
+Reserved Notation "D / Gamma '|--' t" (at level 40, Gamma at next level).
 
 (* Types *)
 
@@ -46,6 +44,7 @@ Inductive tm : Set :=
   | TM_LetFun : name -> name -> typ -> tm -> typ -> tm -> tm
   (* internal *)
   | TM_Loc : nat -> tm
+  | TM_Load : tm -> tm
   .
 
 (* Values *)
@@ -53,6 +52,7 @@ Inductive tm : Set :=
 Inductive value : tm -> Prop :=
   | V_Nil : value TM_Nil
   | V_Num : forall n, value (TM_Num n)
+  (* internal *)
   | V_Loc : forall i, value (TM_Loc i)
   .
 
@@ -68,8 +68,9 @@ Definition get_tm  := get TM_Nil.
 
 (* Operational Semantics *)
 
-Infix "=?" := String.eqb (at level 70, no associativity).
+Local Infix "=?" := String.eqb (at level 70, no associativity).
 
+(* [id := x] t *)
 Fixpoint subst (id : name) (x t : tm) : tm :=
   match t with
   | TM_Nil => t
@@ -82,9 +83,12 @@ Fixpoint subst (id : name) (x t : tm) : tm :=
     (if id =? id' then t' else ([id := x] t'))
   | TM_LetVar id' E e t' => TM_LetVar id' E ([id := x] e)
     (if id =? id' then t' else ([id := x] t'))
-  | TM_LetFun f p P block R t' => TM_LetFun f p P
-    (if id =? p then block else ([id := x] block)) R ([id := x] t')
+  | TM_LetFun f p P block R t' => 
+    TM_LetFun f p P
+      (if id =? p then block else ([id := x] block)) R
+      (if id =? f then t' else ([id := x] t'))
   | TM_Loc _ => t
+  | TM_Load t' => TM_Load ([id := x] t')
   end
   where "'[' id ':=' x ']' t" := (subst id x t).
 
@@ -111,6 +115,8 @@ Inductive step : defs -> mem -> tm -> defs -> mem -> tm -> Prop :=
     value e ->
     lookup D id = Some (TM_LetFun f p P block R TM_Nil) ->
     D / m / TM_Call id e --> D / m / [p := e] block
+    (* TODO O block avalia com o D local; fica com as definições erradas. *)
+    (* Criar um novo tipo indutivo para guardar as coisas das definições *)
 
   | ST_Seq1 : forall D m m' t1 t2 t,
     D / m / t1 --> D / m' / t2 ->
@@ -129,6 +135,7 @@ Inductive step : defs -> mem -> tm -> defs -> mem -> tm -> Prop :=
     value e ->
     D / m / TM_LetVal id E e t --> D / m' / [id := TM_Loc i] t
 
+  (* OK *)
   (*
   | ST_LetVal : forall D m id E e t,
     value e ->
@@ -148,79 +155,85 @@ Inductive step : defs -> mem -> tm -> defs -> mem -> tm -> Prop :=
     D' = update D f (TM_LetFun f p P b R TM_Nil) ->
     D / m / TM_LetFun f p P b R t --> D' / m / t
 
+  | ST_Load1 : forall D D' m m' t t',
+    D / m / t --> D' / m' / t' ->
+    D / m / TM_Load t --> D' / m' / TM_Load t'
+
+  | ST_Load : forall D m i,
+    D / m / TM_Load (TM_Loc i) --> D / m / (get_tm m i)
+
   where "D / m / t '-->' D' / m' / t'" := (step D m t D' m' t').
 
 (* Typing *)
 
-Inductive typeof {D : defs} {mt : memtyp} : (ctx * ctx) -> tm -> typ -> Prop :=
-  | T_Nil : forall Delta Gamma,
-    (Delta, Gamma) |- TM_Nil is TY_Void
+Inductive typeof {D : defs} {mt : memtyp} : ctx -> tm -> typ -> Prop :=
+  | T_Nil : forall Gamma,
+    Gamma |-- TM_Nil is TY_Void
 
-  | T_Num : forall Delta Gamma n,
-    (Delta, Gamma) |- (TM_Num n) is TY_Num
+  | T_Num : forall Gamma n,
+    Gamma |-- (TM_Num n) is TY_Num
 
-  | T_IdSharedVal : forall Delta Gamma id A,
-    lookup Delta id = Some (TY_ImmutRef A) ->
-    lookup Gamma id = None ->
-    (Delta, Gamma) |- (TM_Id id) is (TY_ImmutRef A)
-
-  | T_IdLocalVal : forall Delta Gamma id A,
-    lookup Delta id = None ->
+  | T_Id_Val : forall Gamma id A,
     lookup Gamma id = Some (TY_ImmutRef A) ->
-    (Delta, Gamma) |- (TM_Id id) is (TY_ImmutRef A)
+    Gamma |-- (TM_Id id) is (TY_ImmutRef A)
 
-  | T_IdVar : forall Delta Gamma id A,
-    lookup Delta id = None ->
+  | T_Id_Var : forall Gamma id A,
     lookup Gamma id = Some (TY_Ref A) ->
-    (Delta, Gamma) |- (TM_Id id) is (TY_Ref A)
+    Gamma |-- (TM_Id id) is (TY_Ref A)
 
-  | T_Asg : forall Delta Gamma t e A,
-    (Delta, Gamma) |- t is (TY_Ref A) ->
-    (Delta, Gamma) |- e is A ->
-    (Delta, Gamma) |- (TM_Asg t e) is TY_Void
+  | T_Asg : forall Gamma t e A,
+    Gamma |-- t is (TY_Ref A) ->
+    Gamma |-- e is A ->
+    Gamma |-- (TM_Asg t e) is TY_Void
 
-  | T_Call : forall Delta Gamma id e f p P block R,
+  | T_Call : forall Gamma id e f p P block R,
     lookup D id = Some (TM_LetFun f p P block R TM_Nil) ->
-    (Delta, Gamma) |- e is P ->
-    (Delta, update Gamma p P) |- block is R -> (* TODO *)
-    (Delta, Gamma) |- (TM_Call id e) is R
+    Gamma |-- e is P ->    
+    Gamma |-- (TM_Call id e) is R
 
-  | T_Seq : forall Delta Gamma t t' A,
-    (Delta, Gamma) |- t is TY_Void ->
-    (Delta, Gamma) |- t' is A ->
-    (Delta, Gamma) |- (TM_Seq t t') is A
+  | T_Seq : forall Gamma t t' A,
+    Gamma |-- t  is TY_Void ->
+    Gamma |-- t' is A ->
+    Gamma |-- (TM_Seq t t') is A
 
-  | T_LetVal : forall Delta Gamma id e t A B,
-    (Delta, Gamma)  |- e is A ->
-    (Delta, update Gamma id (TY_ImmutRef A)) |- t is B ->
-    (Delta, Gamma)  |- (TM_LetVal id A e t) is B
+  | T_LetVal : forall Gamma id e t A B,
+    Gamma  |-- e is A ->
+    (update Gamma id (TY_ImmutRef A)) |-- t is B ->
+    Gamma  |-- (TM_LetVal id A e t) is B
 
-  | T_LetVar : forall Delta Gamma Gamma' id e t A B,
-    Gamma' = update Gamma id (TY_Ref A) ->
-    (Delta, Gamma)  |- e is A ->
-    (Delta, Gamma') |- t is B ->
-    (Delta, Gamma)  |- (TM_LetVar id A e t) is B
+  | T_LetVar : forall Gamma id e t A B,
+    Gamma  |-- e is A ->
+    (update Gamma id (TY_Ref A)) |-- t is B ->
+    Gamma  |-- (TM_LetVar id A e t) is B
 
-  | T_Loc : forall Delta Gamma i,
-    i < length mt ->
-    (Delta, Gamma) |- (TM_Loc i) is TY_Ref (get_typ mt i)
+  | T_Loc : forall Gamma i,
+    i < length mt -> (* TODO *)
+    Gamma |-- (TM_Loc i) is TY_Ref (get_typ mt i)
 
-  where "Context '|-' t 'is' T" := (typeof Context t T)
-  and "D / mt / Context '|-' t 'is' T" := (@typeof D mt Context t T).
+  | T_Load_Ref : forall Gamma t A,
+    Gamma |-- t is TY_Ref A ->
+    Gamma |-- (TM_Load t) is A
+
+  | T_Load_ImmutRef : forall Gamma t A,
+    Gamma |-- t is TY_ImmutRef A ->
+    Gamma |-- (TM_Load t) is A
+
+  where "Gamma '|--' t 'is' T" := (typeof Gamma t T)
+  and "D / mt / Gamma '|--' t 'is' T" := (@typeof D mt Gamma t T).
 
 Inductive well_typed : defs -> ctx -> tm -> Prop :=
-  | T_DefVal : forall D m Delta Delta' id e E t T,
-    Delta' = update Delta id (TY_ImmutRef E) ->
-    D / m / (Delta, empty)  |- e is E ->
-    D / m / (Delta', empty) |- t is T ->
-    D / Delta |- TM_LetVal id E e t
+  | T_DefVal : forall D m Gamma Gamma' id e E t T,
+    Gamma' = update Gamma id (TY_ImmutRef E) ->
+    D / m / Gamma  |-- e is E ->
+    D / m / Gamma' |-- t is T ->
+    D / Gamma |-- TM_LetVal id E e t
 
-  | T_DefFun : forall D m Delta f p P b R t,
-    D  / m / (Delta, update empty p P) |- b is R ->
-    update D f (TM_LetFun f p P b R TM_Nil) / Delta |- t ->
-    D  / Delta |- TM_LetFun f p P b R t
+  | T_DefFun : forall D m Gamma f p P b R t,
+    D  / m / (update empty p P) |-- b is R ->
+    update D f (TM_LetFun f p P b R TM_Nil) / Gamma |-- t ->
+    D  / Gamma |-- TM_LetFun f p P b R t
 
-  where "D / Delta '|-' t" := (well_typed D Delta t).
+  where "D / Gamma '|--' t" := (well_typed D Gamma t).
 
 (* Proofs *)
 
@@ -240,22 +253,39 @@ Proof.
   induction Hstep1;
   intros * Hstep2;
   inversion Hstep2; subst;
-  try solve
+  solve
     [ exfalso; eapply value_does_not_step; eauto
     | reflexivity 
     | inversion Hstep1
-    | match goal with [H : context F [_ = _] |- _] => erewrite H; auto end
     | congruence
+    | match goal with
+      | F : _ / _ / TM_Loc _ --> _ / _ / _ |- _ => inversion F
+      | F : _ / _ / TM_Nil   --> _ / _ / _ |- _ => inversion F
+      | H : forall x, _ / _ / _ --> _ / _ / x -> _ = x |- _ => erewrite H; eauto
+      end
     ].
-  - inversion H9. (* TODO *)
-  - inversion H6. (* TODO *)
 Qed.
 
-Theorem deterministic_typing : forall D mt Delta Gamma t X Y,
-  D / mt / (Delta, Gamma) |- t is X ->
-  D / mt / (Delta, Gamma) |- t is Y ->
+Theorem deterministic_typing : forall D mt Gamma t X Y,
+  D / mt / Gamma |-- t is X ->
+  D / mt / Gamma |-- t is Y ->
   X = Y.
 Proof.
-  intros * HX HY.
-  induction HX; inversion HY; subst; try auto; try congruence.
+  assert (forall A B, TY_Ref A = TY_Ref B -> A = B). congruence.
+  assert (forall A B, TY_ImmutRef A = TY_ImmutRef B -> A = B). congruence.
+  assert (iref_neq_ref : forall A B, TY_ImmutRef A <> TY_Ref B). congruence.
+  assert (ref_neq_iref : forall A B, TY_Ref A <> TY_ImmutRef B). congruence.
+
+  intros * HX.
+  generalize dependent Y.
+  induction HX; intros Y HY;
+  inversion HY; subst; try solve [congruence | auto];
+  match goal with H : context [?C _ = _] |- _ = _ =>
+    exfalso;
+    match C with
+    | TY_Ref => eapply ref_neq_iref
+    | TY_ImmutRef => eapply iref_neq_ref
+    end;
+    eauto
+  end.
 Qed.
