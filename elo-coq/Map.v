@@ -1,5 +1,6 @@
 From Coq Require Import Strings.String.
 From Coq Require Import Lists.List.
+
 From Elo Require Export Array.
 
 Local Definition map' (A : Type) := string -> A. (* total map *)
@@ -87,6 +88,7 @@ Proof.
   destruct (String.eqb k k') eqn:E1; intros; assumption.
 Qed.
 
+(* unused *)
 Lemma update_empty : forall {A} k1 k2 (v1 v2 : A),
   k1 <> k2 ->
   update (update empty k1 v1) k2 v2 includes (update empty k1 v1).

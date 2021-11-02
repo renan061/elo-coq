@@ -2,11 +2,30 @@ From Elo Require Export Array.
 From Elo Require Export Map.
 From Elo Require Export Core.
 
+Ltac splits n :=
+  match n with
+  | O => fail
+  | S O => idtac
+  | S ?n' => split; [| splits n']
+  end.
+
 (* Auxiliary Lemmas *)
 
 Definition well_typed_memory (mt : list typ) (m : mem) :=
   length mt = length m /\
   (forall i, mt / empty |-- (get_tm m i) is (get_typ mt i)).
+
+Lemma add_preserves_well_typed_memory : forall mt m t T,
+  well_typed_memory mt m ->
+  mt / empty |-- t is T ->
+  well_typed_memory (add mt T) (add m t).
+Proof.
+  unfold well_typed_memory.
+  intros * [Hlen H] Htype.
+  split.
+  - auto using add_preserves_length.
+  - intros i. specialize (H i).
+Admitted.
 
 Inductive extends' : list typ -> list typ -> Prop :=
   | extends_nil : forall mt,
@@ -121,47 +140,41 @@ Proof.
       rewrite lookup_update_involutive in H1.
       inversion H1. subst.
       apply context_weakening_empty. assumption.
-    + apply T_Id_Val.
-      rewrite <- H1.
-      apply String.eqb_neq in E.
-      symmetry. apply lookup_update_idempotent. assumption.
+    + apply String.eqb_neq in E.
+      apply T_Id_Val. rewrite <- H1. symmetry.
+      apply (lookup_update_idempotent _ _ _ _ E).
   - destruct String.eqb eqn:E.
     + apply String.eqb_eq in E. subst.
       apply context_weakening_empty.
-      rewrite lookup_update_involutive in H1.
-      inversion H1. subst.
-      assumption.
+      rewrite lookup_update_involutive in H1. congruence.
     + apply String.eqb_neq in E.
-      apply T_Id_Var.
-      rewrite <- H1.
-      symmetry. apply lookup_update_idempotent.
-      assumption.
-  - destruct String.eqb eqn:E in *; apply T_LetVal; eauto.
+      apply T_Id_Var. rewrite <- H1. symmetry.
+      apply (lookup_update_idempotent _ _ _ _ E).
+  - destruct String.eqb eqn:E; apply T_LetVal; eauto.
     + apply String.eqb_eq in E. subst.
       eauto using context_weakening, update_overwrite.
     + apply String.eqb_neq in E.
       eauto using context_weakening, update_permutation.
-  - destruct String.eqb eqn:E in *; apply T_LetVar; eauto.
+  - destruct String.eqb eqn:E; apply T_LetVar; eauto.
     + apply String.eqb_eq in E. subst.
       eauto using context_weakening, update_overwrite.
     + apply String.eqb_neq in E.
       eauto using context_weakening, update_permutation.
-  - apply T_LetFun.
-    + destruct String.eqb eqn:E.
-      * apply String.eqb_eq in E. subst.
-        eauto using context_weakening, update_overwrite.
-      * apply String.eqb_neq in E.
-        eauto using context_weakening, update_permutation.
-    + destruct String.eqb eqn:E.
-      * apply String.eqb_eq in E. subst.
-        eauto using context_weakening, update_overwrite.
-      * apply String.eqb_neq in E.
-        eauto using context_weakening, update_permutation.
+  - destruct String.eqb eqn:E; eapply T_LetFun; eauto.
+    + apply String.eqb_eq in E. subst.
+      eauto using context_weakening, update_overwrite.
+    + apply String.eqb_neq in E.
+      eauto using context_weakening, update_permutation.
+  - destruct String.eqb eqn:E; apply T_Fun.
+    + apply String.eqb_eq in E. subst.
+      eauto using context_weakening, update_overwrite.
+    + apply String.eqb_neq in E.
+      eauto using context_weakening, update_permutation.
 Qed.
 
-Lemma length_add : forall {A B} (l1 : list A) (l2 : list B) a b,
-  length l1 = length l2 ->
-  length (add l1 a) = length (add l2 b).
+(* TODO *)
+Lemma get_add_last : forall {A} default (l : list A) a,
+  get default (add l a) (length l) = a.
 Proof.
 Admitted.
 
@@ -177,58 +190,73 @@ Proof.
   remember empty as Gamma.
   intros * Htype.
   generalize dependent t'.
-  induction Htype; intros ?t' Hmem Hstep;
+  generalize dependent m'.
+  induction Htype;
+  intros m' ?t' Hmem Hstep;
   inversion Hstep; subst.
   (* T_Asg *)
-  * eapply IHHtype2 in H4; trivial.
-    destruct H4 as [mt' [Hext [Htype' Hmem']]].
-    exists mt'. split; try split; eauto using memory_weakening, T_Asg.
-  * eapply IHHtype1 in H5; trivial.
-    destruct H5 as [mt' [Hext [Htype' Hmem']]].
-    exists mt'. split; try split; eauto using memory_weakening, T_Asg.
-  * exists mt. split. apply extends_refl. split. apply T_Nil.
+  - eapply IHHtype2 in H4; trivial.
+    destruct H4 as [mt' [? [? ?]]].
+    exists mt'. splits 3; eauto using memory_weakening, T_Asg.
+  - eapply IHHtype1 in H5; trivial.
+    destruct H5 as [mt' [? [? ?]]].
+    exists mt'. splits 3; eauto using memory_weakening, T_Asg.
+  - exists mt. splits 3; auto using extends_refl, T_Nil.
     eapply assignment_preserves_memory_typing; auto.
     inversion Htype1. subst. eauto.
   (* T_Call *)
-  * eapply IHHtype2 in H4; trivial.
-    destruct H4 as [mt' [Hextends [Htype' Hmem']]].
-    exists mt'. split; trivial.
-    split; try eapply T_Call; eauto using memory_weakening.
-  * exists mt. inversion Htype1. subst.
-    split; only 1 : apply extends_refl.
-    split; only 2 : trivial.
+  - eapply IHHtype2 in H4; trivial.
+    destruct H4 as [mt' [? [? ?]]].
+    exists mt'. splits 3; trivial.
+    eapply T_Call; eauto using memory_weakening.
+  - eapply IHHtype1 in H5; trivial.
+    destruct H5 as [mt' [? [? ?]]].
+    exists mt'. splits 3; trivial.
+    eauto using T_Call, memory_weakening.
+  - exists mt. splits 3; auto using extends_refl.
+    inversion Htype1. subst.
     eapply substitution_preserves_typing; eauto.
-    admit.
   (* T_Seq *)
-  * specialize (IHHtype1 eq_refl t2 Hmem H4).
-    destruct IHHtype1 as [mt' [? [? ?]]].
-    exists mt'. split. assumption.
-    split; eauto using T_Seq, memory_weakening.
-  * exists mt. split. apply extends_refl. split; assumption.
+  - eapply IHHtype1 in H4; trivial.
+    destruct H4 as [mt' [? [? ?]]].
+    exists mt'. splits 3; eauto using T_Seq, memory_weakening.
+  - exists mt. splits 3; auto using extends_refl.
   (* T_LetVal *)
-  * specialize (IHHtype1 eq_refl e' Hmem H6).
-    destruct IHHtype1 as [mt' [Hextends [Htype' Hmem']]].
-    exists mt'. split. assumption.
-    split; eauto using T_LetVal, memory_weakening.
-  * exists mt. split. apply extends_refl. split; auto.
+  - eapply IHHtype1 in H6; trivial.
+    destruct H6 as [mt' [? [? ?]]].
+    exists mt'. splits 3; eauto using T_LetVal, memory_weakening.
+  - exists mt. splits 3; auto using extends_refl.
     eapply substitution_preserves_typing; eauto.
   (* T_LetVar *)
-  * specialize (IHHtype1 eq_refl e' Hmem H6).
-    destruct IHHtype1 as [mt' [Hextends [Htype' Hmem']]].
-    exists mt'. split. assumption.
-    split; eauto using T_LetVar, memory_weakening.
-  * exists (add mt E). split. apply extends_add. split.
-    ** admit.
-    ** destruct Hmem as [Hlen Htype]. admit. (* easy *)
-  * admit.
-  * admit.
-  * admit.
-  * admit.
-  * admit.
+  - eapply IHHtype1 in H6; trivial.
+    destruct H6 as [mt' [? [? ?]]].
+    exists mt'. splits 3; trivial.
+    eauto using T_LetVar, memory_weakening.
+  - exists (add mt E). inversion Hmem.
+    splits 3; auto using extends_add, add_preserves_well_typed_memory.
+    eapply substitution_preserves_typing.
+    + eauto using extends_add, memory_weakening.
+    + rewrite <- H.
+      assert (TY_Ref E = TY_Ref (get_typ (add mt E) (length mt))).
+      { unfold get_typ. rewrite (get_add_last TY_Void). reflexivity. }
+      rewrite H1. auto using T_Loc, length_l_lt_add.
+  (* T_LetFun *)
+  - exists mt. splits 3; auto using extends_refl.
+    eapply substitution_preserves_typing; eauto.
+  (* T_Load *)
+  - apply IHHtype in H1; trivial.
+    destruct H1 as [mt' [? [? ?]]].
+    exists mt'. splits 3; auto using T_Load_Ref.
+  - exists mt. splits 3; auto using extends_refl.
+    inversion Htype. destruct Hmem. auto.
+  - apply IHHtype in H1; trivial.
+    destruct H1 as [mt' [? [? ?]]].
+    exists mt'. splits 3; auto using T_Load_ImmutRef.
+  - inversion Htype.
 Admitted.
 
-Theorem progress : forall D m mt t T,
-  D / mt / empty |-- t is T ->
-  well_typed_memory D mt m ->
-  (value t \/ exists D' m' t', D / m / t --> D' / m' / t').
+Theorem progress : forall m mt t T,
+  mt / empty |-- t is T ->
+  well_typed_memory mt m ->
+  (value t \/ exists m' t', m / t --> m' / t').
 Admitted.

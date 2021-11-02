@@ -31,6 +31,20 @@ Proof.
   - destruct i; simpl; auto using Lt.lt_S_n.
 Qed.
 
+Lemma add_preserves_length : forall {A1 A2} (l1 : list A1) (l2 : list A2) a1 a2,
+  length l1 = length l2 ->
+  length (add l1 a1) = length (add l2 a2).
+Proof.
+  intros * H. unfold add. rewrite 2 last_length. auto.
+Qed.
+
+Lemma length_l_lt_add : forall {A} (l : list A) a,
+  length l < length (add l a).
+Proof.
+  intros *. unfold add. rewrite last_length.
+  auto using PeanoNat.Nat.lt_succ_diag_r.
+Qed.
+
 Lemma get_set_involutive : forall {A} default (l : list A) i a,
   i < length l ->
   get default (set l i a) i = a.
@@ -64,5 +78,5 @@ Proof.
   - reflexivity.
   - destruct i, j; try (contradiction || reflexivity).
     assert (H : forall n y ys, get d (y :: ys) (S n) = get d ys n). { auto. }
-    simpl. rewrite 2 H. auto using Hdiff.
+    simpl. rewrite 2 H. auto.
 Qed.

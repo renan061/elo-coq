@@ -1,4 +1,4 @@
-DIGEST 38a68fdd823507f78fe6672bd5737c22
+DIGEST ebc994fe2da3c84f42b83ef1a0c1f9f6
 FElo.Core
 R17:24 Coq.Init.Nat <> <> lib
 R52:56 Elo.Array <> <> lib
@@ -34,9 +34,9 @@ constr 916:921 <> TM_Seq
 constr 964:972 <> TM_LetVal
 constr 1010:1018 <> TM_LetVar
 constr 1056:1064 <> TM_LetFun
-constr 1134:1139 <> TM_Loc
-constr 1157:1163 <> TM_Load
-constr 1180:1185 <> TM_Fun
+constr 1125:1130 <> TM_Loc
+constr 1148:1154 <> TM_Load
+constr 1171:1176 <> TM_Fun
 R806:809 Coq.Init.Logic <> ::type_scope:x_'->'_x not
 R803:805 Elo.Core <> num def
 R810:811 Elo.Core <> tm:3 ind
@@ -78,1087 +78,1134 @@ R1043:1044 Elo.Core <> tm:3 ind
 R1049:1050 Elo.Core <> tm:3 ind
 R1072:1075 Coq.Init.Logic <> ::type_scope:x_'->'_x not
 R1068:1071 Elo.Core <> name def
-R1080:1083 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R1076:1079 Elo.Core <> name def
-R1087:1090 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R1084:1086 Elo.Core <> typ ind
-R1093:1096 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R1091:1092 Elo.Core <> tm:3 ind
-R1100:1103 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R1097:1099 Elo.Core <> typ ind
-R1106:1109 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R1104:1105 Elo.Core <> tm:3 ind
-R1110:1111 Elo.Core <> tm:3 ind
-R1146:1149 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R1143:1145 Coq.Init.Datatypes <> nat ind
-R1150:1151 Elo.Core <> tm:3 ind
-R1169:1172 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R1167:1168 Elo.Core <> tm:3 ind
-R1173:1174 Elo.Core <> tm:3 ind
-R1193:1196 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R1189:1192 Elo.Core <> name def
-R1200:1203 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R1197:1199 Elo.Core <> typ ind
-R1206:1209 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R1204:1205 Elo.Core <> tm:3 ind
-R1213:1216 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R1210:1212 Elo.Core <> typ ind
-R1217:1218 Elo.Core <> tm:3 ind
-ind 1249:1253 <> value
-constr 1275:1279 <> V_Nil
-constr 1300:1304 <> V_Num
-constr 1356:1360 <> V_Loc
-constr 1395:1399 <> V_Fun
-R1259:1262 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R1257:1258 Elo.Core <> tm ind
-R1283:1287 Elo.Core <> value:5 ind
-R1289:1294 Elo.Core <> TM_Nil constr
-binder 1315:1315 <> n:7
-R1318:1322 Elo.Core <> value:5 ind
-R1325:1330 Elo.Core <> TM_Num constr
-R1332:1332 Elo.Core <> n:7 var
-binder 1371:1371 <> i:8
-R1374:1378 Elo.Core <> value:5 ind
-R1381:1386 Elo.Core <> TM_Loc constr
-R1388:1388 Elo.Core <> i:8 var
-binder 1410:1410 <> p:9
-binder 1412:1412 <> P:10
-binder 1414:1418 <> block:11
-binder 1420:1420 <> R:12
-R1423:1427 Elo.Core <> value:5 ind
-R1430:1435 Elo.Core <> TM_Fun constr
-R1437:1437 Elo.Core <> p:9 var
-R1439:1439 Elo.Core <> P:10 var
-R1441:1445 Elo.Core <> block:11 var
-R1447:1447 Elo.Core <> R:12 var
-def 1491:1493 <> ctx
-R1498:1500 Elo.Map <> map def
-R1502:1504 Elo.Core <> typ ind
-def 1518:1520 <> mem
-R1525:1528 Coq.Init.Datatypes <> list ind
-R1530:1531 Elo.Core <> tm ind
-def 1545:1551 <> mem_typ
-R1556:1559 Coq.Init.Datatypes <> list ind
-R1561:1563 Elo.Core <> typ ind
-def 1578:1584 <> get_typ
-R1589:1591 Elo.Array <> get def
-R1593:1599 Elo.Core <> TY_Void constr
-def 1613:1618 <> get_tm
-R1624:1626 Elo.Array <> get def
-R1628:1633 Elo.Core <> TM_Nil constr
-R1686:1695 Coq.Strings.String <> eqb def
-not 1678:1678 <> :::x_'=?'_x
-def 1740:1744 <> subst
-R1752:1755 Elo.Core <> name def
-binder 1747:1748 <> id:13
-R1765:1766 Elo.Core <> tm ind
-binder 1759:1759 <> x:14
-binder 1761:1761 <> t:15
-R1771:1772 Elo.Core <> tm ind
-R2524:2528 Elo.Core <> subst:16 def
-R1785:1785 Elo.Core <> t:15 var
-R1796:1801 Elo.Core <> TM_Nil constr
-R1806:1806 Elo.Core <> t:15 var
-R1812:1817 Elo.Core <> TM_Num constr
-R1824:1824 Elo.Core <> t:15 var
-R1830:1834 Elo.Core <> TM_Id constr
-R1848:1851 Elo.Core <> :::x_'=?'_x not
-R1846:1847 Elo.Core <> id:13 var
-R1868:1868 Elo.Core <> t:15 var
-R1861:1861 Elo.Core <> x:14 var
-R1874:1879 Elo.Core <> TM_Asg constr
-R1889:1894 Elo.Core <> TM_Asg constr
-R1897:1897 Elo.Core <> :::'['_x_':='_x_']'_x not
-R1900:1903 Elo.Core <> :::'['_x_':='_x_']'_x not
-R1905:1906 Elo.Core <> :::'['_x_':='_x_']'_x not
-R1898:1899 Elo.Core <> id:13 var
-R1904:1904 Elo.Core <> x:14 var
-R1912:1912 Elo.Core <> :::'['_x_':='_x_']'_x not
-R1915:1918 Elo.Core <> :::'['_x_':='_x_']'_x not
-R1920:1921 Elo.Core <> :::'['_x_':='_x_']'_x not
-R1913:1914 Elo.Core <> id:13 var
-R1919:1919 Elo.Core <> x:14 var
-R1929:1935 Elo.Core <> TM_Call constr
-R1944:1950 Elo.Core <> TM_Call constr
-R1953:1953 Elo.Core <> :::'['_x_':='_x_']'_x not
-R1956:1959 Elo.Core <> :::'['_x_':='_x_']'_x not
-R1961:1962 Elo.Core <> :::'['_x_':='_x_']'_x not
-R1954:1955 Elo.Core <> id:13 var
-R1960:1960 Elo.Core <> x:14 var
-R1967:1967 Elo.Core <> :::'['_x_':='_x_']'_x not
-R1970:1973 Elo.Core <> :::'['_x_':='_x_']'_x not
-R1975:1976 Elo.Core <> :::'['_x_':='_x_']'_x not
-R1968:1969 Elo.Core <> id:13 var
-R1974:1974 Elo.Core <> x:14 var
-R1984:1989 Elo.Core <> TM_Seq constr
-R2000:2005 Elo.Core <> TM_Seq constr
-R2008:2008 Elo.Core <> :::'['_x_':='_x_']'_x not
-R2011:2014 Elo.Core <> :::'['_x_':='_x_']'_x not
-R2016:2017 Elo.Core <> :::'['_x_':='_x_']'_x not
-R2009:2010 Elo.Core <> id:13 var
-R2015:2015 Elo.Core <> x:14 var
-R2023:2023 Elo.Core <> :::'['_x_':='_x_']'_x not
-R2026:2029 Elo.Core <> :::'['_x_':='_x_']'_x not
-R2031:2032 Elo.Core <> :::'['_x_':='_x_']'_x not
-R2024:2025 Elo.Core <> id:13 var
-R2030:2030 Elo.Core <> x:14 var
-R2041:2049 Elo.Core <> TM_LetVal constr
-R2065:2073 Elo.Core <> TM_LetVal constr
-R2082:2082 Elo.Core <> :::'['_x_':='_x_']'_x not
-R2085:2088 Elo.Core <> :::'['_x_':='_x_']'_x not
-R2090:2091 Elo.Core <> :::'['_x_':='_x_']'_x not
-R2083:2084 Elo.Core <> id:13 var
-R2089:2089 Elo.Core <> x:14 var
-R2105:2108 Elo.Core <> :::x_'=?'_x not
-R2103:2104 Elo.Core <> id:13 var
-R2127:2127 Elo.Core <> :::'['_x_':='_x_']'_x not
-R2130:2133 Elo.Core <> :::'['_x_':='_x_']'_x not
-R2135:2136 Elo.Core <> :::'['_x_':='_x_']'_x not
-R2128:2129 Elo.Core <> id:13 var
-R2134:2134 Elo.Core <> x:14 var
-R2146:2154 Elo.Core <> TM_LetVar constr
-R2170:2178 Elo.Core <> TM_LetVar constr
-R2187:2187 Elo.Core <> :::'['_x_':='_x_']'_x not
-R2190:2193 Elo.Core <> :::'['_x_':='_x_']'_x not
-R2195:2196 Elo.Core <> :::'['_x_':='_x_']'_x not
-R2188:2189 Elo.Core <> id:13 var
-R2194:2194 Elo.Core <> x:14 var
-R2210:2213 Elo.Core <> :::x_'=?'_x not
-R2208:2209 Elo.Core <> id:13 var
-R2232:2232 Elo.Core <> :::'['_x_':='_x_']'_x not
-R2235:2238 Elo.Core <> :::'['_x_':='_x_']'_x not
-R2240:2241 Elo.Core <> :::'['_x_':='_x_']'_x not
-R2233:2234 Elo.Core <> id:13 var
-R2239:2239 Elo.Core <> x:14 var
-R2251:2259 Elo.Core <> TM_LetFun constr
-R2283:2291 Elo.Core <> TM_LetFun constr
-R2311:2314 Elo.Core <> :::x_'=?'_x not
-R2309:2310 Elo.Core <> id:13 var
-R2334:2334 Elo.Core <> :::'['_x_':='_x_']'_x not
-R2337:2340 Elo.Core <> :::'['_x_':='_x_']'_x not
-R2342:2343 Elo.Core <> :::'['_x_':='_x_']'_x not
-R2335:2336 Elo.Core <> id:13 var
-R2341:2341 Elo.Core <> x:14 var
-R2364:2367 Elo.Core <> :::x_'=?'_x not
-R2362:2363 Elo.Core <> id:13 var
+R1079:1082 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1076:1078 Elo.Core <> typ ind
+R1085:1088 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1083:1084 Elo.Core <> tm:3 ind
+R1091:1094 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1089:1090 Elo.Core <> tm:3 ind
+R1095:1096 Elo.Core <> tm:3 ind
+R1137:1140 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1134:1136 Coq.Init.Datatypes <> nat ind
+R1141:1142 Elo.Core <> tm:3 ind
+R1160:1163 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1158:1159 Elo.Core <> tm:3 ind
+R1164:1165 Elo.Core <> tm:3 ind
+R1184:1187 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1180:1183 Elo.Core <> name def
+R1191:1194 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1188:1190 Elo.Core <> typ ind
+R1197:1200 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1195:1196 Elo.Core <> tm:3 ind
+R1204:1207 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1201:1203 Elo.Core <> typ ind
+R1208:1209 Elo.Core <> tm:3 ind
+ind 1240:1244 <> value
+constr 1266:1270 <> V_Nil
+constr 1291:1295 <> V_Num
+constr 1347:1351 <> V_Loc
+constr 1386:1390 <> V_Fun
+R1250:1253 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1248:1249 Elo.Core <> tm ind
+R1274:1278 Elo.Core <> value:5 ind
+R1280:1285 Elo.Core <> TM_Nil constr
+binder 1306:1306 <> n:7
+R1309:1313 Elo.Core <> value:5 ind
+R1316:1321 Elo.Core <> TM_Num constr
+R1323:1323 Elo.Core <> n:7 var
+binder 1362:1362 <> i:8
+R1365:1369 Elo.Core <> value:5 ind
+R1372:1377 Elo.Core <> TM_Loc constr
+R1379:1379 Elo.Core <> i:8 var
+binder 1401:1401 <> p:9
+binder 1403:1403 <> P:10
+binder 1405:1409 <> block:11
+binder 1411:1411 <> R:12
+R1414:1418 Elo.Core <> value:5 ind
+R1421:1426 Elo.Core <> TM_Fun constr
+R1428:1428 Elo.Core <> p:9 var
+R1430:1430 Elo.Core <> P:10 var
+R1432:1436 Elo.Core <> block:11 var
+R1438:1438 Elo.Core <> R:12 var
+def 1482:1484 <> ctx
+R1489:1491 Elo.Map <> map def
+R1493:1495 Elo.Core <> typ ind
+def 1509:1511 <> mem
+R1516:1519 Coq.Init.Datatypes <> list ind
+R1521:1522 Elo.Core <> tm ind
+def 1536:1542 <> mem_typ
+R1547:1550 Coq.Init.Datatypes <> list ind
+R1552:1554 Elo.Core <> typ ind
+def 1569:1575 <> get_typ
+R1580:1582 Elo.Array <> get def
+R1584:1590 Elo.Core <> TY_Void constr
+def 1604:1609 <> get_tm
+R1615:1617 Elo.Array <> get def
+R1619:1624 Elo.Core <> TM_Nil constr
+R1677:1686 Coq.Strings.String <> eqb def
+not 1669:1669 <> :::x_'=?'_x
+def 1731:1735 <> subst
+R1743:1746 Elo.Core <> name def
+binder 1738:1739 <> id:13
+R1756:1757 Elo.Core <> tm ind
+binder 1750:1750 <> x:14
+binder 1752:1752 <> t:15
+R1762:1763 Elo.Core <> tm ind
+R2520:2524 Elo.Core <> subst:16 def
+R1776:1776 Elo.Core <> t:15 var
+R1787:1792 Elo.Core <> TM_Nil constr
+R1797:1797 Elo.Core <> t:15 var
+R1803:1808 Elo.Core <> TM_Num constr
+R1815:1815 Elo.Core <> t:15 var
+R1821:1825 Elo.Core <> TM_Id constr
+R1839:1842 Elo.Core <> :::x_'=?'_x not
+R1837:1838 Elo.Core <> id:13 var
+R1859:1859 Elo.Core <> t:15 var
+R1852:1852 Elo.Core <> x:14 var
+R1865:1870 Elo.Core <> TM_Asg constr
+R1880:1885 Elo.Core <> TM_Asg constr
+R1888:1888 Elo.Core <> :::'['_x_':='_x_']'_x not
+R1891:1894 Elo.Core <> :::'['_x_':='_x_']'_x not
+R1896:1897 Elo.Core <> :::'['_x_':='_x_']'_x not
+R1889:1890 Elo.Core <> id:13 var
+R1895:1895 Elo.Core <> x:14 var
+R1903:1903 Elo.Core <> :::'['_x_':='_x_']'_x not
+R1906:1909 Elo.Core <> :::'['_x_':='_x_']'_x not
+R1911:1912 Elo.Core <> :::'['_x_':='_x_']'_x not
+R1904:1905 Elo.Core <> id:13 var
+R1910:1910 Elo.Core <> x:14 var
+R1920:1926 Elo.Core <> TM_Call constr
+R1935:1941 Elo.Core <> TM_Call constr
+R1944:1944 Elo.Core <> :::'['_x_':='_x_']'_x not
+R1947:1950 Elo.Core <> :::'['_x_':='_x_']'_x not
+R1952:1953 Elo.Core <> :::'['_x_':='_x_']'_x not
+R1945:1946 Elo.Core <> id:13 var
+R1951:1951 Elo.Core <> x:14 var
+R1958:1958 Elo.Core <> :::'['_x_':='_x_']'_x not
+R1961:1964 Elo.Core <> :::'['_x_':='_x_']'_x not
+R1966:1967 Elo.Core <> :::'['_x_':='_x_']'_x not
+R1959:1960 Elo.Core <> id:13 var
+R1965:1965 Elo.Core <> x:14 var
+R1975:1980 Elo.Core <> TM_Seq constr
+R1991:1996 Elo.Core <> TM_Seq constr
+R1999:1999 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2002:2005 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2007:2008 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2000:2001 Elo.Core <> id:13 var
+R2006:2006 Elo.Core <> x:14 var
+R2014:2014 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2017:2020 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2022:2023 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2015:2016 Elo.Core <> id:13 var
+R2021:2021 Elo.Core <> x:14 var
+R2032:2040 Elo.Core <> TM_LetVal constr
+R2056:2064 Elo.Core <> TM_LetVal constr
+R2073:2073 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2076:2079 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2081:2082 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2074:2075 Elo.Core <> id:13 var
+R2080:2080 Elo.Core <> x:14 var
+R2096:2099 Elo.Core <> :::x_'=?'_x not
+R2094:2095 Elo.Core <> id:13 var
+R2118:2118 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2121:2124 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2126:2127 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2119:2120 Elo.Core <> id:13 var
+R2125:2125 Elo.Core <> x:14 var
+R2137:2145 Elo.Core <> TM_LetVar constr
+R2161:2169 Elo.Core <> TM_LetVar constr
+R2178:2178 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2181:2184 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2186:2187 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2179:2180 Elo.Core <> id:13 var
+R2185:2185 Elo.Core <> x:14 var
+R2201:2204 Elo.Core <> :::x_'=?'_x not
+R2199:2200 Elo.Core <> id:13 var
+R2223:2223 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2226:2229 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2231:2232 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2224:2225 Elo.Core <> id:13 var
+R2230:2230 Elo.Core <> x:14 var
+R2242:2250 Elo.Core <> TM_LetFun constr
+R2266:2274 Elo.Core <> TM_LetFun constr
+R2283:2283 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2286:2289 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2291:2292 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2284:2285 Elo.Core <> id:13 var
+R2290:2290 Elo.Core <> x:14 var
+R2306:2309 Elo.Core <> :::x_'=?'_x not
+R2304:2305 Elo.Core <> id:13 var
+R2327:2327 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2330:2333 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2335:2336 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2328:2329 Elo.Core <> id:13 var
+R2334:2334 Elo.Core <> x:14 var
+R2345:2350 Elo.Core <> TM_Loc constr
+R2357:2357 Elo.Core <> t:15 var
+R2363:2369 Elo.Core <> TM_Load constr
+R2377:2383 Elo.Core <> TM_Load constr
 R2386:2386 Elo.Core <> :::'['_x_':='_x_']'_x not
 R2389:2392 Elo.Core <> :::'['_x_':='_x_']'_x not
 R2394:2395 Elo.Core <> :::'['_x_':='_x_']'_x not
 R2387:2388 Elo.Core <> id:13 var
 R2393:2393 Elo.Core <> x:14 var
-R2405:2410 Elo.Core <> TM_Loc constr
-R2417:2417 Elo.Core <> t:15 var
-R2423:2429 Elo.Core <> TM_Load constr
-R2437:2443 Elo.Core <> TM_Load constr
-R2446:2446 Elo.Core <> :::'['_x_':='_x_']'_x not
-R2449:2452 Elo.Core <> :::'['_x_':='_x_']'_x not
-R2454:2455 Elo.Core <> :::'['_x_':='_x_']'_x not
-R2447:2448 Elo.Core <> id:13 var
-R2453:2453 Elo.Core <> x:14 var
-R2464:2469 Elo.Core <> TM_Fun constr
-R2482:2482 Elo.Core <> t:15 var
-R2524:2528 Elo.Core <> subst def
-not 2498:2498 <> :::'['_x_':='_x_']'_x
-ind 2550:2553 <> step
-constr 2595:2601 <> ST_Asg1
-constr 2695:2701 <> ST_Asg2
-constr 2810:2815 <> ST_Asg
-constr 2926:2933 <> ST_Call1
-constr 3030:3036 <> ST_Call
-constr 3146:3152 <> ST_Seq1
-constr 3249:3254 <> ST_Seq
-constr 3309:3318 <> ST_LetVal1
-constr 3433:3441 <> ST_LetVal
-constr 3531:3540 <> ST_LetVar1
-constr 3655:3663 <> ST_LetVar
-constr 3794:3802 <> ST_LetFun
-constr 3910:3917 <> ST_Load1
-constr 4007:4013 <> ST_Load
-R2560:2563 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R2557:2559 Elo.Core <> mem def
-R2566:2569 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R2564:2565 Elo.Core <> tm ind
-R2573:2576 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R2570:2572 Elo.Core <> mem def
-R2579:2582 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R2577:2578 Elo.Core <> tm ind
-R4112:4115 Elo.Core <> step:19 ind
-binder 2612:2612 <> m:20
-binder 2614:2615 <> m':21
-binder 2617:2617 <> t:22
-binder 2619:2619 <> e:23
-binder 2621:2622 <> e':24
-R2646:2653 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R2630:2632 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R2634:2638 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R2641:2643 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R2629:2629 Elo.Core <> m:20 var
-R2633:2633 Elo.Core <> e:23 var
-R2639:2640 Elo.Core <> m':21 var
-R2644:2645 Elo.Core <> e':24 var
-R2655:2657 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R2668:2672 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R2675:2677 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R2654:2654 Elo.Core <> m:20 var
-R2658:2663 Elo.Core <> TM_Asg constr
-R2665:2665 Elo.Core <> t:22 var
-R2667:2667 Elo.Core <> e:23 var
-R2673:2674 Elo.Core <> m':21 var
-R2678:2683 Elo.Core <> TM_Asg constr
-R2685:2685 Elo.Core <> t:22 var
-R2687:2688 Elo.Core <> e':24 var
-binder 2712:2712 <> m:25
-binder 2714:2715 <> m':26
-binder 2717:2717 <> t:27
-binder 2719:2720 <> t':28
-binder 2722:2722 <> e:29
-R2736:2743 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R2729:2733 Elo.Core <> value ind
-R2735:2735 Elo.Core <> e:29 var
-R2761:2768 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R2745:2747 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R2749:2753 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R2756:2758 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R2744:2744 Elo.Core <> m:25 var
-R2748:2748 Elo.Core <> t:27 var
-R2754:2755 Elo.Core <> m':26 var
-R2759:2760 Elo.Core <> t':28 var
-R2770:2772 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R2783:2787 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R2790:2792 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R2769:2769 Elo.Core <> m:25 var
-R2773:2778 Elo.Core <> TM_Asg constr
-R2780:2780 Elo.Core <> t:27 var
-R2782:2782 Elo.Core <> e:29 var
-R2788:2789 Elo.Core <> m':26 var
-R2793:2798 Elo.Core <> TM_Asg constr
-R2800:2801 Elo.Core <> t':28 var
-R2803:2803 Elo.Core <> e:29 var
-binder 2826:2826 <> m:30
-binder 2828:2828 <> i:31
-binder 2830:2830 <> e:32
-R2844:2851 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R2837:2841 Elo.Core <> value ind
-R2843:2843 Elo.Core <> e:32 var
-R2864:2871 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R2853:2855 Coq.Init.Peano <> ::nat_scope:x_'<'_x not
-R2852:2852 Elo.Core <> i:31 var
-R2856:2861 Coq.Init.Datatypes <> length def
-R2863:2863 Elo.Core <> m:30 var
-R2873:2875 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R2895:2900 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R2910:2913 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R2872:2872 Elo.Core <> m:30 var
-R2876:2881 Elo.Core <> TM_Asg constr
-R2884:2889 Elo.Core <> TM_Loc constr
-R2891:2891 Elo.Core <> i:31 var
-R2894:2894 Elo.Core <> e:32 var
-R2901:2903 Elo.Array <> set def
-R2909:2909 Elo.Core <> e:32 var
-R2907:2907 Elo.Core <> i:31 var
-R2905:2905 Elo.Core <> m:30 var
-R2914:2919 Elo.Core <> TM_Nil constr
-binder 2944:2944 <> m:33
-binder 2946:2947 <> m':34
-binder 2949:2949 <> f:35
-binder 2951:2951 <> a:36
-binder 2953:2954 <> a':37
-R2978:2986 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R2962:2964 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R2966:2970 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R2973:2975 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R2961:2961 Elo.Core <> m:33 var
-R2965:2965 Elo.Core <> a:36 var
-R2971:2972 Elo.Core <> m':34 var
-R2976:2977 Elo.Core <> a':37 var
-R2988:2990 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3002:3006 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3009:3011 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R2987:2987 Elo.Core <> m:33 var
-R2991:2997 Elo.Core <> TM_Call constr
-R2999:2999 Elo.Core <> f:35 var
-R3001:3001 Elo.Core <> a:36 var
-R3007:3008 Elo.Core <> m':34 var
-R3012:3018 Elo.Core <> TM_Call constr
-R3020:3020 Elo.Core <> f:35 var
-R3022:3023 Elo.Core <> a':37 var
-binder 3047:3047 <> m:38
-binder 3049:3049 <> a:39
-binder 3051:3051 <> p:40
-binder 3053:3053 <> P:41
-binder 3055:3059 <> block:42
-binder 3061:3061 <> R:43
-R3075:3082 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R3068:3072 Elo.Core <> value ind
-R3074:3074 Elo.Core <> a:39 var
-R3084:3086 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3117:3121 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3123:3125 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3083:3083 Elo.Core <> m:38 var
-R3087:3093 Elo.Core <> TM_Call constr
-R3096:3101 Elo.Core <> TM_Fun constr
-R3103:3103 Elo.Core <> p:40 var
-R3105:3105 Elo.Core <> P:41 var
-R3107:3111 Elo.Core <> block:42 var
-R3113:3113 Elo.Core <> R:43 var
-R3116:3116 Elo.Core <> a:39 var
-R3122:3122 Elo.Core <> m:38 var
-R3126:3126 Elo.Core <> :::'['_x_':='_x_']'_x not
-R3128:3131 Elo.Core <> :::'['_x_':='_x_']'_x not
-R3133:3134 Elo.Core <> :::'['_x_':='_x_']'_x not
-R3127:3127 Elo.Core <> p:40 var
-R3132:3132 Elo.Core <> a:39 var
-R3135:3139 Elo.Core <> block:42 var
-binder 3163:3163 <> m:44
-binder 3165:3166 <> m':45
-binder 3168:3169 <> t1:46
-binder 3171:3172 <> t2:47
-binder 3174:3174 <> t:48
-R3199:3206 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R3182:3184 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3187:3191 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3194:3196 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3181:3181 Elo.Core <> m:44 var
-R3185:3186 Elo.Core <> t1:46 var
-R3192:3193 Elo.Core <> m':45 var
-R3197:3198 Elo.Core <> t2:47 var
-R3208:3210 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3222:3226 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3229:3231 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3207:3207 Elo.Core <> m:44 var
-R3211:3216 Elo.Core <> TM_Seq constr
-R3218:3219 Elo.Core <> t1:46 var
-R3221:3221 Elo.Core <> t:48 var
-R3227:3228 Elo.Core <> m':45 var
-R3232:3237 Elo.Core <> TM_Seq constr
-R3239:3240 Elo.Core <> t2:47 var
-R3242:3242 Elo.Core <> t:48 var
-binder 3265:3265 <> m:49
-binder 3267:3267 <> t:50
-R3275:3277 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3293:3297 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3299:3301 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3274:3274 Elo.Core <> m:49 var
-R3278:3283 Elo.Core <> TM_Seq constr
-R3285:3290 Elo.Core <> TM_Nil constr
-R3292:3292 Elo.Core <> t:50 var
-R3298:3298 Elo.Core <> m:49 var
-R3302:3302 Elo.Core <> t:50 var
-binder 3329:3329 <> m:51
-binder 3331:3332 <> m':52
-binder 3334:3335 <> id:53
-binder 3337:3337 <> E:54
-binder 3339:3339 <> e:55
-binder 3341:3342 <> e':56
-binder 3344:3344 <> t:57
-R3368:3375 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R3352:3354 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3356:3360 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3363:3365 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3351:3351 Elo.Core <> m:51 var
-R3355:3355 Elo.Core <> e:55 var
-R3361:3362 Elo.Core <> m':52 var
-R3366:3367 Elo.Core <> e':56 var
-R3377:3379 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3398:3402 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3405:3407 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3376:3376 Elo.Core <> m:51 var
-R3380:3388 Elo.Core <> TM_LetVal constr
-R3390:3391 Elo.Core <> id:53 var
-R3393:3393 Elo.Core <> E:54 var
-R3395:3395 Elo.Core <> e:55 var
-R3397:3397 Elo.Core <> t:57 var
-R3403:3404 Elo.Core <> m':52 var
-R3408:3416 Elo.Core <> TM_LetVal constr
-R3418:3419 Elo.Core <> id:53 var
-R3421:3421 Elo.Core <> E:54 var
-R3423:3424 Elo.Core <> e':56 var
-R3426:3426 Elo.Core <> t:57 var
-binder 3452:3452 <> m:58
-binder 3454:3455 <> id:59
-binder 3457:3457 <> E:60
-binder 3459:3459 <> e:61
-binder 3461:3461 <> t:62
-R3475:3482 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R3468:3472 Elo.Core <> value ind
-R3474:3474 Elo.Core <> e:61 var
-R3484:3486 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3505:3509 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3511:3513 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3483:3483 Elo.Core <> m:58 var
-R3487:3495 Elo.Core <> TM_LetVal constr
-R3497:3498 Elo.Core <> id:59 var
-R3500:3500 Elo.Core <> E:60 var
-R3502:3502 Elo.Core <> e:61 var
-R3504:3504 Elo.Core <> t:62 var
-R3510:3510 Elo.Core <> m:58 var
-R3514:3514 Elo.Core <> :::'['_x_':='_x_']'_x not
-R3517:3520 Elo.Core <> :::'['_x_':='_x_']'_x not
-R3522:3523 Elo.Core <> :::'['_x_':='_x_']'_x not
-R3515:3516 Elo.Core <> id:59 var
-R3521:3521 Elo.Core <> e:61 var
-R3524:3524 Elo.Core <> t:62 var
-binder 3551:3551 <> m:63
-binder 3553:3554 <> m':64
-binder 3556:3557 <> id:65
-binder 3559:3559 <> E:66
-binder 3561:3561 <> e:67
-binder 3563:3564 <> e':68
-binder 3566:3566 <> t:69
-R3590:3597 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R3574:3576 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3578:3582 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3585:3587 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3573:3573 Elo.Core <> m:63 var
-R3577:3577 Elo.Core <> e:67 var
-R3583:3584 Elo.Core <> m':64 var
-R3588:3589 Elo.Core <> e':68 var
-R3599:3601 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3620:3624 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3627:3629 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3598:3598 Elo.Core <> m:63 var
-R3602:3610 Elo.Core <> TM_LetVar constr
-R3612:3613 Elo.Core <> id:65 var
-R3615:3615 Elo.Core <> E:66 var
-R3617:3617 Elo.Core <> e:67 var
-R3619:3619 Elo.Core <> t:69 var
-R3625:3626 Elo.Core <> m':64 var
-R3630:3638 Elo.Core <> TM_LetVar constr
-R3640:3641 Elo.Core <> id:65 var
-R3643:3643 Elo.Core <> E:66 var
-R3645:3646 Elo.Core <> e':68 var
-R3648:3648 Elo.Core <> t:69 var
-binder 3674:3674 <> m:70
-binder 3676:3677 <> m':71
-binder 3679:3680 <> id:72
-binder 3682:3682 <> E:73
-binder 3684:3684 <> e:74
-binder 3686:3686 <> t:75
-R3705:3712 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R3695:3697 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R3693:3694 Elo.Core <> m':71 var
-R3698:3700 Elo.Array <> add def
-R3704:3704 Elo.Core <> e:74 var
-R3702:3702 Elo.Core <> m:70 var
-R3720:3727 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R3713:3717 Elo.Core <> value ind
-R3719:3719 Elo.Core <> e:74 var
-R3729:3731 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3750:3754 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3757:3759 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3728:3728 Elo.Core <> m:70 var
-R3732:3740 Elo.Core <> TM_LetVar constr
-R3742:3743 Elo.Core <> id:72 var
-R3745:3745 Elo.Core <> E:73 var
-R3747:3747 Elo.Core <> e:74 var
-R3749:3749 Elo.Core <> t:75 var
-R3755:3756 Elo.Core <> m':71 var
-R3760:3760 Elo.Core <> :::'['_x_':='_x_']'_x not
-R3763:3766 Elo.Core <> :::'['_x_':='_x_']'_x not
-R3785:3786 Elo.Core <> :::'['_x_':='_x_']'_x not
-R3761:3762 Elo.Core <> id:72 var
-R3767:3772 Elo.Core <> TM_Loc constr
-R3775:3780 Coq.Init.Datatypes <> length def
-R3782:3783 Elo.Core <> m':71 var
-R3787:3787 Elo.Core <> t:75 var
-binder 3813:3813 <> m:76
-binder 3815:3816 <> id:77
-binder 3818:3818 <> p:78
-binder 3820:3820 <> P:79
-binder 3822:3826 <> block:80
-binder 3828:3828 <> R:81
-binder 3830:3830 <> t:82
-R3838:3840 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3867:3871 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3873:3875 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3837:3837 Elo.Core <> m:76 var
-R3841:3849 Elo.Core <> TM_LetFun constr
-R3851:3852 Elo.Core <> id:77 var
-R3854:3854 Elo.Core <> p:78 var
-R3856:3856 Elo.Core <> P:79 var
-R3858:3862 Elo.Core <> block:80 var
-R3864:3864 Elo.Core <> R:81 var
-R3866:3866 Elo.Core <> t:82 var
-R3872:3872 Elo.Core <> m:76 var
-R3876:3876 Elo.Core <> :::'['_x_':='_x_']'_x not
-R3879:3882 Elo.Core <> :::'['_x_':='_x_']'_x not
-R3901:3902 Elo.Core <> :::'['_x_':='_x_']'_x not
-R3877:3878 Elo.Core <> id:77 var
-R3883:3888 Elo.Core <> TM_Fun constr
-R3890:3890 Elo.Core <> p:78 var
-R3892:3892 Elo.Core <> P:79 var
-R3894:3898 Elo.Core <> block:80 var
-R3900:3900 Elo.Core <> R:81 var
-R3903:3903 Elo.Core <> t:82 var
-binder 3928:3928 <> m:83
-binder 3930:3931 <> m':84
-binder 3933:3933 <> t:85
-binder 3935:3936 <> t':86
-R3960:3967 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R3944:3946 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3948:3952 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3955:3957 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3943:3943 Elo.Core <> m:83 var
-R3947:3947 Elo.Core <> t:85 var
-R3953:3954 Elo.Core <> m':84 var
-R3958:3959 Elo.Core <> t':86 var
-R3969:3971 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3981:3985 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3988:3990 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R3968:3968 Elo.Core <> m:83 var
-R3972:3978 Elo.Core <> TM_Load constr
-R3980:3980 Elo.Core <> t:85 var
-R3986:3987 Elo.Core <> m':84 var
-R3991:3997 Elo.Core <> TM_Load constr
-R3999:4000 Elo.Core <> t':86 var
-binder 4024:4024 <> m:87
-binder 4026:4026 <> i:88
-R4034:4036 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R4055:4059 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R4061:4064 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R4075:4075 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R4033:4033 Elo.Core <> m:87 var
-R4037:4043 Elo.Core <> TM_Load constr
-R4046:4051 Elo.Core <> TM_Loc constr
-R4053:4053 Elo.Core <> i:88 var
-R4060:4060 Elo.Core <> m:87 var
-R4065:4070 Elo.Core <> get_tm def
-R4072:4072 Elo.Core <> m:87 var
-R4074:4074 Elo.Core <> i:88 var
-R4112:4115 Elo.Core <> step ind
-not 4086:4086 <> :::x_'/'_x_'-->'_x_'/'_x
-ind 4154:4159 <> typeof
-constr 4210:4214 <> T_Nil
-constr 4269:4273 <> T_Num
-constr 4333:4340 <> T_Id_Val
-constr 4458:4465 <> T_Id_Var
-constr 4573:4577 <> T_Asg
-constr 4701:4706 <> T_Call
-constr 4829:4833 <> T_Seq
-constr 4952:4959 <> T_LetVal
-constr 5095:5102 <> T_LetVar
-constr 5249:5256 <> T_LetFun
-constr 5436:5440 <> T_Loc
-constr 5547:5556 <> T_Load_Ref
-constr 5645:5659 <> T_Load_ImmutRef
-constr 5753:5757 <> T_Fun
-R4167:4173 Elo.Core <> mem_typ def
-binder 4162:4163 <> mt:89
-R4181:4184 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R4178:4180 Elo.Core <> ctx def
-R4187:4190 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R4185:4186 Elo.Core <> tm ind
-R4194:4197 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R4191:4193 Elo.Core <> typ ind
-R5874:5879 Elo.Core <> typeof:91 ind
-R5931:5936 Elo.Core <> typeof:91 ind
-binder 4225:4229 <> Gamma:92
-R4241:4245 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4252:4255 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4236:4240 Elo.Core <> Gamma:92 var
-R4246:4251 Elo.Core <> TM_Nil constr
-R4256:4262 Elo.Core <> TY_Void constr
-binder 4284:4288 <> Gamma:93
-binder 4290:4290 <> n:94
-R4302:4307 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4316:4320 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4297:4301 Elo.Core <> Gamma:93 var
-R4308:4313 Elo.Core <> TM_Num constr
-R4315:4315 Elo.Core <> n:94 var
-R4321:4326 Elo.Core <> TY_Num constr
-binder 4351:4355 <> Gamma:95
-binder 4357:4358 <> id:96
-binder 4360:4360 <> T:97
-R4405:4412 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R4382:4384 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R4367:4372 Elo.Map <> lookup def
-R4380:4381 Elo.Core <> id:96 var
-R4374:4378 Elo.Core <> Gamma:95 var
-R4385:4388 Coq.Init.Datatypes <> Some constr
-R4391:4401 Elo.Core <> TY_ImmutRef constr
-R4403:4403 Elo.Core <> T:97 var
-R4418:4423 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4432:4437 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4451:4451 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4413:4417 Elo.Core <> Gamma:95 var
-R4424:4428 Elo.Core <> TM_Id constr
-R4430:4431 Elo.Core <> id:96 var
-R4438:4448 Elo.Core <> TY_ImmutRef constr
-R4450:4450 Elo.Core <> T:97 var
-binder 4476:4480 <> Gamma:98
-binder 4482:4483 <> id:99
-binder 4485:4485 <> T:100
-R4525:4532 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R4507:4509 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R4492:4497 Elo.Map <> lookup def
-R4505:4506 Elo.Core <> id:99 var
-R4499:4503 Elo.Core <> Gamma:98 var
-R4510:4513 Coq.Init.Datatypes <> Some constr
-R4516:4521 Elo.Core <> TY_Ref constr
-R4523:4523 Elo.Core <> T:100 var
-R4538:4543 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4552:4557 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4566:4566 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4533:4537 Elo.Core <> Gamma:98 var
-R4544:4548 Elo.Core <> TM_Id constr
-R4550:4551 Elo.Core <> id:99 var
-R4558:4563 Elo.Core <> TY_Ref constr
-R4565:4565 Elo.Core <> T:100 var
-binder 4588:4592 <> Gamma:101
-binder 4594:4594 <> t:102
-binder 4596:4596 <> e:103
-binder 4598:4598 <> T:104
-R4630:4637 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R4610:4614 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4616:4620 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4629:4629 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4605:4609 Elo.Core <> Gamma:101 var
-R4615:4615 Elo.Core <> t:102 var
-R4621:4626 Elo.Core <> TY_Ref constr
-R4628:4628 Elo.Core <> T:104 var
-R4654:4661 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R4643:4647 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4649:4652 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4638:4642 Elo.Core <> Gamma:101 var
-R4648:4648 Elo.Core <> e:103 var
-R4653:4653 Elo.Core <> T:104 var
-R4667:4672 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4683:4687 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4662:4666 Elo.Core <> Gamma:101 var
-R4673:4678 Elo.Core <> TM_Asg constr
-R4680:4680 Elo.Core <> t:102 var
-R4682:4682 Elo.Core <> e:103 var
-R4688:4694 Elo.Core <> TY_Void constr
-binder 4717:4721 <> Gamma:105
-binder 4723:4723 <> f:106
-binder 4725:4725 <> a:107
-binder 4727:4727 <> P:108
-binder 4729:4729 <> R:109
-R4763:4770 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R4741:4745 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4747:4751 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4762:4762 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4736:4740 Elo.Core <> Gamma:105 var
-R4746:4746 Elo.Core <> f:106 var
-R4752:4757 Elo.Core <> TY_Fun constr
-R4759:4759 Elo.Core <> P:108 var
-R4761:4761 Elo.Core <> R:109 var
-R4787:4794 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R4776:4780 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4782:4785 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4771:4775 Elo.Core <> Gamma:105 var
-R4781:4781 Elo.Core <> a:107 var
-R4786:4786 Elo.Core <> P:108 var
-R4800:4805 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4817:4821 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4795:4799 Elo.Core <> Gamma:105 var
-R4806:4812 Elo.Core <> TM_Call constr
-R4814:4814 Elo.Core <> f:106 var
-R4816:4816 Elo.Core <> a:107 var
-R4822:4822 Elo.Core <> R:109 var
-binder 4844:4848 <> Gamma:110
-binder 4850:4850 <> t:111
-binder 4852:4853 <> t':112
-binder 4855:4855 <> T:113
-R4885:4892 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R4867:4871 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4873:4877 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4862:4866 Elo.Core <> Gamma:110 var
-R4872:4872 Elo.Core <> t:111 var
-R4878:4884 Elo.Core <> TY_Void constr
-R4910:4917 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R4898:4902 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4905:4908 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4893:4897 Elo.Core <> Gamma:110 var
-R4903:4904 Elo.Core <> t':112 var
-R4909:4909 Elo.Core <> T:113 var
-R4923:4928 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4940:4944 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4918:4922 Elo.Core <> Gamma:110 var
-R4929:4934 Elo.Core <> TM_Seq constr
-R4936:4936 Elo.Core <> t:111 var
-R4938:4939 Elo.Core <> t':112 var
-R4945:4945 Elo.Core <> T:113 var
-binder 4970:4974 <> Gamma:114
-binder 4976:4977 <> id:115
-binder 4979:4979 <> e:116
-binder 4981:4981 <> t:117
-binder 4983:4983 <> E:118
-binder 4985:4985 <> T:119
-R5008:5015 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R4997:5001 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5003:5006 Elo.Core <> :::x_'|--'_x_'is'_x not
-R4992:4996 Elo.Core <> Gamma:114 var
-R5002:5002 Elo.Core <> e:116 var
-R5007:5007 Elo.Core <> E:118 var
-R5046:5053 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R5016:5016 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5034:5039 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5041:5044 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5017:5022 Elo.Map <> update def
-R5033:5033 Elo.Core <> E:118 var
-R5030:5031 Elo.Core <> id:115 var
-R5024:5028 Elo.Core <> Gamma:114 var
-R5040:5040 Elo.Core <> t:117 var
-R5045:5045 Elo.Core <> T:119 var
-R5059:5064 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5083:5087 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5054:5058 Elo.Core <> Gamma:114 var
-R5065:5073 Elo.Core <> TM_LetVal constr
-R5075:5076 Elo.Core <> id:115 var
-R5078:5078 Elo.Core <> E:118 var
-R5080:5080 Elo.Core <> e:116 var
-R5082:5082 Elo.Core <> t:117 var
-R5088:5088 Elo.Core <> T:119 var
-binder 5113:5117 <> Gamma:120
-binder 5119:5120 <> id:121
-binder 5122:5122 <> e:122
-binder 5124:5124 <> t:123
-binder 5126:5126 <> E:124
-binder 5128:5128 <> T:125
-R5152:5159 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R5140:5145 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5147:5150 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5135:5139 Elo.Core <> Gamma:120 var
-R5146:5146 Elo.Core <> e:122 var
-R5151:5151 Elo.Core <> E:124 var
-R5199:5206 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R5160:5160 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5187:5192 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5194:5197 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5161:5166 Elo.Map <> update def
-R5178:5183 Elo.Core <> TY_Ref constr
-R5185:5185 Elo.Core <> E:124 var
-R5174:5175 Elo.Core <> id:121 var
-R5168:5172 Elo.Core <> Gamma:120 var
-R5193:5193 Elo.Core <> t:123 var
-R5198:5198 Elo.Core <> T:125 var
-R5212:5218 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5237:5241 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5207:5211 Elo.Core <> Gamma:120 var
-R5219:5227 Elo.Core <> TM_LetVar constr
-R5229:5230 Elo.Core <> id:121 var
-R5232:5232 Elo.Core <> E:124 var
-R5234:5234 Elo.Core <> e:122 var
-R5236:5236 Elo.Core <> t:123 var
-R5242:5242 Elo.Core <> T:125 var
-binder 5267:5271 <> Gamma:126
-binder 5273:5274 <> id:127
-binder 5276:5276 <> p:128
-binder 5278:5278 <> P:129
-binder 5280:5284 <> block:130
-binder 5286:5286 <> R:131
-binder 5288:5288 <> t:132
-binder 5290:5290 <> T:133
-R5330:5337 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R5297:5297 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5314:5319 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5325:5328 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5298:5303 Elo.Map <> update def
-R5313:5313 Elo.Core <> P:129 var
-R5311:5311 Elo.Core <> p:128 var
-R5305:5309 Elo.Core <> Gamma:126 var
-R5320:5324 Elo.Core <> block:130 var
-R5329:5329 Elo.Core <> R:131 var
-R5379:5386 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R5338:5338 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5367:5372 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5374:5377 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5339:5344 Elo.Map <> update def
-R5356:5361 Elo.Core <> TY_Fun constr
-R5363:5363 Elo.Core <> P:129 var
-R5365:5365 Elo.Core <> R:131 var
-R5352:5353 Elo.Core <> id:127 var
-R5346:5350 Elo.Core <> Gamma:126 var
-R5373:5373 Elo.Core <> t:132 var
-R5378:5378 Elo.Core <> T:133 var
-R5392:5397 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5424:5428 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5387:5391 Elo.Core <> Gamma:126 var
-R5398:5406 Elo.Core <> TM_LetFun constr
-R5408:5409 Elo.Core <> id:127 var
-R5411:5411 Elo.Core <> p:128 var
-R5413:5413 Elo.Core <> P:129 var
-R5415:5419 Elo.Core <> block:130 var
-R5421:5421 Elo.Core <> R:131 var
-R5423:5423 Elo.Core <> t:132 var
-R5429:5429 Elo.Core <> T:133 var
-binder 5451:5455 <> Gamma:134
-binder 5457:5457 <> i:135
-R5477:5495 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R5465:5467 Coq.Init.Peano <> ::nat_scope:x_'<'_x not
-R5464:5464 Elo.Core <> i:135 var
-R5468:5473 Coq.Init.Datatypes <> length def
-R5475:5476 Elo.Core <> mt:89 var
-R5501:5506 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5515:5519 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5496:5500 Elo.Core <> Gamma:134 var
-R5507:5512 Elo.Core <> TM_Loc constr
-R5514:5514 Elo.Core <> i:135 var
-R5520:5525 Elo.Core <> TY_Ref constr
-R5528:5534 Elo.Core <> get_typ def
-R5536:5537 Elo.Core <> mt:89 var
-R5539:5539 Elo.Core <> i:135 var
-binder 5567:5571 <> Gamma:136
-binder 5573:5573 <> t:137
-binder 5575:5575 <> T:138
-R5605:5612 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R5587:5591 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5593:5596 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5582:5586 Elo.Core <> Gamma:136 var
-R5592:5592 Elo.Core <> t:137 var
-R5597:5602 Elo.Core <> TY_Ref constr
-R5604:5604 Elo.Core <> T:138 var
-R5618:5623 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5633:5637 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5613:5617 Elo.Core <> Gamma:136 var
-R5624:5630 Elo.Core <> TM_Load constr
-R5632:5632 Elo.Core <> t:137 var
-R5638:5638 Elo.Core <> T:138 var
-binder 5670:5674 <> Gamma:139
-binder 5676:5676 <> t:140
-binder 5678:5678 <> T:141
-R5713:5720 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R5690:5694 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5696:5699 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5685:5689 Elo.Core <> Gamma:139 var
-R5695:5695 Elo.Core <> t:140 var
-R5700:5710 Elo.Core <> TY_ImmutRef constr
-R5712:5712 Elo.Core <> T:141 var
-R5726:5731 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5741:5745 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5721:5725 Elo.Core <> Gamma:139 var
-R5732:5738 Elo.Core <> TM_Load constr
-R5740:5740 Elo.Core <> t:140 var
-R5746:5746 Elo.Core <> T:141 var
-binder 5768:5772 <> Gamma:142
-binder 5774:5774 <> p:143
-binder 5776:5776 <> P:144
-binder 5778:5782 <> block:145
-binder 5784:5784 <> R:146
-R5796:5801 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5820:5825 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5836:5836 Elo.Core <> :::x_'|--'_x_'is'_x not
-R5791:5795 Elo.Core <> Gamma:142 var
-R5802:5807 Elo.Core <> TM_Fun constr
-R5809:5809 Elo.Core <> p:143 var
-R5811:5811 Elo.Core <> P:144 var
-R5813:5817 Elo.Core <> block:145 var
-R5819:5819 Elo.Core <> R:146 var
-R5826:5831 Elo.Core <> TY_Fun constr
-R5833:5833 Elo.Core <> P:144 var
-R5835:5835 Elo.Core <> R:146 var
-R5874:5879 Elo.Core <> typeof ind
-not 5847:5847 <> :::x_'|--'_x_'is'_x
-R5931:5936 Elo.Core <> typeof ind
-not 5898:5898 <> :::x_'/'_x_'|--'_x_'is'_x
-prf 5974:5992 <> value_does_not_step
-binder 6003:6003 <> m:147
-binder 6005:6006 <> m':148
-binder 6008:6008 <> v:149
-binder 6010:6010 <> t:150
-R6022:6025 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R6015:6019 Elo.Core <> value ind
-R6021:6021 Elo.Core <> v:149 var
-R6026:6028 Coq.Init.Logic <> ::type_scope:'~'_x not
-R6045:6045 Coq.Init.Logic <> ::type_scope:'~'_x not
-R6030:6032 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6034:6038 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6041:6043 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6029:6029 Elo.Core <> m:147 var
-R6033:6033 Elo.Core <> v:149 var
-R6039:6040 Elo.Core <> m':148 var
-R6044:6044 Elo.Core <> t:150 var
-prf 6120:6137 <> deterministic_step
-binder 6148:6148 <> m:151
-binder 6150:6151 <> m':152
-binder 6153:6153 <> t:153
-binder 6155:6156 <> t1:154
-binder 6158:6159 <> t2:155
-R6181:6186 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R6165:6167 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6169:6173 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6176:6178 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6164:6164 Elo.Core <> m:151 var
-R6168:6168 Elo.Core <> t:153 var
-R6174:6175 Elo.Core <> m':152 var
-R6179:6180 Elo.Core <> t1:154 var
-R6204:6209 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R6188:6190 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6192:6196 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6199:6201 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6187:6187 Elo.Core <> m:151 var
-R6191:6191 Elo.Core <> t:153 var
-R6197:6198 Elo.Core <> m':152 var
-R6202:6203 Elo.Core <> t2:155 var
-R6212:6214 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R6210:6211 Elo.Core <> t1:154 var
-R6215:6216 Elo.Core <> t2:155 var
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6447:6449 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6458:6462 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6464:6466 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6450:6455 Elo.Core <> TM_Loc constr
-R6447:6449 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6458:6462 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6464:6466 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6450:6455 Elo.Core <> TM_Loc constr
-R6502:6504 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6511:6517 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6519:6521 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6505:6510 Elo.Core <> TM_Nil constr
-R6502:6504 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6511:6517 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6519:6521 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6505:6510 Elo.Core <> TM_Nil constr
-binder 6563:6563 <> x:156
-R6581:6584 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R6567:6569 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6571:6575 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6577:6579 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6580:6580 Elo.Core <> x:156 var
-R6586:6588 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R6589:6589 Elo.Core <> x:156 var
-binder 6563:6563 <> x:157
-R6581:6584 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R6567:6569 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6571:6575 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6577:6579 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
-R6580:6580 Elo.Core <> x:157 var
-R6586:6588 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R6589:6589 Elo.Core <> x:157 var
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-R6368:6386 Elo.Core <> value_does_not_step thm
-prf 6648:6667 <> deterministic_typing
-binder 6678:6679 <> mt:158
-binder 6681:6685 <> Gamma:159
-binder 6687:6687 <> t:160
-binder 6689:6689 <> X:161
-binder 6691:6691 <> Y:162
-R6717:6722 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R6698:6700 Elo.Core <> :::x_'/'_x_'|--'_x_'is'_x not
-R6706:6710 Elo.Core <> :::x_'/'_x_'|--'_x_'is'_x not
-R6712:6715 Elo.Core <> :::x_'/'_x_'|--'_x_'is'_x not
-R6696:6697 Elo.Core <> mt:158 var
-R6701:6705 Elo.Core <> Gamma:159 var
-R6711:6711 Elo.Core <> t:160 var
-R6716:6716 Elo.Core <> X:161 var
-R6744:6749 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R6725:6727 Elo.Core <> :::x_'/'_x_'|--'_x_'is'_x not
-R6733:6737 Elo.Core <> :::x_'/'_x_'|--'_x_'is'_x not
-R6739:6742 Elo.Core <> :::x_'/'_x_'|--'_x_'is'_x not
-R6723:6724 Elo.Core <> mt:158 var
-R6728:6732 Elo.Core <> Gamma:159 var
-R6738:6738 Elo.Core <> t:160 var
-R6743:6743 Elo.Core <> Y:162 var
-R6751:6753 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R6750:6750 Elo.Core <> X:161 var
-R6754:6754 Elo.Core <> Y:162 var
-binder 6781:6781 <> A:163
-binder 6783:6783 <> B:164
-R6805:6808 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R6794:6796 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R6786:6791 Elo.Core <> TY_Ref constr
-R6793:6793 Elo.Core <> A:163 var
-R6797:6802 Elo.Core <> TY_Ref constr
-R6804:6804 Elo.Core <> B:164 var
-R6810:6812 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R6809:6809 Elo.Core <> A:163 var
-R6813:6813 Elo.Core <> B:164 var
-binder 6781:6781 <> A:165
-binder 6783:6783 <> B:166
-R6805:6808 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R6794:6796 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R6786:6791 Elo.Core <> TY_Ref constr
-R6793:6793 Elo.Core <> A:165 var
-R6797:6802 Elo.Core <> TY_Ref constr
-R6804:6804 Elo.Core <> B:166 var
-R6810:6812 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R6809:6809 Elo.Core <> A:165 var
-R6813:6813 Elo.Core <> B:166 var
-binder 6846:6846 <> A:167
-binder 6848:6848 <> B:168
-R6880:6883 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R6864:6866 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R6851:6861 Elo.Core <> TY_ImmutRef constr
-R6863:6863 Elo.Core <> A:167 var
-R6867:6877 Elo.Core <> TY_ImmutRef constr
-R6879:6879 Elo.Core <> B:168 var
-R6885:6887 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R6884:6884 Elo.Core <> A:167 var
-R6888:6888 Elo.Core <> B:168 var
-binder 6846:6846 <> A:169
-binder 6848:6848 <> B:170
-R6880:6883 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R6864:6866 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R6851:6861 Elo.Core <> TY_ImmutRef constr
-R6863:6863 Elo.Core <> A:169 var
-R6867:6877 Elo.Core <> TY_ImmutRef constr
-R6879:6879 Elo.Core <> B:170 var
-R6885:6887 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R6884:6884 Elo.Core <> A:169 var
-R6888:6888 Elo.Core <> B:170 var
-binder 6936:6936 <> A:171
-binder 6938:6938 <> B:172
-R6954:6957 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
-R6941:6951 Elo.Core <> TY_ImmutRef constr
-R6953:6953 Elo.Core <> A:171 var
-R6958:6963 Elo.Core <> TY_Ref constr
-R6965:6965 Elo.Core <> B:172 var
-binder 6936:6936 <> A:173
-binder 6938:6938 <> B:174
-R6954:6957 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
-R6941:6951 Elo.Core <> TY_ImmutRef constr
-R6953:6953 Elo.Core <> A:173 var
-R6958:6963 Elo.Core <> TY_Ref constr
-R6965:6965 Elo.Core <> B:174 var
-binder 7013:7013 <> A:175
-binder 7015:7015 <> B:176
-R7026:7029 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
-R7018:7023 Elo.Core <> TY_Ref constr
-R7025:7025 Elo.Core <> A:175 var
-R7030:7040 Elo.Core <> TY_ImmutRef constr
-R7042:7042 Elo.Core <> B:176 var
-binder 7013:7013 <> A:177
-binder 7015:7015 <> B:178
-R7026:7029 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
-R7018:7023 Elo.Core <> TY_Ref constr
-R7025:7025 Elo.Core <> A:177 var
-R7030:7040 Elo.Core <> TY_ImmutRef constr
-R7042:7042 Elo.Core <> B:178 var
-R7225:7227 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R7225:7227 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R7235:7237 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R7235:7237 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R7279:7284 Elo.Core <> TY_Ref constr
-R7279:7284 Elo.Core <> TY_Ref constr
-R7315:7325 Elo.Core <> TY_ImmutRef constr
-R7315:7325 Elo.Core <> TY_ImmutRef constr
+R2404:2409 Elo.Core <> TM_Fun constr
+R2431:2434 Elo.Core <> :::x_'=?'_x not
+R2429:2430 Elo.Core <> id:13 var
+R2449:2454 Elo.Core <> TM_Fun constr
+R2461:2461 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2464:2467 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2469:2470 Elo.Core <> :::'['_x_':='_x_']'_x not
+R2462:2463 Elo.Core <> id:13 var
+R2468:2468 Elo.Core <> x:14 var
+R2442:2442 Elo.Core <> t:15 var
+R2520:2524 Elo.Core <> subst def
+not 2494:2494 <> :::'['_x_':='_x_']'_x
+ind 2546:2549 <> step
+constr 2591:2597 <> ST_Asg1
+constr 2691:2697 <> ST_Asg2
+constr 2806:2811 <> ST_Asg
+constr 2922:2929 <> ST_Call1
+constr 3025:3032 <> ST_Call2
+constr 3143:3149 <> ST_Call
+constr 3259:3265 <> ST_Seq1
+constr 3362:3367 <> ST_Seq
+constr 3422:3431 <> ST_LetVal1
+constr 3546:3554 <> ST_LetVal
+constr 3644:3653 <> ST_LetVar1
+constr 3768:3776 <> ST_LetVar
+constr 3890:3898 <> ST_LetFun
+constr 3988:3995 <> ST_Load1
+constr 4085:4091 <> ST_Load
+R2556:2559 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2553:2555 Elo.Core <> mem def
+R2562:2565 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2560:2561 Elo.Core <> tm ind
+R2569:2572 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2566:2568 Elo.Core <> mem def
+R2575:2578 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2573:2574 Elo.Core <> tm ind
+R4190:4193 Elo.Core <> step:19 ind
+binder 2608:2608 <> m:20
+binder 2610:2611 <> m':21
+binder 2613:2613 <> t:22
+binder 2615:2615 <> e:23
+binder 2617:2618 <> e':24
+R2642:2649 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2626:2628 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R2630:2634 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R2637:2639 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R2625:2625 Elo.Core <> m:20 var
+R2629:2629 Elo.Core <> e:23 var
+R2635:2636 Elo.Core <> m':21 var
+R2640:2641 Elo.Core <> e':24 var
+R2651:2653 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R2664:2668 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R2671:2673 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R2650:2650 Elo.Core <> m:20 var
+R2654:2659 Elo.Core <> TM_Asg constr
+R2661:2661 Elo.Core <> t:22 var
+R2663:2663 Elo.Core <> e:23 var
+R2669:2670 Elo.Core <> m':21 var
+R2674:2679 Elo.Core <> TM_Asg constr
+R2681:2681 Elo.Core <> t:22 var
+R2683:2684 Elo.Core <> e':24 var
+binder 2708:2708 <> m:25
+binder 2710:2711 <> m':26
+binder 2713:2713 <> t:27
+binder 2715:2716 <> t':28
+binder 2718:2718 <> e:29
+R2732:2739 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2725:2729 Elo.Core <> value ind
+R2731:2731 Elo.Core <> e:29 var
+R2757:2764 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2741:2743 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R2745:2749 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R2752:2754 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R2740:2740 Elo.Core <> m:25 var
+R2744:2744 Elo.Core <> t:27 var
+R2750:2751 Elo.Core <> m':26 var
+R2755:2756 Elo.Core <> t':28 var
+R2766:2768 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R2779:2783 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R2786:2788 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R2765:2765 Elo.Core <> m:25 var
+R2769:2774 Elo.Core <> TM_Asg constr
+R2776:2776 Elo.Core <> t:27 var
+R2778:2778 Elo.Core <> e:29 var
+R2784:2785 Elo.Core <> m':26 var
+R2789:2794 Elo.Core <> TM_Asg constr
+R2796:2797 Elo.Core <> t':28 var
+R2799:2799 Elo.Core <> e:29 var
+binder 2822:2822 <> m:30
+binder 2824:2824 <> i:31
+binder 2826:2826 <> e:32
+R2840:2847 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2833:2837 Elo.Core <> value ind
+R2839:2839 Elo.Core <> e:32 var
+R2860:2867 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2849:2851 Coq.Init.Peano <> ::nat_scope:x_'<'_x not
+R2848:2848 Elo.Core <> i:31 var
+R2852:2857 Coq.Init.Datatypes <> length def
+R2859:2859 Elo.Core <> m:30 var
+R2869:2871 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R2891:2896 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R2906:2909 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R2868:2868 Elo.Core <> m:30 var
+R2872:2877 Elo.Core <> TM_Asg constr
+R2880:2885 Elo.Core <> TM_Loc constr
+R2887:2887 Elo.Core <> i:31 var
+R2890:2890 Elo.Core <> e:32 var
+R2897:2899 Elo.Array <> set def
+R2905:2905 Elo.Core <> e:32 var
+R2903:2903 Elo.Core <> i:31 var
+R2901:2901 Elo.Core <> m:30 var
+R2910:2915 Elo.Core <> TM_Nil constr
+binder 2940:2940 <> m:33
+binder 2942:2943 <> m':34
+binder 2945:2945 <> f:35
+binder 2947:2947 <> a:36
+binder 2949:2950 <> a':37
+R2974:2981 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2958:2960 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R2962:2966 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R2969:2971 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R2957:2957 Elo.Core <> m:33 var
+R2961:2961 Elo.Core <> a:36 var
+R2967:2968 Elo.Core <> m':34 var
+R2972:2973 Elo.Core <> a':37 var
+R2983:2985 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R2997:3001 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3004:3006 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R2982:2982 Elo.Core <> m:33 var
+R2986:2992 Elo.Core <> TM_Call constr
+R2994:2994 Elo.Core <> f:35 var
+R2996:2996 Elo.Core <> a:36 var
+R3002:3003 Elo.Core <> m':34 var
+R3007:3013 Elo.Core <> TM_Call constr
+R3015:3015 Elo.Core <> f:35 var
+R3017:3018 Elo.Core <> a':37 var
+binder 3043:3043 <> m:38
+binder 3045:3046 <> m':39
+binder 3048:3048 <> f:40
+binder 3050:3051 <> f':41
+binder 3053:3053 <> a:42
+R3067:3074 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3060:3064 Elo.Core <> value ind
+R3066:3066 Elo.Core <> a:42 var
+R3092:3099 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3076:3078 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3080:3084 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3087:3089 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3075:3075 Elo.Core <> m:38 var
+R3079:3079 Elo.Core <> f:40 var
+R3085:3086 Elo.Core <> m':39 var
+R3090:3091 Elo.Core <> f':41 var
+R3101:3103 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3115:3119 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3122:3124 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3100:3100 Elo.Core <> m:38 var
+R3104:3110 Elo.Core <> TM_Call constr
+R3112:3112 Elo.Core <> f:40 var
+R3114:3114 Elo.Core <> a:42 var
+R3120:3121 Elo.Core <> m':39 var
+R3125:3131 Elo.Core <> TM_Call constr
+R3133:3134 Elo.Core <> f':41 var
+R3136:3136 Elo.Core <> a:42 var
+binder 3160:3160 <> m:43
+binder 3162:3162 <> a:44
+binder 3164:3164 <> p:45
+binder 3166:3166 <> P:46
+binder 3168:3172 <> block:47
+binder 3174:3174 <> R:48
+R3188:3195 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3181:3185 Elo.Core <> value ind
+R3187:3187 Elo.Core <> a:44 var
+R3197:3199 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3230:3234 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3236:3238 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3196:3196 Elo.Core <> m:43 var
+R3200:3206 Elo.Core <> TM_Call constr
+R3209:3214 Elo.Core <> TM_Fun constr
+R3216:3216 Elo.Core <> p:45 var
+R3218:3218 Elo.Core <> P:46 var
+R3220:3224 Elo.Core <> block:47 var
+R3226:3226 Elo.Core <> R:48 var
+R3229:3229 Elo.Core <> a:44 var
+R3235:3235 Elo.Core <> m:43 var
+R3239:3239 Elo.Core <> :::'['_x_':='_x_']'_x not
+R3241:3244 Elo.Core <> :::'['_x_':='_x_']'_x not
+R3246:3247 Elo.Core <> :::'['_x_':='_x_']'_x not
+R3240:3240 Elo.Core <> p:45 var
+R3245:3245 Elo.Core <> a:44 var
+R3248:3252 Elo.Core <> block:47 var
+binder 3276:3276 <> m:49
+binder 3278:3279 <> m':50
+binder 3281:3282 <> t1:51
+binder 3284:3285 <> t2:52
+binder 3287:3287 <> t:53
+R3312:3319 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3295:3297 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3300:3304 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3307:3309 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3294:3294 Elo.Core <> m:49 var
+R3298:3299 Elo.Core <> t1:51 var
+R3305:3306 Elo.Core <> m':50 var
+R3310:3311 Elo.Core <> t2:52 var
+R3321:3323 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3335:3339 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3342:3344 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3320:3320 Elo.Core <> m:49 var
+R3324:3329 Elo.Core <> TM_Seq constr
+R3331:3332 Elo.Core <> t1:51 var
+R3334:3334 Elo.Core <> t:53 var
+R3340:3341 Elo.Core <> m':50 var
+R3345:3350 Elo.Core <> TM_Seq constr
+R3352:3353 Elo.Core <> t2:52 var
+R3355:3355 Elo.Core <> t:53 var
+binder 3378:3378 <> m:54
+binder 3380:3380 <> t:55
+R3388:3390 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3406:3410 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3412:3414 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3387:3387 Elo.Core <> m:54 var
+R3391:3396 Elo.Core <> TM_Seq constr
+R3398:3403 Elo.Core <> TM_Nil constr
+R3405:3405 Elo.Core <> t:55 var
+R3411:3411 Elo.Core <> m:54 var
+R3415:3415 Elo.Core <> t:55 var
+binder 3442:3442 <> m:56
+binder 3444:3445 <> m':57
+binder 3447:3448 <> id:58
+binder 3450:3450 <> E:59
+binder 3452:3452 <> e:60
+binder 3454:3455 <> e':61
+binder 3457:3457 <> t:62
+R3481:3488 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3465:3467 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3469:3473 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3476:3478 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3464:3464 Elo.Core <> m:56 var
+R3468:3468 Elo.Core <> e:60 var
+R3474:3475 Elo.Core <> m':57 var
+R3479:3480 Elo.Core <> e':61 var
+R3490:3492 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3511:3515 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3518:3520 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3489:3489 Elo.Core <> m:56 var
+R3493:3501 Elo.Core <> TM_LetVal constr
+R3503:3504 Elo.Core <> id:58 var
+R3506:3506 Elo.Core <> E:59 var
+R3508:3508 Elo.Core <> e:60 var
+R3510:3510 Elo.Core <> t:62 var
+R3516:3517 Elo.Core <> m':57 var
+R3521:3529 Elo.Core <> TM_LetVal constr
+R3531:3532 Elo.Core <> id:58 var
+R3534:3534 Elo.Core <> E:59 var
+R3536:3537 Elo.Core <> e':61 var
+R3539:3539 Elo.Core <> t:62 var
+binder 3565:3565 <> m:63
+binder 3567:3568 <> id:64
+binder 3570:3570 <> E:65
+binder 3572:3572 <> e:66
+binder 3574:3574 <> t:67
+R3588:3595 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3581:3585 Elo.Core <> value ind
+R3587:3587 Elo.Core <> e:66 var
+R3597:3599 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3618:3622 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3624:3626 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3596:3596 Elo.Core <> m:63 var
+R3600:3608 Elo.Core <> TM_LetVal constr
+R3610:3611 Elo.Core <> id:64 var
+R3613:3613 Elo.Core <> E:65 var
+R3615:3615 Elo.Core <> e:66 var
+R3617:3617 Elo.Core <> t:67 var
+R3623:3623 Elo.Core <> m:63 var
+R3627:3627 Elo.Core <> :::'['_x_':='_x_']'_x not
+R3630:3633 Elo.Core <> :::'['_x_':='_x_']'_x not
+R3635:3636 Elo.Core <> :::'['_x_':='_x_']'_x not
+R3628:3629 Elo.Core <> id:64 var
+R3634:3634 Elo.Core <> e:66 var
+R3637:3637 Elo.Core <> t:67 var
+binder 3664:3664 <> m:68
+binder 3666:3667 <> m':69
+binder 3669:3670 <> id:70
+binder 3672:3672 <> E:71
+binder 3674:3674 <> e:72
+binder 3676:3677 <> e':73
+binder 3679:3679 <> t:74
+R3703:3710 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3687:3689 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3691:3695 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3698:3700 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3686:3686 Elo.Core <> m:68 var
+R3690:3690 Elo.Core <> e:72 var
+R3696:3697 Elo.Core <> m':69 var
+R3701:3702 Elo.Core <> e':73 var
+R3712:3714 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3733:3737 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3740:3742 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3711:3711 Elo.Core <> m:68 var
+R3715:3723 Elo.Core <> TM_LetVar constr
+R3725:3726 Elo.Core <> id:70 var
+R3728:3728 Elo.Core <> E:71 var
+R3730:3730 Elo.Core <> e:72 var
+R3732:3732 Elo.Core <> t:74 var
+R3738:3739 Elo.Core <> m':69 var
+R3743:3751 Elo.Core <> TM_LetVar constr
+R3753:3754 Elo.Core <> id:70 var
+R3756:3756 Elo.Core <> E:71 var
+R3758:3759 Elo.Core <> e':73 var
+R3761:3761 Elo.Core <> t:74 var
+binder 3787:3787 <> m:75
+binder 3789:3790 <> id:76
+binder 3792:3792 <> E:77
+binder 3794:3794 <> e:78
+binder 3796:3796 <> t:79
+R3810:3817 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3803:3807 Elo.Core <> value ind
+R3809:3809 Elo.Core <> e:78 var
+R3819:3821 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3840:3845 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3853:3856 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3818:3818 Elo.Core <> m:75 var
+R3822:3830 Elo.Core <> TM_LetVar constr
+R3832:3833 Elo.Core <> id:76 var
+R3835:3835 Elo.Core <> E:77 var
+R3837:3837 Elo.Core <> e:78 var
+R3839:3839 Elo.Core <> t:79 var
+R3846:3848 Elo.Array <> add def
+R3852:3852 Elo.Core <> e:78 var
+R3850:3850 Elo.Core <> m:75 var
+R3857:3857 Elo.Core <> :::'['_x_':='_x_']'_x not
+R3860:3863 Elo.Core <> :::'['_x_':='_x_']'_x not
+R3881:3882 Elo.Core <> :::'['_x_':='_x_']'_x not
+R3858:3859 Elo.Core <> id:76 var
+R3864:3869 Elo.Core <> TM_Loc constr
+R3872:3877 Coq.Init.Datatypes <> length def
+R3879:3879 Elo.Core <> m:75 var
+R3883:3883 Elo.Core <> t:79 var
+binder 3909:3909 <> m:80
+binder 3911:3912 <> id:81
+binder 3914:3914 <> F:82
+binder 3916:3916 <> f:83
+binder 3918:3918 <> t:84
+R3932:3939 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3925:3929 Elo.Core <> value ind
+R3931:3931 Elo.Core <> f:83 var
+R3941:3943 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3962:3966 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3968:3970 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R3940:3940 Elo.Core <> m:80 var
+R3944:3952 Elo.Core <> TM_LetFun constr
+R3954:3955 Elo.Core <> id:81 var
+R3957:3957 Elo.Core <> F:82 var
+R3959:3959 Elo.Core <> f:83 var
+R3961:3961 Elo.Core <> t:84 var
+R3967:3967 Elo.Core <> m:80 var
+R3971:3971 Elo.Core <> :::'['_x_':='_x_']'_x not
+R3974:3977 Elo.Core <> :::'['_x_':='_x_']'_x not
+R3979:3980 Elo.Core <> :::'['_x_':='_x_']'_x not
+R3972:3973 Elo.Core <> id:81 var
+R3978:3978 Elo.Core <> f:83 var
+R3981:3981 Elo.Core <> t:84 var
+binder 4006:4006 <> m:85
+binder 4008:4009 <> m':86
+binder 4011:4011 <> t:87
+binder 4013:4014 <> t':88
+R4038:4045 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4022:4024 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R4026:4030 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R4033:4035 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R4021:4021 Elo.Core <> m:85 var
+R4025:4025 Elo.Core <> t:87 var
+R4031:4032 Elo.Core <> m':86 var
+R4036:4037 Elo.Core <> t':88 var
+R4047:4049 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R4059:4063 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R4066:4068 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R4046:4046 Elo.Core <> m:85 var
+R4050:4056 Elo.Core <> TM_Load constr
+R4058:4058 Elo.Core <> t:87 var
+R4064:4065 Elo.Core <> m':86 var
+R4069:4075 Elo.Core <> TM_Load constr
+R4077:4078 Elo.Core <> t':88 var
+binder 4102:4102 <> m:89
+binder 4104:4104 <> i:90
+R4112:4114 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R4133:4137 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R4139:4142 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R4153:4153 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R4111:4111 Elo.Core <> m:89 var
+R4115:4121 Elo.Core <> TM_Load constr
+R4124:4129 Elo.Core <> TM_Loc constr
+R4131:4131 Elo.Core <> i:90 var
+R4138:4138 Elo.Core <> m:89 var
+R4143:4148 Elo.Core <> get_tm def
+R4150:4150 Elo.Core <> m:89 var
+R4152:4152 Elo.Core <> i:90 var
+R4190:4193 Elo.Core <> step ind
+not 4164:4164 <> :::x_'/'_x_'-->'_x_'/'_x
+ind 4232:4237 <> typeof
+constr 4288:4292 <> T_Nil
+constr 4347:4351 <> T_Num
+constr 4411:4418 <> T_Id_Val
+constr 4536:4543 <> T_Id_Var
+constr 4651:4655 <> T_Asg
+constr 4779:4784 <> T_Call
+constr 4907:4911 <> T_Seq
+constr 5030:5037 <> T_LetVal
+constr 5173:5180 <> T_LetVar
+constr 5327:5334 <> T_LetFun
+constr 5496:5500 <> T_Loc
+constr 5596:5605 <> T_Load_Ref
+constr 5694:5708 <> T_Load_ImmutRef
+constr 5802:5806 <> T_Fun
+R4245:4251 Elo.Core <> mem_typ def
+binder 4240:4241 <> mt:91
+R4259:4262 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4256:4258 Elo.Core <> ctx def
+R4265:4268 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4263:4264 Elo.Core <> tm ind
+R4272:4275 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4269:4271 Elo.Core <> typ ind
+R5964:5969 Elo.Core <> typeof:93 ind
+R6021:6026 Elo.Core <> typeof:93 ind
+binder 4303:4307 <> Gamma:94
+R4319:4323 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4330:4333 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4314:4318 Elo.Core <> Gamma:94 var
+R4324:4329 Elo.Core <> TM_Nil constr
+R4334:4340 Elo.Core <> TY_Void constr
+binder 4362:4366 <> Gamma:95
+binder 4368:4368 <> n:96
+R4380:4385 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4394:4398 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4375:4379 Elo.Core <> Gamma:95 var
+R4386:4391 Elo.Core <> TM_Num constr
+R4393:4393 Elo.Core <> n:96 var
+R4399:4404 Elo.Core <> TY_Num constr
+binder 4429:4433 <> Gamma:97
+binder 4435:4436 <> id:98
+binder 4438:4438 <> T:99
+R4483:4490 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4460:4462 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4445:4450 Elo.Map <> lookup def
+R4458:4459 Elo.Core <> id:98 var
+R4452:4456 Elo.Core <> Gamma:97 var
+R4463:4466 Coq.Init.Datatypes <> Some constr
+R4469:4479 Elo.Core <> TY_ImmutRef constr
+R4481:4481 Elo.Core <> T:99 var
+R4496:4501 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4510:4515 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4529:4529 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4491:4495 Elo.Core <> Gamma:97 var
+R4502:4506 Elo.Core <> TM_Id constr
+R4508:4509 Elo.Core <> id:98 var
+R4516:4526 Elo.Core <> TY_ImmutRef constr
+R4528:4528 Elo.Core <> T:99 var
+binder 4554:4558 <> Gamma:100
+binder 4560:4561 <> id:101
+binder 4563:4563 <> T:102
+R4603:4610 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4585:4587 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4570:4575 Elo.Map <> lookup def
+R4583:4584 Elo.Core <> id:101 var
+R4577:4581 Elo.Core <> Gamma:100 var
+R4588:4591 Coq.Init.Datatypes <> Some constr
+R4594:4599 Elo.Core <> TY_Ref constr
+R4601:4601 Elo.Core <> T:102 var
+R4616:4621 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4630:4635 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4644:4644 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4611:4615 Elo.Core <> Gamma:100 var
+R4622:4626 Elo.Core <> TM_Id constr
+R4628:4629 Elo.Core <> id:101 var
+R4636:4641 Elo.Core <> TY_Ref constr
+R4643:4643 Elo.Core <> T:102 var
+binder 4666:4670 <> Gamma:103
+binder 4672:4672 <> t:104
+binder 4674:4674 <> e:105
+binder 4676:4676 <> T:106
+R4708:4715 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4688:4692 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4694:4698 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4707:4707 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4683:4687 Elo.Core <> Gamma:103 var
+R4693:4693 Elo.Core <> t:104 var
+R4699:4704 Elo.Core <> TY_Ref constr
+R4706:4706 Elo.Core <> T:106 var
+R4732:4739 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4721:4725 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4727:4730 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4716:4720 Elo.Core <> Gamma:103 var
+R4726:4726 Elo.Core <> e:105 var
+R4731:4731 Elo.Core <> T:106 var
+R4745:4750 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4761:4765 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4740:4744 Elo.Core <> Gamma:103 var
+R4751:4756 Elo.Core <> TM_Asg constr
+R4758:4758 Elo.Core <> t:104 var
+R4760:4760 Elo.Core <> e:105 var
+R4766:4772 Elo.Core <> TY_Void constr
+binder 4795:4799 <> Gamma:107
+binder 4801:4801 <> f:108
+binder 4803:4803 <> a:109
+binder 4805:4805 <> P:110
+binder 4807:4807 <> R:111
+R4841:4848 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4819:4823 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4825:4829 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4840:4840 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4814:4818 Elo.Core <> Gamma:107 var
+R4824:4824 Elo.Core <> f:108 var
+R4830:4835 Elo.Core <> TY_Fun constr
+R4837:4837 Elo.Core <> P:110 var
+R4839:4839 Elo.Core <> R:111 var
+R4865:4872 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4854:4858 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4860:4863 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4849:4853 Elo.Core <> Gamma:107 var
+R4859:4859 Elo.Core <> a:109 var
+R4864:4864 Elo.Core <> P:110 var
+R4878:4883 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4895:4899 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4873:4877 Elo.Core <> Gamma:107 var
+R4884:4890 Elo.Core <> TM_Call constr
+R4892:4892 Elo.Core <> f:108 var
+R4894:4894 Elo.Core <> a:109 var
+R4900:4900 Elo.Core <> R:111 var
+binder 4922:4926 <> Gamma:112
+binder 4928:4928 <> t:113
+binder 4930:4931 <> t':114
+binder 4933:4933 <> T:115
+R4963:4970 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4945:4949 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4951:4955 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4940:4944 Elo.Core <> Gamma:112 var
+R4950:4950 Elo.Core <> t:113 var
+R4956:4962 Elo.Core <> TY_Void constr
+R4988:4995 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4976:4980 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4983:4986 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4971:4975 Elo.Core <> Gamma:112 var
+R4981:4982 Elo.Core <> t':114 var
+R4987:4987 Elo.Core <> T:115 var
+R5001:5006 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5018:5022 Elo.Core <> :::x_'|--'_x_'is'_x not
+R4996:5000 Elo.Core <> Gamma:112 var
+R5007:5012 Elo.Core <> TM_Seq constr
+R5014:5014 Elo.Core <> t:113 var
+R5016:5017 Elo.Core <> t':114 var
+R5023:5023 Elo.Core <> T:115 var
+binder 5048:5052 <> Gamma:116
+binder 5054:5055 <> id:117
+binder 5057:5057 <> e:118
+binder 5059:5059 <> t:119
+binder 5061:5061 <> E:120
+binder 5063:5063 <> T:121
+R5086:5093 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5075:5079 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5081:5084 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5070:5074 Elo.Core <> Gamma:116 var
+R5080:5080 Elo.Core <> e:118 var
+R5085:5085 Elo.Core <> E:120 var
+R5124:5131 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5094:5094 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5112:5117 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5119:5122 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5095:5100 Elo.Map <> update def
+R5111:5111 Elo.Core <> E:120 var
+R5108:5109 Elo.Core <> id:117 var
+R5102:5106 Elo.Core <> Gamma:116 var
+R5118:5118 Elo.Core <> t:119 var
+R5123:5123 Elo.Core <> T:121 var
+R5137:5142 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5161:5165 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5132:5136 Elo.Core <> Gamma:116 var
+R5143:5151 Elo.Core <> TM_LetVal constr
+R5153:5154 Elo.Core <> id:117 var
+R5156:5156 Elo.Core <> E:120 var
+R5158:5158 Elo.Core <> e:118 var
+R5160:5160 Elo.Core <> t:119 var
+R5166:5166 Elo.Core <> T:121 var
+binder 5191:5195 <> Gamma:122
+binder 5197:5198 <> id:123
+binder 5200:5200 <> e:124
+binder 5202:5202 <> t:125
+binder 5204:5204 <> E:126
+binder 5206:5206 <> T:127
+R5230:5237 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5218:5223 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5225:5228 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5213:5217 Elo.Core <> Gamma:122 var
+R5224:5224 Elo.Core <> e:124 var
+R5229:5229 Elo.Core <> E:126 var
+R5277:5284 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5238:5238 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5265:5270 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5272:5275 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5239:5244 Elo.Map <> update def
+R5256:5261 Elo.Core <> TY_Ref constr
+R5263:5263 Elo.Core <> E:126 var
+R5252:5253 Elo.Core <> id:123 var
+R5246:5250 Elo.Core <> Gamma:122 var
+R5271:5271 Elo.Core <> t:125 var
+R5276:5276 Elo.Core <> T:127 var
+R5290:5296 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5315:5319 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5285:5289 Elo.Core <> Gamma:122 var
+R5297:5305 Elo.Core <> TM_LetVar constr
+R5307:5308 Elo.Core <> id:123 var
+R5310:5310 Elo.Core <> E:126 var
+R5312:5312 Elo.Core <> e:124 var
+R5314:5314 Elo.Core <> t:125 var
+R5320:5320 Elo.Core <> T:127 var
+binder 5345:5349 <> Gamma:128
+binder 5351:5352 <> id:129
+binder 5354:5354 <> F:130
+binder 5356:5356 <> P:131
+binder 5358:5358 <> R:132
+binder 5360:5360 <> f:133
+binder 5362:5362 <> t:134
+binder 5364:5364 <> T:135
+R5385:5392 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5372:5374 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R5371:5371 Elo.Core <> F:130 var
+R5375:5380 Elo.Core <> TY_Fun constr
+R5382:5382 Elo.Core <> P:131 var
+R5384:5384 Elo.Core <> R:132 var
+R5409:5416 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5398:5402 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5404:5407 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5393:5397 Elo.Core <> Gamma:128 var
+R5403:5403 Elo.Core <> f:133 var
+R5408:5408 Elo.Core <> F:130 var
+R5447:5454 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5417:5417 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5435:5440 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5442:5445 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5418:5423 Elo.Map <> update def
+R5434:5434 Elo.Core <> F:130 var
+R5431:5432 Elo.Core <> id:129 var
+R5425:5429 Elo.Core <> Gamma:128 var
+R5441:5441 Elo.Core <> t:134 var
+R5446:5446 Elo.Core <> T:135 var
+R5460:5465 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5484:5488 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5455:5459 Elo.Core <> Gamma:128 var
+R5466:5474 Elo.Core <> TM_LetFun constr
+R5476:5477 Elo.Core <> id:129 var
+R5479:5479 Elo.Core <> F:130 var
+R5481:5481 Elo.Core <> f:133 var
+R5483:5483 Elo.Core <> t:134 var
+R5489:5489 Elo.Core <> T:135 var
+binder 5511:5515 <> Gamma:136
+binder 5517:5517 <> i:137
+R5537:5544 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5525:5527 Coq.Init.Peano <> ::nat_scope:x_'<'_x not
+R5524:5524 Elo.Core <> i:137 var
+R5528:5533 Coq.Init.Datatypes <> length def
+R5535:5536 Elo.Core <> mt:91 var
+R5550:5555 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5564:5568 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5545:5549 Elo.Core <> Gamma:136 var
+R5556:5561 Elo.Core <> TM_Loc constr
+R5563:5563 Elo.Core <> i:137 var
+R5569:5574 Elo.Core <> TY_Ref constr
+R5577:5583 Elo.Core <> get_typ def
+R5585:5586 Elo.Core <> mt:91 var
+R5588:5588 Elo.Core <> i:137 var
+binder 5616:5620 <> Gamma:138
+binder 5622:5622 <> t:139
+binder 5624:5624 <> T:140
+R5654:5661 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5636:5640 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5642:5645 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5631:5635 Elo.Core <> Gamma:138 var
+R5641:5641 Elo.Core <> t:139 var
+R5646:5651 Elo.Core <> TY_Ref constr
+R5653:5653 Elo.Core <> T:140 var
+R5667:5672 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5682:5686 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5662:5666 Elo.Core <> Gamma:138 var
+R5673:5679 Elo.Core <> TM_Load constr
+R5681:5681 Elo.Core <> t:139 var
+R5687:5687 Elo.Core <> T:140 var
+binder 5719:5723 <> Gamma:141
+binder 5725:5725 <> t:142
+binder 5727:5727 <> T:143
+R5762:5769 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5739:5743 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5745:5748 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5734:5738 Elo.Core <> Gamma:141 var
+R5744:5744 Elo.Core <> t:142 var
+R5749:5759 Elo.Core <> TY_ImmutRef constr
+R5761:5761 Elo.Core <> T:143 var
+R5775:5780 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5790:5794 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5770:5774 Elo.Core <> Gamma:141 var
+R5781:5787 Elo.Core <> TM_Load constr
+R5789:5789 Elo.Core <> t:142 var
+R5795:5795 Elo.Core <> T:143 var
+binder 5817:5821 <> Gamma:144
+binder 5823:5823 <> p:145
+binder 5825:5825 <> P:146
+binder 5827:5831 <> block:147
+binder 5833:5833 <> R:148
+R5873:5880 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5840:5840 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5857:5862 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5868:5871 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5841:5846 Elo.Map <> update def
+R5856:5856 Elo.Core <> P:146 var
+R5854:5854 Elo.Core <> p:145 var
+R5848:5852 Elo.Core <> Gamma:144 var
+R5863:5867 Elo.Core <> block:147 var
+R5872:5872 Elo.Core <> R:148 var
+R5886:5891 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5910:5915 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5926:5926 Elo.Core <> :::x_'|--'_x_'is'_x not
+R5881:5885 Elo.Core <> Gamma:144 var
+R5892:5897 Elo.Core <> TM_Fun constr
+R5899:5899 Elo.Core <> p:145 var
+R5901:5901 Elo.Core <> P:146 var
+R5903:5907 Elo.Core <> block:147 var
+R5909:5909 Elo.Core <> R:148 var
+R5916:5921 Elo.Core <> TY_Fun constr
+R5923:5923 Elo.Core <> P:146 var
+R5925:5925 Elo.Core <> R:148 var
+R5964:5969 Elo.Core <> typeof ind
+not 5937:5937 <> :::x_'|--'_x_'is'_x
+R6021:6026 Elo.Core <> typeof ind
+not 5988:5988 <> :::x_'/'_x_'|--'_x_'is'_x
+prf 6064:6082 <> value_does_not_step
+binder 6093:6093 <> m:149
+binder 6095:6096 <> m':150
+binder 6098:6098 <> v:151
+binder 6100:6100 <> t:152
+R6112:6115 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R6105:6109 Elo.Core <> value ind
+R6111:6111 Elo.Core <> v:151 var
+R6116:6118 Coq.Init.Logic <> ::type_scope:'~'_x not
+R6135:6135 Coq.Init.Logic <> ::type_scope:'~'_x not
+R6120:6122 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6124:6128 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6131:6133 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6119:6119 Elo.Core <> m:149 var
+R6123:6123 Elo.Core <> v:151 var
+R6129:6130 Elo.Core <> m':150 var
+R6134:6134 Elo.Core <> t:152 var
+prf 6210:6227 <> deterministic_step
+binder 6238:6238 <> m:153
+binder 6240:6241 <> m':154
+binder 6243:6243 <> t:155
+binder 6245:6246 <> t1:156
+binder 6248:6249 <> t2:157
+R6271:6276 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R6255:6257 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6259:6263 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6266:6268 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6254:6254 Elo.Core <> m:153 var
+R6258:6258 Elo.Core <> t:155 var
+R6264:6265 Elo.Core <> m':154 var
+R6269:6270 Elo.Core <> t1:156 var
+R6294:6299 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R6278:6280 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6282:6286 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6289:6291 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6277:6277 Elo.Core <> m:153 var
+R6281:6281 Elo.Core <> t:155 var
+R6287:6288 Elo.Core <> m':154 var
+R6292:6293 Elo.Core <> t2:157 var
+R6302:6304 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R6300:6301 Elo.Core <> t1:156 var
+R6305:6306 Elo.Core <> t2:157 var
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6541:6543 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6552:6556 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6558:6560 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6544:6549 Elo.Core <> TM_Loc constr
+R6541:6543 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6552:6556 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6558:6560 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6544:6549 Elo.Core <> TM_Loc constr
+R6596:6598 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6605:6611 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6613:6615 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6599:6604 Elo.Core <> TM_Nil constr
+R6596:6598 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6605:6611 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6613:6615 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6599:6604 Elo.Core <> TM_Nil constr
+binder 6657:6657 <> x:158
+R6675:6678 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R6661:6663 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6665:6669 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6671:6673 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6674:6674 Elo.Core <> x:158 var
+R6680:6682 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R6683:6683 Elo.Core <> x:158 var
+binder 6657:6657 <> x:159
+R6675:6678 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R6661:6663 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6665:6669 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6671:6673 Elo.Core <> :::x_'/'_x_'-->'_x_'/'_x not
+R6674:6674 Elo.Core <> x:159 var
+R6680:6682 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R6683:6683 Elo.Core <> x:159 var
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6462:6480 Elo.Core <> value_does_not_step thm
+R6749:6767 Elo.Core <> value_does_not_step thm
+R6774:6779 Elo.Core <> TM_Fun constr
+R6812:6816 Elo.Core <> value ind
+R6749:6767 Elo.Core <> value_does_not_step thm
+R6774:6779 Elo.Core <> TM_Fun constr
+R6812:6816 Elo.Core <> value ind
+R6812:6816 Elo.Core <> value ind
+R6840:6858 Elo.Core <> value_does_not_step thm
+R6865:6870 Elo.Core <> TM_Fun constr
+R6903:6907 Elo.Core <> value ind
+R6840:6858 Elo.Core <> value_does_not_step thm
+R6865:6870 Elo.Core <> TM_Fun constr
+R6903:6907 Elo.Core <> value ind
+R6903:6907 Elo.Core <> value ind
+prf 6924:6943 <> deterministic_typing
+binder 6954:6955 <> mt:160
+binder 6957:6961 <> Gamma:161
+binder 6963:6963 <> t:162
+binder 6965:6965 <> X:163
+binder 6967:6967 <> Y:164
+R6993:6998 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R6974:6976 Elo.Core <> :::x_'/'_x_'|--'_x_'is'_x not
+R6982:6986 Elo.Core <> :::x_'/'_x_'|--'_x_'is'_x not
+R6988:6991 Elo.Core <> :::x_'/'_x_'|--'_x_'is'_x not
+R6972:6973 Elo.Core <> mt:160 var
+R6977:6981 Elo.Core <> Gamma:161 var
+R6987:6987 Elo.Core <> t:162 var
+R6992:6992 Elo.Core <> X:163 var
+R7020:7025 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R7001:7003 Elo.Core <> :::x_'/'_x_'|--'_x_'is'_x not
+R7009:7013 Elo.Core <> :::x_'/'_x_'|--'_x_'is'_x not
+R7015:7018 Elo.Core <> :::x_'/'_x_'|--'_x_'is'_x not
+R6999:7000 Elo.Core <> mt:160 var
+R7004:7008 Elo.Core <> Gamma:161 var
+R7014:7014 Elo.Core <> t:162 var
+R7019:7019 Elo.Core <> Y:164 var
+R7027:7029 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7026:7026 Elo.Core <> X:163 var
+R7030:7030 Elo.Core <> Y:164 var
+binder 7057:7057 <> A:165
+binder 7059:7059 <> B:166
+R7081:7084 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R7070:7072 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7062:7067 Elo.Core <> TY_Ref constr
+R7069:7069 Elo.Core <> A:165 var
+R7073:7078 Elo.Core <> TY_Ref constr
+R7080:7080 Elo.Core <> B:166 var
+R7086:7088 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7085:7085 Elo.Core <> A:165 var
+R7089:7089 Elo.Core <> B:166 var
+binder 7057:7057 <> A:167
+binder 7059:7059 <> B:168
+R7081:7084 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R7070:7072 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7062:7067 Elo.Core <> TY_Ref constr
+R7069:7069 Elo.Core <> A:167 var
+R7073:7078 Elo.Core <> TY_Ref constr
+R7080:7080 Elo.Core <> B:168 var
+R7086:7088 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7085:7085 Elo.Core <> A:167 var
+R7089:7089 Elo.Core <> B:168 var
+binder 7122:7122 <> A:169
+binder 7124:7124 <> B:170
+R7156:7159 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R7140:7142 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7127:7137 Elo.Core <> TY_ImmutRef constr
+R7139:7139 Elo.Core <> A:169 var
+R7143:7153 Elo.Core <> TY_ImmutRef constr
+R7155:7155 Elo.Core <> B:170 var
+R7161:7163 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7160:7160 Elo.Core <> A:169 var
+R7164:7164 Elo.Core <> B:170 var
+binder 7122:7122 <> A:171
+binder 7124:7124 <> B:172
+R7156:7159 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R7140:7142 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7127:7137 Elo.Core <> TY_ImmutRef constr
+R7139:7139 Elo.Core <> A:171 var
+R7143:7153 Elo.Core <> TY_ImmutRef constr
+R7155:7155 Elo.Core <> B:172 var
+R7161:7163 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7160:7160 Elo.Core <> A:171 var
+R7164:7164 Elo.Core <> B:172 var
+binder 7212:7212 <> A:173
+binder 7214:7214 <> B:174
+R7230:7233 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R7217:7227 Elo.Core <> TY_ImmutRef constr
+R7229:7229 Elo.Core <> A:173 var
+R7234:7239 Elo.Core <> TY_Ref constr
+R7241:7241 Elo.Core <> B:174 var
+binder 7212:7212 <> A:175
+binder 7214:7214 <> B:176
+R7230:7233 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R7217:7227 Elo.Core <> TY_ImmutRef constr
+R7229:7229 Elo.Core <> A:175 var
+R7234:7239 Elo.Core <> TY_Ref constr
+R7241:7241 Elo.Core <> B:176 var
+binder 7289:7289 <> A:177
+binder 7291:7291 <> B:178
+R7302:7305 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R7294:7299 Elo.Core <> TY_Ref constr
+R7301:7301 Elo.Core <> A:177 var
+R7306:7316 Elo.Core <> TY_ImmutRef constr
+R7318:7318 Elo.Core <> B:178 var
+binder 7289:7289 <> A:179
+binder 7291:7291 <> B:180
+R7302:7305 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R7294:7299 Elo.Core <> TY_Ref constr
+R7301:7301 Elo.Core <> A:179 var
+R7306:7316 Elo.Core <> TY_ImmutRef constr
+R7318:7318 Elo.Core <> B:180 var
+R7501:7503 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7501:7503 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7511:7513 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7511:7513 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7555:7560 Elo.Core <> TY_Ref constr
+R7555:7560 Elo.Core <> TY_Ref constr
+R7591:7601 Elo.Core <> TY_ImmutRef constr
+R7591:7601 Elo.Core <> TY_ImmutRef constr

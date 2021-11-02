@@ -1,280 +1,280 @@
-DIGEST b2fc644360425c7b217bb3c599ca0214
+DIGEST 4f153a786aa2eb07c93cfb14f202c2b1
 FElo.Map
 R24:37 Coq.Strings.String <> <> lib
 R64:73 Coq.Lists.List <> <> lib
-R100:104 Elo.Array <> <> lib
-def 125:128 <> map'
-binder 131:131 <> A:1
-R150:153 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R144:149 Coq.Strings.String <> string ind
-R154:154 Elo.Map <> A:1 var
-def 191:196 <> empty'
-binder 199:199 <> A:2
-binder 209:209 <> v:3
-R213:216 Elo.Map <> map' def
-R218:218 Elo.Map <> A:2 var
-R233:233 Elo.Map <> v:3 var
-def 255:261 <> update'
-binder 264:264 <> A:4
-R279:282 Elo.Map <> map' def
-R284:284 Elo.Map <> A:4 var
-binder 275:275 <> m:5
-binder 287:287 <> k:6
-binder 289:289 <> v:7
-binder 300:301 <> k':8
-R309:318 Coq.Strings.String <> eqb def
-R320:320 Elo.Map <> k:6 var
-R322:323 Elo.Map <> k':8 var
-R337:337 Elo.Map <> m:5 var
-R339:340 Elo.Map <> k':8 var
-R330:330 Elo.Map <> v:7 var
-def 355:357 <> map
-binder 360:360 <> A:9
-R373:376 Elo.Map <> map' def
-R379:384 Coq.Init.Datatypes <> option ind
-R386:386 Elo.Map <> A:9 var
-def 420:424 <> empty
-binder 427:427 <> A:10
-R439:441 Elo.Map <> map def
-R443:443 Elo.Map <> A:10 var
-R448:453 Elo.Map <> empty' def
-R455:458 Coq.Init.Datatypes <> None constr
-def 473:478 <> update
-binder 481:481 <> A:11
-R496:498 Elo.Map <> map def
-R500:500 Elo.Map <> A:11 var
-binder 492:492 <> m:12
-binder 503:503 <> k:13
-binder 505:505 <> v:14
-R512:518 Elo.Map <> update' def
-R525:528 Coq.Init.Datatypes <> Some constr
-R530:530 Elo.Map <> v:14 var
-R522:522 Elo.Map <> k:13 var
-R520:520 Elo.Map <> m:12 var
-def 546:551 <> lookup
-binder 554:554 <> A:15
-R569:571 Elo.Map <> map def
-R573:573 Elo.Map <> A:15 var
-binder 565:565 <> m:16
-binder 576:576 <> k:17
-R581:581 Elo.Map <> m:16 var
-R583:583 Elo.Map <> k:17 var
-prf 613:637 <> lookup_update_involutive'
-binder 649:649 <> A:18
-R657:659 Elo.Map <> map def
-R661:661 Elo.Map <> A:18 var
-binder 653:653 <> m:19
-binder 664:664 <> k:20
-binder 666:666 <> v:21
-R687:689 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R672:677 Elo.Map <> update def
-R683:683 Elo.Map <> v:21 var
-R681:681 Elo.Map <> k:20 var
-R679:679 Elo.Map <> m:19 var
-R686:686 Elo.Map <> k:20 var
-R690:693 Coq.Init.Datatypes <> Some constr
-R695:695 Elo.Map <> v:21 var
-R724:729 Elo.Map <> update def
-R732:742 Elo.Map <> update' def
-R755:769 Coq.Strings.String <> eqb_refl thm
-R755:769 Coq.Strings.String <> eqb_refl thm
-R755:769 Coq.Strings.String <> eqb_refl thm
-prf 818:841 <> lookup_update_involutive
-binder 853:853 <> A:22
-R861:863 Elo.Map <> map def
-R865:865 Elo.Map <> A:22 var
-binder 857:857 <> m:23
-binder 868:868 <> k:24
-binder 870:870 <> v:25
-R898:900 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R875:880 Elo.Map <> lookup def
-R897:897 Elo.Map <> k:24 var
-R883:888 Elo.Map <> update def
-R894:894 Elo.Map <> v:25 var
-R892:892 Elo.Map <> k:24 var
-R890:890 Elo.Map <> m:23 var
-R901:904 Coq.Init.Datatypes <> Some constr
-R906:906 Elo.Map <> v:25 var
-R925:930 Elo.Map <> lookup def
-R949:973 Elo.Map <> lookup_update_involutive' thm
-R949:973 Elo.Map <> lookup_update_involutive' thm
-prf 1007:1030 <> lookup_update_idempotent
-binder 1042:1042 <> A:26
-R1050:1052 Elo.Map <> map def
-R1054:1054 Elo.Map <> A:26 var
-binder 1046:1046 <> m:27
-binder 1057:1057 <> k:28
-binder 1059:1060 <> k':29
-binder 1062:1062 <> v:30
-R1074:1079 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R1069:1072 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
-R1067:1068 Elo.Map <> k':29 var
-R1073:1073 Elo.Map <> k:28 var
-R1104:1106 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R1080:1085 Elo.Map <> lookup def
-R1103:1103 Elo.Map <> k:28 var
-R1088:1093 Elo.Map <> update def
-R1100:1100 Elo.Map <> v:30 var
-R1097:1098 Elo.Map <> k':29 var
-R1095:1095 Elo.Map <> m:27 var
-R1107:1112 Elo.Map <> lookup def
-R1116:1116 Elo.Map <> k:28 var
-R1114:1114 Elo.Map <> m:27 var
-R1149:1154 Elo.Map <> lookup def
-R1157:1162 Elo.Map <> update def
-R1165:1171 Elo.Map <> update' def
-R1186:1195 Coq.Strings.String <> eqb def
-R1186:1195 Coq.Strings.String <> eqb def
-R1220:1232 Coq.Strings.String <> eqb_eq thm
-R1220:1232 Coq.Strings.String <> eqb_eq thm
-def 1309:1317 <> includes'
-binder 1320:1320 <> A:31
-R1331:1333 Elo.Map <> map def
-R1335:1335 Elo.Map <> A:31 var
-binder 1324:1324 <> m:32
-binder 1326:1327 <> m':33
-binder 1348:1348 <> k:34
-binder 1350:1350 <> v:35
-R1368:1371 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R1359:1361 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R1355:1356 Elo.Map <> m':33 var
-R1358:1358 Elo.Map <> k:34 var
-R1362:1365 Coq.Init.Datatypes <> Some constr
-R1367:1367 Elo.Map <> v:35 var
-R1375:1377 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R1372:1372 Elo.Map <> m:32 var
-R1374:1374 Elo.Map <> k:34 var
-R1378:1381 Coq.Init.Datatypes <> Some constr
-R1383:1383 Elo.Map <> v:35 var
-R1407:1415 Elo.Map <> includes' def
-not 1393:1393 <> :::x_'includes'_x
-prf 1459:1484 <> update_preserves_inclusion
-binder 1496:1496 <> A:36
-R1507:1509 Elo.Map <> map def
-R1511:1511 Elo.Map <> A:36 var
-binder 1500:1500 <> m:37
-binder 1502:1503 <> m':38
-binder 1514:1514 <> k:39
-binder 1516:1516 <> v:40
-R1534:1539 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R1522:1531 Elo.Map <> :::x_'includes'_x not
-R1521:1521 Elo.Map <> m:37 var
-R1532:1533 Elo.Map <> m':38 var
-R1540:1540 Elo.Map <> :::x_'includes'_x not
-R1553:1564 Elo.Map <> :::x_'includes'_x not
-R1578:1578 Elo.Map <> :::x_'includes'_x not
-R1541:1546 Elo.Map <> update def
-R1552:1552 Elo.Map <> v:40 var
-R1550:1550 Elo.Map <> k:39 var
-R1548:1548 Elo.Map <> m:37 var
-R1565:1570 Elo.Map <> update def
-R1577:1577 Elo.Map <> v:40 var
-R1575:1575 Elo.Map <> k:39 var
-R1572:1573 Elo.Map <> m':38 var
-R1597:1605 Elo.Map <> includes' def
-R1640:1645 Elo.Map <> update def
-R1648:1654 Elo.Map <> update' def
-R1674:1683 Coq.Strings.String <> eqb def
-R1674:1683 Coq.Strings.String <> eqb def
-prf 1758:1775 <> update_permutation
-binder 1787:1787 <> A:41
-R1795:1797 Elo.Map <> map def
-R1799:1799 Elo.Map <> A:41 var
-binder 1791:1791 <> m:42
-binder 1802:1803 <> k1:43
-binder 1805:1806 <> k2:44
-binder 1808:1809 <> v1:45
-binder 1811:1812 <> v2:46
-R1825:1830 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R1819:1822 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
-R1817:1818 Elo.Map <> k1:43 var
-R1823:1824 Elo.Map <> k2:44 var
-R1860:1869 Elo.Map <> :::x_'includes'_x not
-R1831:1836 Elo.Map <> update def
-R1858:1859 Elo.Map <> v2:46 var
-R1855:1856 Elo.Map <> k2:44 var
-R1839:1844 Elo.Map <> update def
-R1851:1852 Elo.Map <> v1:45 var
-R1848:1849 Elo.Map <> k1:43 var
-R1846:1846 Elo.Map <> m:42 var
-R1870:1875 Elo.Map <> update def
-R1897:1898 Elo.Map <> v1:45 var
-R1894:1895 Elo.Map <> k1:43 var
-R1878:1883 Elo.Map <> update def
-R1890:1891 Elo.Map <> v2:46 var
-R1887:1888 Elo.Map <> k2:44 var
-R1885:1885 Elo.Map <> m:42 var
-R1917:1925 Elo.Map <> includes' def
-R1953:1958 Elo.Map <> update def
-R1961:1967 Elo.Map <> update' def
-R1982:1991 Coq.Strings.String <> eqb def
-R2019:2028 Coq.Strings.String <> eqb def
-R1982:1991 Coq.Strings.String <> eqb def
-R2019:2028 Coq.Strings.String <> eqb def
-R2019:2028 Coq.Strings.String <> eqb def
-R2060:2072 Coq.Strings.String <> eqb_eq thm
-R2060:2072 Coq.Strings.String <> eqb_eq thm
-R2060:2072 Coq.Strings.String <> eqb_eq thm
-prf 2119:2134 <> update_overwrite
-binder 2146:2146 <> A:47
-R2154:2156 Elo.Map <> map def
-R2158:2158 Elo.Map <> A:47 var
-binder 2150:2150 <> m:48
-binder 2161:2161 <> k:49
-binder 2163:2163 <> v:50
-binder 2165:2166 <> v':51
-R2183:2192 Elo.Map <> :::x_'includes'_x not
-R2171:2176 Elo.Map <> update def
-R2182:2182 Elo.Map <> v:50 var
-R2180:2180 Elo.Map <> k:49 var
-R2178:2178 Elo.Map <> m:48 var
-R2193:2198 Elo.Map <> update def
-R2218:2218 Elo.Map <> v:50 var
-R2216:2216 Elo.Map <> k:49 var
-R2201:2206 Elo.Map <> update def
-R2212:2213 Elo.Map <> v':51 var
-R2210:2210 Elo.Map <> k:49 var
-R2208:2208 Elo.Map <> m:48 var
-R2255:2260 Elo.Map <> update def
-R2263:2269 Elo.Map <> update' def
-R2284:2293 Coq.Strings.String <> eqb def
-R2284:2293 Coq.Strings.String <> eqb def
-prf 2341:2352 <> update_empty
-binder 2364:2364 <> A:52
-binder 2367:2368 <> k1:53
-binder 2370:2371 <> k2:54
-R2382:2382 Elo.Map <> A:52 var
-binder 2374:2375 <> v1:55
-binder 2377:2378 <> v2:56
-R2396:2401 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R2390:2393 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
-R2388:2389 Elo.Map <> k1:53 var
-R2394:2395 Elo.Map <> k2:54 var
-R2435:2445 Elo.Map <> :::x_'includes'_x not
-R2464:2464 Elo.Map <> :::x_'includes'_x not
-R2402:2407 Elo.Map <> update def
-R2433:2434 Elo.Map <> v2:56 var
-R2430:2431 Elo.Map <> k2:54 var
-R2410:2415 Elo.Map <> update def
-R2426:2427 Elo.Map <> v1:55 var
-R2423:2424 Elo.Map <> k1:53 var
-R2417:2421 Elo.Map <> empty def
-R2446:2451 Elo.Map <> update def
-R2462:2463 Elo.Map <> v1:55 var
-R2459:2460 Elo.Map <> k1:53 var
-R2453:2457 Elo.Map <> empty def
-R2500:2508 Elo.Map <> includes' def
-R2532:2537 Elo.Map <> update def
-R2540:2550 Elo.Map <> update' def
-R2565:2574 Coq.Strings.String <> eqb def
-R2591:2600 Coq.Strings.String <> eqb def
-R2565:2574 Coq.Strings.String <> eqb def
-R2591:2600 Coq.Strings.String <> eqb def
-R2591:2600 Coq.Strings.String <> eqb def
-R2626:2638 Coq.Strings.String <> eqb_eq thm
-R2626:2638 Coq.Strings.String <> eqb_eq thm
-R2626:2638 Coq.Strings.String <> eqb_eq thm
-R2697:2701 Elo.Map <> empty def
-R2704:2713 Elo.Map <> empty' def
-R2750:2754 Elo.Map <> empty def
-R2757:2766 Elo.Map <> empty' def
+R101:105 Elo.Array <> <> lib
+def 126:129 <> map'
+binder 132:132 <> A:1
+R151:154 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R145:150 Coq.Strings.String <> string ind
+R155:155 Elo.Map <> A:1 var
+def 192:197 <> empty'
+binder 200:200 <> A:2
+binder 210:210 <> v:3
+R214:217 Elo.Map <> map' def
+R219:219 Elo.Map <> A:2 var
+R234:234 Elo.Map <> v:3 var
+def 256:262 <> update'
+binder 265:265 <> A:4
+R280:283 Elo.Map <> map' def
+R285:285 Elo.Map <> A:4 var
+binder 276:276 <> m:5
+binder 288:288 <> k:6
+binder 290:290 <> v:7
+binder 301:302 <> k':8
+R310:319 Coq.Strings.String <> eqb def
+R321:321 Elo.Map <> k:6 var
+R323:324 Elo.Map <> k':8 var
+R338:338 Elo.Map <> m:5 var
+R340:341 Elo.Map <> k':8 var
+R331:331 Elo.Map <> v:7 var
+def 356:358 <> map
+binder 361:361 <> A:9
+R374:377 Elo.Map <> map' def
+R380:385 Coq.Init.Datatypes <> option ind
+R387:387 Elo.Map <> A:9 var
+def 421:425 <> empty
+binder 428:428 <> A:10
+R440:442 Elo.Map <> map def
+R444:444 Elo.Map <> A:10 var
+R449:454 Elo.Map <> empty' def
+R456:459 Coq.Init.Datatypes <> None constr
+def 474:479 <> update
+binder 482:482 <> A:11
+R497:499 Elo.Map <> map def
+R501:501 Elo.Map <> A:11 var
+binder 493:493 <> m:12
+binder 504:504 <> k:13
+binder 506:506 <> v:14
+R513:519 Elo.Map <> update' def
+R526:529 Coq.Init.Datatypes <> Some constr
+R531:531 Elo.Map <> v:14 var
+R523:523 Elo.Map <> k:13 var
+R521:521 Elo.Map <> m:12 var
+def 547:552 <> lookup
+binder 555:555 <> A:15
+R570:572 Elo.Map <> map def
+R574:574 Elo.Map <> A:15 var
+binder 566:566 <> m:16
+binder 577:577 <> k:17
+R582:582 Elo.Map <> m:16 var
+R584:584 Elo.Map <> k:17 var
+prf 614:638 <> lookup_update_involutive'
+binder 650:650 <> A:18
+R658:660 Elo.Map <> map def
+R662:662 Elo.Map <> A:18 var
+binder 654:654 <> m:19
+binder 665:665 <> k:20
+binder 667:667 <> v:21
+R688:690 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R673:678 Elo.Map <> update def
+R684:684 Elo.Map <> v:21 var
+R682:682 Elo.Map <> k:20 var
+R680:680 Elo.Map <> m:19 var
+R687:687 Elo.Map <> k:20 var
+R691:694 Coq.Init.Datatypes <> Some constr
+R696:696 Elo.Map <> v:21 var
+R725:730 Elo.Map <> update def
+R733:743 Elo.Map <> update' def
+R756:770 Coq.Strings.String <> eqb_refl thm
+R756:770 Coq.Strings.String <> eqb_refl thm
+R756:770 Coq.Strings.String <> eqb_refl thm
+prf 819:842 <> lookup_update_involutive
+binder 854:854 <> A:22
+R862:864 Elo.Map <> map def
+R866:866 Elo.Map <> A:22 var
+binder 858:858 <> m:23
+binder 869:869 <> k:24
+binder 871:871 <> v:25
+R899:901 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R876:881 Elo.Map <> lookup def
+R898:898 Elo.Map <> k:24 var
+R884:889 Elo.Map <> update def
+R895:895 Elo.Map <> v:25 var
+R893:893 Elo.Map <> k:24 var
+R891:891 Elo.Map <> m:23 var
+R902:905 Coq.Init.Datatypes <> Some constr
+R907:907 Elo.Map <> v:25 var
+R926:931 Elo.Map <> lookup def
+R950:974 Elo.Map <> lookup_update_involutive' thm
+R950:974 Elo.Map <> lookup_update_involutive' thm
+prf 1008:1031 <> lookup_update_idempotent
+binder 1043:1043 <> A:26
+R1051:1053 Elo.Map <> map def
+R1055:1055 Elo.Map <> A:26 var
+binder 1047:1047 <> m:27
+binder 1058:1058 <> k:28
+binder 1060:1061 <> k':29
+binder 1063:1063 <> v:30
+R1075:1080 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1070:1073 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R1068:1069 Elo.Map <> k':29 var
+R1074:1074 Elo.Map <> k:28 var
+R1105:1107 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1081:1086 Elo.Map <> lookup def
+R1104:1104 Elo.Map <> k:28 var
+R1089:1094 Elo.Map <> update def
+R1101:1101 Elo.Map <> v:30 var
+R1098:1099 Elo.Map <> k':29 var
+R1096:1096 Elo.Map <> m:27 var
+R1108:1113 Elo.Map <> lookup def
+R1117:1117 Elo.Map <> k:28 var
+R1115:1115 Elo.Map <> m:27 var
+R1150:1155 Elo.Map <> lookup def
+R1158:1163 Elo.Map <> update def
+R1166:1172 Elo.Map <> update' def
+R1187:1196 Coq.Strings.String <> eqb def
+R1187:1196 Coq.Strings.String <> eqb def
+R1221:1233 Coq.Strings.String <> eqb_eq thm
+R1221:1233 Coq.Strings.String <> eqb_eq thm
+def 1310:1318 <> includes'
+binder 1321:1321 <> A:31
+R1332:1334 Elo.Map <> map def
+R1336:1336 Elo.Map <> A:31 var
+binder 1325:1325 <> m:32
+binder 1327:1328 <> m':33
+binder 1349:1349 <> k:34
+binder 1351:1351 <> v:35
+R1369:1372 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1360:1362 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1356:1357 Elo.Map <> m':33 var
+R1359:1359 Elo.Map <> k:34 var
+R1363:1366 Coq.Init.Datatypes <> Some constr
+R1368:1368 Elo.Map <> v:35 var
+R1376:1378 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1373:1373 Elo.Map <> m:32 var
+R1375:1375 Elo.Map <> k:34 var
+R1379:1382 Coq.Init.Datatypes <> Some constr
+R1384:1384 Elo.Map <> v:35 var
+R1408:1416 Elo.Map <> includes' def
+not 1394:1394 <> :::x_'includes'_x
+prf 1460:1485 <> update_preserves_inclusion
+binder 1497:1497 <> A:36
+R1508:1510 Elo.Map <> map def
+R1512:1512 Elo.Map <> A:36 var
+binder 1501:1501 <> m:37
+binder 1503:1504 <> m':38
+binder 1515:1515 <> k:39
+binder 1517:1517 <> v:40
+R1535:1540 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1523:1532 Elo.Map <> :::x_'includes'_x not
+R1522:1522 Elo.Map <> m:37 var
+R1533:1534 Elo.Map <> m':38 var
+R1541:1541 Elo.Map <> :::x_'includes'_x not
+R1554:1565 Elo.Map <> :::x_'includes'_x not
+R1579:1579 Elo.Map <> :::x_'includes'_x not
+R1542:1547 Elo.Map <> update def
+R1553:1553 Elo.Map <> v:40 var
+R1551:1551 Elo.Map <> k:39 var
+R1549:1549 Elo.Map <> m:37 var
+R1566:1571 Elo.Map <> update def
+R1578:1578 Elo.Map <> v:40 var
+R1576:1576 Elo.Map <> k:39 var
+R1573:1574 Elo.Map <> m':38 var
+R1598:1606 Elo.Map <> includes' def
+R1641:1646 Elo.Map <> update def
+R1649:1655 Elo.Map <> update' def
+R1675:1684 Coq.Strings.String <> eqb def
+R1675:1684 Coq.Strings.String <> eqb def
+prf 1759:1776 <> update_permutation
+binder 1788:1788 <> A:41
+R1796:1798 Elo.Map <> map def
+R1800:1800 Elo.Map <> A:41 var
+binder 1792:1792 <> m:42
+binder 1803:1804 <> k1:43
+binder 1806:1807 <> k2:44
+binder 1809:1810 <> v1:45
+binder 1812:1813 <> v2:46
+R1826:1831 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1820:1823 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R1818:1819 Elo.Map <> k1:43 var
+R1824:1825 Elo.Map <> k2:44 var
+R1861:1870 Elo.Map <> :::x_'includes'_x not
+R1832:1837 Elo.Map <> update def
+R1859:1860 Elo.Map <> v2:46 var
+R1856:1857 Elo.Map <> k2:44 var
+R1840:1845 Elo.Map <> update def
+R1852:1853 Elo.Map <> v1:45 var
+R1849:1850 Elo.Map <> k1:43 var
+R1847:1847 Elo.Map <> m:42 var
+R1871:1876 Elo.Map <> update def
+R1898:1899 Elo.Map <> v1:45 var
+R1895:1896 Elo.Map <> k1:43 var
+R1879:1884 Elo.Map <> update def
+R1891:1892 Elo.Map <> v2:46 var
+R1888:1889 Elo.Map <> k2:44 var
+R1886:1886 Elo.Map <> m:42 var
+R1918:1926 Elo.Map <> includes' def
+R1954:1959 Elo.Map <> update def
+R1962:1968 Elo.Map <> update' def
+R1983:1992 Coq.Strings.String <> eqb def
+R2020:2029 Coq.Strings.String <> eqb def
+R1983:1992 Coq.Strings.String <> eqb def
+R2020:2029 Coq.Strings.String <> eqb def
+R2020:2029 Coq.Strings.String <> eqb def
+R2061:2073 Coq.Strings.String <> eqb_eq thm
+R2061:2073 Coq.Strings.String <> eqb_eq thm
+R2061:2073 Coq.Strings.String <> eqb_eq thm
+prf 2120:2135 <> update_overwrite
+binder 2147:2147 <> A:47
+R2155:2157 Elo.Map <> map def
+R2159:2159 Elo.Map <> A:47 var
+binder 2151:2151 <> m:48
+binder 2162:2162 <> k:49
+binder 2164:2164 <> v:50
+binder 2166:2167 <> v':51
+R2184:2193 Elo.Map <> :::x_'includes'_x not
+R2172:2177 Elo.Map <> update def
+R2183:2183 Elo.Map <> v:50 var
+R2181:2181 Elo.Map <> k:49 var
+R2179:2179 Elo.Map <> m:48 var
+R2194:2199 Elo.Map <> update def
+R2219:2219 Elo.Map <> v:50 var
+R2217:2217 Elo.Map <> k:49 var
+R2202:2207 Elo.Map <> update def
+R2213:2214 Elo.Map <> v':51 var
+R2211:2211 Elo.Map <> k:49 var
+R2209:2209 Elo.Map <> m:48 var
+R2256:2261 Elo.Map <> update def
+R2264:2270 Elo.Map <> update' def
+R2285:2294 Coq.Strings.String <> eqb def
+R2285:2294 Coq.Strings.String <> eqb def
+prf 2355:2366 <> update_empty
+binder 2378:2378 <> A:52
+binder 2381:2382 <> k1:53
+binder 2384:2385 <> k2:54
+R2396:2396 Elo.Map <> A:52 var
+binder 2388:2389 <> v1:55
+binder 2391:2392 <> v2:56
+R2410:2415 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2404:2407 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R2402:2403 Elo.Map <> k1:53 var
+R2408:2409 Elo.Map <> k2:54 var
+R2449:2459 Elo.Map <> :::x_'includes'_x not
+R2478:2478 Elo.Map <> :::x_'includes'_x not
+R2416:2421 Elo.Map <> update def
+R2447:2448 Elo.Map <> v2:56 var
+R2444:2445 Elo.Map <> k2:54 var
+R2424:2429 Elo.Map <> update def
+R2440:2441 Elo.Map <> v1:55 var
+R2437:2438 Elo.Map <> k1:53 var
+R2431:2435 Elo.Map <> empty def
+R2460:2465 Elo.Map <> update def
+R2476:2477 Elo.Map <> v1:55 var
+R2473:2474 Elo.Map <> k1:53 var
+R2467:2471 Elo.Map <> empty def
+R2514:2522 Elo.Map <> includes' def
+R2546:2551 Elo.Map <> update def
+R2554:2564 Elo.Map <> update' def
+R2579:2588 Coq.Strings.String <> eqb def
+R2605:2614 Coq.Strings.String <> eqb def
+R2579:2588 Coq.Strings.String <> eqb def
+R2605:2614 Coq.Strings.String <> eqb def
+R2605:2614 Coq.Strings.String <> eqb def
+R2640:2652 Coq.Strings.String <> eqb_eq thm
+R2640:2652 Coq.Strings.String <> eqb_eq thm
+R2640:2652 Coq.Strings.String <> eqb_eq thm
+R2711:2715 Elo.Map <> empty def
+R2718:2727 Elo.Map <> empty' def
+R2764:2768 Elo.Map <> empty def
+R2771:2780 Elo.Map <> empty' def

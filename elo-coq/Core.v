@@ -42,8 +42,8 @@ Inductive tm : Set :=
   (* definitions *)
   | TM_LetVal : name -> typ -> tm -> tm -> tm
   | TM_LetVar : name -> typ -> tm -> tm -> tm
-  | TM_LetFun : name -> name -> typ -> tm -> typ -> tm -> tm
-  (* internal *)
+  | TM_LetFun : name -> typ -> tm -> tm -> tm
+  (* internal terms *)
   | TM_Loc : nat -> tm
   | TM_Load : tm -> tm
   | TM_Fun : name -> typ -> tm -> typ -> tm
@@ -84,12 +84,11 @@ Fixpoint subst (id : name) (x t : tm) : tm :=
     (if id =? id' then t' else ([id := x] t'))
   | TM_LetVar id' E e t' => TM_LetVar id' E ([id := x] e)
     (if id =? id' then t' else ([id := x] t'))
-  | TM_LetFun id' p P block R t' => TM_LetFun id' p P
-    (if id =? p then block else ([id := x] block)) R
-    (if id =? id' then t' else ([id := x] t'))
+  | TM_LetFun id' F f t' => TM_LetFun id' F ([id := x] f)
+    (if id =? id' then t' else [id := x] t')
   | TM_Loc _ => t
   | TM_Load t' => TM_Load ([id := x] t')
-  | TM_Fun _ _ _ _ => t
+  | TM_Fun p P block R => if id =? p then t else TM_Fun p P ([id := x] block) R
   end
   where "'[' id ':=' x ']' t" := (subst id x t).
 
@@ -109,8 +108,13 @@ Inductive step : mem -> tm -> mem -> tm -> Prop :=
     m / TM_Asg (TM_Loc i) e --> (set m i e) / TM_Nil
 
   | ST_Call1 : forall m m' f a a',
-    m / a --> m' / a' -> 
+    m / a --> m' / a' ->
     m / TM_Call f a --> m' / TM_Call f a'
+
+  | ST_Call2 : forall m m' f f' a,
+    value a ->
+    m / f --> m' / f' ->
+    m / TM_Call f a --> m' / TM_Call f' a
 
   | ST_Call : forall m a p P block R,
     value a ->
@@ -135,13 +139,13 @@ Inductive step : mem -> tm -> mem -> tm -> Prop :=
     m / e --> m' / e' ->
     m / TM_LetVar id E e t --> m' / TM_LetVar id E e' t
 
-  | ST_LetVar : forall m m' id E e t,
-    m' = add m e ->
+  | ST_LetVar : forall m id E e t,
     value e ->
-    m / TM_LetVar id E e t --> m' / [id := TM_Loc (length m')] t
+    m / TM_LetVar id E e t --> (add m e) / [id := TM_Loc (length m)] t
 
-  | ST_LetFun : forall m id p P block R t,
-    m / TM_LetFun id p P block R t --> m / [id := TM_Fun p P block R] t
+  | ST_LetFun : forall m id F f t,
+    value f ->
+    m / TM_LetFun id F f t --> m / [id := f] t
 
   | ST_Load1 : forall m m' t t',
     m / t --> m' / t' ->
@@ -194,13 +198,14 @@ Inductive typeof {mt : mem_typ} : ctx -> tm -> typ -> Prop :=
     (update Gamma id (TY_Ref E)) |-- t is T ->
     Gamma  |-- (TM_LetVar id E e t) is T
 
-  | T_LetFun : forall Gamma id p P block R t T,
-    (update Gamma p P) |-- block is R ->
-    (update Gamma id (TY_Fun P R)) |-- t is T ->
-    Gamma |-- (TM_LetFun id p P block R t) is T
+  | T_LetFun : forall Gamma id F P R f t T,
+    F = TY_Fun P R ->
+    Gamma |-- f is F ->
+    (update Gamma id F) |-- t is T ->
+    Gamma |-- (TM_LetFun id F f t) is T
 
   | T_Loc : forall Gamma i,
-    i < length mt -> (* TODO *)
+    i < length mt ->
     Gamma |-- (TM_Loc i) is TY_Ref (get_typ mt i)
 
   | T_Load_Ref : forall Gamma t T,
@@ -212,6 +217,7 @@ Inductive typeof {mt : mem_typ} : ctx -> tm -> typ -> Prop :=
     Gamma |-- (TM_Load t) is T
 
   | T_Fun : forall Gamma p P block R,
+    (update Gamma p P) |-- block is R ->
     Gamma |-- (TM_Fun p P block R) is (TY_Fun P R)
 
   where "Gamma '|--' t 'is' T" := (typeof Gamma t T)
@@ -235,7 +241,7 @@ Proof.
   induction Hstep1;
   intros * Hstep2;
   inversion Hstep2; subst;
-  solve
+  try solve
     [ exfalso; eapply value_does_not_step; eauto
     | congruence
     | match goal with
@@ -244,6 +250,10 @@ Proof.
       | H : forall x, _ / _ --> _ / x -> _ = x |- _ => erewrite H; eauto
       end
     ].
+  - exfalso; eapply (value_does_not_step _ _ (TM_Fun p P block R));
+    eauto using value.
+  - exfalso; eapply (value_does_not_step _ _ (TM_Fun p P block R));
+    eauto using value.
 Qed.
 
 Theorem deterministic_typing : forall mt Gamma t X Y,
