@@ -1,8 +1,6 @@
 From Coq Require Import Strings.String.
 From Coq Require Import Lists.List.
 
-From Elo Require Export Array.
-
 Local Definition map' (A : Type) := string -> A. (* total map *)
 
 Local Definition empty' {A : Type} v : map' A := (fun _ => v).

@@ -1,3 +1,5 @@
+From Coq Require Import Arith.Arith.
+
 From Elo Require Export Array.
 From Elo Require Export Map.
 From Elo Require Export Core.
@@ -14,18 +16,6 @@ Ltac splits n :=
 Definition well_typed_memory (mt : list typ) (m : mem) :=
   length mt = length m /\
   (forall i, mt / empty |-- (get_tm m i) is (get_typ mt i)).
-
-Lemma add_preserves_well_typed_memory : forall mt m t T,
-  well_typed_memory mt m ->
-  mt / empty |-- t is T ->
-  well_typed_memory (add mt T) (add m t).
-Proof.
-  unfold well_typed_memory.
-  intros * [Hlen H] Htype.
-  split.
-  - auto using add_preserves_length.
-  - intros i. specialize (H i).
-Admitted.
 
 Inductive extends' : list typ -> list typ -> Prop :=
   | extends_nil : forall mt,
@@ -48,8 +38,7 @@ Proof.
   - inversion Hlen.
   - inversion Hext. subst. destruct i.
     + reflexivity.
-    + unfold get_typ, get, List.nth_default.
-      simpl in *. eauto using Lt.lt_S_n.
+    + unfold get_typ, get. simpl in *. eauto using Lt.lt_S_n.
 Qed.
 
 Lemma extends_length : forall i mt mt',
@@ -128,55 +117,48 @@ Lemma substitution_preserves_typing : forall mt Gamma id t u T U,
   mt / (update Gamma id U) |-- t is T ->
   mt / empty |-- u is U ->
   mt / Gamma |-- [id := u] t is T.
-Proof.
+Proof with eauto using context_weakening, context_weakening_empty,
+  lookup_update_idempotent, update_overwrite, update_permutation.
   intros * Ht Hu.
-  generalize dependent T.
-  generalize dependent Gamma.
-  induction t; intros * Ht;
-  inversion Ht; simpl; subst;
-  eauto using @typeof.
-  - destruct String.eqb eqn:E.
-    + apply String.eqb_eq in E. subst.
-      rewrite lookup_update_involutive in H1.
-      inversion H1. subst.
-      apply context_weakening_empty. assumption.
-    + apply String.eqb_neq in E.
-      apply T_Id_Val. rewrite <- H1. symmetry.
-      apply (lookup_update_idempotent _ _ _ _ E).
-  - destruct String.eqb eqn:E.
-    + apply String.eqb_eq in E. subst.
-      apply context_weakening_empty.
-      rewrite lookup_update_involutive in H1. congruence.
-    + apply String.eqb_neq in E.
-      apply T_Id_Var. rewrite <- H1. symmetry.
-      apply (lookup_update_idempotent _ _ _ _ E).
-  - destruct String.eqb eqn:E; apply T_LetVal; eauto.
-    + apply String.eqb_eq in E. subst.
-      eauto using context_weakening, update_overwrite.
-    + apply String.eqb_neq in E.
-      eauto using context_weakening, update_permutation.
-  - destruct String.eqb eqn:E; apply T_LetVar; eauto.
-    + apply String.eqb_eq in E. subst.
-      eauto using context_weakening, update_overwrite.
-    + apply String.eqb_neq in E.
-      eauto using context_weakening, update_permutation.
-  - destruct String.eqb eqn:E; eapply T_LetFun; eauto.
-    + apply String.eqb_eq in E. subst.
-      eauto using context_weakening, update_overwrite.
-    + apply String.eqb_neq in E.
-      eauto using context_weakening, update_permutation.
-  - destruct String.eqb eqn:E; apply T_Fun.
-    + apply String.eqb_eq in E. subst.
-      eauto using context_weakening, update_overwrite.
-    + apply String.eqb_neq in E.
-      eauto using context_weakening, update_permutation.
+  generalize dependent T. generalize dependent Gamma.
+  induction t; intros * Ht; inversion Ht; simpl; subst;
+  eauto using @typeof; destruct String.eqb eqn:E;
+  try (apply String.eqb_eq in E; subst); try (apply String.eqb_neq in E).
+  - rewrite lookup_update_involutive in H1. inversion H1. subst...
+  - apply T_Id_Val. rewrite <- H1. symmetry...
+  - rewrite lookup_update_involutive in H1. inversion H1. subst...
+  - apply T_Id_Var. rewrite <- H1. symmetry...
+  - apply T_LetVal...
+  - apply T_LetVal...
+  - apply T_LetVar...
+  - apply T_LetVar...
+  - eapply T_LetFun...
+  - eapply T_LetFun...
+  - apply T_Fun...
+  - apply T_Fun...
 Qed.
 
-(* TODO *)
-Lemma get_add_last : forall {A} default (l : list A) a,
-  get default (add l a) (length l) = a.
+Lemma add_preserves_well_typed_memories : forall mt m t T,
+  well_typed_memory mt m ->
+  mt / empty |-- t is T ->
+  well_typed_memory (add mt T) (add m t).
 Proof.
-Admitted.
+  intros * [Hlen H] Htype.
+  unfold well_typed_memory.
+  split; auto using add_preserves_length. intros i.
+  destruct (lt_eq_lt_dec i (length m)) as [[Hlt | Heq] | Hgt];
+  unfold get_tm, get_typ in *; subst.
+  - rewrite get_add_lt; trivial.
+    rewrite <- Hlen in Hlt.
+    rewrite get_add_lt; trivial.
+    eauto using extends_add, memory_weakening.
+  - rewrite get_add_last. rewrite <- Hlen. rewrite get_add_last.
+    eauto using extends_add, memory_weakening.
+  - rewrite get_add_gt; trivial.
+    rewrite <- Hlen in Hgt.
+    rewrite get_add_gt; trivial.
+    apply T_Nil.
+Qed.
 
 Theorem preservation : forall m m' mt t t' T,
   mt / empty |-- t is T ->
@@ -190,9 +172,8 @@ Proof.
   remember empty as Gamma.
   intros * Htype.
   generalize dependent t'.
-  generalize dependent m'.
   induction Htype;
-  intros m' ?t' Hmem Hstep;
+  intros ?t' Hmem Hstep;
   inversion Hstep; subst.
   (* T_Asg *)
   - eapply IHHtype2 in H4; trivial.
@@ -233,7 +214,7 @@ Proof.
     exists mt'. splits 3; trivial.
     eauto using T_LetVar, memory_weakening.
   - exists (add mt E). inversion Hmem.
-    splits 3; auto using extends_add, add_preserves_well_typed_memory.
+    splits 3; auto using extends_add, add_preserves_well_typed_memories.
     eapply substitution_preserves_typing.
     + eauto using extends_add, memory_weakening.
     + rewrite <- H.
@@ -241,6 +222,9 @@ Proof.
       { unfold get_typ. rewrite (get_add_last TY_Void). reflexivity. }
       rewrite H1. auto using T_Loc, length_l_lt_add.
   (* T_LetFun *)
+  - eapply IHHtype1 in H7; trivial.
+    destruct H7 as [mt' [? [? ?]]].
+    exists mt'. splits 3; eauto using T_LetFun, memory_weakening.
   - exists mt. splits 3; auto using extends_refl.
     eapply substitution_preserves_typing; eauto.
   (* T_Load *)
@@ -253,10 +237,58 @@ Proof.
     destruct H1 as [mt' [? [? ?]]].
     exists mt'. splits 3; auto using T_Load_ImmutRef.
   - inversion Htype.
-Admitted.
+Qed.
 
 Theorem progress : forall m mt t T,
   mt / empty |-- t is T ->
   well_typed_memory mt m ->
   (value t \/ exists m' t', m / t --> m' / t').
-Admitted.
+Proof.
+  remember empty as Gamma.
+  intros * Htype Hmem.
+  induction Htype; subst; auto using value; right.
+  - inversion H.
+  - inversion H.
+  - specialize (IHHtype1 eq_refl).
+    specialize (IHHtype2 eq_refl).
+    destruct IHHtype1, IHHtype2.
+    + destruct H eqn:E; inversion Htype1; subst.
+      eexists. eexists. apply ST_Asg; trivial.
+      destruct Hmem as [Hlen ?]. rewrite <- Hlen. assumption.
+    + destruct H0 as [? [? ?]]. eexists. eexists. apply ST_Asg1; eauto.
+    + destruct H as [? [? ?]]. eexists. eexists. apply ST_Asg2; eauto.
+    + destruct H0 as [? [? ?]]. eexists. eexists. apply ST_Asg1; eauto.
+  - specialize (IHHtype1 eq_refl).
+    specialize (IHHtype2 eq_refl).
+    destruct IHHtype2.
+    + destruct IHHtype1.
+      * destruct H0; inversion Htype1; subst.
+        eexists. eexists. eapply ST_Call; trivial.
+      * destruct H0 as [? [? ?]]. eexists. eexists. apply ST_Call2; eauto.
+    + destruct H as [? [? ?]]. eexists. eexists. apply ST_Call1; eauto.
+  - specialize (IHHtype1 eq_refl).
+    specialize (IHHtype2 eq_refl).
+    destruct IHHtype1.
+    + destruct H; inversion Htype1. eexists. eexists. apply ST_Seq.
+    + destruct H as [? [? ?]]. eexists. eexists. apply ST_Seq1; eauto.
+  - specialize (IHHtype1 eq_refl).
+    destruct IHHtype1.
+    + eexists. eexists. apply ST_LetVal; trivial.
+    + destruct H as [? [? ?]]. eexists. eexists. apply ST_LetVal1; eauto.
+  - specialize (IHHtype1 eq_refl).
+    destruct IHHtype1.
+    + eexists. eexists. apply ST_LetVar; trivial.
+    + destruct H as [? [? ?]]. eexists. eexists. apply ST_LetVar1; eauto.
+  - specialize (IHHtype1 eq_refl).
+    destruct IHHtype1.
+    + eexists. eexists. apply ST_LetFun; trivial.
+    + destruct H as [? [? ?]]. eexists. eexists. apply ST_LetFun1; eauto.
+  - specialize (IHHtype eq_refl).
+    destruct IHHtype.
+    + destruct H; inversion Htype; subst. eexists. eexists. apply ST_Load.
+    + destruct H as [? [? ?]]. eexists. eexists. eapply ST_Load1; eauto.
+  - specialize (IHHtype eq_refl).
+    destruct IHHtype.
+    + destruct H; inversion Htype.
+    + destruct H as [? [? ?]]. eexists. eexists. eapply ST_Load1; eauto.
+Qed.

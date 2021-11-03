@@ -3,7 +3,7 @@ From Coq Require Import Lists.List.
 Definition add {A} (l : list A) (a : A) := l ++ (a :: nil).
 
 Definition get {A} (default : A) (l : list A) (i : nat) :=
-  nth_default default l i.
+  nth i l default.
 
 Fixpoint set {A} (l : list A) (i : nat) (a : A) : list A :=
   match l with
@@ -20,7 +20,7 @@ Fixpoint set {A} (l : list A) (i : nat) (a : A) : list A :=
 Lemma get_S_i : forall {A} default (l : list A) a i,
   get default (a :: l) (S i) = get default l i.
 Proof.
- intros *. unfold get, nth_default. reflexivity.
+ intros *. unfold get. reflexivity.
 Qed.
 
 Lemma set_preserves_length : forall {A} (l : list A) i a,
@@ -38,6 +38,40 @@ Proof.
   intros * H. unfold add. rewrite 2 last_length. auto.
 Qed.
 
+Lemma get_add_lt : forall {A} default (l : list A) a i,
+  i < length l ->
+  get default (add l a) i = get default l i.
+Proof.
+  intros *. generalize dependent i.
+  induction l. intros * Hlen.
+  - destruct i eqn:E.
+    + inversion Hlen.
+    + destruct n; reflexivity.
+  - intros i. simpl. destruct i; intros H.
+    + reflexivity.
+    + apply PeanoNat.Nat.succ_lt_mono in H. auto.
+Qed.
+
+Lemma get_add_last : forall {A} default (l : list A) a,
+  get default (add l a) (length l) = a.
+Proof.
+  intros. induction l; auto.
+Qed.
+
+Lemma get_add_gt : forall {A} default (l : list A) a i,
+  length l < i ->
+  get default (add l a) i = default.
+Proof.
+  intros *. generalize dependent i.
+  induction l. intros * Hlen.
+  - destruct i eqn:E.
+    + inversion Hlen.
+    + destruct n; reflexivity.
+  - intros i. simpl. destruct i; intros H.
+    + inversion H.
+    + apply PeanoNat.Nat.succ_lt_mono in H. auto.
+Qed.
+
 Lemma length_l_lt_add : forall {A} (l : list A) a,
   length l < length (add l a).
 Proof.
@@ -52,7 +86,7 @@ Proof.
   intros ? ? l.
   induction l as [| ? ? IH]; intros * H.
   - inversion H.
-  - destruct i; unfold get, List.nth_default.
+  - destruct i; unfold get.
     + reflexivity.
     + apply IH. auto using Lt.lt_S_n.
 Qed.
@@ -65,8 +99,8 @@ Proof.
   induction l as [| ? ? IH]; intros * H.
   - inversion H.
   - destruct i.
-    + unfold get, nth_default, nth_error. reflexivity.
-    + simpl. rewrite get_S_i, IH; auto using Lt.lt_S_n.
+    + reflexivity.
+    + simpl in *. f_equal. auto using Lt.lt_S_n.
 Qed.
 
 Lemma get_set_i_neq_j : forall {A} d (l : list A) i j a,
@@ -77,6 +111,5 @@ Proof.
   induction l as [| x xs IH]; intros * Hdiff.
   - reflexivity.
   - destruct i, j; try (contradiction || reflexivity).
-    assert (H : forall n y ys, get d (y :: ys) (S n) = get d ys n). { auto. }
-    simpl. rewrite 2 H. auto.
+    simpl. auto using PeanoNat.Nat.succ_inj_wd_neg.
 Qed.

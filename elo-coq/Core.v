@@ -143,6 +143,10 @@ Inductive step : mem -> tm -> mem -> tm -> Prop :=
     value e ->
     m / TM_LetVar id E e t --> (add m e) / [id := TM_Loc (length m)] t
 
+  | ST_LetFun1 : forall m m' id F f f' t,
+    m / f --> m' / f' ->
+    m / TM_LetFun id F f t --> m' / TM_LetFun id F f' t
+
   | ST_LetFun : forall m id F f t,
     value f ->
     m / TM_LetFun id F f t --> m / [id := f] t
