@@ -73,9 +73,8 @@ Lemma memory_weakening : forall mt mt' Gamma t T,
   mt  / Gamma |-- t is T.
 Proof.
   intros * Hext Htype.
-  induction Htype; eauto using @typeof.
-  assert (i < length mt). { eauto using extends_length. }
-  erewrite extends_lookup; auto using T_Loc.
+  induction Htype; eauto using @typeof, extends_length;
+  subst; erewrite extends_lookup; eauto using extends_length, @typeof.
 Qed.
 
 Lemma context_weakening : forall mt Gamma Gamma' t T,
@@ -160,6 +159,19 @@ Proof.
     apply T_Nil.
 Qed.
 
+(*
+
+match goal with
+IH : _ -> _ -> _ -> _ -> exists mt', _ /\ _ /\ _,
+H  : _ / ?e --> _ / _
+|- _ =>
+  eapply IH in H; trivial;
+  destruct H as [mt' [? [? ?]]];
+  exists mt'; splits 3; eauto using memory_weakening, @typeof
+end.
+
+*)
+
 Theorem preservation : forall m m' mt t t' T,
   mt / empty |-- t is T ->
   well_typed_memory mt m ->
@@ -174,69 +186,34 @@ Proof.
   generalize dependent t'.
   induction Htype;
   intros ?t' Hmem Hstep;
-  inversion Hstep; subst.
-  (* T_Asg *)
-  - eapply IHHtype2 in H4; trivial.
-    destruct H4 as [mt' [? [? ?]]].
-    exists mt'. splits 3; eauto using memory_weakening, T_Asg.
-  - eapply IHHtype1 in H5; trivial.
-    destruct H5 as [mt' [? [? ?]]].
-    exists mt'. splits 3; eauto using memory_weakening, T_Asg.
-  - exists mt. splits 3; auto using extends_refl, T_Nil.
-    eapply assignment_preserves_memory_typing; auto.
-    inversion Htype1. subst. eauto.
-  (* T_Call *)
-  - eapply IHHtype2 in H4; trivial.
-    destruct H4 as [mt' [? [? ?]]].
-    exists mt'. splits 3; trivial.
-    eapply T_Call; eauto using memory_weakening.
-  - eapply IHHtype1 in H5; trivial.
-    destruct H5 as [mt' [? [? ?]]].
-    exists mt'. splits 3; trivial.
-    eauto using T_Call, memory_weakening.
-  - exists mt. splits 3; auto using extends_refl.
-    inversion Htype1. subst.
-    eapply substitution_preserves_typing; eauto.
-  (* T_Seq *)
-  - eapply IHHtype1 in H4; trivial.
-    destruct H4 as [mt' [? [? ?]]].
-    exists mt'. splits 3; eauto using T_Seq, memory_weakening.
-  - exists mt. splits 3; auto using extends_refl.
-  (* T_LetVal *)
-  - eapply IHHtype1 in H6; trivial.
-    destruct H6 as [mt' [? [? ?]]].
-    exists mt'. splits 3; eauto using T_LetVal, memory_weakening.
-  - exists mt. splits 3; auto using extends_refl.
-    eapply substitution_preserves_typing; eauto.
-  (* T_LetVar *)
-  - eapply IHHtype1 in H6; trivial.
-    destruct H6 as [mt' [? [? ?]]].
-    exists mt'. splits 3; trivial.
-    eauto using T_LetVar, memory_weakening.
-  - exists (add mt E). inversion Hmem.
+  inversion Hstep; subst;
+  try solve
+    [ match goal with
+      | IH : _ -> _ -> _ -> _ -> exists mt', _ /\ _ /\ _,
+        H  : _ / _ --> _ / _ |- _ =>
+          eapply IH in H; trivial; destruct H as [? [? [? ?]]];
+          eexists; splits 3; eauto using memory_weakening, @typeof
+      end
+    | exists mt; splits 3; eauto using extends_refl, @typeof;
+      match goal with H : _ / _ |-- _ is _ |- _ =>
+        inversion H; subst;
+        solve [ destruct Hmem; trivial
+              | auto using assignment_preserves_memory_typing
+              | eauto using substitution_preserves_typing
+              ]
+      end
+    | exists (add mt E); inversion Hmem as [Hlen ?]; rewrite <- Hlen;
+      splits 3; auto using extends_add, add_preserves_well_typed_memories;
+      eauto using @typeof, length_l_lt_add, get_add_last
+    ].
+  (* LetVar *)
+  - exists (add mt E). inversion Hmem as [Hlen ?]. rewrite <- Hlen.
     splits 3; auto using extends_add, add_preserves_well_typed_memories.
-    eapply substitution_preserves_typing.
-    + eauto using extends_add, memory_weakening.
-    + rewrite <- H.
-      assert (TY_Ref E = TY_Ref (get_typ (add mt E) (length mt))).
-      { unfold get_typ. rewrite (get_add_last TY_Void). reflexivity. }
-      rewrite H1. auto using T_Loc, length_l_lt_add.
-  (* T_LetFun *)
-  - eapply IHHtype1 in H7; trivial.
-    destruct H7 as [mt' [? [? ?]]].
-    exists mt'. splits 3; eauto using T_LetFun, memory_weakening.
-  - exists mt. splits 3; auto using extends_refl.
-    eapply substitution_preserves_typing; eauto.
-  (* T_Load *)
-  - apply IHHtype in H1; trivial.
-    destruct H1 as [mt' [? [? ?]]].
-    exists mt'. splits 3; auto using T_Load_Ref.
-  - exists mt. splits 3; auto using extends_refl.
-    inversion Htype. destruct Hmem. auto.
-  - apply IHHtype in H1; trivial.
-    destruct H1 as [mt' [? [? ?]]].
-    exists mt'. splits 3; auto using T_Load_ImmutRef.
-  - inversion Htype.
+    eapply substitution_preserves_typing;
+    eauto using extends_add, memory_weakening.
+    assert (Haux : TY_Ref E = TY_Ref (get_typ (add mt E) (length mt))).
+    { unfold get_typ. rewrite (get_add_last TY_Void). reflexivity. }
+    rewrite Haux. auto using T_Loc, length_l_lt_add.
 Qed.
 
 Theorem progress : forall m mt t T,
@@ -246,49 +223,49 @@ Theorem progress : forall m mt t T,
 Proof.
   remember empty as Gamma.
   intros * Htype Hmem.
-  induction Htype; subst; auto using value; right.
+  induction Htype; subst; auto using value; right;
+  try solve
+    [ match goal with
+      | Htype : _ / _ |-- _ is _, IH : _ -> _ \/ _ _ _ |- _ =>
+        destruct (IH eq_refl) as [Hv | [? [? ?]]];
+        try (destruct Hv; inversion Htype; subst)
+      end; eexists; eexists; eauto using step, value
+    ].
+  - destruct (IHHtype1 eq_refl) as [Hv1 | Hex1].
+    + destruct (IHHtype2 eq_refl) as [Hv2 | Hex2].
+      * destruct Hv1 eqn:E1; inversion Htype1; subst.
+        destruct Hv2 eqn:E2; inversion Htype2; subst.
+        eexists. eexists. eauto using step.
+      * destruct Hex2 as [? [? ?]]. eexists. eexists. eauto using step.
+    + destruct Hex1 as [? [? ?]]. eexists. eexists. eauto using step.
+  - destruct (IHHtype1 eq_refl) as [Hv1 | Hex1].
+    + destruct (IHHtype2 eq_refl) as [Hv2 | Hex2].
+      * destruct Hv1 eqn:E1; inversion Htype1; subst.
+        destruct Hv2 eqn:E2; inversion Htype2; subst.
+        eexists. eexists. eauto using step.
+      * destruct Hex2 as [? [? ?]]. eexists. eexists. eauto using step.
+    + destruct Hex1 as [? [? ?]]. eexists. eexists. eauto using step.
   - inversion H.
   - inversion H.
-  - specialize (IHHtype1 eq_refl).
-    specialize (IHHtype2 eq_refl).
-    destruct IHHtype1, IHHtype2.
-    + destruct H eqn:E; inversion Htype1; subst.
-      eexists. eexists. apply ST_Asg; trivial.
-      destruct Hmem as [Hlen ?]. rewrite <- Hlen. assumption.
-    + destruct H0 as [? [? ?]]. eexists. eexists. apply ST_Asg1; eauto.
-    + destruct H as [? [? ?]]. eexists. eexists. apply ST_Asg2; eauto.
-    + destruct H0 as [? [? ?]]. eexists. eexists. apply ST_Asg1; eauto.
-  - specialize (IHHtype1 eq_refl).
-    specialize (IHHtype2 eq_refl).
-    destruct IHHtype2.
-    + destruct IHHtype1.
-      * destruct H0; inversion Htype1; subst.
-        eexists. eexists. eapply ST_Call; trivial.
-      * destruct H0 as [? [? ?]]. eexists. eexists. apply ST_Call2; eauto.
-    + destruct H as [? [? ?]]. eexists. eexists. apply ST_Call1; eauto.
-  - specialize (IHHtype1 eq_refl).
-    specialize (IHHtype2 eq_refl).
-    destruct IHHtype1.
-    + destruct H; inversion Htype1. eexists. eexists. apply ST_Seq.
-    + destruct H as [? [? ?]]. eexists. eexists. apply ST_Seq1; eauto.
-  - specialize (IHHtype1 eq_refl).
-    destruct IHHtype1.
-    + eexists. eexists. apply ST_LetVal; trivial.
-    + destruct H as [? [? ?]]. eexists. eexists. apply ST_LetVal1; eauto.
-  - specialize (IHHtype1 eq_refl).
-    destruct IHHtype1.
-    + eexists. eexists. apply ST_LetVar; trivial.
-    + destruct H as [? [? ?]]. eexists. eexists. apply ST_LetVar1; eauto.
-  - specialize (IHHtype1 eq_refl).
-    destruct IHHtype1.
-    + eexists. eexists. apply ST_LetFun; trivial.
-    + destruct H as [? [? ?]]. eexists. eexists. apply ST_LetFun1; eauto.
-  - specialize (IHHtype eq_refl).
-    destruct IHHtype.
-    + destruct H; inversion Htype; subst. eexists. eexists. apply ST_Load.
-    + destruct H as [? [? ?]]. eexists. eexists. eapply ST_Load1; eauto.
-  - specialize (IHHtype eq_refl).
-    destruct IHHtype.
-    + destruct H; inversion Htype.
-    + destruct H as [? [? ?]]. eexists. eexists. eapply ST_Load1; eauto.
+  - destruct (IHHtype1 eq_refl) as [Hv1 | [? [? ?]]];
+    destruct (IHHtype2 eq_refl) as [Hv2 | [? [? ?]]].
+    + destruct Hv1; inversion Htype1. subst.
+      destruct Hmem as [Hlen ?]. rewrite Hlen in H2.
+      eexists. eexists. eauto using step.
+    + eexists. eexists. eauto using step.
+    + eexists. eexists. eauto using step.
+    + eexists. eexists. eauto using step.
+  - destruct (IHHtype1 eq_refl) as [Hv1 | [? [? ?]]].
+    + destruct (IHHtype2 eq_refl) as [Hv2 | [? [? ?]]].
+      * destruct (IHHtype3 eq_refl) as [Hv3 | [? [? ?]]].
+        ** destruct Hv1; inversion Htype1; subst.
+           destruct Hmem as [Hlen ?]. rewrite Hlen in H4.
+           eexists. eexists. eauto using step.
+        ** eexists. eexists. eauto using step.
+      * eexists. eexists. eauto using step.
+    + eexists. eexists. eauto using step.
+  - destruct (IHHtype1 eq_refl) as [Hv | [? [? ?]]];
+    destruct (IHHtype2 eq_refl) as [? | [? [? ?]]];
+    try (destruct Hv; inversion Htype1; subst);
+    eexists; eexists; eauto using step.
 Qed.
