@@ -1,20 +1,30 @@
-From Coq Require Init.Nat.
+From Coq Require Import Init.Nat.
+From Coq Require Import List.
 
 From Elo Require Export Array.
 From Elo Require Export Map.
+
+Import ListNotations.
 
 Definition name := String.string.
 Definition num := nat.
 
 (* Notations *)
 
-Reserved Notation "'[' id ':=' x ']' t" (at level 20, id constr).
-Reserved Notation "m / t '-->' m' / t'" (at level 40,
-  t at next level, m' at next level).
-Reserved Notation "Gamma '|--' t 'is' T" (at level 40, t at next level).
-Reserved Notation "mt / Gamma '|--' t 'is' T" (at level 40,
-  Gamma at next level).
-Reserved Notation "Gamma '|--' t" (at level 40).
+Reserved Notation "'[' id ':=' x ']' t"
+  (at level 20, id constr).
+Reserved Notation "m / t '-->' m' / t'"
+  (at level 40, t at next level, m' at next level).
+Reserved Notation "m / t '-->*' m' / t'"
+  (at level 40, t at next level, m' at next level).
+Reserved Notation "m / t '-->+' m' / t'"
+  (at level 40, t at next level, m' at next level).
+Reserved Notation "m / threads '==>' m' / threads'"
+  (at level 40, threads at next level, m' at next level).
+Reserved Notation "Gamma '|--' t 'is' T"
+  (at level 40, t at next level).
+Reserved Notation "mt / Gamma '|--' t 'is' T"
+  (at level 40, Gamma at next level).
 
 (* Types *)
 
@@ -29,6 +39,14 @@ Inductive typ : Set :=
   | TY_IRef : typ -> typ
   | TY_Fun : typ -> typ -> typ
   .
+
+(*
+  | TY_Mon : name -> monitor_type -> typ
+with monitor_type : Set :=
+  | MonitorTypeNil : monitor_type
+  | MonitorTypeCons : name -> typ -> monitor_type -> monitor_type
+  .
+*)
 
 (* Terms *)
 
@@ -54,6 +72,17 @@ Inductive tm : Set :=
   | TM_Load : tm -> tm
   | TM_Fun : name -> typ -> tm -> typ -> tm
   .
+
+(*
+  | TM_LetMon : name -> monitor -> tm
+  | TM_Mon : monitor -> tm
+with monitor : Set :=
+  | MonitorNil
+  | MonitorVal : name -> typ -> tm -> tm -> mon -> mon
+  | MonitorVar : name -> typ -> tm -> tm -> mon -> mon
+  | MonitorFun : name -> typ -> tm -> tm -> mon -> mon
+  .
+*)
 
 (* Values *)
 
@@ -123,27 +152,27 @@ Inductive step : mem -> tm -> mem -> tm -> Prop :=
     m / TM_ArrNew T e --> (add m e) / TM_Arr T (length m)
 
   (* ArrIdx *)
-  | ST_ArrIdx1 : forall m m' arr arr' i,
+  | ST_ArrIdx1 : forall m m' arr arr' idx,
     m / arr --> m' / arr' ->
-    m / TM_ArrIdx arr i --> m' / TM_ArrIdx arr' i
+    m / TM_ArrIdx arr idx --> m' / TM_ArrIdx arr' idx
 
-  | ST_ArrIdx2 : forall m m' arr i i',
+  | ST_ArrIdx2 : forall m m' arr idx idx',
     value arr ->
-    m / i --> m' / i' ->
-    m / TM_ArrIdx arr i --> m' / TM_ArrIdx arr i'
+    m / idx --> m' / idx' ->
+    m / TM_ArrIdx arr idx --> m' / TM_ArrIdx arr idx'
 
   | ST_ArrIdx : forall m T i j,
     m / TM_ArrIdx (TM_Arr T i) (TM_Num j) --> m / (get_tm m i)
 
   (* Asg *)
-  | ST_Asg1 : forall m m' t e e',
-    m / e --> m' / e' ->
-    m / TM_Asg t e --> m' / TM_Asg t e'
-
-  | ST_Asg2 : forall m m' t t' e,
-    value e ->
+  | ST_Asg1 : forall m m' t t' e,
     m / t --> m' / t' ->
     m / TM_Asg t e --> m' / TM_Asg t' e
+
+  | ST_Asg2 : forall m m' t e e',
+    value t ->
+    m / e --> m' / e' ->
+    m / TM_Asg t e --> m' / TM_Asg t e'
 
   | ST_Asg : forall m i e,
     value e ->
@@ -173,14 +202,14 @@ Inductive step : mem -> tm -> mem -> tm -> Prop :=
     m / TM_ArrAsg (TM_Arr T i) idx e --> (set m i e) / TM_Nil
 
   (* Call *)
-  | ST_Call1 : forall m m' f a a',
-    m / a --> m' / a' ->
-    m / TM_Call f a --> m' / TM_Call f a'
-
-  | ST_Call2 : forall m m' f f' a,
-    value a ->
+  | ST_Call1 : forall m m' f f' a,
     m / f --> m' / f' ->
     m / TM_Call f a --> m' / TM_Call f' a
+
+  | ST_Call2 : forall m m' f a a',
+    value f ->
+    m / a --> m' / a' ->
+    m / TM_Call f a --> m' / TM_Call f a'
 
   | ST_Call : forall m a p P block R,
     value a ->
@@ -194,7 +223,7 @@ Inductive step : mem -> tm -> mem -> tm -> Prop :=
   | ST_Seq : forall m t,
     m / TM_Seq TM_Nil t --> m / t
 
-  (* LerVal *)
+  (* LetVal *)
   | ST_LetVal1 : forall m m' id E e e' t,
     m / e --> m' / e' ->
     m / TM_LetVal id E e t --> m' / TM_LetVal id E e' t
@@ -231,7 +260,28 @@ Inductive step : mem -> tm -> mem -> tm -> Prop :=
 
   where "m / t '-->' m' / t'" := (step m t m' t').
 
-(* Typing *)
+Inductive multistep : mem -> tm -> mem -> tm -> Prop :=
+  | multistep_refl : forall m t,
+    m / t -->* m / t
+
+  | multistep_step : forall m1 m m2 t1 t t2,
+    m1 / t1 -->  m  / t  ->
+    m  / t  -->* m2 / t2 ->
+    m1 / t1 -->* m2 / t2
+
+  where "m / t '-->*' m' / t'" := (multistep m t m' t').
+
+Inductive multistep_plus : mem -> tm -> mem -> tm -> Prop :=
+  | multistep_plus_one : forall m m' t t',
+    m / t -->  m' / t' ->
+    m / t -->+ m  / t
+
+  | multistep_plus_step : forall m1 m m2 t1 t t2,
+    m1 / t1 -->  m  / t  ->
+    m  / t  -->+ m2 / t2 ->
+    m1 / t1 -->+ m2 / t2
+
+  where "m / t '-->+' m' / t'" := (multistep_plus m t m' t').
 
 Inductive typeof {mt : mem_typ} : ctx -> tm -> typ -> Prop :=
   | T_Nil : forall Gamma,
@@ -241,12 +291,12 @@ Inductive typeof {mt : mem_typ} : ctx -> tm -> typ -> Prop :=
     Gamma |-- (TM_Num n) is TY_Num
 
   | T_Arr : forall Gamma T i,
-    T = get_typ mt i -> (* TODO *)
+    T = get_typ mt i ->
     i < length mt ->
     Gamma |-- (TM_Arr (TY_Arr T) i) is (TY_Arr T)
 
   | T_IArr : forall Gamma T i,
-    T = get_typ mt i -> (* TODO *)
+    T = get_typ mt i ->
     i < length mt ->
     Gamma |-- (TM_Arr (TY_IArr T) i) is (TY_IArr T)
 
@@ -255,7 +305,7 @@ Inductive typeof {mt : mem_typ} : ctx -> tm -> typ -> Prop :=
     Gamma |-- (TM_ArrNew (TY_Arr E) e) is (TY_Arr E)
 
   | T_IArrNew : forall Gamma e E,
-    Gamma |-- e is E ->
+    Gamma |-- e is E -> (* immutable *)
     Gamma |-- (TM_ArrNew (TY_IArr E) e) is (TY_IArr E)
 
   | T_ArrIdx : forall Gamma arr idx T,
@@ -309,7 +359,7 @@ Inductive typeof {mt : mem_typ} : ctx -> tm -> typ -> Prop :=
 
   | T_LetFun : forall Gamma id F P R f t T,
     F = TY_Fun P R ->
-    Gamma |-- f is F ->
+    (* safe *) Gamma |-- f is F ->
     (update Gamma id F) |-- t is T ->
     Gamma |-- (TM_LetFun id F f t) is T
 
@@ -332,65 +382,183 @@ Inductive typeof {mt : mem_typ} : ctx -> tm -> typ -> Prop :=
   where "Gamma '|--' t 'is' T" := (typeof Gamma t T)
   and "mt / Gamma '|--' t 'is' T" := (@typeof mt Gamma t T).
 
-(* Proofs *)
+(* Threads *)
 
-Lemma value_does_not_step : forall m m' v t,
-  value v -> ~ (m / v --> m' / t).
+Inductive ttm : Set :=
+  | TTM_Spawn : ttm -> ttm
+  | TTM_Wait : ttm -> ttm -> ttm
+  | TTM_Signal : ttm -> ttm
+  | TTM_Broadcast : ttm -> ttm
+  | TTM_AcquireVal
+  .
+
+(* TODO *)
+
+Fixpoint count {A} (m : map A) k :=
+  match m with
+  | map_nil _ => 0
+  | map_cons _ k' _ m' =>
+    if k =? k'
+      then 1 + count m' k
+      else count m' k
+  end.
+
+Definition contains {A} (m : map A) k :=
+  match lookup m k with None => false | Some _ => true end.
+
+Definition unique_map {A} (m : map A) :=
+  forall k v, lookup m k = Some v -> count m k = 1.
+
+(* auxiliary function *)
+Local Fixpoint f {A} (m acc : map A) : map A :=
+  match m with
+  | map_nil _ => acc
+  | map_cons _ k v m' => f m' (if contains acc k then acc else update acc k v)
+  end.
+
+Definition make_unique_map {A} (m : map A) : map A := f m empty.
+
+Theorem make_unique_map_correct : forall {A} (m : map A),
+  unique_map (make_unique_map m).
 Proof.
-  intros * Hv Hstep. destruct Hv; inversion Hstep.
+  unfold unique_map, make_unique_map, f. intros *.
+  induction m as [| k' v' m' IH].
+  - intros H. unfold f, empty, lookup in H. discriminate H.
+  - fold (@f A) in *. unfold update in *.
+    assert (H1 : @contains A empty k' = false). { reflexivity. }
+    rewrite H1. clear H1. intros H.
+Admitted.
+
+Theorem unique_map_equivalence : forall {A} (m : map A) k v,
+  lookup m k = Some v <-> lookup (make_unique_map m) k = Some v.
+Admitted.
+
+Inductive safe_type : typ -> Prop :=
+  | S_Void : safe_type TY_Void
+  | S_Num  : safe_type TY_Num
+  | S_IArr : forall T, safe_type T -> safe_type (TY_IArr T)
+  | S_IRef : forall T, safe_type T -> safe_type (TY_IRef T)
+  | S_Fun  : forall P R, safe_type (TY_Fun P R)
+  .
+
+Fixpoint safe_type_bool T :=
+  match T with
+  | TY_Void | TY_Num | TY_Fun _ _ => true
+  | TY_IArr T' | TY_IRef T' => safe_type_bool T'
+  | _ => false
+  end.
+
+Theorem safe_type_equivalence : forall T,
+  safe_type T <-> safe_type_bool T = true.
+Admitted.
+
+Definition safe_context Gamma :=
+  forall id T, lookup Gamma id = Some T -> safe_type T.
+
+Fixpoint make_safe_context (c : ctx) : ctx :=
+  match c with
+  | map_nil _ => map_nil typ
+  | map_cons _ id T c' =>
+      if safe_type_bool T
+        then map_cons typ id T (make_safe_context c')
+        else make_safe_context c'
+  end.
+
+Theorem make_safe_context_is_correct : forall Gamma,
+  safe_context (make_safe_context Gamma).
+Proof.
+  unfold safe_context. intros Gamma id T.
+  induction Gamma.
+  - unfold make_safe_context, lookup. discriminate.
+  - destruct (safe_type_bool v) eqn:E;
+    unfold make_safe_context in *;
+    rewrite E in *;
+    fold make_safe_context in *;
+    trivial.
+    unfold lookup in *.
+    destruct (String.eqb k id).
+    + intros H. injection H as ?. subst.
+      apply safe_type_equivalence. assumption.
+    + fold (@lookup typ) in *. auto.
 Qed.
 
-Theorem deterministic_step : forall m m' t t1 t2,
-  m / t --> m' / t1 ->
-  m / t --> m' / t2 ->
-  t1 = t2.
+Definition safe Gamma := make_safe_context (make_unique_map Gamma).
+
+Theorem safe_is_correctness : forall Gamma,
+  safe_context (safe Gamma).
 Proof.
-  intros * Hstep1.
-  generalize dependent t2.
-  induction Hstep1;
-  intros * Hstep2;
-  inversion Hstep2; subst;
-  try solve
-    [ congruence
-    | match goal with
-      | Hstep : _ / ?v --> _ / _, Hv : value ?v |- _ =>
-        exfalso; apply (value_does_not_step _ _ _ _ Hv Hstep); auto
-      | F : _ / TM_Nil         --> _ / _ |- _ => inversion F
-      | F : _ / TM_Num _       --> _ / _ |- _ => inversion F
-      | F : _ / TM_Arr _ _     --> _ / _ |- _ => inversion F
-      | F : _ / TM_Fun _ _ _ _ --> _ / _ |- _ => inversion F
-      | F : _ / TM_Loc _       --> _ / _ |- _ => inversion F
-      | H : forall x, _ / _ --> _ / x -> _ = x |- _ => erewrite H; eauto
-      end
-    ].
+Admitted.
+
+(*
+From Coq Require Import String.
+Open Scope string_scope.
+
+Definition x := "x".
+Definition letX := TM_LetVal x TY_Num (TM_Num 10) (TM_Id x).
+Definition stepLetX := ST_LetVal nil x TY_Num (TM_Num 10) (TM_Id x) (V_Num 10).
+Definition threads := letX :: letX :: nil.
+Example notConc : ~ (ctm letX). intros H. inversion H. Qed.
+
+Theorem not_deterministic_cstep : ~ (deterministic cstep).
+Proof.
+  unfold not, deterministic. intros H.
+  specialize (H nil nil threads [letX ; TM_Num 10] [TM_Num 10 ; letX]).
+  specialize (H (CST_Thread 1 _ _ threads _ _ eq_refl notConc stepLetX)).
+  specialize (H (CST_Thread 0 _ _ threads _ _ eq_refl notConc stepLetX)).
+  discriminate H.
 Qed.
 
-Theorem deterministic_typing : forall mt Gamma t X Y,
-  mt / Gamma |-- t is X ->
-  mt / Gamma |-- t is Y ->
-  X = Y.
-Proof.
-  assert (forall A B, TY_Ref A = TY_Ref B -> A = B). congruence.
-  assert (forall A B, TY_IRef A = TY_IRef B -> A = B). congruence.
-  assert (iref_neq_ref : forall A B, TY_IRef A <> TY_Ref B). congruence.
-  assert (ref_neq_iref : forall A B, TY_Ref A <> TY_IRef B). congruence.
+Close Scope string_scope.
+*)
 
-  intros * HX.
-  generalize dependent Y.
-  induction HX; intros Y HY;
-  inversion HY; subst;
-  try solve [congruence | auto];
-  try (match goal with H : context [?C _ = _] |- _ = _ =>
-    exfalso;
-    match C with
-    | TY_Ref => eapply ref_neq_iref
-    | TY_IRef => eapply iref_neq_ref
-    end;
-    eauto
-  end; fail).
-  - apply IHHX1 in H4. congruence.
-  - apply IHHX1 in H4. congruence. 
-  - apply IHHX1 in H4. congruence.
-  - apply IHHX1 in H4. congruence.
-  - apply IHHX1 in H4. apply IHHX2 in H6. congruence.
-Qed.
+Inductive ctm : tm -> Prop :=
+  (*
+  | CTM_Spawn : forall block, ctm (TM_Spawn block)
+  | CTM_Wait
+  | CTM_Signal
+  | CTM_Broadcast
+  | CTM_AcquireVal
+  *)
+  .
+
+(*
+
+"i" é um índice na memória.
+
+TM_NewMtx => Cria um mutex na memória com mem[i] = 0.
+
+TM_Mtx i => Se o valor de mem[i] for 0 então pode entrar no mutex.
+            Se não, tem alguém no mutex.
+
+CST_AcqMtx_Ok
+  get_tm m i = 0
+  m / TM_AcqMtx (TM_Mtx i) --> (set_tm m i 1) / TM_Nil
+
+(* busy waiting *)
+CST_AcqMtx_NotOk
+  get_tm m i = 1
+  m / TM_AcqMtx (TM_Mtx i) --> m / TM_Seq TM_Nil (TM_AcqMtx (TM_Mtx i))
+
+*)
+
+(* Inductive cstep : mem -> list tm -> mem -> list tm -> Prop :=
+  | CST_Thread : forall i m m' threads t t',
+    t = get_tm threads i ->
+    ~ (ctm t) ->
+    m / t --> m' / t' ->
+    m / threads ==> m' / (set threads i t')
+
+  | CST_Spawn : forall i m m' threads t t' block,
+    t = get_tm threads i ->
+    t = TM_Spawn block ->
+    m / t --> m' / t' ->
+    m / threads ==> m' / (add (set threads i t') block)
+
+  where "m / threads '==>' m' / threads'" := (cstep m threads m' threads').
+ *)
+(* Typing *)
+
+(* Definition safe_context (Gamma new : ctx) : ctx :=
+  match Gamma with
+  | fun x => _ => new
+  end. *)

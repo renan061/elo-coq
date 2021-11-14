@@ -11,7 +11,71 @@ Ltac splits n :=
   | S ?n' => split; [| splits n']
   end.
 
-(* Auxiliary Lemmas *)
+(* Determinism *)
+
+Lemma value_does_not_step : forall m m' v t,
+  value v -> ~ (m / v --> m' / t).
+Proof.
+  intros * Hv Hstep. destruct Hv; inversion Hstep.
+Qed.
+
+Definition deterministic {A B} (R : A -> B -> A -> B -> Prop) :=
+  forall a a' b b1 b2, R a b a' b1 -> R a b a' b2 -> b1 = b2.
+
+Theorem deterministic_step : deterministic step.
+Proof.
+  unfold deterministic.
+  intros * Hstep1.
+  generalize dependent b2.
+  induction Hstep1;
+  intros * Hstep2;
+  inversion Hstep2; subst;
+  try solve
+    [ congruence
+    | match goal with
+      | Hstep : _ / ?v --> _ / _, Hv : value ?v |- _ =>
+        exfalso; apply (value_does_not_step _ _ _ _ Hv Hstep); auto
+      | F : _ / TM_Nil         --> _ / _ |- _ => inversion F
+      | F : _ / TM_Num _       --> _ / _ |- _ => inversion F
+      | F : _ / TM_Arr _ _     --> _ / _ |- _ => inversion F
+      | F : _ / TM_Fun _ _ _ _ --> _ / _ |- _ => inversion F
+      | F : _ / TM_Loc _       --> _ / _ |- _ => inversion F
+      | H : forall x, _ / _ --> _ / x -> _ = x |- _ => erewrite H; eauto
+      end
+    ].
+Qed.
+
+Theorem deterministic_typing : forall mt Gamma t X Y,
+  mt / Gamma |-- t is X ->
+  mt / Gamma |-- t is Y ->
+  X = Y.
+Proof.
+  assert (forall A B, TY_Ref A  = TY_Ref  B -> A = B).        { congruence. }
+  assert (forall A B, TY_IRef A = TY_IRef B -> A = B).        { congruence. }
+  assert (iref_neq_ref : forall A B, TY_IRef A <> TY_Ref  B). { congruence. }
+  assert (ref_neq_iref : forall A B, TY_Ref  A <> TY_IRef B). { congruence. }
+
+  intros * HX.
+  generalize dependent Y.
+  induction HX; intros Y HY;
+  inversion HY; subst;
+  try solve [congruence | auto];
+  try (match goal with H : context [?C _ = _] |- _ = _ =>
+    exfalso;
+    match C with
+    | TY_Ref => eapply ref_neq_iref
+    | TY_IRef => eapply iref_neq_ref
+    end;
+    eauto
+  end; fail).
+  - apply IHHX1 in H4. congruence.
+  - apply IHHX1 in H4. congruence. 
+  - apply IHHX1 in H4. congruence.
+  - apply IHHX1 in H4. congruence.
+  - apply IHHX1 in H4. apply IHHX2 in H6. congruence.
+Qed.
+
+(* Progress, Preservation & Soundness *)
 
 Definition well_typed_memory (mt : list typ) (m : mem) :=
   length mt = length m /\
@@ -117,15 +181,15 @@ Lemma substitution_preserves_typing : forall mt Gamma id t u T U,
   mt / empty |-- u is U ->
   mt / Gamma |-- [id := u] t is T.
 Proof with eauto using context_weakening, context_weakening_empty,
-  lookup_update_idempotent, update_overwrite, update_permutation.
+  lookup_update_k_neq, update_overwrite, update_permutation.
   intros * Ht Hu.
   generalize dependent T. generalize dependent Gamma.
   induction t; intros * Ht; inversion Ht; simpl; subst;
   eauto using @typeof; destruct String.eqb eqn:E;
   try (apply String.eqb_eq in E; subst); try (apply String.eqb_neq in E).
-  - rewrite lookup_update_involutive in H1. inversion H1. subst...
+  - rewrite lookup_update_k_eq in H1. inversion H1. subst...
   - apply T_Id_Val. rewrite <- H1. symmetry...
-  - rewrite lookup_update_involutive in H1. inversion H1. subst...
+  - rewrite lookup_update_k_eq in H1. inversion H1. subst...
   - apply T_Id_Var. rewrite <- H1. symmetry...
   - apply T_LetVal...
   - apply T_LetVal...
@@ -158,19 +222,6 @@ Proof.
     rewrite get_add_gt; trivial.
     apply T_Nil.
 Qed.
-
-(*
-
-match goal with
-IH : _ -> _ -> _ -> _ -> exists mt', _ /\ _ /\ _,
-H  : _ / ?e --> _ / _
-|- _ =>
-  eapply IH in H; trivial;
-  destruct H as [mt' [? [? ?]]];
-  exists mt'; splits 3; eauto using memory_weakening, @typeof
-end.
-
-*)
 
 Theorem preservation : forall m m' mt t t' T,
   mt / empty |-- t is T ->
@@ -228,44 +279,70 @@ Proof.
     [ match goal with
       | Htype : _ / _ |-- _ is _, IH : _ -> _ \/ _ _ _ |- _ =>
         destruct (IH eq_refl) as [Hv | [? [? ?]]];
-        try (destruct Hv; inversion Htype; subst)
-      end; eexists; eexists; eauto using step, value
+        try (destruct Hv; inversion Htype; subst);
+        eexists; eexists; eauto using step, value
+      end
     ].
-  - destruct (IHHtype1 eq_refl) as [Hv1 | Hex1].
-    + destruct (IHHtype2 eq_refl) as [Hv2 | Hex2].
-      * destruct Hv1 eqn:E1; inversion Htype1; subst.
-        destruct Hv2 eqn:E2; inversion Htype2; subst.
-        eexists. eexists. eauto using step.
-      * destruct Hex2 as [? [? ?]]. eexists. eexists. eauto using step.
-    + destruct Hex1 as [? [? ?]]. eexists. eexists. eauto using step.
-  - destruct (IHHtype1 eq_refl) as [Hv1 | Hex1].
-    + destruct (IHHtype2 eq_refl) as [Hv2 | Hex2].
-      * destruct Hv1 eqn:E1; inversion Htype1; subst.
-        destruct Hv2 eqn:E2; inversion Htype2; subst.
-        eexists. eexists. eauto using step.
-      * destruct Hex2 as [? [? ?]]. eexists. eexists. eauto using step.
-    + destruct Hex1 as [? [? ?]]. eexists. eexists. eauto using step.
-  - inversion H.
-  - inversion H.
+  (* ArrIdx *)
   - destruct (IHHtype1 eq_refl) as [Hv1 | [? [? ?]]];
-    destruct (IHHtype2 eq_refl) as [Hv2 | [? [? ?]]].
-    + destruct Hv1; inversion Htype1. subst.
-      destruct Hmem as [Hlen ?]. rewrite Hlen in H2.
-      eexists. eexists. eauto using step.
-    + eexists. eexists. eauto using step.
-    + eexists. eexists. eauto using step.
-    + eexists. eexists. eauto using step.
-  - destruct (IHHtype1 eq_refl) as [Hv1 | [? [? ?]]].
-    + destruct (IHHtype2 eq_refl) as [Hv2 | [? [? ?]]].
-      * destruct (IHHtype3 eq_refl) as [Hv3 | [? [? ?]]].
-        ** destruct Hv1; inversion Htype1; subst.
-           destruct Hmem as [Hlen ?]. rewrite Hlen in H4.
-           eexists. eexists. eauto using step.
-        ** eexists. eexists. eauto using step.
-      * eexists. eexists. eauto using step.
-    + eexists. eexists. eauto using step.
+    destruct (IHHtype2 eq_refl) as [Hv2 | [? [? ?]]];
+    try (eexists; eexists; eauto using step; fail).
+    destruct Hv1; inversion Htype1; subst.
+    destruct Hv2; inversion Htype2; subst.
+    eexists. eexists. eauto using step.
+  - destruct (IHHtype1 eq_refl) as [Hv1 | [? [? ?]]];
+    destruct (IHHtype2 eq_refl) as [Hv2 | [? [? ?]]];
+    try (eexists; eexists; eauto using step; fail).
+    destruct Hv1; inversion Htype1; subst.
+    destruct Hv2; inversion Htype2; subst.
+    eexists. eexists. eauto using step.
+  (* Id *)
+  - inversion H.
+  - inversion H.
+  (* Asg *)
   - destruct (IHHtype1 eq_refl) as [Hv | [? [? ?]]];
     destruct (IHHtype2 eq_refl) as [? | [? [? ?]]];
-    try (destruct Hv; inversion Htype1; subst);
+    try (eexists; eexists; eauto using step; fail).
+    destruct Hv; inversion Htype1. subst.
+    destruct Hmem as [Hlen ?]. rewrite Hlen in H3.
+    eexists. eexists. eauto using step.
+  (* ArrAsg *)
+  - destruct (IHHtype1 eq_refl) as [Hv | [? [? ?]]];
+    destruct (IHHtype2 eq_refl) as [? | [? [? ?]]];
+    destruct (IHHtype3 eq_refl) as [? | [? [? ?]]];
+    try (eexists; eexists; eauto using step; fail).
+    destruct Hv; inversion Htype1; subst.
+    destruct Hmem as [Hlen ?]. rewrite Hlen in H6.
+    eexists. eexists. eauto using step.
+  (* Call *)
+  - destruct (IHHtype1 eq_refl) as [Hv | [? [? ?]]];
+    destruct (IHHtype2 eq_refl) as [? | [? [? ?]]];
+    try (eexists; eexists; eauto using step; fail).
+    destruct Hv; inversion Htype1; subst.
     eexists; eexists; eauto using step.
+Qed.
+
+Definition normal_form m t : Prop := ~ exists m' t', m / t --> m' / t'.
+
+Definition stuck m t : Prop := normal_form m t /\ ~ value t.
+
+Corollary soundness : forall mt m m' t t' T,
+  mt / empty |-- t is T ->
+  well_typed_memory mt m ->
+  m / t -->* m' / t' ->
+  ~ (stuck m' t').
+Proof.
+  intros * ? ? Hmultistep [Hnormal_form ?].
+  generalize dependent mt.
+  unfold normal_form in Hnormal_form.
+  induction Hmultistep; intros.
+  - assert (Hprogress : value t \/ exists m' t', m / t --> m' / t').
+    eauto using progress. destruct Hprogress; eauto.
+  - assert (Hpreservation : exists mt',
+      mt' extends mt /\
+      mt' / empty |-- t is T /\
+      well_typed_memory mt' m).
+    eauto using preservation. decompose record Hpreservation.
+    assert (Hprogress : value t \/ exists m' t', m / t --> m' / t').
+    eauto using progress. destruct Hprogress; eauto.
 Qed.
