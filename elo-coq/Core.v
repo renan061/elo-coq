@@ -78,31 +78,21 @@ Qed.
 Definition safe_context Gamma :=
   forall id T, lookup Gamma id = Some T -> safe_type T.
 
-Fixpoint safe Gamma :=
-  match Gamma with
-  | map_nil _ => map_nil typ
-  | map_cons _ id T Gamma' =>
-      if safe_type_bool T
-        then map_cons typ id T (safe Gamma')
-        else safe Gamma'
-  end.
+Definition safe (Gamma : map typ) :=
+  fun k => 
+    match Gamma k with
+    | None => None
+    | Some T => if safe_type_bool T then Some T else None
+    end.
 
 Theorem safe_is_correct : forall Gamma,
   safe_context (safe Gamma).
 Proof.
-  unfold safe_context. intros Gamma id T.
-  induction Gamma.
-  - unfold safe, lookup. discriminate.
-  - destruct (safe_type_bool v) eqn:E;
-    unfold safe in *;
-    rewrite E in *;
-    fold safe in *;
-    trivial.
-    unfold lookup in *.
-    destruct (String.eqb k id).
-    + intros H. injection H as ?. subst.
-      apply safe_type_equivalence. assumption.
-    + fold (@lookup typ) in *. auto.
+  unfold safe_context, lookup, safe. intros Gamma id T.
+  destruct (Gamma id); intros H.
+  - destruct safe_type_bool eqn:E; inversion H.
+    subst. apply safe_type_equivalence. assumption.
+  - inversion H.
 Qed.
 
 (* Terms *)
@@ -336,7 +326,7 @@ Inductive multistep : mem -> tm -> mem -> tm -> Prop :=
     m / t -->* m / t
 
   | multistep_step : forall m1 m m2 t1 t t2 eff,
-    m1 / t1 -->  eff / m / t -> ~~>
+    m1 / t1 -->  eff / m / t ->
     m  / t  -->* m2  / t2 ->
     m1 / t1 -->* m2  / t2
 

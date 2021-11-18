@@ -46,29 +46,17 @@ Theorem deterministic_typing : forall mt Gamma t X Y,
   mt / Gamma |-- t is Y ->
   X = Y.
 Proof.
-  assert (forall A B, TY_Ref A  = TY_Ref  B -> A = B).        { congruence. }
-  assert (forall A B, TY_IRef A = TY_IRef B -> A = B).        { congruence. }
-  assert (iref_neq_ref : forall A B, TY_IRef A <> TY_Ref  B). { congruence. }
-  assert (ref_neq_iref : forall A B, TY_Ref  A <> TY_IRef B). { congruence. }
-
-  intros * HX.
-  generalize dependent Y.
-  induction HX; intros Y HY;
-  inversion HY; subst;
-  try solve [congruence | auto];
-  try (match goal with H : context [?C _ = _] |- _ = _ =>
-    exfalso;
-    match C with
-    | TY_Ref => eapply ref_neq_iref
-    | TY_IRef => eapply iref_neq_ref
-    end;
-    eauto
-  end; fail).
-  - apply IHHX1 in H4. congruence.
-  - apply IHHX1 in H4. congruence. 
-  - apply IHHX1 in H4. congruence.
-  - apply IHHX1 in H4. congruence.
-  - apply IHHX1 in H4. apply IHHX2 in H6. congruence.
+  intros * HX. generalize dependent Y.
+  induction HX; intros Y HY; inversion HY; subst;
+  try solve 
+    [ congruence
+    | auto
+    | match goal with
+      | IH : forall T, ?mt / ?Gamma |-- ?t is T -> (_ _) = T,
+        H : ?mt / ?Gamma |-- ?t is (_ _)
+        |- _ = _ => apply IH in H; congruence
+      end
+    ].
 Qed.
 
 (* Progress, Preservation & Soundness *)
@@ -137,54 +125,17 @@ Proof.
   subst; erewrite extends_lookup; eauto using extends_length, @typeof.
 Qed.
 
-Lemma safe_preserves_lookup : forall Gamma Gamma' k,
-  lookup Gamma k = lookup Gamma' k ->
-  lookup (safe Gamma) k = lookup (safe Gamma') k.
-Proof.
-  intros * H. induction Gamma' as [| id' T' Gamma' IH'].
-  - simpl in *. induction Gamma as [| id T Gamma IH].
-    + reflexivity.
-    + simpl in *. destruct (String.eqb id k) eqn:E.
-      * discriminate.
-      * destruct (safe_type_bool T).
-        ** simpl in *. rewrite E. auto.
-        ** auto.
-  - simpl in *. induction Gamma as [| id T Gamma IH].
-    + simpl in *. destruct (String.eqb id' k) eqn:E.
-      * discriminate.
-      * destruct (safe_type_bool T').
-        ** simpl in *. rewrite E. auto.
-        ** auto.
-    + simpl in *. destruct (String.eqb id' k) eqn:E1.
-      apply String.eqb_eq in E1. subst.
-      * destruct (String.eqb id k) eqn:E2.
-        ** apply String.eqb_eq in E2. subst.
-           injection H as H'. subst.
-Admitted.
-
 Lemma safe_preserves_inclusion : forall Gamma Gamma',
   Gamma includes Gamma' ->
   (safe Gamma) includes (safe Gamma').
 Proof.
-  intros *. unfold Map.includes'.
-  induction Gamma as [| id T Gamma IH]; intros * Hinc *.
-  - admit.
-  - destruct Gamma' as [| id' T' Gamma'].
-    + discriminate.
-    + simpl in *.
-      * destruct (safe_type_bool T') eqn:E1.
-        ** simpl in *.
-           destruct (String.eqb id' k) eqn:E2.
-           *** apply String.eqb_eq in E2. subst.
-               destruct (safe_type_bool T) eqn:E3.
-               **** simpl in *.
-                    specialize (Hinc k v).
-                    rewrite String.eqb_refl in *.
-                    destruct (String.eqb id k) eqn:E4.
-                    ***** assumption.
-                    ***** intros H. apply IH.
-                          ****** intros.
-Admitted.
+  unfold Map.includes', safe. intros * H *.
+  destruct (Gamma k) eqn:E1; destruct (Gamma' k) eqn:E2;
+  solve 
+    [ intros F; inversion F
+    | eapply H in E2; rewrite E1 in E2; inversion E2; subst; trivial
+    ].
+Qed.
 
 Lemma context_weakening : forall mt Gamma Gamma' t T,
   Gamma includes Gamma' ->
@@ -221,84 +172,13 @@ Proof.
       erewrite (get_set_i_neq_j TM_Nil); auto.
 Qed.
 
-Fixpoint type_equality T U :=
-  match T, U with
-  | TY_Void, TY_Void
-  | TY_Num, TY_Num => true
-  | TY_Arr T', TY_Arr U'
-  | TY_IArr T', TY_IArr U'
-  | TY_Ref T', TY_Ref U'
-  | TY_IRef T', TY_IRef U'  => type_equality T' U'
-  | TY_Fun P R, TY_Fun P' R' => andb (type_equality P P') (type_equality R R')
-  | _, _ => false
-  end.
-
-Theorem type_equality_correct : forall T U,
-  type_equality T U = true <-> T = U.
-Proof.
-Admitted.
-
-(* TODO: unused *)
-Corollary destruct_lookup_update : forall {A} (m : map A) k k' v,
-  lookup (update m k' v) k = lookup m k \/ lookup (update m k' v) k = Some v.
-Proof.
-  intros *. destruct (String.eqb k k') eqn:E.
-  - right. apply String.eqb_eq in E. subst. apply lookup_update_k_eq.
-  - left. apply String.eqb_neq, not_eq_sym in E. apply lookup_update_k_neq.
-    assumption.
-Qed.
-
-(* TODO : renomear prova; criar lemas e encurtar essa prova. *)
-Lemma aux : forall Gamma id T,
+Lemma update_safe_includes_safe_update : forall Gamma id T,
   (update (safe Gamma) id T) includes (safe (update Gamma id T)).
 Proof.
-  intros *. unfold Map.includes'. intros *.
-  destruct (String.eqb id k) eqn:E1.
-  - apply String.eqb_eq in E1. subst.
-    rewrite lookup_update_k_eq.
-    intros H. rewrite <- H. symmetry.
-    destruct (safe_type_bool T) eqn:E2.
-    + induction Gamma.
-      * simpl in *. rewrite E2 in *.
-        simpl in *. rewrite String.eqb_refl in *.
-        trivial.
-      * simpl in *. destruct (String.eqb k k0) eqn:E3.
-        ** simpl in *. rewrite E2 in *.
-           simpl in *. rewrite String.eqb_refl in *.
-           reflexivity.
-        ** simpl in *. destruct (safe_type_bool v0) eqn:E4; auto.
-           simpl in *. rewrite String.eqb_sym in E3. rewrite E3 in *. auto.
-    + induction Gamma.
-      * simpl in *. rewrite E2 in *. discriminate H.
-      * simpl in *. destruct (String.eqb k k0) eqn:E3.
-        ** simpl in *. rewrite E2 in *. auto.
-        ** simpl in *.  destruct (safe_type_bool v0) eqn:E4; auto.
-           simpl in *. rewrite String.eqb_sym in E3. rewrite E3 in *. auto.
-  - apply String.eqb_neq in E1 as E1'.
-    rewrite lookup_update_k_neq; trivial.
-    intros H. rewrite <- H. symmetry.
-    destruct (safe_type_bool T) eqn:E2.
-    + induction Gamma.
-      * simpl in *. rewrite E2 in *.
-        simpl in *. rewrite E1.
-        reflexivity.
-      * simpl in *. destruct (String.eqb id k0) eqn:E3.
-        ** apply String.eqb_eq in E3. subst.
-           simpl in *. rewrite E2 in *.
-           simpl in *. rewrite E1 in *.
-           destruct (safe_type_bool v0) eqn:E4; auto.
-           simpl in *. rewrite E1. auto.
-        ** simpl in *. destruct (safe_type_bool v0) eqn:E4; auto.
-           simpl in *. destruct (String.eqb k0 k) eqn: E5; auto.
-    + induction Gamma.
-      * simpl in *. rewrite E2 in *. discriminate H.
-      * simpl in *. destruct (String.eqb id k0) eqn:E3.
-        ** apply String.eqb_eq in E3. subst.
-           simpl in *. rewrite E2 in *.
-           destruct (safe_type_bool v0) eqn:E4; auto.
-           simpl in *. rewrite E1. auto.
-        ** simpl in *.  destruct (safe_type_bool v0) eqn:E4; auto.
-           simpl in *. destruct (String.eqb k0 k) eqn: E5; auto.
+  unfold Map.includes', update, Map.update', safe. intros *.
+  destruct String.eqb; trivial.
+  destruct safe_type_bool; trivial.
+  intros F. inversion F.
 Qed.
 
 Lemma substitution_preserves_typing : forall mt Gamma id t u T U,
@@ -306,7 +186,9 @@ Lemma substitution_preserves_typing : forall mt Gamma id t u T U,
   mt / empty |-- u is U ->
   mt / Gamma |-- [id := u] t is T.
 Proof with eauto using context_weakening, context_weakening_empty,
-  lookup_update_k_neq, update_overwrite, update_permutation, aux.
+  lookup_update_kneq, update_overwrite, update_permutation,
+  update_safe_includes_safe_update.
+
   intros * Ht Hu.
   generalize dependent T. generalize dependent Gamma.
   induction t; intros * Ht; inversion Ht; simpl; subst;
@@ -314,9 +196,9 @@ Proof with eauto using context_weakening, context_weakening_empty,
   try (destruct String.eqb eqn:E);
   try (apply String.eqb_eq in E; subst);
   try (apply String.eqb_neq in E).
-  - rewrite lookup_update_k_eq in H1. inversion H1. subst...
+  - rewrite lookup_update_keq in H1. inversion H1. subst...
   - apply T_Id_Val. rewrite <- H1. symmetry...
-  - rewrite lookup_update_k_eq in H1. inversion H1. subst...
+  - rewrite lookup_update_keq in H1. inversion H1. subst...
   - apply T_Id_Var. rewrite <- H1. symmetry...
   - eapply T_Spawn...
   - apply T_LetVal...
