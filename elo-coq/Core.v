@@ -13,8 +13,8 @@ Definition num := nat.
 
 Reserved Notation "'[' id ':=' x ']' t"
   (at level 20, id constr).
-Reserved Notation "m / t '-->' m' / t'"
-  (at level 40, t at next level, m' at next level).
+Reserved Notation "m / t '-->' eff / m' / t'"
+  (at level 40, t at next level, eff at next level, m' at next level).
 Reserved Notation "m / t '-->*' m' / t'"
   (at level 40, t at next level, m' at next level).
 Reserved Notation "m / t '-->+' m' / t'"
@@ -48,6 +48,63 @@ with monitor_type : Set :=
   .
 *)
 
+(* Type Safety *)
+
+Inductive safe_type : typ -> Prop :=
+  | SF_Void : safe_type TY_Void
+  | SF_Num  : safe_type TY_Num
+  | SF_IArr : forall T, safe_type T -> safe_type (TY_IArr T)
+  | SF_IRef : forall T, safe_type T -> safe_type (TY_IRef T)
+  | SF_Fun  : forall P R, safe_type (TY_Fun P R)
+  .
+
+Fixpoint safe_type_bool T :=
+  match T with
+  | TY_Void
+  | TY_Num
+  | TY_Fun _ _ => true
+  | TY_IArr T'
+  | TY_IRef T' => safe_type_bool T'
+  | _ => false
+  end.
+
+Lemma safe_type_equivalence : forall T,
+  safe_type T <-> safe_type_bool T = true.
+Proof.
+  intros T. split; induction T; intros H;
+  try inversion H; auto using safe_type_bool, safe_type.
+Qed.
+
+Definition safe_context Gamma :=
+  forall id T, lookup Gamma id = Some T -> safe_type T.
+
+Fixpoint safe Gamma :=
+  match Gamma with
+  | map_nil _ => map_nil typ
+  | map_cons _ id T Gamma' =>
+      if safe_type_bool T
+        then map_cons typ id T (safe Gamma')
+        else safe Gamma'
+  end.
+
+Theorem safe_is_correct : forall Gamma,
+  safe_context (safe Gamma).
+Proof.
+  unfold safe_context. intros Gamma id T.
+  induction Gamma.
+  - unfold safe, lookup. discriminate.
+  - destruct (safe_type_bool v) eqn:E;
+    unfold safe in *;
+    rewrite E in *;
+    fold safe in *;
+    trivial.
+    unfold lookup in *.
+    destruct (String.eqb k id).
+    + intros H. injection H as ?. subst.
+      apply safe_type_equivalence. assumption.
+    + fold (@lookup typ) in *. auto.
+Qed.
+
 (* Terms *)
 
 Inductive tm : Set :=
@@ -63,6 +120,8 @@ Inductive tm : Set :=
   | TM_ArrAsg : tm -> tm -> tm -> tm
   | TM_Call : tm -> tm -> tm
   | TM_Seq : tm -> tm -> tm
+  (* concurrency statements *)
+  | TM_Spawn : tm -> tm
   (* definitions *)
   | TM_LetVal : name -> typ -> tm -> tm -> tm
   | TM_LetVar : name -> typ -> tm -> tm -> tm
@@ -84,6 +143,13 @@ with monitor : Set :=
   .
 *)
 
+(* Effects *)
+
+Inductive effect : Set :=
+  | EF_None
+  | EF_Spawn (block : tm)
+  .
+
 (* Values *)
 
 Inductive value : tm -> Prop :=
@@ -100,7 +166,6 @@ Inductive value : tm -> Prop :=
 Definition ctx := map typ.
 Definition mem := list tm.
 Definition mem_typ := list typ.
-
 Definition get_typ := get TY_Void.
 Definition get_tm  := get TM_Nil.
 
@@ -127,6 +192,8 @@ Fixpoint subst (id : name) (x t : tm) : tm :=
       TM_Call ([id := x] f) ([id := x] a)
   | TM_Seq t1 t2 =>
       TM_Seq ([id := x] t1) ([id := x] t2)
+  | TM_Spawn block =>
+      TM_Spawn ([id := x] block)
   | TM_LetVal id' E e t' =>
       TM_LetVal id' E ([id := x] e) (if id =? id' then t' else [id := x] t')
   | TM_LetVar id' E e t' =>
@@ -141,147 +208,166 @@ Fixpoint subst (id : name) (x t : tm) : tm :=
   end
   where "'[' id ':=' x ']' t" := (subst id x t).
 
-Inductive step : mem -> tm -> mem -> tm -> Prop :=
+Inductive step : mem -> tm -> effect -> mem -> tm -> Prop :=
   (* ArrNew *)
-  | ST_ArrNew1 : forall m m' T e e',
-    m / e --> m' / e' ->
-    m / TM_ArrNew T e --> m' / TM_ArrNew T e'
+  | ST_ArrNew1 : forall m m' T e e' eff,
+    m / e --> eff / m' / e' ->
+    m / TM_ArrNew T e --> eff / m' / TM_ArrNew T e'
 
   | ST_ArrNew : forall m T e,
     value e ->
-    m / TM_ArrNew T e --> (add m e) / TM_Arr T (length m)
+    m / TM_ArrNew T e --> EF_None / (add m e) / TM_Arr T (length m)
 
   (* ArrIdx *)
-  | ST_ArrIdx1 : forall m m' arr arr' idx,
-    m / arr --> m' / arr' ->
-    m / TM_ArrIdx arr idx --> m' / TM_ArrIdx arr' idx
+  | ST_ArrIdx1 : forall m m' arr arr' idx eff,
+    m / arr --> eff / m' / arr' ->
+    m / TM_ArrIdx arr idx --> eff / m' / TM_ArrIdx arr' idx
 
-  | ST_ArrIdx2 : forall m m' arr idx idx',
+  | ST_ArrIdx2 : forall m m' arr idx idx' eff,
     value arr ->
-    m / idx --> m' / idx' ->
-    m / TM_ArrIdx arr idx --> m' / TM_ArrIdx arr idx'
+    m / idx --> eff / m' / idx' ->
+    m / TM_ArrIdx arr idx --> eff / m' / TM_ArrIdx arr idx'
 
   | ST_ArrIdx : forall m T i j,
-    m / TM_ArrIdx (TM_Arr T i) (TM_Num j) --> m / (get_tm m i)
+    m / TM_ArrIdx (TM_Arr T i) (TM_Num j) --> EF_None / m / (get_tm m i)
 
   (* Asg *)
-  | ST_Asg1 : forall m m' t t' e,
-    m / t --> m' / t' ->
-    m / TM_Asg t e --> m' / TM_Asg t' e
+  | ST_Asg1 : forall m m' t t' e eff,
+    m / t --> eff / m' / t' ->
+    m / TM_Asg t e --> eff / m' / TM_Asg t' e
 
-  | ST_Asg2 : forall m m' t e e',
+  | ST_Asg2 : forall m m' t e e' eff,
     value t ->
-    m / e --> m' / e' ->
-    m / TM_Asg t e --> m' / TM_Asg t e'
+    m / e --> eff / m' / e' ->
+    m / TM_Asg t e --> eff / m' / TM_Asg t e'
 
   | ST_Asg : forall m i e,
     value e ->
     i < length m ->
-    m / TM_Asg (TM_Loc i) e --> (set m i e) / TM_Nil
+    m / TM_Asg (TM_Loc i) e --> EF_None / (set m i e) / TM_Nil
 
   (* ArrAsg *)
-  | ST_ArrAsg1 : forall m m' arr arr' idx e,
-    m / arr --> m' / arr' ->
-    m / TM_ArrAsg arr idx e --> m' / TM_ArrAsg arr' idx e
+  | ST_ArrAsg1 : forall m m' arr arr' idx e eff,
+    m / arr --> eff / m' / arr' ->
+    m / TM_ArrAsg arr idx e --> eff / m' / TM_ArrAsg arr' idx e
 
-  | ST_ArrAsg2 : forall m m' arr idx idx' e,
+  | ST_ArrAsg2 : forall m m' arr idx idx' e eff,
     value arr ->
-    m / idx --> m' / idx' ->
-    m / TM_ArrAsg arr idx e --> m' / TM_ArrAsg arr idx' e
+    m / idx --> eff / m' / idx' ->
+    m / TM_ArrAsg arr idx e --> eff / m' / TM_ArrAsg arr idx' e
 
-  | ST_ArrAsg3 : forall m m' arr idx e e',
+  | ST_ArrAsg3 : forall m m' arr idx e e' eff,
     value arr ->
     value idx ->
-    m / e --> m' / e' ->
-    m / TM_ArrAsg arr idx e --> m' / TM_ArrAsg arr idx e'
+    m / e --> eff / m' / e' ->
+    m / TM_ArrAsg arr idx e --> eff / m' / TM_ArrAsg arr idx e'
 
   | ST_ArrAsg : forall m T i idx e,
     value e ->
     value idx ->
     i < length m ->
-    m / TM_ArrAsg (TM_Arr T i) idx e --> (set m i e) / TM_Nil
+    m / TM_ArrAsg (TM_Arr T i) idx e --> EF_None / (set m i e) / TM_Nil
 
   (* Call *)
-  | ST_Call1 : forall m m' f f' a,
-    m / f --> m' / f' ->
-    m / TM_Call f a --> m' / TM_Call f' a
+  | ST_Call1 : forall m m' f f' a eff,
+    m / f --> eff / m' / f' ->
+    m / TM_Call f a --> eff / m' / TM_Call f' a
 
-  | ST_Call2 : forall m m' f a a',
+  | ST_Call2 : forall m m' f a a' eff,
     value f ->
-    m / a --> m' / a' ->
-    m / TM_Call f a --> m' / TM_Call f a'
+    m / a --> eff / m' / a' ->
+    m / TM_Call f a --> eff / m' / TM_Call f a'
 
   | ST_Call : forall m a p P block R,
     value a ->
-    m / TM_Call (TM_Fun p P block R) a --> m / [p := a] block
+    m / TM_Call (TM_Fun p P block R) a --> EF_None / m / [p := a] block
 
   (* Seq *)
-  | ST_Seq1 : forall m m' t1 t2 t,
-    m / t1 --> m' / t2 ->
-    m / TM_Seq t1 t --> m' / TM_Seq t2 t
+  | ST_Seq1 : forall m m' t1 t2 t eff,
+    m / t1 --> eff / m' / t2 ->
+    m / TM_Seq t1 t --> eff / m' / TM_Seq t2 t
 
   | ST_Seq : forall m t,
-    m / TM_Seq TM_Nil t --> m / t
+    m / TM_Seq TM_Nil t --> EF_None / m / t
+
+  (* Spawn *)
+  | ST_Spawn : forall m block ,
+    m / TM_Spawn block --> (EF_Spawn block) / m / TM_Nil
 
   (* LetVal *)
-  | ST_LetVal1 : forall m m' id E e e' t,
-    m / e --> m' / e' ->
-    m / TM_LetVal id E e t --> m' / TM_LetVal id E e' t
+  | ST_LetVal1 : forall m m' id E e e' t eff,
+    m / e --> eff / m' / e' ->
+    m / TM_LetVal id E e t --> eff / m' / TM_LetVal id E e' t
 
   | ST_LetVal : forall m id E e t,
     value e ->
-    m / TM_LetVal id E e t --> m / [id := e] t
+    m / TM_LetVal id E e t --> EF_None / m / [id := e] t
 
   (* LetVar *)
-  | ST_LetVar1 : forall m m' id E e e' t,
-    m / e --> m' / e' ->
-    m / TM_LetVar id E e t --> m' / TM_LetVar id E e' t
+  | ST_LetVar1 : forall m m' id E e e' t eff,
+    m / e --> eff / m' / e' ->
+    m / TM_LetVar id E e t --> eff / m' / TM_LetVar id E e' t
 
   | ST_LetVar : forall m id E e t,
     value e ->
-    m / TM_LetVar id E e t --> (add m e) / [id := TM_Loc (length m)] t
+    m / TM_LetVar id E e t --> EF_None / (add m e) / [id := TM_Loc (length m)] t
 
   (* LetFun *)
-  | ST_LetFun1 : forall m m' id F f f' t,
-    m / f --> m' / f' ->
-    m / TM_LetFun id F f t --> m' / TM_LetFun id F f' t
+  | ST_LetFun1 : forall m m' id F f f' t eff,
+    m / f --> eff / m' / f' ->
+    m / TM_LetFun id F f t --> eff / m' / TM_LetFun id F f' t
 
   | ST_LetFun : forall m id F f t,
     value f ->
-    m / TM_LetFun id F f t --> m / [id := f] t
+    m / TM_LetFun id F f t --> EF_None / m / [id := f] t
 
   (* Load *)
-  | ST_Load1 : forall m m' t t',
-    m / t --> m' / t' ->
-    m / TM_Load t --> m' / TM_Load t'
+  | ST_Load1 : forall m m' t t' eff,
+    m / t --> eff / m' / t' ->
+    m / TM_Load t --> eff / m' / TM_Load t'
 
   | ST_Load : forall m i,
-    m / TM_Load (TM_Loc i) --> m / (get_tm m i)
+    m / TM_Load (TM_Loc i) --> EF_None / m / (get_tm m i)
 
-  where "m / t '-->' m' / t'" := (step m t m' t').
+  where "m / t '-->' eff / m' / t'" := (step m t eff m' t').
 
 Inductive multistep : mem -> tm -> mem -> tm -> Prop :=
   | multistep_refl : forall m t,
     m / t -->* m / t
 
-  | multistep_step : forall m1 m m2 t1 t t2,
-    m1 / t1 -->  m  / t  ->
-    m  / t  -->* m2 / t2 ->
-    m1 / t1 -->* m2 / t2
+  | multistep_step : forall m1 m m2 t1 t t2 eff,
+    m1 / t1 -->  eff / m / t -> ~~>
+    m  / t  -->* m2  / t2 ->
+    m1 / t1 -->* m2  / t2
 
   where "m / t '-->*' m' / t'" := (multistep m t m' t').
 
 Inductive multistep_plus : mem -> tm -> mem -> tm -> Prop :=
-  | multistep_plus_one : forall m m' t t',
-    m / t -->  m' / t' ->
+  | multistep_plus_one : forall m m' t t' eff,
+    m / t --> eff / m' / t' ->
     m / t -->+ m  / t
 
-  | multistep_plus_step : forall m1 m m2 t1 t t2,
-    m1 / t1 -->  m  / t  ->
+  | multistep_plus_step : forall m1 m m2 t1 t t2 eff,
+    m1 / t1 --> eff / m / t ->
     m  / t  -->+ m2 / t2 ->
     m1 / t1 -->+ m2 / t2
 
   where "m / t '-->+' m' / t'" := (multistep_plus m t m' t').
+
+(* Concurrent Step *)
+
+Inductive cstep : mem -> list tm -> mem -> list tm -> Prop :=
+  | CST_None : forall i m m' t' threads,
+    m / (get_tm threads i) --> EF_None / m' / t' ->
+    m / threads ==> m' / (set threads i t')
+
+  | CST_Spawn : forall i m m' t' block threads,
+    m / (get_tm threads i) --> (EF_Spawn block) / m' / t' ->
+    m / threads ==> m' / (add (set threads i t') block)
+
+  where "m / threads '==>' m' / threads'" := (cstep m threads m' threads').
+
+(* Typing *)
 
 Inductive typeof {mt : mem_typ} : ctx -> tm -> typ -> Prop :=
   | T_Nil : forall Gamma,
@@ -347,6 +433,10 @@ Inductive typeof {mt : mem_typ} : ctx -> tm -> typ -> Prop :=
     Gamma |-- t' is T ->
     Gamma |-- (TM_Seq t t') is T
 
+  | T_Spawn : forall Gamma block T,
+    safe Gamma |-- block is T ->
+    Gamma |-- (TM_Spawn block) is TY_Void
+
   | T_LetVal : forall Gamma id e t E T,
     Gamma |-- e is E ->
     (update Gamma id E) |-- t is T ->
@@ -359,7 +449,7 @@ Inductive typeof {mt : mem_typ} : ctx -> tm -> typ -> Prop :=
 
   | T_LetFun : forall Gamma id F P R f t T,
     F = TY_Fun P R ->
-    (* safe *) Gamma |-- f is F ->
+    safe Gamma |-- f is F ->
     (update Gamma id F) |-- t is T ->
     Gamma |-- (TM_LetFun id F f t) is T
 
@@ -384,111 +474,6 @@ Inductive typeof {mt : mem_typ} : ctx -> tm -> typ -> Prop :=
 
 (* Threads *)
 
-Inductive ttm : Set :=
-  | TTM_Spawn : ttm -> ttm
-  | TTM_Wait : ttm -> ttm -> ttm
-  | TTM_Signal : ttm -> ttm
-  | TTM_Broadcast : ttm -> ttm
-  | TTM_AcquireVal
-  .
-
-(* TODO *)
-
-Fixpoint count {A} (m : map A) k :=
-  match m with
-  | map_nil _ => 0
-  | map_cons _ k' _ m' =>
-    if k =? k'
-      then 1 + count m' k
-      else count m' k
-  end.
-
-Definition contains {A} (m : map A) k :=
-  match lookup m k with None => false | Some _ => true end.
-
-Definition unique_map {A} (m : map A) :=
-  forall k v, lookup m k = Some v -> count m k = 1.
-
-(* auxiliary function *)
-Local Fixpoint f {A} (m acc : map A) : map A :=
-  match m with
-  | map_nil _ => acc
-  | map_cons _ k v m' => f m' (if contains acc k then acc else update acc k v)
-  end.
-
-Definition make_unique_map {A} (m : map A) : map A := f m empty.
-
-Theorem make_unique_map_correct : forall {A} (m : map A),
-  unique_map (make_unique_map m).
-Proof.
-  unfold unique_map, make_unique_map, f. intros *.
-  induction m as [| k' v' m' IH].
-  - intros H. unfold f, empty, lookup in H. discriminate H.
-  - fold (@f A) in *. unfold update in *.
-    assert (H1 : @contains A empty k' = false). { reflexivity. }
-    rewrite H1. clear H1. intros H.
-Admitted.
-
-Theorem unique_map_equivalence : forall {A} (m : map A) k v,
-  lookup m k = Some v <-> lookup (make_unique_map m) k = Some v.
-Admitted.
-
-Inductive safe_type : typ -> Prop :=
-  | S_Void : safe_type TY_Void
-  | S_Num  : safe_type TY_Num
-  | S_IArr : forall T, safe_type T -> safe_type (TY_IArr T)
-  | S_IRef : forall T, safe_type T -> safe_type (TY_IRef T)
-  | S_Fun  : forall P R, safe_type (TY_Fun P R)
-  .
-
-Fixpoint safe_type_bool T :=
-  match T with
-  | TY_Void | TY_Num | TY_Fun _ _ => true
-  | TY_IArr T' | TY_IRef T' => safe_type_bool T'
-  | _ => false
-  end.
-
-Theorem safe_type_equivalence : forall T,
-  safe_type T <-> safe_type_bool T = true.
-Admitted.
-
-Definition safe_context Gamma :=
-  forall id T, lookup Gamma id = Some T -> safe_type T.
-
-Fixpoint make_safe_context (c : ctx) : ctx :=
-  match c with
-  | map_nil _ => map_nil typ
-  | map_cons _ id T c' =>
-      if safe_type_bool T
-        then map_cons typ id T (make_safe_context c')
-        else make_safe_context c'
-  end.
-
-Theorem make_safe_context_is_correct : forall Gamma,
-  safe_context (make_safe_context Gamma).
-Proof.
-  unfold safe_context. intros Gamma id T.
-  induction Gamma.
-  - unfold make_safe_context, lookup. discriminate.
-  - destruct (safe_type_bool v) eqn:E;
-    unfold make_safe_context in *;
-    rewrite E in *;
-    fold make_safe_context in *;
-    trivial.
-    unfold lookup in *.
-    destruct (String.eqb k id).
-    + intros H. injection H as ?. subst.
-      apply safe_type_equivalence. assumption.
-    + fold (@lookup typ) in *. auto.
-Qed.
-
-Definition safe Gamma := make_safe_context (make_unique_map Gamma).
-
-Theorem safe_is_correctness : forall Gamma,
-  safe_context (safe Gamma).
-Proof.
-Admitted.
-
 (*
 From Coq Require Import String.
 Open Scope string_scope.
@@ -511,16 +496,6 @@ Qed.
 Close Scope string_scope.
 *)
 
-Inductive ctm : tm -> Prop :=
-  (*
-  | CTM_Spawn : forall block, ctm (TM_Spawn block)
-  | CTM_Wait
-  | CTM_Signal
-  | CTM_Broadcast
-  | CTM_AcquireVal
-  *)
-  .
-
 (*
 
 "i" é um índice na memória.
@@ -541,21 +516,6 @@ CST_AcqMtx_NotOk
 
 *)
 
-(* Inductive cstep : mem -> list tm -> mem -> list tm -> Prop :=
-  | CST_Thread : forall i m m' threads t t',
-    t = get_tm threads i ->
-    ~ (ctm t) ->
-    m / t --> m' / t' ->
-    m / threads ==> m' / (set threads i t')
-
-  | CST_Spawn : forall i m m' threads t t' block,
-    t = get_tm threads i ->
-    t = TM_Spawn block ->
-    m / t --> m' / t' ->
-    m / threads ==> m' / (add (set threads i t') block)
-
-  where "m / threads '==>' m' / threads'" := (cstep m threads m' threads').
- *)
 (* Typing *)
 
 (* Definition safe_context (Gamma new : ctx) : ctx :=

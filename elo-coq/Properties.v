@@ -13,34 +13,30 @@ Ltac splits n :=
 
 (* Determinism *)
 
-Lemma value_does_not_step : forall m m' v t,
-  value v -> ~ (m / v --> m' / t).
+Lemma value_does_not_step : forall m m' v t eff,
+  value v -> ~ (m / v --> eff / m' / t).
 Proof.
   intros * Hv Hstep. destruct Hv; inversion Hstep.
 Qed.
 
-Definition deterministic {A B} (R : A -> B -> A -> B -> Prop) :=
-  forall a a' b b1 b2, R a b a' b1 -> R a b a' b2 -> b1 = b2.
-
-Theorem deterministic_step : deterministic step.
+Theorem deterministic_step : forall m m' t t1 t2 eff,
+  m / t --> eff / m' / t1 ->
+  m / t --> eff / m' / t2 ->
+  t1 = t2.
 Proof.
-  unfold deterministic.
-  intros * Hstep1.
-  generalize dependent b2.
-  induction Hstep1;
-  intros * Hstep2;
-  inversion Hstep2; subst;
+  intros * Hstep1. generalize dependent t2.
+  induction Hstep1; intros * Hstep2; inversion Hstep2; subst;
   try solve
     [ congruence
     | match goal with
-      | Hstep : _ / ?v --> _ / _, Hv : value ?v |- _ =>
-        exfalso; apply (value_does_not_step _ _ _ _ Hv Hstep); auto
-      | F : _ / TM_Nil         --> _ / _ |- _ => inversion F
-      | F : _ / TM_Num _       --> _ / _ |- _ => inversion F
-      | F : _ / TM_Arr _ _     --> _ / _ |- _ => inversion F
-      | F : _ / TM_Fun _ _ _ _ --> _ / _ |- _ => inversion F
-      | F : _ / TM_Loc _       --> _ / _ |- _ => inversion F
-      | H : forall x, _ / _ --> _ / x -> _ = x |- _ => erewrite H; eauto
+      | Hstep : _ / ?v --> _ / _ / _ , Hv : value ?v |- _ =>
+        exfalso; apply (value_does_not_step _ _ _ _ _ Hv Hstep); auto
+      | F : _ / TM_Nil         --> _ / _ / _ |- _ => inversion F
+      | F : _ / TM_Num _       --> _ / _ / _ |- _ => inversion F
+      | F : _ / TM_Arr _ _     --> _ / _ / _ |- _ => inversion F
+      | F : _ / TM_Fun _ _ _ _ --> _ / _ / _ |- _ => inversion F
+      | F : _ / TM_Loc _       --> _ / _ / _ |- _ => inversion F
+      | H : forall x, _ / _ --> _ / _ / x -> _ = x |- _ => erewrite H; eauto
       end
     ].
 Qed.
@@ -141,6 +137,55 @@ Proof.
   subst; erewrite extends_lookup; eauto using extends_length, @typeof.
 Qed.
 
+Lemma safe_preserves_lookup : forall Gamma Gamma' k,
+  lookup Gamma k = lookup Gamma' k ->
+  lookup (safe Gamma) k = lookup (safe Gamma') k.
+Proof.
+  intros * H. induction Gamma' as [| id' T' Gamma' IH'].
+  - simpl in *. induction Gamma as [| id T Gamma IH].
+    + reflexivity.
+    + simpl in *. destruct (String.eqb id k) eqn:E.
+      * discriminate.
+      * destruct (safe_type_bool T).
+        ** simpl in *. rewrite E. auto.
+        ** auto.
+  - simpl in *. induction Gamma as [| id T Gamma IH].
+    + simpl in *. destruct (String.eqb id' k) eqn:E.
+      * discriminate.
+      * destruct (safe_type_bool T').
+        ** simpl in *. rewrite E. auto.
+        ** auto.
+    + simpl in *. destruct (String.eqb id' k) eqn:E1.
+      apply String.eqb_eq in E1. subst.
+      * destruct (String.eqb id k) eqn:E2.
+        ** apply String.eqb_eq in E2. subst.
+           injection H as H'. subst.
+Admitted.
+
+Lemma safe_preserves_inclusion : forall Gamma Gamma',
+  Gamma includes Gamma' ->
+  (safe Gamma) includes (safe Gamma').
+Proof.
+  intros *. unfold Map.includes'.
+  induction Gamma as [| id T Gamma IH]; intros * Hinc *.
+  - admit.
+  - destruct Gamma' as [| id' T' Gamma'].
+    + discriminate.
+    + simpl in *.
+      * destruct (safe_type_bool T') eqn:E1.
+        ** simpl in *.
+           destruct (String.eqb id' k) eqn:E2.
+           *** apply String.eqb_eq in E2. subst.
+               destruct (safe_type_bool T) eqn:E3.
+               **** simpl in *.
+                    specialize (Hinc k v).
+                    rewrite String.eqb_refl in *.
+                    destruct (String.eqb id k) eqn:E4.
+                    ***** assumption.
+                    ***** intros H. apply IH.
+                          ****** intros.
+Admitted.
+
 Lemma context_weakening : forall mt Gamma Gamma' t T,
   Gamma includes Gamma' ->
   mt / Gamma' |-- t is T ->
@@ -149,7 +194,7 @@ Proof.
   intros * Hinc Htype.
   generalize dependent Gamma.
   induction Htype; intros * Hinc;
-  eauto 6 using @typeof, update_preserves_inclusion.
+  eauto 6 using @typeof, safe_preserves_inclusion, update_preserves_inclusion.
 Qed.
 
 Lemma context_weakening_empty : forall mt Gamma t T,
@@ -176,21 +221,104 @@ Proof.
       erewrite (get_set_i_neq_j TM_Nil); auto.
 Qed.
 
+Fixpoint type_equality T U :=
+  match T, U with
+  | TY_Void, TY_Void
+  | TY_Num, TY_Num => true
+  | TY_Arr T', TY_Arr U'
+  | TY_IArr T', TY_IArr U'
+  | TY_Ref T', TY_Ref U'
+  | TY_IRef T', TY_IRef U'  => type_equality T' U'
+  | TY_Fun P R, TY_Fun P' R' => andb (type_equality P P') (type_equality R R')
+  | _, _ => false
+  end.
+
+Theorem type_equality_correct : forall T U,
+  type_equality T U = true <-> T = U.
+Proof.
+Admitted.
+
+(* TODO: unused *)
+Corollary destruct_lookup_update : forall {A} (m : map A) k k' v,
+  lookup (update m k' v) k = lookup m k \/ lookup (update m k' v) k = Some v.
+Proof.
+  intros *. destruct (String.eqb k k') eqn:E.
+  - right. apply String.eqb_eq in E. subst. apply lookup_update_k_eq.
+  - left. apply String.eqb_neq, not_eq_sym in E. apply lookup_update_k_neq.
+    assumption.
+Qed.
+
+(* TODO : renomear prova; criar lemas e encurtar essa prova. *)
+Lemma aux : forall Gamma id T,
+  (update (safe Gamma) id T) includes (safe (update Gamma id T)).
+Proof.
+  intros *. unfold Map.includes'. intros *.
+  destruct (String.eqb id k) eqn:E1.
+  - apply String.eqb_eq in E1. subst.
+    rewrite lookup_update_k_eq.
+    intros H. rewrite <- H. symmetry.
+    destruct (safe_type_bool T) eqn:E2.
+    + induction Gamma.
+      * simpl in *. rewrite E2 in *.
+        simpl in *. rewrite String.eqb_refl in *.
+        trivial.
+      * simpl in *. destruct (String.eqb k k0) eqn:E3.
+        ** simpl in *. rewrite E2 in *.
+           simpl in *. rewrite String.eqb_refl in *.
+           reflexivity.
+        ** simpl in *. destruct (safe_type_bool v0) eqn:E4; auto.
+           simpl in *. rewrite String.eqb_sym in E3. rewrite E3 in *. auto.
+    + induction Gamma.
+      * simpl in *. rewrite E2 in *. discriminate H.
+      * simpl in *. destruct (String.eqb k k0) eqn:E3.
+        ** simpl in *. rewrite E2 in *. auto.
+        ** simpl in *.  destruct (safe_type_bool v0) eqn:E4; auto.
+           simpl in *. rewrite String.eqb_sym in E3. rewrite E3 in *. auto.
+  - apply String.eqb_neq in E1 as E1'.
+    rewrite lookup_update_k_neq; trivial.
+    intros H. rewrite <- H. symmetry.
+    destruct (safe_type_bool T) eqn:E2.
+    + induction Gamma.
+      * simpl in *. rewrite E2 in *.
+        simpl in *. rewrite E1.
+        reflexivity.
+      * simpl in *. destruct (String.eqb id k0) eqn:E3.
+        ** apply String.eqb_eq in E3. subst.
+           simpl in *. rewrite E2 in *.
+           simpl in *. rewrite E1 in *.
+           destruct (safe_type_bool v0) eqn:E4; auto.
+           simpl in *. rewrite E1. auto.
+        ** simpl in *. destruct (safe_type_bool v0) eqn:E4; auto.
+           simpl in *. destruct (String.eqb k0 k) eqn: E5; auto.
+    + induction Gamma.
+      * simpl in *. rewrite E2 in *. discriminate H.
+      * simpl in *. destruct (String.eqb id k0) eqn:E3.
+        ** apply String.eqb_eq in E3. subst.
+           simpl in *. rewrite E2 in *.
+           destruct (safe_type_bool v0) eqn:E4; auto.
+           simpl in *. rewrite E1. auto.
+        ** simpl in *.  destruct (safe_type_bool v0) eqn:E4; auto.
+           simpl in *. destruct (String.eqb k0 k) eqn: E5; auto.
+Qed.
+
 Lemma substitution_preserves_typing : forall mt Gamma id t u T U,
   mt / (update Gamma id U) |-- t is T ->
   mt / empty |-- u is U ->
   mt / Gamma |-- [id := u] t is T.
 Proof with eauto using context_weakening, context_weakening_empty,
-  lookup_update_k_neq, update_overwrite, update_permutation.
+  lookup_update_k_neq, update_overwrite, update_permutation, aux.
   intros * Ht Hu.
   generalize dependent T. generalize dependent Gamma.
   induction t; intros * Ht; inversion Ht; simpl; subst;
-  eauto using @typeof; destruct String.eqb eqn:E;
-  try (apply String.eqb_eq in E; subst); try (apply String.eqb_neq in E).
+  eauto using @typeof;
+  try (destruct String.eqb eqn:E);
+  try (apply String.eqb_eq in E; subst);
+  try (apply String.eqb_neq in E).
   - rewrite lookup_update_k_eq in H1. inversion H1. subst...
   - apply T_Id_Val. rewrite <- H1. symmetry...
   - rewrite lookup_update_k_eq in H1. inversion H1. subst...
   - apply T_Id_Var. rewrite <- H1. symmetry...
+  - eapply T_Spawn...
   - apply T_LetVal...
   - apply T_LetVal...
   - apply T_LetVar...
@@ -223,10 +351,10 @@ Proof.
     apply T_Nil.
 Qed.
 
-Theorem preservation : forall m m' mt t t' T,
+Theorem preservation : forall m m' mt t t' eff T,
   mt / empty |-- t is T ->
   well_typed_memory mt m ->
-  m / t --> m' / t' ->
+  m / t --> eff / m' / t' ->
   exists mt',
     mt' extends mt /\
     mt' / empty |-- t' is T /\
@@ -241,7 +369,7 @@ Proof.
   try solve
     [ match goal with
       | IH : _ -> _ -> _ -> _ -> exists mt', _ /\ _ /\ _,
-        H  : _ / _ --> _ / _ |- _ =>
+        H  : _ / _ --> _ / _ / _ |- _ =>
           eapply IH in H; trivial; destruct H as [? [? [? ?]]];
           eexists; splits 3; eauto using memory_weakening, @typeof
       end
@@ -270,7 +398,7 @@ Qed.
 Theorem progress : forall m mt t T,
   mt / empty |-- t is T ->
   well_typed_memory mt m ->
-  (value t \/ exists m' t', m / t --> m' / t').
+  (value t \/ exists m' t' eff, m / t --> eff / m' / t').
 Proof.
   remember empty as Gamma.
   intros * Htype Hmem.
@@ -278,20 +406,20 @@ Proof.
   try solve
     [ match goal with
       | Htype : _ / _ |-- _ is _, IH : _ -> _ \/ _ _ _ |- _ =>
-        destruct (IH eq_refl) as [Hv | [? [? ?]]];
+        destruct (IH eq_refl) as [Hv | [? [? [? ?]]]];
         try (destruct Hv; inversion Htype; subst);
-        eexists; eexists; eauto using step, value
+        eexists; eexists; eexists; eauto using step, value
       end
     ].
   (* ArrIdx *)
-  - destruct (IHHtype1 eq_refl) as [Hv1 | [? [? ?]]];
-    destruct (IHHtype2 eq_refl) as [Hv2 | [? [? ?]]];
-    try (eexists; eexists; eauto using step; fail).
+  - destruct (IHHtype1 eq_refl) as [Hv1 | [? [? [? ?]]]];
+    destruct (IHHtype2 eq_refl) as [Hv2 | [? [? [? ?]]]];
+    try (eexists; eexists; eexists; eauto using step; fail).
     destruct Hv1; inversion Htype1; subst.
     destruct Hv2; inversion Htype2; subst.
-    eexists. eexists. eauto using step.
-  - destruct (IHHtype1 eq_refl) as [Hv1 | [? [? ?]]];
-    destruct (IHHtype2 eq_refl) as [Hv2 | [? [? ?]]];
+    eexists. eexists. eexists. eauto using step.
+  - destruct (IHHtype1 eq_refl) as [Hv1 | [? [? [? ?]]]];
+    destruct (IHHtype2 eq_refl) as [Hv2 | [? [? [? ?]]]];
     try (eexists; eexists; eauto using step; fail).
     destruct Hv1; inversion Htype1; subst.
     destruct Hv2; inversion Htype2; subst.
@@ -300,29 +428,30 @@ Proof.
   - inversion H.
   - inversion H.
   (* Asg *)
-  - destruct (IHHtype1 eq_refl) as [Hv | [? [? ?]]];
-    destruct (IHHtype2 eq_refl) as [? | [? [? ?]]];
+  - destruct (IHHtype1 eq_refl) as [Hv | [? [? [? ?]]]];
+    destruct (IHHtype2 eq_refl) as [?  | [? [? [? ?]]]];
     try (eexists; eexists; eauto using step; fail).
     destruct Hv; inversion Htype1. subst.
     destruct Hmem as [Hlen ?]. rewrite Hlen in H3.
     eexists. eexists. eauto using step.
   (* ArrAsg *)
-  - destruct (IHHtype1 eq_refl) as [Hv | [? [? ?]]];
-    destruct (IHHtype2 eq_refl) as [? | [? [? ?]]];
-    destruct (IHHtype3 eq_refl) as [? | [? [? ?]]];
+  - destruct (IHHtype1 eq_refl) as [Hv | [? [? [? ?]]]];
+    destruct (IHHtype2 eq_refl) as [?  | [? [? [? ?]]]];
+    destruct (IHHtype3 eq_refl) as [?  | [? [? [? ?]]]];
     try (eexists; eexists; eauto using step; fail).
     destruct Hv; inversion Htype1; subst.
     destruct Hmem as [Hlen ?]. rewrite Hlen in H6.
     eexists. eexists. eauto using step.
   (* Call *)
-  - destruct (IHHtype1 eq_refl) as [Hv | [? [? ?]]];
-    destruct (IHHtype2 eq_refl) as [? | [? [? ?]]];
+  - destruct (IHHtype1 eq_refl) as [Hv | [? [? [? ?]]]];
+    destruct (IHHtype2 eq_refl) as [?  | [? [? [? ?]]]];
     try (eexists; eexists; eauto using step; fail).
     destruct Hv; inversion Htype1; subst.
     eexists; eexists; eauto using step.
 Qed.
 
-Definition normal_form m t : Prop := ~ exists m' t', m / t --> m' / t'.
+Definition normal_form m t : Prop :=
+  ~ exists m' t' eff, m / t --> eff / m' / t'.
 
 Definition stuck m t : Prop := normal_form m t /\ ~ value t.
 
@@ -336,13 +465,13 @@ Proof.
   generalize dependent mt.
   unfold normal_form in Hnormal_form.
   induction Hmultistep; intros.
-  - assert (Hprogress : value t \/ exists m' t', m / t --> m' / t').
+  - assert (Hprogress : value t \/ exists m' t' eff, m / t --> eff / m' / t').
     eauto using progress. destruct Hprogress; eauto.
   - assert (Hpreservation : exists mt',
       mt' extends mt /\
       mt' / empty |-- t is T /\
       well_typed_memory mt' m).
     eauto using preservation. decompose record Hpreservation.
-    assert (Hprogress : value t \/ exists m' t', m / t --> m' / t').
+    assert (Hprogress : value t \/ exists m' t' eff, m / t --> eff / m' / t').
     eauto using progress. destruct Hprogress; eauto.
 Qed.
