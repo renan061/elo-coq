@@ -34,6 +34,7 @@ Inductive typ : Set :=
   | TY_Num
   | TY_Arr : typ -> typ
   | TY_IArr : typ -> typ
+  (* | TY_TQueue : typ *)
   (* internal types *)
   | TY_Ref : typ -> typ
   | TY_IRef : typ -> typ
@@ -58,21 +59,21 @@ Inductive safe_type : typ -> Prop :=
   | SF_Fun  : forall P R, safe_type (TY_Fun P R)
   .
 
-Fixpoint safe_type_bool T :=
+Fixpoint is_safe_type T :=
   match T with
   | TY_Void
   | TY_Num
   | TY_Fun _ _ => true
   | TY_IArr T'
-  | TY_IRef T' => safe_type_bool T'
+  | TY_IRef T' => is_safe_type T'
   | _ => false
   end.
 
 Lemma safe_type_equivalence : forall T,
-  safe_type T <-> safe_type_bool T = true.
+  safe_type T <-> is_safe_type T = true.
 Proof.
   intros T. split; induction T; intros H;
-  try inversion H; auto using safe_type_bool, safe_type.
+  try inversion H; auto using is_safe_type, safe_type.
 Qed.
 
 Definition safe_context Gamma :=
@@ -82,17 +83,28 @@ Definition safe (Gamma : map typ) :=
   fun k => 
     match Gamma k with
     | None => None
-    | Some T => if safe_type_bool T then Some T else None
+    | Some T => if is_safe_type T then Some T else None
     end.
 
-Theorem safe_is_correct : forall Gamma,
+Theorem safe_guarantees_safe_context : forall Gamma,
   safe_context (safe Gamma).
 Proof.
   unfold safe_context, lookup, safe. intros Gamma id T.
-  destruct (Gamma id); intros H.
-  - destruct safe_type_bool eqn:E; inversion H.
-    subst. apply safe_type_equivalence. assumption.
-  - inversion H.
+  destruct (Gamma id); intros H; try discriminate.
+  destruct is_safe_type eqn:E; inversion H.
+  subst. apply safe_type_equivalence. assumption.
+Qed.
+
+Theorem safe_semantics : forall Gamma id T,
+  lookup Gamma id = Some T ->
+  (   safe_type T  -> lookup (safe Gamma) id = Some T) /\
+  (~ (safe_type T) -> lookup (safe Gamma) id = None).
+Proof.
+  unfold lookup, safe. intros * H1. split;
+  intros H2; destruct (Gamma id); inversion H1; subst;
+  rewrite safe_type_equivalence in H2;
+  try (apply Bool.not_true_is_false in H2);
+  rewrite H2; reflexivity.
 Qed.
 
 (* Terms *)
@@ -105,6 +117,8 @@ Inductive tm : Set :=
   | TM_ArrNew : typ -> tm -> tm
   | TM_ArrIdx : tm -> tm -> tm
   | TM_Id : name -> tm
+  (* concurrency expressions *)
+  (* | TM_TQueue : list num -> tm *)
   (* statements *)
   | TM_Asg : tm -> tm -> tm
   | TM_ArrAsg : tm -> tm -> tm -> tm
@@ -112,12 +126,17 @@ Inductive tm : Set :=
   | TM_Seq : tm -> tm -> tm
   (* concurrency statements *)
   | TM_Spawn : tm -> tm
+  (*
+  | TM_Wait : tm -> tm -> tm
+  | TM_Signal : tm -> tm
+  | TM_Broadcast : tm -> tm
+  *)
   (* definitions *)
   | TM_LetVal : name -> typ -> tm -> tm -> tm
   | TM_LetVar : name -> typ -> tm -> tm -> tm
   | TM_LetFun : name -> typ -> tm -> tm -> tm
   (* internal terms *)
-  | TM_Loc : nat -> tm
+  | TM_Loc : num -> tm
   | TM_Load : tm -> tm
   | TM_Fun : name -> typ -> tm -> typ -> tm
   .
@@ -143,13 +162,27 @@ Inductive effect : Set :=
 (* Values *)
 
 Inductive value : tm -> Prop :=
-  | V_Nil : value TM_Nil
-  | V_Num : forall n, value (TM_Num n)
-  | V_Arr : forall T i, value (TM_Arr T i)
+  | V_Nil    : value TM_Nil
+  | V_Num    : forall n, value (TM_Num n)
+  | V_Arr    : forall T i, value (TM_Arr T i)
+  (* | V_TQueue : forall threads, value (TM_TQueue threads) *)
   (* internal *)
   | V_Loc : forall i, value (TM_Loc i)
   | V_Fun : forall p P block R, value (TM_Fun p P block R)
   .
+
+Definition is_value t :=
+  match t with
+  | TM_Nil | TM_Num _ | TM_Arr _ _ | TM_Loc _ | TM_Fun _ _ _ _ => true
+  | _ => false
+  end.
+
+Lemma value_equivalence : forall t,
+  value t <-> is_value t = true.
+Proof.
+  intros t. split; induction t; intros H;
+  try inversion H; auto using is_value, value.
+Qed.
 
 (* Auxiliary Aliases *)
 
@@ -174,6 +207,9 @@ Fixpoint subst (id : name) (x t : tm) : tm :=
       TM_ArrIdx ([id := x] arr) ([id := x] idx)
   | TM_Id id' =>
       if id =? id' then x else t
+  (*
+  | TM_TQueue _ => t
+  *)
   | TM_Asg t' e =>
       TM_Asg ([id := x] t') ([id := x] e)
   | TM_ArrAsg arr idx e =>
@@ -184,6 +220,14 @@ Fixpoint subst (id : name) (x t : tm) : tm :=
       TM_Seq ([id := x] t1) ([id := x] t2)
   | TM_Spawn block =>
       TM_Spawn ([id := x] block)
+  (*
+  | TM_Wait cond queue =>
+      TM_Wait ([id := x] cond) ([id := x] queue)
+  | TM_Signal queue =>
+      TM_Signal ([id := x] queue)
+  | TM_Broadcast queue =>
+      TM_Broadcast ([id := x] queue)
+  *)
   | TM_LetVal id' E e t' =>
       TM_LetVal id' E ([id := x] e) (if id =? id' then t' else [id := x] t')
   | TM_LetVar id' E e t' =>
@@ -284,6 +328,41 @@ Inductive step : mem -> tm -> effect -> mem -> tm -> Prop :=
   | ST_Spawn : forall m block ,
     m / TM_Spawn block --> (EF_Spawn block) / m / TM_Nil
 
+  (*
+  (* Wait *)
+  | ST_Wait1 : forall m m' cond cond' queue eff,
+    m / cond --> eff / m' / cond' ->
+    m / TM_Wait cond queue --> eff / m' / TM_Wait cond' queue
+
+  | ST_Wait2 : forall m m' cond queue queue' eff,
+    value cond ->
+    m / queue --> eff / m' / queue' ->
+    m / TM_Wait cond queue --> eff / m' / TM_Wait cond queue'
+
+  | ST_Wait : forall m cond queue,
+    value cond ->
+    value queue ->
+    m / TM_Wait cond queue --> EF_None / m / TM_Nil
+
+  (* Signal *)
+  | ST_Signal1 : forall m m' queue queue' eff,
+    m / queue --> eff / m' / queue' ->
+    m / TM_Signal queue --> eff / m' / TM_Signal queue'
+
+  | ST_Signal : forall m queue,
+    value queue ->
+    m / TM_Signal queue --> EF_None / m / TM_Nil
+
+  (* Broadcast *)
+  | ST_Broadcast1 : forall m m' queue queue' eff,
+    m / queue --> eff / m' / queue' ->
+    m / TM_Broadcast queue --> eff / m' / TM_Broadcast queue'
+
+  | ST_Broadcast : forall m queue,
+    value queue ->
+    m / TM_Broadcast queue --> EF_None / m / TM_Nil
+  *)
+
   (* LetVal *)
   | ST_LetVal1 : forall m m' id E e e' t eff,
     m / e --> eff / m' / e' ->
@@ -352,7 +431,8 @@ Inductive cstep : mem -> list tm -> mem -> list tm -> Prop :=
     m / threads ==> m' / (set threads i t')
 
   | CST_Spawn : forall i m m' t' block threads,
-    m / (get_tm threads i) --> (EF_Spawn block) / m' / t' ->
+    i < length threads ->
+    m / (get_tm threads i) --> (EF_Spawn block) / m' / t' -> (* TODO: m' *)
     m / threads ==> m' / (add (set threads i t') block)
 
   where "m / threads '==>' m' / threads'" := (cstep m threads m' threads').
@@ -401,7 +481,10 @@ Inductive typeof {mt : mem_typ} : ctx -> tm -> typ -> Prop :=
   | T_Id_Var : forall Gamma id T,
     lookup Gamma id = Some (TY_Ref T) ->
     Gamma |-- (TM_Id id) is (TY_Ref T)
-
+(*
+  | T_TQueue : forall Gamma threads,
+    Gamma |-- (TM_TQueue threads) is TY_TQueue
+*)
   | T_Asg : forall Gamma t e T,
     Gamma |-- t is (TY_Ref T) ->
     Gamma |-- e is T ->
@@ -426,7 +509,20 @@ Inductive typeof {mt : mem_typ} : ctx -> tm -> typ -> Prop :=
   | T_Spawn : forall Gamma block T,
     safe Gamma |-- block is T ->
     Gamma |-- (TM_Spawn block) is TY_Void
+(*
+  | T_Wait : forall Gamma cond queue,
+    Gamma |-- cond is TY_Num -> (* TODO TY_Bool *)
+    Gamma |-- queue is TY_TQueue ->
+    Gamma |-- (TM_Wait cond queue) is TY_Void
 
+  | T_Signal : forall Gamma queue,
+    Gamma |-- queue is TY_TQueue ->
+    Gamma |-- (TM_Signal queue) is TY_Void
+
+  | T_Broadcast : forall Gamma queue,
+    Gamma |-- queue is TY_TQueue ->
+    Gamma |-- (TM_Broadcast queue) is TY_Void
+*)
   | T_LetVal : forall Gamma id e t E T,
     Gamma |-- e is E ->
     (update Gamma id E) |-- t is T ->
