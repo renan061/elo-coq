@@ -426,14 +426,15 @@ Inductive multistep_plus : mem -> tm -> mem -> tm -> Prop :=
 (* Concurrent Step *)
 
 Inductive cstep : mem -> list tm -> mem -> list tm -> Prop :=
-  | CST_None : forall i m m' t' threads,
-    m / (get_tm threads i) --> EF_None / m' / t' ->
-    m / threads ==> m' / (set threads i t')
+  | CST_None : forall i m m' t' ths,
+    i < length ths ->
+    m / (get_tm ths i) --> EF_None / m' / t' ->
+    m / ths ==> m' / (set ths i t')
 
-  | CST_Spawn : forall i m m' t' block threads,
-    i < length threads ->
-    m / (get_tm threads i) --> (EF_Spawn block) / m' / t' -> (* TODO: m' *)
-    m / threads ==> m' / (add (set threads i t') block)
+  | CST_Spawn : forall i m m' t' block ths,
+    i < length ths ->
+    m / (get_tm ths i) --> (EF_Spawn block) / m' / t' -> (* TODO: m' *)
+    m / ths ==> m' / (add (set ths i t') block)
 
   where "m / threads '==>' m' / threads'" := (cstep m threads m' threads').
 
