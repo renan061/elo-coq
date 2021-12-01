@@ -372,49 +372,57 @@ Qed.
 (* Concurrent Progress, Preservation & Soundness --------------------------- *)
 (* ------------------------------------------------------------------------- *)
 
+Definition get_ctx := get (@empty typ).
+
 Definition empties (threads : list tm) :=
   List.repeat (@empty typ) (length threads).
 
-Definition get_ctx := get (@empty typ).
+Lemma empties_length : forall threads,
+  length (empties threads) = length threads.
+Proof.
+  intros. unfold empties. induction threads.
+  - reflexivity.
+  - simpl. f_equal. auto.
+Qed.
+
+Lemma empties_get : forall threads i,
+  get_ctx (empties threads) i = empty.
+Proof.
+  intros *. unfold get_ctx, empties. generalize dependent i.
+  induction threads as [| ? ? IH]; intros i; destruct i; trivial.
+  apply IH.
+Qed.
+
+Lemma empties_set : forall threads i t,
+  empties (set threads i t) = empties threads.
+Proof.
+  intros. unfold empties. rewrite <- set_preserves_length. reflexivity.
+Qed.
+
+Lemma empties_head : forall th ths,
+  empties (th :: ths) = empty :: empties (ths).
+Proof.
+  intros. reflexivity.
+Qed.
 
 Definition well_typed_threads mt Gammas threads := forall i,
   length Gammas = length threads ->
   exists T, mt / (get_ctx Gammas i) |-- (get_tm threads i) is T.
 
-Definition finished threads :=
-  forall i, value (get_tm threads i).
-
-
-
-Lemma aux1 : forall t ts i,
-  get_tm (t :: ts) (S i) = get_tm ts i.
-Proof.
-  unfold get_tm, get. intros *. reflexivity.
-Qed.
-
-Lemma aux3 : forall {A B} (x : A) xs (y : B) ys,
-  length xs = length ys -> length (x :: xs) = length (y :: ys).
-Proof.
-  intros * H. simpl. f_equal. assumption.
-Qed.
-
-Lemma aux2 : forall Gamma Gammas ths th mt,
+Lemma well_typed_threads_destruct : forall Gamma Gammas ths th mt,
   well_typed_threads mt (Gamma :: Gammas) (th :: ths) ->
   well_typed_threads mt Gammas ths.
 Proof.
   unfold well_typed_threads. simpl.
   intros *. intros H i Hlen.
-  eapply eq_S in Hlen.
-  specialize (H (S i) Hlen) as [T H].
-  exists T. rewrite aux1 in H. assumption.
+  eapply eq_S in Hlen. specialize (H (S i) Hlen) as [T H].
+  exists T. unfold get_tm, get_ctx in *. simpl in H. assumption.
 Qed.
 
-Lemma aux4 : forall (th : tm) ths,
-  empties (th :: ths) = empty :: empties (ths).
-Proof.
-Admitted.
+Definition finished threads :=
+  forall i, value (get_tm threads i).
 
-Lemma aux5 : forall m m' th ths ths',
+Lemma cstep_cons : forall m m' th ths ths',
   m / ths ==> m' / ths' ->
   m / (th :: ths) ==> m' / (th :: ths').
 Proof.
@@ -426,65 +434,7 @@ Proof.
     + unfold get_tm. rewrite get_S_i. assumption.
 Qed.
 
-Lemma aux6 : forall (l : list tm),
-  S (length (empties l)) = S (length l).
-Proof.
-Admitted.
-
-Lemma empties_length : forall threads,
-  length (empties threads) = length threads.
-Proof.
-Admitted.
-
-Lemma empties_returns_empty : forall threads i,
-  get_ctx (empties threads) i = empty.
-Proof.
-  intros *. unfold get_ctx, empties. generalize dependent i.
-  induction threads as [| ? ? IH]; intros i; destruct i; trivial.
-  apply IH.
-Qed.
-
-Lemma set_preserves_empties : forall threads i t,
-  empties (set threads i t) = empties threads.
-Proof.
-  intros. unfold empties. rewrite <- set_preserves_length. reflexivity.
-Qed.
-
-(* TODO : move to Array *)
-Lemma get_default : forall {A} d (l : list A) i,
-  length l <= i -> get d l i = d.
-Proof.
-  intros ? ? l. induction l as [| ? ? IH]; intros i Hlen; destruct i; trivial.
-  - apply Nat.nle_succ_0 in Hlen. contradiction.
-  - simpl in *. apply le_S_n in Hlen. apply (IH i Hlen).
-Qed.
-
-(* TODO : move to Array *)
-Lemma get_set_default : forall {A} d (l : list A) i a,
-  length l <= i ->
-  get d (set l i a) i = d.
-Proof.
-  intros * Hlen.
-  erewrite set_preserves_length in Hlen.
-  eauto using get_default.
-Qed.
-
-(* TODO : move to Array *)
-Lemma add_set_comm : forall {A} (l : list A) i a1 a2,
-  i < length l ->
-  add (set l i a1) a2 = set (add l a2) i a1.
-Proof.
-  unfold add.
-  intros ? l. induction l as [| ? ? IH]; intros * H.
-  - destruct i eqn:E.
-    + inversion H.
-    + reflexivity.
-  - simpl in *. destruct i eqn:E.
-    + reflexivity.
-    + apply lt_S_n in H. rewrite <- (IH n a1 a2 H). reflexivity.
-Qed.
-
-Lemma step_preserves_well_typed_threads : forall mt m m' eff threads t i,
+Lemma step_preserves_thread_typing : forall mt m m' eff threads t i,
   m / get_tm threads i --> eff / m' / t ->
   well_typed_memory mt m ->
   well_typed_threads mt (empties threads) threads ->
@@ -495,7 +445,7 @@ Lemma step_preserves_well_typed_threads : forall mt m m' eff threads t i,
 Proof.
   intros * Hstep Hmem Hctype.
   destruct (Hctype i (empties_length threads)) as [T Htype].
-  rewrite empties_returns_empty in Htype.
+  rewrite empties_get in Htype.
   assert (Preservation : exists mt',
             mt' extends mt /\
             mt' / empty |-- t is T /\
@@ -503,7 +453,7 @@ Proof.
   { eauto using preservation. }
   destruct Preservation as [? [? [? ?]]].
   eexists. splits 3; eauto.
-  intros i' ?. rewrite empties_returns_empty. unfold get_tm.
+  intros i' ?. rewrite empties_get. unfold get_tm.
   destruct (i =? i') eqn:E.
   + apply Nat.eqb_eq in E. subst.
     destruct (le_lt_dec (length threads) i').
@@ -514,12 +464,11 @@ Proof.
     destruct (le_lt_dec (length threads) i').
     * rewrite get_default; trivial. exists TY_Void. apply T_Nil.
     * specialize (Hctype i' (empties_length threads)) as [? ?].
-      unfold get_tm in *.
-      rewrite empties_returns_empty in *.
+      unfold get_tm in *. rewrite empties_get in *.
       eexists. eauto using memory_weakening.
 Qed.
 
-Lemma spawn_preserves_well_typed_threads : forall mt mt' threads block T,
+Lemma spawn_preserves_thread_typing : forall mt mt' threads block T,
   mt' extends mt ->
   mt / empty |-- block is T ->
   well_typed_threads mt (empties threads) threads ->
@@ -529,12 +478,11 @@ Proof.
   destruct (lt_eq_lt_dec i (length threads)) as [[? | ?] | ?].
   - specialize (Hctype i (empties_length threads)) as [T' Htype'].
     exists T'. unfold get_tm. rewrite get_add_lt; trivial.
-    rewrite empties_returns_empty in *. eauto using memory_weakening.
+    rewrite empties_get in *. eauto using memory_weakening.
   - exists T. unfold get_tm. subst. rewrite get_add_last.
-    rewrite empties_returns_empty in *. eauto using memory_weakening.
+    rewrite empties_get in *. eauto using memory_weakening.
   - unfold get_tm. rewrite get_add_gt; trivial.
-    rewrite empties_returns_empty.
-    exists TY_Void. apply T_Nil.
+    rewrite empties_get. exists TY_Void. apply T_Nil.
 Qed.
 
 Lemma spawn_block_has_type: forall mt m m' t t' block T,
@@ -557,16 +505,16 @@ Theorem cpreservation : forall threads threads' m m' mt,
     well_typed_memory mt' m'.
 Proof.
   intros * Hthreads Hmem Hcstep. induction Hcstep.
-  - eauto using step_preserves_well_typed_threads.
+  - eauto using step_preserves_thread_typing.
   - rewrite add_set_comm; trivial.
-    eapply step_preserves_well_typed_threads; eauto.
+    eapply step_preserves_thread_typing; eauto.
     + unfold get_tm in *. rewrite get_add_lt; eauto.
     + destruct (Hthreads i (empties_length threads)) as [T Htype].
-      rewrite empties_returns_empty in Htype.
+      rewrite empties_get in Htype.
       assert (Hblock : exists B, mt / empty |-- block is B).
       { eauto using spawn_block_has_type. }
       destruct Hblock.
-      eauto using spawn_preserves_well_typed_threads, extends_refl.
+      eauto using spawn_preserves_thread_typing, extends_refl.
 Qed.
 
 Theorem cprogress : forall threads m mt,
@@ -577,15 +525,17 @@ Proof.
   intros * Hmem Hth.
   induction threads as [| th ths IH].
   - left. intros i. destruct i; apply V_Nil.
-  - rewrite aux4 in Hth.
-    apply aux2 in Hth as Hth'.
+  - rewrite empties_head in Hth.
+    apply well_typed_threads_destruct in Hth as Hth'.
     specialize (IH Hth') as [IH | [m' [threads' IH]]].
     + destruct (is_value th) eqn:E.
       * left. apply value_equivalence in E.
         intros i. destruct i; unfold get_tm; simpl; trivial.
       * right.
         specialize (Hth 0). simpl in Hth.
-        specialize (Hth (aux6 ths)) as [T Htype].
+        assert (Hlen : S (length (empties ths)) = S (length ths)).
+        { f_equal. apply empties_length. }
+        specialize (Hth Hlen) as [T Htype].
         unfold get_ctx, get_tm in Htype. simpl in Htype.
         assert (value th \/ exists m' th' eff, m / th --> eff / m' / th').
         { eauto using progress. }
@@ -594,5 +544,5 @@ Proof.
         ** destruct eff.
           *** eexists. eexists. eauto using (CST_None 0).
           *** eexists. eexists. eauto using (CST_Spawn 0), Nat.lt_0_succ.
-    + right. exists m'. exists (th :: threads'). eauto using aux5.
+    + right. exists m'. exists (th :: threads'). eauto using cstep_cons.
 Qed.

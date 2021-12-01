@@ -1,3 +1,4 @@
+From Coq Require Import Arith.Arith.
 From Coq Require Import Lists.List.
 
 Definition add {A} (l : list A) (a : A) := l ++ (a :: nil).
@@ -112,4 +113,35 @@ Proof.
   - reflexivity.
   - destruct i, j; try (contradiction || reflexivity).
     simpl. auto using PeanoNat.Nat.succ_inj_wd_neg.
+Qed.
+
+Lemma get_default : forall {A} d (l : list A) i,
+  length l <= i -> get d l i = d.
+Proof.
+  intros ? ? l. induction l as [| ? ? IH]; intros i Hlen; destruct i; trivial.
+  - apply Nat.nle_succ_0 in Hlen. contradiction.
+  - simpl in *. apply le_S_n in Hlen. apply (IH i Hlen).
+Qed.
+
+Lemma get_set_default : forall {A} d (l : list A) i a,
+  length l <= i ->
+  get d (set l i a) i = d.
+Proof.
+  intros * Hlen.
+  erewrite set_preserves_length in Hlen.
+  eauto using get_default.
+Qed.
+
+Lemma add_set_comm : forall {A} (l : list A) i a1 a2,
+  i < length l ->
+  add (set l i a1) a2 = set (add l a2) i a1.
+Proof.
+  unfold add.
+  intros ? l. induction l as [| ? ? IH]; intros * H.
+  - destruct i eqn:E.
+    + inversion H.
+    + reflexivity.
+  - simpl in *. destruct i eqn:E.
+    + reflexivity.
+    + apply lt_S_n in H. rewrite <- (IH n a1 a2 H). reflexivity.
 Qed.
