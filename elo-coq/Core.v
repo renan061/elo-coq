@@ -21,6 +21,8 @@ Reserved Notation "m / t '-->+' m' / t'"
   (at level 40, t at next level, m' at next level).
 Reserved Notation "m / threads '==>' m' / threads'"
   (at level 40, threads at next level, m' at next level).
+Reserved Notation "m / threads '==>*' m' / threads'"
+  (at level 40, threads at next level, m' at next level).
 Reserved Notation "Gamma '|--' t 'is' T"
   (at level 40, t at next level).
 Reserved Notation "mt / Gamma '|--' t 'is' T"
@@ -437,6 +439,17 @@ Inductive cstep : mem -> list tm -> mem -> list tm -> Prop :=
     m / ths ==> m' / (add (set ths i t') block)
 
   where "m / threads '==>' m' / threads'" := (cstep m threads m' threads').
+
+Inductive cmultistep : mem -> list tm -> mem -> list tm -> Prop :=
+  | cmultistep_refl : forall m ths,
+    m / ths ==>* m / ths
+
+  | cmultistep_step : forall m1 m m2 ths1 ths ths2,
+    m1 / ths1 ==>  m  / ths  ->
+    m  / ths  ==>* m2 / ths2 ->
+    m1 / ths1 ==>* m2 / ths2
+
+  where "m / ths '==>*' m' / ths'" := (cmultistep m ths m' ths').
 
 (* Typing *)
 

@@ -287,56 +287,19 @@ Theorem progress : forall m mt t T,
   well_typed_memory mt m ->
   (value t \/ exists m' t' eff, m / t --> eff / m' / t').
 Proof.
-  remember empty as Gamma.
-  intros * Htype [Hlen Hmem].
-  assert (H : forall i, i < length mt -> i < length m).
-  { rewrite Hlen. trivial. }
+  remember empty as Gamma. intros * Htype [Hlen Hmem].
+  assert (forall i, i < length mt -> i < length m). { rewrite Hlen. trivial. }
   induction Htype; subst; auto using value; right;
-
-(*   repeat match goal with
-    IH : empty = empty -> _ |- _ =>
-      specialize (IH eq_refl) as [? | [? [? [? ?]]]]
+  try match goal with F : lookup empty _ = Some _ |- _ => inversion F end;
+  repeat match goal with
+    IH : _ = _ -> _ |- _ => specialize (IH eq_refl) as [? | [? [? [? ?]]]]
   end;
-
-  try solve
-    [ eexists; eexists; eexists; eauto using step
-
-    ]. *)
-
-
-
-  try solve
-    [ match goal with F : lookup empty _ = Some _ |- _ => inversion F end
-    | match goal with
-      | Htype : _ / _ |-- _ is _, IH : _ -> _ \/ _ _ _|- _ =>
-        destruct (IH eq_refl) as [Hv | [? [? [? ?]]]];
-        try (destruct Hv; inversion Htype; subst);
-        eexists; eexists; eexists; eauto using step, value
-      end
-    ];
-
-  match goal with
-    IH : empty = empty -> _ |- _ =>
-      specialize (IH eq_refl) as [Hv1 | [m1 [t1 [eff1 Hstep1]]]]
+  try solve [eexists; eexists; eexists; eauto using step];
+  repeat match goal with
+    Hv : value ?t , Htype : _ / _ |-- ?t is _ |- _ =>
+      destruct Hv; inversion Htype; subst
   end;
-
-  try match goal with
-    IH : empty = empty -> _ |- _ =>
-      specialize (IH eq_refl) as [Hv2 | [m2 [t2 [eff2 Hstep2]]]]
-  end;
-
-  try match goal with
-    IH : empty = empty -> _ |- _ =>
-      specialize (IH eq_refl) as [? | [? [? [? ?]]]]
-  end;
-  try solve
-    [ eexists; eexists; eexists; eauto using step
-    | destruct Hv1; inversion Htype1; subst;
-      eexists; eexists; eexists; eauto using step
-    | destruct Hv1; inversion Htype1; subst;
-      destruct Hv2; inversion Htype2; subst;
-      eexists; eexists; eexists; eauto using step
-    ].
+  eexists; eexists; eexists; eauto using step, value.
 Qed.
 
 Definition normal_form m t : Prop :=
@@ -350,19 +313,17 @@ Corollary soundness : forall mt m m' t t' T,
   m / t -->* m' / t' ->
   ~ (stuck m' t').
 Proof.
-  intros * ? ? Hmultistep [Hnormal_form ?].
-  generalize dependent mt.
-  unfold normal_form in Hnormal_form.
-  induction Hmultistep; intros.
-  - assert (Hprogress : value t \/ exists m' t' eff, m / t --> eff / m' / t').
-    eauto using progress. destruct Hprogress; eauto.
-  - assert (Hpreservation : exists mt',
+  intros * ? ? Hmultistep [Hnormal_form ?]. generalize dependent mt.
+  unfold normal_form in Hnormal_form. induction Hmultistep; intros.
+  - assert (value t \/ exists m' t' eff, m / t --> eff / m' / t') as [? | ?];
+    eauto using progress.
+  - assert (exists mt',
       mt' extends mt /\
       mt' / empty |-- t is T /\
-      well_typed_memory mt' m).
-    eauto using preservation. decompose record Hpreservation.
-    assert (Hprogress : value t \/ exists m' t' eff, m / t --> eff / m' / t').
-    eauto using progress. destruct Hprogress; eauto.
+      well_typed_memory mt' m) as [? [? [? ?]]].
+    eauto using preservation.
+    assert (value t \/ exists m' t' eff, m / t --> eff / m' / t') as [? | ?];
+    eauto using progress.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -373,6 +334,12 @@ Definition get_ctx := get (@empty typ).
 
 Definition empties (ths : list tm) :=
   List.repeat (@empty typ) (length ths).
+
+Definition well_typed_threads mt Gammas ths := forall i,
+  exists T, mt / (get_ctx Gammas i) |-- (get_tm ths i) is T.
+
+Definition finished ths :=
+  forall i, value (get_tm ths i).
 
 Lemma empties_length : forall ths,
   length (empties ths) = length ths.
@@ -396,9 +363,6 @@ Proof.
   intros. unfold empties. rewrite <- set_preserves_length. reflexivity.
 Qed.
 
-Definition well_typed_threads mt Gammas ths := forall i,
-  exists T, mt / (get_ctx Gammas i) |-- (get_tm ths i) is T.
-
 Lemma well_typed_threads_destruct : forall mt th ths,
   well_typed_threads mt (empties (th :: ths)) (th :: ths) ->
   well_typed_threads mt (empties ths) ths.
@@ -406,9 +370,6 @@ Proof.
   intros *. intros H i. specialize (H (S i)) as [T H].
   exists T. unfold get_tm, get_ctx in *. assumption.
 Qed.
-
-Definition finished ths :=
-  forall i, value (get_tm ths i).
 
 Lemma finished_nil : finished nil.
 Proof.
@@ -534,4 +495,28 @@ Proof.
         ** apply value_equivalence in F. rewrite E in F. discriminate.
         ** destruct eff; eauto using cstep, Nat.lt_0_succ.
     + right. eauto using cstep_cons.
+Qed.
+
+Definition cnormal_form m th : Prop :=
+  ~ exists m' th', m / th ==> m' / th'.
+
+Definition cstuck m th : Prop := cnormal_form m th /\ ~ finished th.
+
+Corollary csoundness : forall mt m m' ths ths',
+  well_typed_memory mt m ->
+  well_typed_threads mt (empties ths) ths ->
+  m / ths ==>* m' / ths' ->
+  ~ (cstuck m' ths').
+Proof.
+  intros * ? ? Hmultistep [Hnormal_form ?]. generalize dependent mt.
+  unfold cnormal_form in Hnormal_form. induction Hmultistep; intros.
+  - assert (finished ths \/ exists m' ths', m / ths ==> m' / ths') as [? | ?];
+    eauto using cprogress.
+  - assert (exists mt',
+      mt' extends mt /\
+      well_typed_threads mt' (empties ths) ths /\
+      well_typed_memory mt' m) as [? [? [? ?]]].
+    { eauto using cpreservation. }
+    assert (finished ths \/ exists m' ths', m / ths ==> m' / ths') as [? | ?];
+    eauto using cprogress.
 Qed.
