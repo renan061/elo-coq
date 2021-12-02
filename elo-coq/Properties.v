@@ -292,7 +292,7 @@ Proof.
   induction Htype; subst; auto using value; right;
   try match goal with F : lookup empty _ = Some _ |- _ => inversion F end;
   repeat match goal with
-    IH : _ = _ -> _ |- _ => specialize (IH eq_refl) as [? | [? [? [? ?]]]]
+    IH : _ = empty -> _ |- _ => specialize (IH eq_refl) as [? | [? [? [? ?]]]]
   end;
   try solve [eexists; eexists; eexists; eauto using step];
   repeat match goal with
