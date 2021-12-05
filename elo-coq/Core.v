@@ -13,12 +13,12 @@ Definition num := nat.
 
 Reserved Notation "'[' id ':=' x ']' t"
   (at level 20, id constr).
-Reserved Notation "m / t '-->' eff / m' / t'"
-  (at level 40, t at next level, eff at next level, m' at next level).
-Reserved Notation "m / t '-->*' m' / t'"
-  (at level 40, t at next level, m' at next level).
-Reserved Notation "m / t '-->+' m' / t'"
-  (at level 40, t at next level, m' at next level).
+Reserved Notation "t '-->' t' # eff"
+  (at level 40).
+Reserved Notation "t '-->*' t'"
+  (at level 40).
+Reserved Notation "t '-->+' t'"
+  (at level 40).
 Reserved Notation "m / threads '==>' m' / threads'"
   (at level 40, threads at next level, m' at next level).
 Reserved Notation "m / threads '==>*' m' / threads'"
@@ -119,8 +119,6 @@ Inductive tm : Set :=
   | TM_ArrNew : typ -> tm -> tm
   | TM_ArrIdx : tm -> tm -> tm
   | TM_Id : name -> tm
-  (* concurrency expressions *)
-  (* | TM_TQueue : list num -> tm *)
   (* statements *)
   | TM_Asg : tm -> tm -> tm
   | TM_ArrAsg : tm -> tm -> tm -> tm
@@ -128,11 +126,6 @@ Inductive tm : Set :=
   | TM_Seq : tm -> tm -> tm
   (* concurrency statements *)
   | TM_Spawn : tm -> tm
-  (*
-  | TM_Wait : tm -> tm -> tm
-  | TM_Signal : tm -> tm
-  | TM_Broadcast : tm -> tm
-  *)
   (* definitions *)
   | TM_LetVal : name -> typ -> tm -> tm -> tm
   | TM_LetVar : name -> typ -> tm -> tm -> tm
@@ -143,31 +136,12 @@ Inductive tm : Set :=
   | TM_Fun : name -> typ -> tm -> typ -> tm
   .
 
-(*
-  | TM_LetMon : name -> monitor -> tm
-  | TM_Mon : monitor -> tm
-with monitor : Set :=
-  | MonitorNil
-  | MonitorVal : name -> typ -> tm -> tm -> mon -> mon
-  | MonitorVar : name -> typ -> tm -> tm -> mon -> mon
-  | MonitorFun : name -> typ -> tm -> tm -> mon -> mon
-  .
-*)
-
-(* Effects *)
-
-Inductive effect : Set :=
-  | EF_None
-  | EF_Spawn (block : tm)
-  .
-
 (* Values *)
 
 Inductive value : tm -> Prop :=
   | V_Nil    : value TM_Nil
   | V_Num    : forall n, value (TM_Num n)
   | V_Arr    : forall T i, value (TM_Arr T i)
-  (* | V_TQueue : forall threads, value (TM_TQueue threads) *)
   (* internal *)
   | V_Loc : forall i, value (TM_Loc i)
   | V_Fun : forall p P block R, value (TM_Fun p P block R)
@@ -186,6 +160,15 @@ Proof.
   try inversion H; auto using is_value, value.
 Qed.
 
+(* Effects *)
+
+Inductive effect : Set :=
+  | EF_None
+  | EF_Spawn (block : tm)
+  | EF_Load (addr : num) (t : tm)
+  | EF_Store (addr : num) (t : tm)
+  .
+
 (* Auxiliary Aliases *)
 
 Definition ctx := map typ.
@@ -193,6 +176,7 @@ Definition mem := list tm.
 Definition mem_typ := list typ.
 Definition get_typ := get TY_Void.
 Definition get_tm  := get TM_Nil.
+Definition get_ctx := get (@empty typ).
 
 (* Operational Semantics *)
 
@@ -209,9 +193,6 @@ Fixpoint subst (id : name) (x t : tm) : tm :=
       TM_ArrIdx ([id := x] arr) ([id := x] idx)
   | TM_Id id' =>
       if id =? id' then x else t
-  (*
-  | TM_TQueue _ => t
-  *)
   | TM_Asg t' e =>
       TM_Asg ([id := x] t') ([id := x] e)
   | TM_ArrAsg arr idx e =>
@@ -222,14 +203,6 @@ Fixpoint subst (id : name) (x t : tm) : tm :=
       TM_Seq ([id := x] t1) ([id := x] t2)
   | TM_Spawn block =>
       TM_Spawn ([id := x] block)
-  (*
-  | TM_Wait cond queue =>
-      TM_Wait ([id := x] cond) ([id := x] queue)
-  | TM_Signal queue =>
-      TM_Signal ([id := x] queue)
-  | TM_Broadcast queue =>
-      TM_Broadcast ([id := x] queue)
-  *)
   | TM_LetVal id' E e t' =>
       TM_LetVal id' E ([id := x] e) (if id =? id' then t' else [id := x] t')
   | TM_LetVar id' E e t' =>
@@ -244,7 +217,8 @@ Fixpoint subst (id : name) (x t : tm) : tm :=
   end
   where "'[' id ':=' x ']' t" := (subst id x t).
 
-Inductive step : mem -> tm -> effect -> mem -> tm -> Prop :=
+Inductive step : tm -> tm -> effect -> Prop :=
+(*
   (* ArrNew *)
   | ST_ArrNew1 : forall m m' T e e' eff,
     m / e --> eff / m' / e' ->
@@ -266,22 +240,21 @@ Inductive step : mem -> tm -> effect -> mem -> tm -> Prop :=
 
   | ST_ArrIdx : forall m T i j,
     m / TM_ArrIdx (TM_Arr T i) (TM_Num j) --> EF_None / m / (get_tm m i)
-
+*)
   (* Asg *)
-  | ST_Asg1 : forall m m' t t' e eff,
-    m / t --> eff / m' / t' ->
-    m / TM_Asg t e --> eff / m' / TM_Asg t' e
+  | ST_Asg1 : forall t t' e eff,
+    t --> t' # eff ->
+    TM_Asg t e --> TM_Asg t' e # eff
 
-  | ST_Asg2 : forall m m' t e e' eff,
+  | ST_Asg2 : forall t e e' eff,
     value t ->
-    m / e --> eff / m' / e' ->
-    m / TM_Asg t e --> eff / m' / TM_Asg t e'
+    e --> e' # eff ->
+    TM_Asg t e --> TM_Asg t e' # eff
 
-  | ST_Asg : forall m i e,
-    value e ->
-    i < length m ->
-    m / TM_Asg (TM_Loc i) e --> EF_None / (set m i e) / TM_Nil
-
+  | ST_Asg : forall addr v,
+    value v ->
+    TM_Asg (TM_Loc addr) v --> TM_Nil # EF_Store addr v
+(*
   (* ArrAsg *)
   | ST_ArrAsg1 : forall m m' arr arr' idx e eff,
     m / arr --> eff / m' / arr' ->
@@ -317,63 +290,28 @@ Inductive step : mem -> tm -> effect -> mem -> tm -> Prop :=
   | ST_Call : forall m a p P block R,
     value a ->
     m / TM_Call (TM_Fun p P block R) a --> EF_None / m / [p := a] block
-
+*)
   (* Seq *)
-  | ST_Seq1 : forall m m' t1 t2 t eff,
-    m / t1 --> eff / m' / t2 ->
-    m / TM_Seq t1 t --> eff / m' / TM_Seq t2 t
+  | ST_Seq1 : forall t1 t2 t eff,
+    t1 --> t2 # eff ->
+    TM_Seq t1 t --> TM_Seq t2 t # eff
 
-  | ST_Seq : forall m t,
-    m / TM_Seq TM_Nil t --> EF_None / m / t
+  | ST_Seq : forall t,
+    TM_Seq TM_Nil t --> t # EF_None
 
   (* Spawn *)
-  | ST_Spawn : forall m block ,
-    m / TM_Spawn block --> (EF_Spawn block) / m / TM_Nil
-
-  (*
-  (* Wait *)
-  | ST_Wait1 : forall m m' cond cond' queue eff,
-    m / cond --> eff / m' / cond' ->
-    m / TM_Wait cond queue --> eff / m' / TM_Wait cond' queue
-
-  | ST_Wait2 : forall m m' cond queue queue' eff,
-    value cond ->
-    m / queue --> eff / m' / queue' ->
-    m / TM_Wait cond queue --> eff / m' / TM_Wait cond queue'
-
-  | ST_Wait : forall m cond queue,
-    value cond ->
-    value queue ->
-    m / TM_Wait cond queue --> EF_None / m / TM_Nil
-
-  (* Signal *)
-  | ST_Signal1 : forall m m' queue queue' eff,
-    m / queue --> eff / m' / queue' ->
-    m / TM_Signal queue --> eff / m' / TM_Signal queue'
-
-  | ST_Signal : forall m queue,
-    value queue ->
-    m / TM_Signal queue --> EF_None / m / TM_Nil
-
-  (* Broadcast *)
-  | ST_Broadcast1 : forall m m' queue queue' eff,
-    m / queue --> eff / m' / queue' ->
-    m / TM_Broadcast queue --> eff / m' / TM_Broadcast queue'
-
-  | ST_Broadcast : forall m queue,
-    value queue ->
-    m / TM_Broadcast queue --> EF_None / m / TM_Nil
-  *)
+  | ST_Spawn : forall block,
+    TM_Spawn block --> TM_Nil # EF_Spawn block
 
   (* LetVal *)
-  | ST_LetVal1 : forall m m' id E e e' t eff,
-    m / e --> eff / m' / e' ->
-    m / TM_LetVal id E e t --> eff / m' / TM_LetVal id E e' t
+  | ST_LetVal1 : forall id E e e' t eff,
+    e --> e' # eff ->
+    TM_LetVal id E e t --> TM_LetVal id E e' t # eff
 
-  | ST_LetVal : forall m id E e t,
+  | ST_LetVal : forall id E e t,
     value e ->
-    m / TM_LetVal id E e t --> EF_None / m / [id := e] t
-
+    TM_LetVal id E e t --> [id := e] t # EF_None
+(*
   (* LetVar *)
   | ST_LetVar1 : forall m m' id E e e' t eff,
     m / e --> eff / m' / e' ->
@@ -391,52 +329,72 @@ Inductive step : mem -> tm -> effect -> mem -> tm -> Prop :=
   | ST_LetFun : forall m id F f t,
     value f ->
     m / TM_LetFun id F f t --> EF_None / m / [id := f] t
-
+*)
   (* Load *)
-  | ST_Load1 : forall m m' t t' eff,
-    m / t --> eff / m' / t' ->
-    m / TM_Load t --> eff / m' / TM_Load t'
+  | ST_Load1 : forall t t' eff,
+    t --> t' # eff ->
+    TM_Load t --> TM_Load t' # eff
 
-  | ST_Load : forall m i,
-    m / TM_Load (TM_Loc i) --> EF_None / m / (get_tm m i)
+  | ST_Load : forall t addr,
+    TM_Load (TM_Loc addr) --> t # EF_Load addr t
 
-  where "m / t '-->' eff / m' / t'" := (step m t eff m' t').
+  where "t '-->' t' # eff" := (step t t' eff).
 
-Inductive multistep : mem -> tm -> mem -> tm -> Prop :=
-  | multistep_refl : forall m t,
-    m / t -->* m / t
+Inductive multistep : tm -> tm -> Prop :=
+  | multistep_refl : forall t,
+    t -->* t
 
-  | multistep_step : forall m1 m m2 t1 t t2 eff,
-    m1 / t1 -->  eff / m / t ->
-    m  / t  -->* m2  / t2 ->
-    m1 / t1 -->* m2  / t2
+  | multistep_step : forall t1 t t2 eff,
+    t1 -->  t  # eff ->
+    t  -->* t2 ->
+    t1 -->* t2
 
-  where "m / t '-->*' m' / t'" := (multistep m t m' t').
+  where "t '-->*' t'" := (multistep t t').
 
-Inductive multistep_plus : mem -> tm -> mem -> tm -> Prop :=
-  | multistep_plus_one : forall m m' t t' eff,
-    m / t --> eff / m' / t' ->
-    m / t -->+ m  / t
+Inductive multistep_plus : tm -> tm -> Prop :=
+  | multistep_plus_one : forall t t' eff,
+    t -->  t' # eff ->
+    t -->+ t
 
-  | multistep_plus_step : forall m1 m m2 t1 t t2 eff,
-    m1 / t1 --> eff / m / t ->
-    m  / t  -->+ m2 / t2 ->
-    m1 / t1 -->+ m2 / t2
+  | multistep_plus_step : forall t1 t t2 eff,
+    t1 -->  t  # eff ->
+    t  -->+ t2 ->
+    t1 -->+ t2
 
-  where "m / t '-->+' m' / t'" := (multistep_plus m t m' t').
+  where "t '-->+' t'" := (multistep_plus t t').
 
 (* Concurrent Step *)
 
-Inductive cstep : mem -> list tm -> mem -> list tm -> Prop :=
-  | CST_None : forall i m m' t' ths,
-    i < length ths ->
-    m / (get_tm ths i) --> EF_None / m' / t' ->
-    m / ths ==> m' / (set ths i t')
+(*
+* => m / threads ==> m' / threads' com i
+* e depois com
+* => m' / threads' ==> m'' / threads'' com j
+*
+*  m <--> m'' não escrevem na mesma célula de memória
+*)
 
-  | CST_Spawn : forall i m m' t' block ths,
+Inductive cstep : mem -> list tm -> mem -> list tm -> Prop :=
+  | CST_None : forall i m t ths,
     i < length ths ->
-    m / (get_tm ths i) --> (EF_Spawn block) / m' / t' -> (* TODO: m' *)
-    m / ths ==> m' / (add (set ths i t') block)
+    (get_tm ths i) --> t # EF_None ->
+    m / ths ==> m / (set ths i t)
+
+  | CST_Load : forall i m ths addr v,
+    i < length ths ->
+    v = get_tm m addr ->
+    (get_tm ths i) --> v # (EF_Load addr v) ->
+    m / ths ==> m / (set ths i v)
+
+  | CST_Store : forall i m ths addr v t,
+    i < length ths ->
+    addr < length m ->
+    (get_tm ths i) --> t # (EF_Store addr v) ->
+    m / ths ==> (set m addr v) / (set ths i t)
+
+  | CST_Spawn : forall i m ths block t,
+    i < length ths ->
+    (get_tm ths i) --> t # (EF_Spawn block) ->
+    m / ths ==> m / (add (set ths i t) block)
 
   where "m / threads '==>' m' / threads'" := (cstep m threads m' threads').
 
@@ -495,10 +453,7 @@ Inductive typeof {mt : mem_typ} : ctx -> tm -> typ -> Prop :=
   | T_Id_Var : forall Gamma id T,
     lookup Gamma id = Some (TY_Ref T) ->
     Gamma |-- (TM_Id id) is (TY_Ref T)
-(*
-  | T_TQueue : forall Gamma threads,
-    Gamma |-- (TM_TQueue threads) is TY_TQueue
-*)
+
   | T_Asg : forall Gamma t e T,
     Gamma |-- t is (TY_Ref T) ->
     Gamma |-- e is T ->
@@ -523,20 +478,7 @@ Inductive typeof {mt : mem_typ} : ctx -> tm -> typ -> Prop :=
   | T_Spawn : forall Gamma block T,
     safe Gamma |-- block is T ->
     Gamma |-- (TM_Spawn block) is TY_Void
-(*
-  | T_Wait : forall Gamma cond queue,
-    Gamma |-- cond is TY_Num -> (* TODO TY_Bool *)
-    Gamma |-- queue is TY_TQueue ->
-    Gamma |-- (TM_Wait cond queue) is TY_Void
 
-  | T_Signal : forall Gamma queue,
-    Gamma |-- queue is TY_TQueue ->
-    Gamma |-- (TM_Signal queue) is TY_Void
-
-  | T_Broadcast : forall Gamma queue,
-    Gamma |-- queue is TY_TQueue ->
-    Gamma |-- (TM_Broadcast queue) is TY_Void
-*)
   | T_LetVal : forall Gamma id e t E T,
     Gamma |-- e is E ->
     (update Gamma id E) |-- t is T ->
@@ -615,10 +557,3 @@ CST_AcqMtx_NotOk
   m / TM_AcqMtx (TM_Mtx i) --> m / TM_Seq TM_Nil (TM_AcqMtx (TM_Mtx i))
 
 *)
-
-(* Typing *)
-
-(* Definition safe_context (Gamma new : ctx) : ctx :=
-  match Gamma with
-  | fun x => _ => new
-  end. *)

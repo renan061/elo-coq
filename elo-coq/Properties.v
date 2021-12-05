@@ -251,7 +251,7 @@ Proof.
   intros * Htype.
   generalize dependent t'.
   induction Htype;
-  intros ?t' Hmem Hstep;
+  intros * Hmem Hstep;
   inversion Hstep; subst;
   try solve
     [ match goal with
