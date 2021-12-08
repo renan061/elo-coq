@@ -13,16 +13,12 @@ Definition num := nat.
 
 Reserved Notation "'[' id ':=' x ']' t"
   (at level 20, id constr).
-Reserved Notation "t '-->' t' # eff"
+Reserved Notation "t '--[' eff ']-->' t'"
   (at level 40).
-Reserved Notation "t '-->*' t'"
-  (at level 40).
-Reserved Notation "t '-->+' t'"
-  (at level 40).
-Reserved Notation "m / threads '==>' m' / threads'"
-  (at level 40, threads at next level, m' at next level).
-Reserved Notation "m / threads '==>*' m' / threads'"
-  (at level 40, threads at next level, m' at next level).
+Reserved Notation "m / ths '==>' m' / ths' # ceff"
+  (at level 40, ths at next level, m' at next level).
+Reserved Notation "m / ths '==>*' m' / ths'"
+  (at level 40, ths at next level, m' at next level).
 Reserved Notation "Gamma '|--' t 'is' T"
   (at level 40, t at next level).
 Reserved Notation "mt / Gamma '|--' t 'is' T"
@@ -115,7 +111,6 @@ Inductive tm : Set :=
   (* expressions *)
   | TM_Nil
   | TM_Num : num -> tm
-  | TM_Arr : typ -> num -> tm
   | TM_ArrNew : typ -> tm -> tm
   | TM_ArrIdx : tm -> tm -> tm
   | TM_Id : name -> tm
@@ -132,6 +127,7 @@ Inductive tm : Set :=
   | TM_LetFun : name -> typ -> tm -> tm -> tm
   (* internal terms *)
   | TM_Loc : num -> tm
+  | TM_Arr : typ -> num -> tm (* TODO: ordering *)
   | TM_Load : tm -> tm
   | TM_Fun : name -> typ -> tm -> typ -> tm
   .
@@ -165,7 +161,8 @@ Qed.
 Inductive effect : Set :=
   | EF_None
   | EF_Spawn (block : tm)
-  | EF_Load (addr : num) (t : tm)
+  | EF_Alloc (addr : num) (t : tm)
+  | EF_Load  (addr : num) (t : tm)
   | EF_Store (addr : num) (t : tm)
   .
 
@@ -217,7 +214,7 @@ Fixpoint subst (id : name) (x t : tm) : tm :=
   end
   where "'[' id ':=' x ']' t" := (subst id x t).
 
-Inductive step : tm -> tm -> effect -> Prop :=
+Inductive step : tm -> effect -> tm -> Prop :=
 (*
   (* ArrNew *)
   | ST_ArrNew1 : forall m m' T e e' eff,
@@ -243,17 +240,17 @@ Inductive step : tm -> tm -> effect -> Prop :=
 *)
   (* Asg *)
   | ST_Asg1 : forall t t' e eff,
-    t --> t' # eff ->
-    TM_Asg t e --> TM_Asg t' e # eff
+    t --[eff]--> t' ->
+    TM_Asg t e --[eff]--> TM_Asg t' e
 
   | ST_Asg2 : forall t e e' eff,
     value t ->
-    e --> e' # eff ->
-    TM_Asg t e --> TM_Asg t e' # eff
+    e --[eff]--> e' ->
+    TM_Asg t e --[eff]--> TM_Asg t e'
 
   | ST_Asg : forall addr v,
     value v ->
-    TM_Asg (TM_Loc addr) v --> TM_Nil # EF_Store addr v
+    TM_Asg (TM_Loc addr) v --[EF_Store addr v]--> TM_Nil
 (*
   (* ArrAsg *)
   | ST_ArrAsg1 : forall m m' arr arr' idx e eff,
@@ -293,34 +290,35 @@ Inductive step : tm -> tm -> effect -> Prop :=
 *)
   (* Seq *)
   | ST_Seq1 : forall t1 t2 t eff,
-    t1 --> t2 # eff ->
-    TM_Seq t1 t --> TM_Seq t2 t # eff
+    t1 --[eff]--> t2 ->
+    TM_Seq t1 t --[eff]--> TM_Seq t2 t
 
   | ST_Seq : forall t,
-    TM_Seq TM_Nil t --> t # EF_None
+    TM_Seq TM_Nil t --[EF_None]--> t
 
   (* Spawn *)
   | ST_Spawn : forall block,
-    TM_Spawn block --> TM_Nil # EF_Spawn block
+    TM_Spawn block --[EF_Spawn block]--> TM_Nil
 
   (* LetVal *)
   | ST_LetVal1 : forall id E e e' t eff,
-    e --> e' # eff ->
-    TM_LetVal id E e t --> TM_LetVal id E e' t # eff
+    e --[eff]--> e' ->
+    TM_LetVal id E e t --[eff]--> TM_LetVal id E e' t
 
   | ST_LetVal : forall id E e t,
     value e ->
-    TM_LetVal id E e t --> [id := e] t # EF_None
-(*
+    TM_LetVal id E e t --[EF_None]--> [id := e] t
+
   (* LetVar *)
-  | ST_LetVar1 : forall m m' id E e e' t eff,
-    m / e --> eff / m' / e' ->
-    m / TM_LetVar id E e t --> eff / m' / TM_LetVar id E e' t
+  | ST_LetVar1 : forall id E e e' t eff,
+    e --[eff]--> e' ->
+    TM_LetVar id E e t --[eff]--> TM_LetVar id E e' t
 
-  | ST_LetVar : forall m id E e t,
+  | ST_LetVar : forall id E addr e t,
     value e ->
-    m / TM_LetVar id E e t --> EF_None / (add m e) / [id := TM_Loc (length m)] t
+    TM_LetVar id E e t --[EF_Alloc addr e]--> [id := TM_Loc addr] t
 
+(*
   (* LetFun *)
   | ST_LetFun1 : forall m m' id F f f' t eff,
     m / f --> eff / m' / f' ->
@@ -332,36 +330,13 @@ Inductive step : tm -> tm -> effect -> Prop :=
 *)
   (* Load *)
   | ST_Load1 : forall t t' eff,
-    t --> t' # eff ->
-    TM_Load t --> TM_Load t' # eff
+    t --[eff]--> t' ->
+    TM_Load t --[eff]--> TM_Load t'
 
-  | ST_Load : forall t addr,
-    TM_Load (TM_Loc addr) --> t # EF_Load addr t
+  | ST_Load : forall addr v,
+    TM_Load (TM_Loc addr) --[EF_Load addr v]--> v
 
-  where "t '-->' t' # eff" := (step t t' eff).
-
-Inductive multistep : tm -> tm -> Prop :=
-  | multistep_refl : forall t,
-    t -->* t
-
-  | multistep_step : forall t1 t t2 eff,
-    t1 -->  t  # eff ->
-    t  -->* t2 ->
-    t1 -->* t2
-
-  where "t '-->*' t'" := (multistep t t').
-
-Inductive multistep_plus : tm -> tm -> Prop :=
-  | multistep_plus_one : forall t t' eff,
-    t -->  t' # eff ->
-    t -->+ t
-
-  | multistep_plus_step : forall t1 t t2 eff,
-    t1 -->  t  # eff ->
-    t  -->+ t2 ->
-    t1 -->+ t2
-
-  where "t '-->+' t'" := (multistep_plus t t').
+  where "t '--[' eff ']-->' t'" := (step t eff t').
 
 (* Concurrent Step *)
 
@@ -373,37 +348,49 @@ Inductive multistep_plus : tm -> tm -> Prop :=
 *  m <--> m'' não escrevem na mesma célula de memória
 *)
 
-Inductive cstep : mem -> list tm -> mem -> list tm -> Prop :=
-  | CST_None : forall i m t ths,
-    i < length ths ->
-    (get_tm ths i) --> t # EF_None ->
-    m / ths ==> m / (set ths i t)
+Inductive ceffect : Set :=
+  | CEF_None  (i : num)
+  | CEF_Alloc (i : num)
+  | CEF_Load  (i : num) (addr : num)
+  | CEF_Store (i : num) (addr : num)
+  | CEF_Spawn (i : num)
+  .
 
-  | CST_Load : forall i m ths addr v,
+Inductive cstep : mem -> list tm -> mem -> list tm -> ceffect -> Prop :=
+  | CST_None : forall i m ths t,
     i < length ths ->
-    v = get_tm m addr ->
-    (get_tm ths i) --> v # (EF_Load addr v) ->
-    m / ths ==> m / (set ths i v)
+    (get_tm ths i) --[EF_None]--> t ->
+    m / ths ==> m / (set ths i t) # (CEF_None i)
+
+  | CST_Alloc : forall i m ths v t,
+    i < length ths ->
+    (get_tm ths i) --[EF_Alloc (length m) v]--> t ->
+    m / ths ==> (add m v) / (set ths i t) # (CEF_Alloc i)
+
+  | CST_Load : forall i m ths addr t,
+    i < length ths ->
+    (get_tm ths i) --[EF_Load addr (get_tm m addr)]--> t ->
+    m / ths ==> m / (set ths i t) # (CEF_Load i addr)
 
   | CST_Store : forall i m ths addr v t,
     i < length ths ->
     addr < length m ->
-    (get_tm ths i) --> t # (EF_Store addr v) ->
-    m / ths ==> (set m addr v) / (set ths i t)
+    (get_tm ths i) --[EF_Store addr v]--> t ->
+    m / ths ==> (set m addr v) / (set ths i t) # (CEF_Store i addr)
 
   | CST_Spawn : forall i m ths block t,
     i < length ths ->
-    (get_tm ths i) --> t # (EF_Spawn block) ->
-    m / ths ==> m / (add (set ths i t) block)
+    (get_tm ths i) --[EF_Spawn block]--> t ->
+    m / ths ==> m / (add (set ths i t) block) # (CEF_Spawn i)
 
-  where "m / threads '==>' m' / threads'" := (cstep m threads m' threads').
+  where "m / ths '==>' m' / ths' # ceff" := (cstep m ths m' ths' ceff).
 
 Inductive cmultistep : mem -> list tm -> mem -> list tm -> Prop :=
   | cmultistep_refl : forall m ths,
     m / ths ==>* m / ths
 
-  | cmultistep_step : forall m1 m m2 ths1 ths ths2,
-    m1 / ths1 ==>  m  / ths  ->
+  | cmultistep_step : forall m1 m m2 ths1 ths ths2 ceff,
+    m1 / ths1 ==>  m  / ths  # ceff ->
     m  / ths  ==>* m2 / ths2 ->
     m1 / ths1 ==>* m2 / ths2
 
