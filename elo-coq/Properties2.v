@@ -141,7 +141,7 @@ Proof.
         ].
 Qed.
 
-Lemma update_safe_includes_comm : forall Gamma id T,
+Lemma update_safe_includes_safe_update : forall Gamma id T,
   (update (safe Gamma) id T) includes (safe (update Gamma id T)).
 Proof.
   unfold Map.includes', update, Map.update', safe. intros *.
@@ -158,6 +158,16 @@ Proof.
   intros * Hext Htype.
   induction Htype; eauto using @typeof, extends_length;
   subst; erewrite extends_lookup; eauto using extends_length, @typeof.
+Qed.
+
+Lemma concurrent_memory_weakening : forall mt mt' ths,
+  mt' extends mt ->
+  well_typed_threads mt ths ->
+  well_typed_threads mt' ths.
+Proof.
+  intros * Hext Hths. intros i.
+  specialize (Hths i) as [? ?]. eexists.
+  eauto using memory_weakening.
 Qed.
 
 Lemma context_weakening : forall mt Gamma Gamma' t T,
@@ -186,7 +196,7 @@ Lemma substitution_preserves_typing : forall mt Gamma id t u T U,
   mt / Gamma |-- [id := u] t is T.
 Proof with eauto using context_weakening, context_weakening_empty,
   lookup_update_kneq, update_overwrite, update_permutation,
-  update_safe_includes_comm.
+  update_safe_includes_safe_update.
 
   intros * Ht Hu.
   generalize dependent T. generalize dependent Gamma.
@@ -210,40 +220,44 @@ Proof with eauto using context_weakening, context_weakening_empty,
   - apply T_Fun...
 Qed.
 
-(*
-Lemma aux : forall mt m ths ths' v V i,
-  well_typed_threads mt ths ->
-  m / ths ==> (add m v) / ths' # CEF_Alloc i ->
-  (add mt V) / empty |-- v is V.
-Proof.
-  intros * Hths Hcstep. specialize (Hths i). induction i.
-  -
-  inversion Hcstep. subst.
-Admitted.
-*)
-
-Lemma eff_store_typing : forall mt t t' addr v T,
-  t --[EF_Store addr v]--> t' ->
+Lemma alloc_value_has_type : forall mt t t' addr v T,
   mt / empty |-- t is T ->
-  mt / empty |-- v is (get_typ mt addr).
-Proof.
-  intros * Hstep Htype. generalize dependent t'.
-  induction Htype; intros * Hstep;
-  inversion Hstep; subst; eauto.
-  inversion Htype1. subst. eauto.
-Qed.
-
-Lemma eff_spawn_typing : forall mt t t' block T,
-  t --[EF_Spawn block]--> t' ->
-  mt / empty |-- t is T ->
-  exists B, mt / empty |-- block is B.
+  t --[EF_Alloc addr v]--> t' ->
+  exists V, mt / empty |-- v is V.
 Proof.
   remember empty as Gamma.
-  intros * Hstep Htype. generalize dependent t'.
+  intros * Htype. generalize dependent t'.
   induction Htype; intros * Hstep; inversion Hstep; subst; eauto.
 Qed.
 
-Lemma set_preserves_memory_typing : forall m mt t i,
+Lemma store_value_has_type : forall mt t t' addr v T,
+  mt / empty |-- t is T ->
+  t --[EF_Store addr v]--> t' ->
+  mt / empty |-- v is (get_typ mt addr).
+Proof.
+  remember empty as Gamma.
+  intros * Htype. generalize dependent t'.
+  induction Htype; intros * Hstep;
+  inversion Hstep; subst; eauto;
+  solve [match goal with
+    | H1 : _ / _ |-- ?v is _,
+      H2 : _ / _ |-- _  is _
+      |- _ / _ |-- ?v is _ =>
+        inversion H2; subst; eauto
+    end].
+Qed.
+
+Lemma spawn_block_has_type : forall mt t t' block T,
+  mt / empty |-- t is T ->
+  t --[EF_Spawn block]--> t' ->
+  exists B, mt / empty |-- block is B.
+Proof.
+  remember empty as Gamma.
+  intros * Htype. generalize dependent t'.
+  induction Htype; intros * Hstep; inversion Hstep; subst; eauto.
+Qed.
+
+Lemma store_preserves_well_typed_memory : forall m mt t i,
   i < length m ->
   well_typed_memory mt m ->
   mt / empty |-- t is (get_typ mt i) ->
@@ -252,11 +266,11 @@ Proof.
   intros * ? [Hlen ?] ?. split.
   - rewrite Hlen. apply set_preserves_length.
   - intros j. destruct (i =? j) eqn:E.
-    + apply Nat.eqb_eq in E. subst. erewrite (get_set_involutive TM_Nil); auto.
-    + apply Nat.eqb_neq in E. erewrite (get_set_i_neq_j TM_Nil); auto.
+    + apply Nat.eqb_eq in E. subst. erewrite (get_i_set_i TM_Nil); auto.
+    + apply Nat.eqb_neq in E. erewrite (get_i_set_j TM_Nil); auto.
 Qed.
 
-Lemma add_preserves_memory_typing : forall mt m t T,
+Lemma alloc_preserves_well_typed_memory : forall mt m t T,
   well_typed_memory mt m ->
   mt / empty |-- t is T ->
   well_typed_memory (add mt T) (add m t).
@@ -277,7 +291,7 @@ Proof.
     apply T_Nil.
 Qed.
 
-Lemma set_preserves_thread_typing : forall mt ths t T i,
+Lemma step_preserves_well_typed_threads : forall mt ths t T i,
   i < length ths ->
   well_typed_threads mt ths ->
   mt / empty |-- t is T ->
@@ -286,12 +300,12 @@ Proof.
   intros * Hlen Htype Hstep.
   intros i'. destruct (i =? i') eqn:E.
   - apply Nat.eqb_eq in E. subst.
-    rewrite (get_set_involutive TM_Nil); eauto.
+    rewrite (get_i_set_i TM_Nil); eauto.
   - apply Nat.eqb_neq in E. apply not_eq_sym in E.
-    rewrite (get_set_i_neq_j TM_Nil); eauto.
+    rewrite (get_i_set_j TM_Nil); eauto.
 Qed.
 
-Lemma add_preserves_thread_typing : forall mt ths t T,
+Lemma spawn_preserves_well_typed_threads : forall mt ths t T,
   well_typed_threads mt ths ->
   mt / empty |-- t is T ->
   well_typed_threads mt (add ths t).
@@ -303,40 +317,30 @@ Proof.
   - rewrite (get_add_gt TM_Nil); eauto using T_Nil.
 Qed.
 
-Lemma alloc_preserves_thread_typing : forall mt ths T,
-  well_typed_threads mt ths ->
-  well_typed_threads (add mt T) ths.
-Proof.
-  intros * Hths. intros i.
-  specialize (Hths i) as [? ?]. eexists.
-  eauto using extends_add, memory_weakening.
-Qed.
-
-(* ------------------------------------------------------------------------- *)
-(* Preservation ------------------------------------------------------------ *)
-(* ------------------------------------------------------------------------- *)
-
-Definition is_alloc_or_load_effect eff :=
+Definition is_alloc_or_load eff :=
   match eff with
   | EF_Alloc _ _ | EF_Load _ _ => true
   | _ => false
   end.
 
-Theorem limited_preservation : forall mt m t t' eff T,
+Lemma limited_preservation : forall mt m t t' eff T,
   well_typed_memory mt m ->
   mt / empty |-- t is T ->
   t --[eff]--> t' ->
-  is_alloc_or_load_effect eff = false ->
+  is_alloc_or_load eff = false ->
   mt / empty |-- t' is T.
 Proof.
   remember empty as Gamma.
   intros * [Hlen Hmem] Htype Hstep Heff.
   generalize dependent t'.
   induction Htype; intros * Hstep; inversion Hstep; subst;
-  try solve
-    [ discriminate Heff
-    | eauto using substitution_preserves_typing, @typeof
-    ].
+  try solve [ discriminate Heff
+            | eauto using substitution_preserves_typing, @typeof
+            ].
+  - match goal with
+    | Htype : _ / _ |-- _ is TY_Fun _ _ |- _ => inversion Htype; subst
+    end.
+    eauto using substitution_preserves_typing.
 Qed.
 
 Lemma alloc_preservation : forall mt t t' v T V,
@@ -345,18 +349,25 @@ Lemma alloc_preservation : forall mt t t' v T V,
   t --[EF_Alloc (length mt) v]--> t' ->
   (add mt V) / empty |-- t' is T.
 Proof.
+  remember empty as Gamma.
   intros * Htype ? Hstep. generalize dependent t'.
+  assert (R : forall T, T = get_typ (add mt T) (length mt)).
+  { intros. eauto using get_add_last. }
   induction Htype; intros * Hstep; inversion Hstep; subst;
-  eauto using @typeof, extends_add, memory_weakening.
-  - match goal with
-    | H1 : mt / _ |-- v is ?T1, H2 : mt / _ |-- v is ?T2 |- _ =>
-      eapply (deterministic_typing _ _ _ T1 T2) in H1; eauto; subst
-    end.
-    assert (R : forall T, TY_Ref T = TY_Ref (get_typ (add mt T) (length mt))).
-    { intros. f_equal. eauto using get_add_last. }
-    eapply substitution_preserves_typing;
+  eauto using @typeof, extends_add, memory_weakening;
+  match goal with
+  | H1 : mt / _ |-- v is ?T1, H2 : mt / _ |-- v is ?T2 |- _ =>
+    eapply (deterministic_typing _ _ _ T1 T2) in H1; eauto; subst
+  end;
+  try match goal with
+  |- _ / _ |-- _ is _ ?T =>
+    rewrite (R T); eauto using @typeof, length_lt_add
+  end.
+  - eapply substitution_preserves_typing;
     eauto using extends_add, memory_weakening.
-    rewrite R. eauto using @typeof, length_l_lt_add.
+    assert (R' : forall T, TY_Ref T = TY_Ref (get_typ (add mt T) (length mt))).
+    { intros. f_equal. eauto using get_add_last. }
+    rewrite R'. eauto using @typeof, length_lt_add.
 Qed.
 
 Lemma load_preservation : forall mt m t t' addr T,
@@ -365,20 +376,19 @@ Lemma load_preservation : forall mt m t t' addr T,
   t --[EF_Load addr (get_tm m addr)]--> t' ->
   mt / empty |-- t' is T.
 Proof.
+  remember empty as Gamma.
   intros * [Hlen Hmem] Htype Hstep. generalize dependent t'.
   induction Htype; intros * Hstep; inversion Hstep; subst;
-  solve [eauto using @typeof | inversion Htype; eauto].
+  try solve [ eauto using @typeof
+            | repeat match goal with 
+              | H : _ / _ |-- _ is _ |- _ => inversion H; subst; eauto
+              end
+            ].
 Qed.
 
-Lemma v_has_type : forall mt t t' addr v T,
-  mt / empty |-- t is T ->
-  t --[EF_Alloc addr v]--> t' ->
-  exists V, mt / empty |-- v is V.
-Proof.
-  remember empty as Gamma.
-  intros * Htype. generalize dependent t'.
-  induction Htype; intros * Hstep; inversion Hstep; subst; eauto.
-Qed.
+(* ------------------------------------------------------------------------- *)
+(* Preservation ------------------------------------------------------------ *)
+(* ------------------------------------------------------------------------- *)
 
 Theorem preservation : forall mt m m' ths ths' ceff,
   well_typed_program mt m ths ->
@@ -387,75 +397,73 @@ Theorem preservation : forall mt m m' ths ths' ceff,
     mt' extends mt /\
     well_typed_program mt' m' ths'.
 Proof.
-  intros * [Hmem Hths] Hcstep. inversion Hcstep; subst.
+  intros * [Hmem Hths] Hcstep.
+  inversion Hcstep; subst; destruct (Hths i) as [? ?].
+  (* None *)
   - eexists. splits 3; eauto using extends_refl.
     intros i'. destruct (i =? i') eqn:E.
     + apply Nat.eqb_eq in E. subst.
-      rewrite (get_set_involutive TM_Nil); trivial.
+      rewrite (get_i_set_i TM_Nil); trivial.
       specialize (Hths i') as [? ?]. eexists.
-      eapply limited_preservation; eauto.
+      eauto using limited_preservation.
     + apply Nat.eqb_neq in E. apply not_eq_sym in E.
-      rewrite (get_set_i_neq_j TM_Nil); trivial.
-  - rewrite <- (proj1 Hmem) in *. destruct (Hths i) as [? ?].
-    assert (exists V, mt / empty |-- v is V) as [V ?]; eauto using v_has_type.
+      rewrite (get_i_set_j TM_Nil); trivial.
+  (* Alloc *)
+  - rewrite <- (proj1 Hmem) in *.
+    assert (exists V, mt / empty |-- v is V) as [V ?].
+    { eauto using alloc_value_has_type. }
     exists (add mt V). splits 3;
     eauto using extends_add,
-      add_preserves_memory_typing,
-      set_preserves_thread_typing,
-      alloc_preserves_thread_typing,
+      alloc_preserves_well_typed_memory,
+      step_preserves_well_typed_threads,
+      concurrent_memory_weakening,
       alloc_preservation.
-  - destruct (Hths i) as [? ?].
-    eexists. splits 3; eauto using extends_refl.
-    eauto using set_preserves_thread_typing, load_preservation.
+  (* Load *)
   - eexists. splits 3; eauto using extends_refl.
-    + specialize (Hths i) as [T Htype].
-      apply set_preserves_memory_typing; eauto.
-      eauto using eff_store_typing.
-    + destruct (Hths i) as [? ?].
-      eapply set_preserves_thread_typing; eauto.
-      eapply limited_preservation; eauto.
+    eauto using step_preserves_well_typed_threads, load_preservation.
+  (* Store *)
+  - eexists. splits 3; eauto using extends_refl;
+    eauto using store_preserves_well_typed_memory,
+      store_value_has_type,
+      step_preserves_well_typed_threads,
+      limited_preservation.
+  (* Spawn *)
   - eexists. splits 3; eauto using extends_refl.
-    destruct (Hths i) as [? ?].
-    assert (exists B, mt / empty |-- block is B) as [? Htype].
-    { eauto using eff_spawn_typing. }
-    eapply add_preserves_thread_typing; eauto. clear Htype.
-    eapply set_preserves_thread_typing; eauto.
-    eapply limited_preservation; eauto.
+    assert (exists B, mt / empty |-- block is B) as [? ?].
+    { eauto using spawn_block_has_type. }
+    eauto using spawn_preserves_well_typed_threads,
+      step_preserves_well_typed_threads,
+      limited_preservation.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
 (* Progress ---------------------------------------------------------------- *)
 (* ------------------------------------------------------------------------- *)
 
-(*
-Theorem limited_progress : forall m mt t T,
-  mt / empty |-- t is T ->
+Lemma aux1 : forall mt th ths,
+  well_typed_threads mt (th :: ths) ->
+  well_typed_threads mt ths.
+Admitted.
+
+Lemma aux2 : forall m m' th ths ths' ceff,
+  m / ths ==> m' / ths' # ceff ->
+  m / (th :: ths) ==> m' / (th :: ths') # ceff.
+Admitted.
+
+Lemma aux3 : forall m m' th th' ths eff ceff,
+  th --[eff]--> th' ->
+  m / (th :: ths) ==> m' / (th' :: ths) # ceff.
+Admitted.
+
+Lemma limited_progress : forall mt m t T,
+  ~ (value t) ->
   well_typed_memory mt m ->
-  (value t \/ exists t' eff, t --> t' # eff).
+  mt / empty |-- t is T ->
+  exists t' eff', t --[eff']--> t'.
 Proof.
-  remember empty as Gamma. intros * Htype [Hlen Hmem].
-  assert (forall i, i < length mt -> i < length m). { rewrite Hlen. trivial. }
-  induction Htype; subst; auto using value; right;
-  try match goal with F : lookup empty _ = Some _ |- _ => inversion F end;
-  repeat match goal with
-    IH : _ = empty -> _ |- _ => specialize (IH eq_refl) as [? | [? [? ?]]]
-  end.
-  - eexists. eexists. eapplyeauto using step.
-  try solve [eexists; eexists; eauto using step];
-  repeat match goal with
-    Hv : value ?t , Htype : _ / _ |-- ?t is _ |- _ =>
-      destruct Hv; inversion Htype; subst
-  end;
-  eexists; eexists; eauto using step, value.
-Qed.
+Admitted.
 
-Theorem progress : forall m mt ths,
-  well_typed_program mt m ths ->
-  (finished ths \/ exists m' ths', m / ths ==> m' / ths').
-Proof.
-  intros * [[Hlen Hmem] Hths].
-  assert (forall i, i < length mt -> i < length m). { rewrite Hlen. trivial. }
-
+(*
   induction Htype; subst; auto using value; right;
   try match goal with F : lookup empty _ = Some _ |- _ => inversion F end;
   repeat match goal with
@@ -467,5 +475,28 @@ Proof.
       destruct Hv; inversion Htype; subst
   end;
   eexists; eexists; eexists; eauto using step, value.
-Qed.
 *)
+
+Theorem progress : forall m mt ths,
+  well_typed_program mt m ths ->
+  (finished ths \/ exists m' ths' ceff, m / ths ==> m' / ths' # ceff).
+Proof.
+  intros * [[Hlen Hmem] Hths].
+  assert (forall i, i < length mt -> i < length m). { rewrite Hlen. trivial. }
+
+  induction ths as [| th ths IH].
+  - left. intros i. destruct i; auto using value.
+  - destruct (is_value th) eqn:E.
+    + apply value_equivalence in E.
+      specialize (IH (aux1 _ _ _ Hths)) as [? | [m' [ths' [ceff ?]]]].
+      * left. intros i. destruct i; eauto.
+      * right. exists m'. exists (th :: ths'). exists ceff.
+        eauto using aux2.
+    + right. specialize (IH (aux1 _ _ _ Hths)) as [? | [m' [ths' [ceff ?]]]].
+      * assert (exists th' eff, th --[eff]--> th') as [? [? ?]].
+        { eapply limited_progress; admit. }
+        eexists. eexists. eexists.
+        eauto using aux3.
+      * eexists. eexists. eexists.
+        eauto using aux2.
+Qed.

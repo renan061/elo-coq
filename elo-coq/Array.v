@@ -18,12 +18,6 @@ Fixpoint set {A} (l : list A) (i : nat) (a : A) : list A :=
 
 (* Proofs *)
 
-Lemma get_S_i : forall {A} default (l : list A) a i,
-  get default (a :: l) (S i) = get default l i.
-Proof.
- intros *. unfold get. reflexivity.
-Qed.
-
 Lemma set_preserves_length : forall {A} (l : list A) i a,
   length l = length (set l i a).
 Proof.
@@ -73,14 +67,7 @@ Proof.
     + apply PeanoNat.Nat.succ_lt_mono in H. auto.
 Qed.
 
-Lemma length_l_lt_add : forall {A} (l : list A) a,
-  length l < length (add l a).
-Proof.
-  intros *. unfold add. rewrite last_length.
-  auto using PeanoNat.Nat.lt_succ_diag_r.
-Qed.
-
-Lemma get_set_involutive : forall {A} default (l : list A) i a,
+Lemma get_i_set_i : forall {A} default (l : list A) i a,
   i < length l ->
   get default (set l i a) i = a.
 Proof.
@@ -92,19 +79,7 @@ Proof.
     + apply IH. auto using Lt.lt_S_n.
 Qed.
 
-Lemma set_get_involutive : forall {A} default (l : list A) i,
-  i < length l ->
-  set l i (get default l i) = l.
-Proof.
-  intros ? ? l.
-  induction l as [| ? ? IH]; intros * H.
-  - inversion H.
-  - destruct i.
-    + reflexivity.
-    + simpl in *. f_equal. auto using Lt.lt_S_n.
-Qed.
-
-Lemma get_set_i_neq_j : forall {A} d (l : list A) i j a,
+Lemma get_i_set_j : forall {A} d (l : list A) i j a,
   i <> j ->
   get d (set l j a) i = get d l i.
 Proof.
@@ -115,33 +90,9 @@ Proof.
     simpl. auto using PeanoNat.Nat.succ_inj_wd_neg.
 Qed.
 
-Lemma get_default : forall {A} d (l : list A) i,
-  length l <= i -> get d l i = d.
+Lemma length_lt_add : forall {A} (l : list A) a,
+  length l < length (add l a).
 Proof.
-  intros ? ? l. induction l as [| ? ? IH]; intros i Hlen; destruct i; trivial.
-  - apply Nat.nle_succ_0 in Hlen. contradiction.
-  - simpl in *. apply le_S_n in Hlen. apply (IH i Hlen).
-Qed.
-
-Lemma get_set_default : forall {A} d (l : list A) i a,
-  length l <= i ->
-  get d (set l i a) i = d.
-Proof.
-  intros * Hlen.
-  erewrite set_preserves_length in Hlen.
-  eauto using get_default.
-Qed.
-
-Lemma add_set_comm : forall {A} (l : list A) i a1 a2,
-  i < length l ->
-  add (set l i a1) a2 = set (add l a2) i a1.
-Proof.
-  unfold add.
-  intros ? l. induction l as [| ? ? IH]; intros * H.
-  - destruct i eqn:E.
-    + inversion H.
-    + reflexivity.
-  - simpl in *. destruct i eqn:E.
-    + reflexivity.
-    + apply lt_S_n in H. rewrite <- (IH n a1 a2 H). reflexivity.
+  intros *. unfold add. rewrite last_length.
+  auto using PeanoNat.Nat.lt_succ_diag_r.
 Qed.

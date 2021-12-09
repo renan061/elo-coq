@@ -1,4 +1,4 @@
-DIGEST 7bb977aa33dcf10c9f943088c6beef55
+DIGEST d498429634838e106512d891c2d5d0c1
 FElo.Array
 R24:34 Coq.Arith.Arith <> <> lib
 R61:70 Coq.Lists.List <> <> lib
@@ -51,310 +51,188 @@ R362:362 Coq.Init.Datatypes <> S constr
 R372:375 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
 R376:378 Elo.Array <> set:12 def
 R386:386 Elo.Array <> a:11 var
-prf 424:430 <> get_S_i
-binder 442:442 <> A:15
-binder 445:451 <> default:16
-R458:461 Coq.Init.Datatypes <> list ind
-R463:463 Elo.Array <> A:15 var
-binder 454:454 <> l:17
-binder 466:466 <> a:18
-binder 468:468 <> i:19
-R499:501 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R473:475 Elo.Array <> get def
-R495:495 Coq.Init.Datatypes <> S constr
-R497:497 Elo.Array <> i:19 var
-R487:490 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
-R486:486 Elo.Array <> a:18 var
-R491:491 Elo.Array <> l:17 var
-R477:483 Elo.Array <> default:16 var
-R502:504 Elo.Array <> get def
-R516:516 Elo.Array <> i:19 var
-R514:514 Elo.Array <> l:17 var
-R506:512 Elo.Array <> default:16 var
-R544:546 Elo.Array <> get def
-prf 574:593 <> set_preserves_length
-binder 605:605 <> A:20
-R613:616 Coq.Init.Datatypes <> list ind
-R618:618 Elo.Array <> A:20 var
-binder 609:609 <> l:21
-binder 621:621 <> i:22
-binder 623:623 <> a:23
-R636:638 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R628:633 Coq.Init.Datatypes <> length def
-R635:635 Elo.Array <> l:21 var
-R639:644 Coq.Init.Datatypes <> length def
-R647:649 Elo.Array <> set def
-R655:655 Elo.Array <> a:23 var
-R653:653 Elo.Array <> i:22 var
-R651:651 Elo.Array <> l:21 var
-R742:750 Coq.Arith.Lt <> lt_S_n thm
-R742:750 Coq.Arith.Lt <> lt_S_n thm
-R742:750 Coq.Arith.Lt <> lt_S_n thm
-prf 765:784 <> add_preserves_length
-binder 796:797 <> A1:24
-binder 799:800 <> A2:25
-R809:812 Coq.Init.Datatypes <> list ind
-R814:815 Elo.Array <> A1:24 var
-binder 804:805 <> l1:26
-R824:827 Coq.Init.Datatypes <> list ind
-R829:830 Elo.Array <> A2:25 var
-binder 819:820 <> l2:27
-binder 833:834 <> a1:28
-binder 836:837 <> a2:29
-R863:868 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R851:853 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R842:847 Coq.Init.Datatypes <> length def
-R849:850 Elo.Array <> l1:26 var
-R854:859 Coq.Init.Datatypes <> length def
-R861:862 Elo.Array <> l2:27 var
-R887:889 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R869:874 Coq.Init.Datatypes <> length def
-R877:879 Elo.Array <> add def
-R884:885 Elo.Array <> a1:28 var
-R881:882 Elo.Array <> l1:26 var
+prf 424:443 <> set_preserves_length
+binder 455:455 <> A:15
+R463:466 Coq.Init.Datatypes <> list ind
+R468:468 Elo.Array <> A:15 var
+binder 459:459 <> l:16
+binder 471:471 <> i:17
+binder 473:473 <> a:18
+R486:488 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R478:483 Coq.Init.Datatypes <> length def
+R485:485 Elo.Array <> l:16 var
+R489:494 Coq.Init.Datatypes <> length def
+R497:499 Elo.Array <> set def
+R505:505 Elo.Array <> a:18 var
+R503:503 Elo.Array <> i:17 var
+R501:501 Elo.Array <> l:16 var
+R592:600 Coq.Arith.Lt <> lt_S_n thm
+R592:600 Coq.Arith.Lt <> lt_S_n thm
+R592:600 Coq.Arith.Lt <> lt_S_n thm
+prf 615:634 <> add_preserves_length
+binder 646:647 <> A1:19
+binder 649:650 <> A2:20
+R659:662 Coq.Init.Datatypes <> list ind
+R664:665 Elo.Array <> A1:19 var
+binder 654:655 <> l1:21
+R674:677 Coq.Init.Datatypes <> list ind
+R679:680 Elo.Array <> A2:20 var
+binder 669:670 <> l2:22
+binder 683:684 <> a1:23
+binder 686:687 <> a2:24
+R713:718 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R701:703 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R692:697 Coq.Init.Datatypes <> length def
+R699:700 Elo.Array <> l1:21 var
+R704:709 Coq.Init.Datatypes <> length def
+R711:712 Elo.Array <> l2:22 var
+R737:739 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R719:724 Coq.Init.Datatypes <> length def
+R727:729 Elo.Array <> add def
+R734:735 Elo.Array <> a1:23 var
+R731:732 Elo.Array <> l1:21 var
+R740:745 Coq.Init.Datatypes <> length def
+R748:750 Elo.Array <> add def
+R755:756 Elo.Array <> a2:24 var
+R752:753 Elo.Array <> l2:22 var
+R788:790 Elo.Array <> add def
+R803:813 Coq.Lists.List <> last_length thm
+R803:813 Coq.Lists.List <> last_length thm
+R803:813 Coq.Lists.List <> last_length thm
+R803:813 Coq.Lists.List <> last_length thm
+prf 834:843 <> get_add_lt
+binder 855:855 <> A:25
+binder 858:864 <> default:26
+R871:874 Coq.Init.Datatypes <> list ind
+R876:876 Elo.Array <> A:25 var
+binder 867:867 <> l:27
+binder 879:879 <> a:28
+binder 881:881 <> i:29
+R898:903 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R887:889 Coq.Init.Peano <> ::nat_scope:x_'<'_x not
+R886:886 Elo.Array <> i:29 var
 R890:895 Coq.Init.Datatypes <> length def
-R898:900 Elo.Array <> add def
-R905:906 Elo.Array <> a2:29 var
-R902:903 Elo.Array <> l2:27 var
-R938:940 Elo.Array <> add def
-R953:963 Coq.Lists.List <> last_length thm
-R953:963 Coq.Lists.List <> last_length thm
-R953:963 Coq.Lists.List <> last_length thm
-R953:963 Coq.Lists.List <> last_length thm
-prf 984:993 <> get_add_lt
-binder 1005:1005 <> A:30
-binder 1008:1014 <> default:31
-R1021:1024 Coq.Init.Datatypes <> list ind
-R1026:1026 Elo.Array <> A:30 var
-binder 1017:1017 <> l:32
-binder 1029:1029 <> a:33
-binder 1031:1031 <> i:34
-R1048:1053 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R1037:1039 Coq.Init.Peano <> ::nat_scope:x_'<'_x not
-R1036:1036 Elo.Array <> i:34 var
-R1040:1045 Coq.Init.Datatypes <> length def
-R1047:1047 Elo.Array <> l:32 var
-R1077:1079 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R1054:1056 Elo.Array <> get def
-R1076:1076 Elo.Array <> i:34 var
-R1067:1069 Elo.Array <> add def
-R1073:1073 Elo.Array <> a:33 var
-R1071:1071 Elo.Array <> l:32 var
-R1058:1064 Elo.Array <> default:31 var
-R1080:1082 Elo.Array <> get def
-R1094:1094 Elo.Array <> i:34 var
-R1092:1092 Elo.Array <> l:32 var
-R1084:1090 Elo.Array <> default:31 var
-R1319:1343 Coq.Arith.PeanoNat Nat succ_lt_mono thm
-R1319:1343 Coq.Arith.PeanoNat Nat succ_lt_mono thm
-prf 1369:1380 <> get_add_last
-binder 1392:1392 <> A:35
-binder 1395:1401 <> default:36
-R1408:1411 Coq.Init.Datatypes <> list ind
-R1413:1413 Elo.Array <> A:35 var
-binder 1404:1404 <> l:37
-binder 1416:1416 <> a:38
-R1453:1455 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R1421:1423 Elo.Array <> get def
-R1444:1449 Coq.Init.Datatypes <> length def
-R1451:1451 Elo.Array <> l:37 var
-R1434:1436 Elo.Array <> add def
-R1440:1440 Elo.Array <> a:38 var
-R1438:1438 Elo.Array <> l:37 var
-R1425:1431 Elo.Array <> default:36 var
-R1456:1456 Elo.Array <> a:38 var
-prf 1507:1516 <> get_add_gt
-binder 1528:1528 <> A:39
-binder 1531:1537 <> default:40
-R1544:1547 Coq.Init.Datatypes <> list ind
-R1549:1549 Elo.Array <> A:39 var
-binder 1540:1540 <> l:41
-binder 1552:1552 <> a:42
-binder 1554:1554 <> i:43
-R1571:1576 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R1567:1569 Coq.Init.Peano <> ::nat_scope:x_'<'_x not
-R1559:1564 Coq.Init.Datatypes <> length def
-R1566:1566 Elo.Array <> l:41 var
-R1570:1570 Elo.Array <> i:43 var
-R1600:1602 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R1577:1579 Elo.Array <> get def
-R1599:1599 Elo.Array <> i:43 var
-R1590:1592 Elo.Array <> add def
-R1596:1596 Elo.Array <> a:42 var
-R1594:1594 Elo.Array <> l:41 var
-R1581:1587 Elo.Array <> default:40 var
-R1603:1609 Elo.Array <> default:40 var
-R1834:1858 Coq.Arith.PeanoNat Nat succ_lt_mono thm
-R1834:1858 Coq.Arith.PeanoNat Nat succ_lt_mono thm
-prf 1884:1898 <> length_l_lt_add
-binder 1910:1910 <> A:44
-R1918:1921 Coq.Init.Datatypes <> list ind
-R1923:1923 Elo.Array <> A:44 var
-binder 1914:1914 <> l:45
-binder 1926:1926 <> a:46
-R1939:1941 Coq.Init.Peano <> ::nat_scope:x_'<'_x not
-R1931:1936 Coq.Init.Datatypes <> length def
-R1938:1938 Elo.Array <> l:45 var
-R1942:1947 Coq.Init.Datatypes <> length def
-R1950:1952 Elo.Array <> add def
-R1956:1956 Elo.Array <> a:46 var
-R1954:1954 Elo.Array <> l:45 var
-R1986:1988 Elo.Array <> add def
-R1999:2009 Coq.Lists.List <> last_length thm
-R1999:2009 Coq.Lists.List <> last_length thm
-R1999:2009 Coq.Lists.List <> last_length thm
-R2025:2051 Coq.Arith.PeanoNat Nat lt_succ_diag_r thm
-R2025:2051 Coq.Arith.PeanoNat Nat lt_succ_diag_r thm
-prf 2066:2083 <> get_set_involutive
-binder 2095:2095 <> A:47
-binder 2098:2104 <> default:48
-R2111:2114 Coq.Init.Datatypes <> list ind
-R2116:2116 Elo.Array <> A:47 var
-binder 2107:2107 <> l:49
-binder 2119:2119 <> i:50
-binder 2121:2121 <> a:51
-R2138:2143 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R2127:2129 Coq.Init.Peano <> ::nat_scope:x_'<'_x not
-R2126:2126 Elo.Array <> i:50 var
-R2130:2135 Coq.Init.Datatypes <> length def
-R2137:2137 Elo.Array <> l:49 var
-R2169:2171 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R2144:2146 Elo.Array <> get def
-R2168:2168 Elo.Array <> i:50 var
-R2157:2159 Elo.Array <> set def
-R2165:2165 Elo.Array <> a:51 var
-R2163:2163 Elo.Array <> i:50 var
-R2161:2161 Elo.Array <> l:49 var
-R2148:2154 Elo.Array <> default:48 var
-R2172:2172 Elo.Array <> a:51 var
-R2279:2281 Elo.Array <> get def
-R2330:2338 Coq.Arith.Lt <> lt_S_n thm
-R2330:2338 Coq.Arith.Lt <> lt_S_n thm
-prf 2353:2370 <> set_get_involutive
-binder 2382:2382 <> A:52
-binder 2385:2391 <> default:53
-R2398:2401 Coq.Init.Datatypes <> list ind
-R2403:2403 Elo.Array <> A:52 var
-binder 2394:2394 <> l:54
-binder 2406:2406 <> i:55
-R2423:2428 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R2412:2414 Coq.Init.Peano <> ::nat_scope:x_'<'_x not
-R2411:2411 Elo.Array <> i:55 var
-R2415:2420 Coq.Init.Datatypes <> length def
-R2422:2422 Elo.Array <> l:54 var
-R2454:2456 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R2429:2431 Elo.Array <> set def
-R2438:2440 Elo.Array <> get def
-R2452:2452 Elo.Array <> i:55 var
-R2450:2450 Elo.Array <> l:54 var
-R2442:2448 Elo.Array <> default:53 var
-R2435:2435 Elo.Array <> i:55 var
-R2433:2433 Elo.Array <> l:54 var
-R2457:2457 Elo.Array <> l:54 var
-R2614:2622 Coq.Arith.Lt <> lt_S_n thm
-R2614:2622 Coq.Arith.Lt <> lt_S_n thm
-prf 2637:2651 <> get_set_i_neq_j
-binder 2663:2663 <> A:56
-binder 2666:2666 <> d:57
-R2673:2676 Coq.Init.Datatypes <> list ind
-R2678:2678 Elo.Array <> A:56 var
-binder 2669:2669 <> l:58
-binder 2681:2681 <> i:59
-binder 2683:2683 <> j:60
-binder 2685:2685 <> a:61
-R2696:2701 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R2691:2694 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
-R2690:2690 Elo.Array <> i:59 var
-R2695:2695 Elo.Array <> j:60 var
-R2721:2723 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R2702:2704 Elo.Array <> get def
-R2720:2720 Elo.Array <> i:59 var
-R2709:2711 Elo.Array <> set def
-R2717:2717 Elo.Array <> a:61 var
-R2715:2715 Elo.Array <> j:60 var
-R2713:2713 Elo.Array <> l:58 var
-R2706:2706 Elo.Array <> d:57 var
-R2724:2726 Elo.Array <> get def
-R2732:2732 Elo.Array <> i:59 var
-R2730:2730 Elo.Array <> l:58 var
-R2728:2728 Elo.Array <> d:57 var
-R2898:2925 Coq.Arith.PeanoNat Nat succ_inj_wd_neg thm
-R2898:2925 Coq.Arith.PeanoNat Nat succ_inj_wd_neg thm
-prf 2940:2950 <> get_default
-binder 2962:2962 <> A:62
-binder 2965:2965 <> d:63
-R2972:2975 Coq.Init.Datatypes <> list ind
-R2977:2977 Elo.Array <> A:62 var
-binder 2968:2968 <> l:64
-binder 2980:2980 <> i:65
-R2998:3001 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R2993:2996 Coq.Init.Peano <> ::nat_scope:x_'<='_x not
-R2985:2990 Coq.Init.Datatypes <> length def
-R2992:2992 Elo.Array <> l:64 var
-R2997:2997 Elo.Array <> i:65 var
-R3011:3013 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R3002:3004 Elo.Array <> get def
-R3010:3010 Elo.Array <> i:65 var
-R3008:3008 Elo.Array <> l:64 var
-R3006:3006 Elo.Array <> d:63 var
-R3014:3014 Elo.Array <> d:63 var
-R3113:3126 Coq.Arith.PeanoNat Nat nle_succ_0 thm
-R3113:3126 Coq.Arith.PeanoNat Nat nle_succ_0 thm
-R3174:3179 Coq.Arith.Le <> le_S_n thm
-R3174:3179 Coq.Arith.Le <> le_S_n thm
-prf 3221:3235 <> get_set_default
-binder 3247:3247 <> A:66
-binder 3250:3250 <> d:67
-R3257:3260 Coq.Init.Datatypes <> list ind
-R3262:3262 Elo.Array <> A:66 var
-binder 3253:3253 <> l:68
-binder 3265:3265 <> i:69
-binder 3267:3267 <> a:70
-R3285:3290 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R3280:3283 Coq.Init.Peano <> ::nat_scope:x_'<='_x not
-R3272:3277 Coq.Init.Datatypes <> length def
-R3279:3279 Elo.Array <> l:68 var
-R3284:3284 Elo.Array <> i:69 var
-R3310:3312 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R3291:3293 Elo.Array <> get def
-R3309:3309 Elo.Array <> i:69 var
-R3298:3300 Elo.Array <> set def
-R3306:3306 Elo.Array <> a:70 var
-R3304:3304 Elo.Array <> i:69 var
-R3302:3302 Elo.Array <> l:68 var
-R3295:3295 Elo.Array <> d:67 var
-R3313:3313 Elo.Array <> d:67 var
-R3351:3370 Elo.Array <> set_preserves_length thm
-R3351:3370 Elo.Array <> set_preserves_length thm
-R3351:3370 Elo.Array <> set_preserves_length thm
-R3395:3405 Elo.Array <> get_default thm
-R3395:3405 Elo.Array <> get_default thm
-prf 3420:3431 <> add_set_comm
-binder 3443:3443 <> A:71
-R3451:3454 Coq.Init.Datatypes <> list ind
-R3456:3456 Elo.Array <> A:71 var
-binder 3447:3447 <> l:72
-binder 3459:3459 <> i:73
-binder 3461:3462 <> a1:74
-binder 3464:3465 <> a2:75
-R3482:3487 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R3471:3473 Coq.Init.Peano <> ::nat_scope:x_'<'_x not
-R3470:3470 Elo.Array <> i:73 var
-R3474:3479 Coq.Init.Datatypes <> length def
-R3481:3481 Elo.Array <> l:72 var
-R3507:3509 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R3488:3490 Elo.Array <> add def
-R3505:3506 Elo.Array <> a2:75 var
-R3493:3495 Elo.Array <> set def
-R3501:3502 Elo.Array <> a1:74 var
-R3499:3499 Elo.Array <> i:73 var
-R3497:3497 Elo.Array <> l:72 var
-R3510:3512 Elo.Array <> set def
-R3527:3528 Elo.Array <> a1:74 var
-R3525:3525 Elo.Array <> i:73 var
-R3515:3517 Elo.Array <> add def
-R3521:3522 Elo.Array <> a2:75 var
-R3519:3519 Elo.Array <> l:72 var
-R3547:3549 Elo.Array <> add def
-R3730:3735 Coq.Arith.Lt <> lt_S_n thm
-R3730:3735 Coq.Arith.Lt <> lt_S_n thm
+R897:897 Elo.Array <> l:27 var
+R927:929 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R904:906 Elo.Array <> get def
+R926:926 Elo.Array <> i:29 var
+R917:919 Elo.Array <> add def
+R923:923 Elo.Array <> a:28 var
+R921:921 Elo.Array <> l:27 var
+R908:914 Elo.Array <> default:26 var
+R930:932 Elo.Array <> get def
+R944:944 Elo.Array <> i:29 var
+R942:942 Elo.Array <> l:27 var
+R934:940 Elo.Array <> default:26 var
+R1169:1193 Coq.Arith.PeanoNat Nat succ_lt_mono thm
+R1169:1193 Coq.Arith.PeanoNat Nat succ_lt_mono thm
+prf 1219:1230 <> get_add_last
+binder 1242:1242 <> A:30
+binder 1245:1251 <> default:31
+R1258:1261 Coq.Init.Datatypes <> list ind
+R1263:1263 Elo.Array <> A:30 var
+binder 1254:1254 <> l:32
+binder 1266:1266 <> a:33
+R1303:1305 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1271:1273 Elo.Array <> get def
+R1294:1299 Coq.Init.Datatypes <> length def
+R1301:1301 Elo.Array <> l:32 var
+R1284:1286 Elo.Array <> add def
+R1290:1290 Elo.Array <> a:33 var
+R1288:1288 Elo.Array <> l:32 var
+R1275:1281 Elo.Array <> default:31 var
+R1306:1306 Elo.Array <> a:33 var
+prf 1357:1366 <> get_add_gt
+binder 1378:1378 <> A:34
+binder 1381:1387 <> default:35
+R1394:1397 Coq.Init.Datatypes <> list ind
+R1399:1399 Elo.Array <> A:34 var
+binder 1390:1390 <> l:36
+binder 1402:1402 <> a:37
+binder 1404:1404 <> i:38
+R1421:1426 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1417:1419 Coq.Init.Peano <> ::nat_scope:x_'<'_x not
+R1409:1414 Coq.Init.Datatypes <> length def
+R1416:1416 Elo.Array <> l:36 var
+R1420:1420 Elo.Array <> i:38 var
+R1450:1452 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1427:1429 Elo.Array <> get def
+R1449:1449 Elo.Array <> i:38 var
+R1440:1442 Elo.Array <> add def
+R1446:1446 Elo.Array <> a:37 var
+R1444:1444 Elo.Array <> l:36 var
+R1431:1437 Elo.Array <> default:35 var
+R1453:1459 Elo.Array <> default:35 var
+R1684:1708 Coq.Arith.PeanoNat Nat succ_lt_mono thm
+R1684:1708 Coq.Arith.PeanoNat Nat succ_lt_mono thm
+prf 1734:1744 <> get_i_set_i
+binder 1756:1756 <> A:39
+binder 1759:1765 <> default:40
+R1772:1775 Coq.Init.Datatypes <> list ind
+R1777:1777 Elo.Array <> A:39 var
+binder 1768:1768 <> l:41
+binder 1780:1780 <> i:42
+binder 1782:1782 <> a:43
+R1799:1804 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1788:1790 Coq.Init.Peano <> ::nat_scope:x_'<'_x not
+R1787:1787 Elo.Array <> i:42 var
+R1791:1796 Coq.Init.Datatypes <> length def
+R1798:1798 Elo.Array <> l:41 var
+R1830:1832 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1805:1807 Elo.Array <> get def
+R1829:1829 Elo.Array <> i:42 var
+R1818:1820 Elo.Array <> set def
+R1826:1826 Elo.Array <> a:43 var
+R1824:1824 Elo.Array <> i:42 var
+R1822:1822 Elo.Array <> l:41 var
+R1809:1815 Elo.Array <> default:40 var
+R1833:1833 Elo.Array <> a:43 var
+R1940:1942 Elo.Array <> get def
+R1991:1999 Coq.Arith.Lt <> lt_S_n thm
+R1991:1999 Coq.Arith.Lt <> lt_S_n thm
+prf 2014:2024 <> get_i_set_j
+binder 2036:2036 <> A:44
+binder 2039:2039 <> d:45
+R2046:2049 Coq.Init.Datatypes <> list ind
+R2051:2051 Elo.Array <> A:44 var
+binder 2042:2042 <> l:46
+binder 2054:2054 <> i:47
+binder 2056:2056 <> j:48
+binder 2058:2058 <> a:49
+R2069:2074 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2064:2067 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R2063:2063 Elo.Array <> i:47 var
+R2068:2068 Elo.Array <> j:48 var
+R2094:2096 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R2075:2077 Elo.Array <> get def
+R2093:2093 Elo.Array <> i:47 var
+R2082:2084 Elo.Array <> set def
+R2090:2090 Elo.Array <> a:49 var
+R2088:2088 Elo.Array <> j:48 var
+R2086:2086 Elo.Array <> l:46 var
+R2079:2079 Elo.Array <> d:45 var
+R2097:2099 Elo.Array <> get def
+R2105:2105 Elo.Array <> i:47 var
+R2103:2103 Elo.Array <> l:46 var
+R2101:2101 Elo.Array <> d:45 var
+R2271:2298 Coq.Arith.PeanoNat Nat succ_inj_wd_neg thm
+R2271:2298 Coq.Arith.PeanoNat Nat succ_inj_wd_neg thm
+prf 2313:2325 <> length_lt_add
+binder 2337:2337 <> A:50
+R2345:2348 Coq.Init.Datatypes <> list ind
+R2350:2350 Elo.Array <> A:50 var
+binder 2341:2341 <> l:51
+binder 2353:2353 <> a:52
+R2366:2368 Coq.Init.Peano <> ::nat_scope:x_'<'_x not
+R2358:2363 Coq.Init.Datatypes <> length def
+R2365:2365 Elo.Array <> l:51 var
+R2369:2374 Coq.Init.Datatypes <> length def
+R2377:2379 Elo.Array <> add def
+R2383:2383 Elo.Array <> a:52 var
+R2381:2381 Elo.Array <> l:51 var
+R2413:2415 Elo.Array <> add def
+R2426:2436 Coq.Lists.List <> last_length thm
+R2426:2436 Coq.Lists.List <> last_length thm
+R2426:2436 Coq.Lists.List <> last_length thm
+R2452:2478 Coq.Arith.PeanoNat Nat lt_succ_diag_r thm
+R2452:2478 Coq.Arith.PeanoNat Nat lt_succ_diag_r thm

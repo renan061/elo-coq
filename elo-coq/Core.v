@@ -32,20 +32,11 @@ Inductive typ : Set :=
   | TY_Num
   | TY_Arr : typ -> typ
   | TY_IArr : typ -> typ
-  (* | TY_TQueue : typ *)
   (* internal types *)
   | TY_Ref : typ -> typ
   | TY_IRef : typ -> typ
   | TY_Fun : typ -> typ -> typ
   .
-
-(*
-  | TY_Mon : name -> monitor_type -> typ
-with monitor_type : Set :=
-  | MonitorTypeNil : monitor_type
-  | MonitorTypeCons : name -> typ -> monitor_type -> monitor_type
-  .
-*)
 
 (* Type Safety *)
 
@@ -215,29 +206,28 @@ Fixpoint subst (id : name) (x t : tm) : tm :=
   where "'[' id ':=' x ']' t" := (subst id x t).
 
 Inductive step : tm -> effect -> tm -> Prop :=
-(*
   (* ArrNew *)
-  | ST_ArrNew1 : forall m m' T e e' eff,
-    m / e --> eff / m' / e' ->
-    m / TM_ArrNew T e --> eff / m' / TM_ArrNew T e'
+  | ST_ArrNew1 : forall T e e' eff,
+    e --[eff]--> e' ->
+    TM_ArrNew T e --[eff]--> TM_ArrNew T e'
 
-  | ST_ArrNew : forall m T e,
-    value e ->
-    m / TM_ArrNew T e --> EF_None / (add m e) / TM_Arr T (length m)
+  | ST_ArrNew : forall T addr v,
+    value v ->
+    TM_ArrNew T v --[EF_Alloc addr v]--> TM_Arr T addr
 
   (* ArrIdx *)
-  | ST_ArrIdx1 : forall m m' arr arr' idx eff,
-    m / arr --> eff / m' / arr' ->
-    m / TM_ArrIdx arr idx --> eff / m' / TM_ArrIdx arr' idx
+  | ST_ArrIdx1 : forall arr arr' idx eff,
+    arr --[eff]--> arr' ->
+    TM_ArrIdx arr idx --[eff]--> TM_ArrIdx arr' idx
 
-  | ST_ArrIdx2 : forall m m' arr idx idx' eff,
+  | ST_ArrIdx2 : forall arr idx idx' eff,
     value arr ->
-    m / idx --> eff / m' / idx' ->
-    m / TM_ArrIdx arr idx --> eff / m' / TM_ArrIdx arr idx'
+    idx --[eff]--> idx' ->
+    TM_ArrIdx arr idx --[eff]--> TM_ArrIdx arr idx'
 
-  | ST_ArrIdx : forall m T i j,
-    m / TM_ArrIdx (TM_Arr T i) (TM_Num j) --> EF_None / m / (get_tm m i)
-*)
+  | ST_ArrIdx : forall T addr v idx,
+    TM_ArrIdx (TM_Arr T addr) (TM_Num idx) --[EF_Load addr v]--> v
+
   (* Asg *)
   | ST_Asg1 : forall t t' e eff,
     t --[eff]--> t' ->
@@ -251,43 +241,42 @@ Inductive step : tm -> effect -> tm -> Prop :=
   | ST_Asg : forall addr v,
     value v ->
     TM_Asg (TM_Loc addr) v --[EF_Store addr v]--> TM_Nil
-(*
+
   (* ArrAsg *)
-  | ST_ArrAsg1 : forall m m' arr arr' idx e eff,
-    m / arr --> eff / m' / arr' ->
-    m / TM_ArrAsg arr idx e --> eff / m' / TM_ArrAsg arr' idx e
+  | ST_ArrAsg1 : forall arr arr' idx e eff,
+    arr --[eff]--> arr' ->
+    TM_ArrAsg arr idx e --[eff]--> TM_ArrAsg arr' idx e
 
-  | ST_ArrAsg2 : forall m m' arr idx idx' e eff,
+  | ST_ArrAsg2 : forall arr idx idx' e eff,
     value arr ->
-    m / idx --> eff / m' / idx' ->
-    m / TM_ArrAsg arr idx e --> eff / m' / TM_ArrAsg arr idx' e
+    idx --[eff]--> idx' ->
+    TM_ArrAsg arr idx e --[eff]--> TM_ArrAsg arr idx' e
 
-  | ST_ArrAsg3 : forall m m' arr idx e e' eff,
+  | ST_ArrAsg3 : forall arr idx e e' eff,
     value arr ->
     value idx ->
-    m / e --> eff / m' / e' ->
-    m / TM_ArrAsg arr idx e --> eff / m' / TM_ArrAsg arr idx e'
+    e --[eff]--> e' ->
+    TM_ArrAsg arr idx e --[eff]--> TM_ArrAsg arr idx e'
 
-  | ST_ArrAsg : forall m T i idx e,
-    value e ->
+  | ST_ArrAsg : forall T addr idx v,
+    value v ->
     value idx ->
-    i < length m ->
-    m / TM_ArrAsg (TM_Arr T i) idx e --> EF_None / (set m i e) / TM_Nil
+    TM_ArrAsg (TM_Arr T addr) idx v --[EF_Store addr v]--> TM_Nil
 
   (* Call *)
-  | ST_Call1 : forall m m' f f' a eff,
-    m / f --> eff / m' / f' ->
-    m / TM_Call f a --> eff / m' / TM_Call f' a
+  | ST_Call1 : forall f f' a eff,
+    f --[eff]--> f' ->
+    TM_Call f a --[eff]--> TM_Call f' a
 
-  | ST_Call2 : forall m m' f a a' eff,
+  | ST_Call2 : forall f a a' eff,
     value f ->
-    m / a --> eff / m' / a' ->
-    m / TM_Call f a --> eff / m' / TM_Call f a'
+    a --[eff]--> a' ->
+    TM_Call f a --[eff]--> TM_Call f a'
 
-  | ST_Call : forall m a p P block R,
+  | ST_Call : forall p P block R a,
     value a ->
-    m / TM_Call (TM_Fun p P block R) a --> EF_None / m / [p := a] block
-*)
+    TM_Call (TM_Fun p P block R) a --[EF_None]--> [p := a] block
+
   (* Seq *)
   | ST_Seq1 : forall t1 t2 t eff,
     t1 --[eff]--> t2 ->
@@ -318,16 +307,15 @@ Inductive step : tm -> effect -> tm -> Prop :=
     value e ->
     TM_LetVar id E e t --[EF_Alloc addr e]--> [id := TM_Loc addr] t
 
-(*
   (* LetFun *)
-  | ST_LetFun1 : forall m m' id F f f' t eff,
-    m / f --> eff / m' / f' ->
-    m / TM_LetFun id F f t --> eff / m' / TM_LetFun id F f' t
+  | ST_LetFun1 : forall id F f f' t eff,
+    f --[eff]--> f' ->
+    TM_LetFun id F f t --[eff]--> TM_LetFun id F f' t
 
-  | ST_LetFun : forall m id F f t,
+  | ST_LetFun : forall id F f t,
     value f ->
-    m / TM_LetFun id F f t --> EF_None / m / [id := f] t
-*)
+    TM_LetFun id F f t --[EF_None]--> [id := f] t
+
   (* Load *)
   | ST_Load1 : forall t t' eff,
     t --[eff]--> t' ->
@@ -339,14 +327,6 @@ Inductive step : tm -> effect -> tm -> Prop :=
   where "t '--[' eff ']-->' t'" := (step t eff t').
 
 (* Concurrent Step *)
-
-(*
-* => m / threads ==> m' / threads' com i
-* e depois com
-* => m' / threads' ==> m'' / threads'' com j
-*
-*  m <--> m'' não escrevem na mesma célula de memória
-*)
 
 Inductive ceffect : Set :=
   | CEF_None  (i : num)
@@ -384,6 +364,8 @@ Inductive cstep : mem -> list tm -> mem -> list tm -> ceffect -> Prop :=
     m / ths ==> m / (add (set ths i t) block) # (CEF_Spawn i)
 
   where "m / ths '==>' m' / ths' # ceff" := (cstep m ths m' ths' ceff).
+
+(* Multistep *)
 
 Inductive cmultistep : mem -> list tm -> mem -> list tm -> Prop :=
   | cmultistep_refl : forall m ths,
