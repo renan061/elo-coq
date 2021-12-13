@@ -3,3 +3,5 @@
 *.vok
 *.vos
 *.glob
+
+.DS_Store
