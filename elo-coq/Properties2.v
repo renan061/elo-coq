@@ -440,19 +440,29 @@ Qed.
 (* Progress ---------------------------------------------------------------- *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma aux1 : forall mt th ths,
+Lemma well_typed_threads_tail : forall mt th ths,
   well_typed_threads mt (th :: ths) ->
   well_typed_threads mt ths.
-Admitted.
+Proof.
+  intros * Hths. intros i.
+  specialize (Hths (S i)) as [T Htype].
+  eexists. eauto.
+Qed.
 
-Lemma aux2 : forall m m' th ths ths' ceff,
+Lemma concurrent_step_weakening : forall m m' th ths ths' ceff,
   m / ths ==> m' / ths' # ceff ->
-  m / (th :: ths) ==> m' / (th :: ths') # ceff.
-Admitted.
+  exists ceff', m / (th :: ths) ==> m' / (th :: ths') # ceff'.
+Proof.
+  intros * Hcstep.
+  inversion Hcstep; subst;
+  solve [rewrite set_tail || rewrite add_set_tail; eauto using cstep, lt_n_S].
+Qed.
 
-Lemma aux3 : forall m m' th th' ths eff ceff,
+Lemma head_thread_step : forall m m' th th' ths eff ceff,
   th --[eff]--> th' ->
   m / (th :: ths) ==> m' / (th' :: ths) # ceff.
+Proof.
+  intros * Hstep. destruct ceff.
 Admitted.
 
 Lemma limited_progress : forall mt m t T,
@@ -481,22 +491,25 @@ Theorem progress : forall m mt ths,
   well_typed_program mt m ths ->
   (finished ths \/ exists m' ths' ceff, m / ths ==> m' / ths' # ceff).
 Proof.
-  intros * [[Hlen Hmem] Hths].
-  assert (forall i, i < length mt -> i < length m). { rewrite Hlen. trivial. }
-
+  intros * [Hmem Hths].
   induction ths as [| th ths IH].
   - left. intros i. destruct i; auto using value.
   - destruct (is_value th) eqn:E.
-    + apply value_equivalence in E.
-      specialize (IH (aux1 _ _ _ Hths)) as [? | [m' [ths' [ceff ?]]]].
+    + apply value_equivalence_true in E.
+      destruct (IH (well_typed_threads_tail _ _ _ Hths)) as [? | [? [? [? ?]]]].
       * left. intros i. destruct i; eauto.
-      * right. exists m'. exists (th :: ths'). exists ceff.
-        eauto using aux2.
-    + right. specialize (IH (aux1 _ _ _ Hths)) as [? | [m' [ths' [ceff ?]]]].
-      * assert (exists th' eff, th --[eff]--> th') as [? [? ?]].
-        { eapply limited_progress; admit. }
-        eexists. eexists. eexists.
-        eauto using aux3.
-      * eexists. eexists. eexists.
-        eauto using aux2.
-Qed.
+      * right. eexists. eexists. eauto using concurrent_step_weakening.
+    + apply value_equivalence_false in E.
+      right.
+      specialize (IH (well_typed_threads_tail _ _ _ Hths)) as [? | IH].
+      * destruct (Hths 0) as [? Htype].
+        assert (exists th' eff, th --[eff]--> th') as [? [? ?]].
+        { eauto using limited_progress. }
+        eexists. eexists. eexists. eauto using head_thread_step.
+      * specialize IH as [m' [ths' [ceff Hcstep]]].
+        exists m'. exists (th :: ths').
+        assert (exists ceff, m / (th :: ths) ==> m' / th :: ths' # ceff) as [ceff' Hstep].
+        { eapply concurrent_step_weakening; eauto. }
+        exists ceff'. eapply Hstep.
+        eauto using concurrent_step_weakening.
+Admitted.

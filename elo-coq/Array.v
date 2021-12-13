@@ -96,3 +96,15 @@ Proof.
   intros *. unfold add. rewrite last_length.
   auto using PeanoNat.Nat.lt_succ_diag_r.
 Qed.
+
+Lemma set_tail : forall {A} head (tail : list A) i a,
+  head :: set tail i a = set (head :: tail) (S i) a.
+Proof.
+  intros. trivial.
+Qed.
+
+Lemma add_set_tail : forall {A} head (tail : list A) i a a',
+  head :: add (set tail i a) a' = add (set (head :: tail) (S i) a) a'.
+Proof.
+  intros. trivial.
+Qed.

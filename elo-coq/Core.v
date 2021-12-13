@@ -140,11 +140,20 @@ Definition is_value t :=
   | _ => false
   end.
 
-Lemma value_equivalence : forall t,
+Lemma value_equivalence_true : forall t,
   value t <-> is_value t = true.
 Proof.
   intros t. split; induction t; intros H;
   try inversion H; auto using is_value, value.
+Qed.
+
+Lemma value_equivalence_false : forall t,
+  ~ value t <-> is_value t = false.
+Proof.
+  intros t.
+  assert (H : is_value t = false <-> is_value t <> true).
+  { split; destruct t; try discriminate || contradiction || reflexivity. }
+  split; rewrite H; rewrite <- value_equivalence_true; trivial.
 Qed.
 
 (* Effects *)
