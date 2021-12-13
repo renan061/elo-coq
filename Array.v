@@ -97,14 +97,20 @@ Proof.
   auto using PeanoNat.Nat.lt_succ_diag_r.
 Qed.
 
+Lemma add_tail : forall {A} head (tail : list A) a,
+  head :: add tail a = add (head :: tail) a.
+Proof.
+  eauto.
+Qed.
+
 Lemma set_tail : forall {A} head (tail : list A) i a,
   head :: set tail i a = set (head :: tail) (S i) a.
 Proof.
-  intros. trivial.
+  eauto.
 Qed.
 
 Lemma add_set_tail : forall {A} head (tail : list A) i a a',
   head :: add (set tail i a) a' = add (set (head :: tail) (S i) a) a'.
 Proof.
-  intros. trivial.
+  eauto.
 Qed.

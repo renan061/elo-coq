@@ -458,11 +458,22 @@ Proof.
   solve [rewrite set_tail || rewrite add_set_tail; eauto using cstep, lt_n_S].
 Qed.
 
-Lemma head_thread_step : forall m m' th th' ths eff ceff,
+Lemma head_thread_step : forall m th th' ths eff,
   th --[eff]--> th' ->
-  m / (th :: ths) ==> m' / (th' :: ths) # ceff.
+  exists m' ths' ceff, m / (th :: ths) ==> m' / ths' # ceff.
 Proof.
-  intros * Hstep. destruct ceff.
+  assert (H : forall {A} (x x' : A) xs, x' :: xs = set (x :: xs) 0 x'). auto.
+  intros * Hstep. destruct eff.
+  - eexists. eexists. exists (CEF_None 0). eauto using cstep, Nat.lt_0_succ.
+  - eexists. eexists. exists (CEF_Spawn 0). eauto using cstep, Nat.lt_0_succ.
+  - eexists. eexists. exists (CEF_Alloc 0).
+    eapply CST_Alloc; eauto using Nat.lt_0_succ.
+    (* TODO :
+      - well_typed_memory => memória não tem buracos e sempre
+        adiciona no último.
+      - acho que limited progress tem que devolver um well_behaved_effect.
+        algo a ser definido ainda.
+    *)
 Admitted.
 
 Lemma limited_progress : forall mt m t T,
@@ -502,14 +513,12 @@ Proof.
     + apply value_equivalence_false in E.
       right.
       specialize (IH (well_typed_threads_tail _ _ _ Hths)) as [? | IH].
-      * destruct (Hths 0) as [? Htype].
+      * destruct (Hths 0) as [? ?].
         assert (exists th' eff, th --[eff]--> th') as [? [? ?]].
         { eauto using limited_progress. }
-        eexists. eexists. eexists. eauto using head_thread_step.
+        eauto using head_thread_step.
       * specialize IH as [m' [ths' [ceff Hcstep]]].
         exists m'. exists (th :: ths').
-        assert (exists ceff, m / (th :: ths) ==> m' / th :: ths' # ceff) as [ceff' Hstep].
-        { eapply concurrent_step_weakening; eauto. }
-        exists ceff'. eapply Hstep.
-        eauto using concurrent_step_weakening.
+        eapply concurrent_step_weakening.
+        eapply Hcstep.
 Admitted.
