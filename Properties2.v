@@ -458,45 +458,24 @@ Proof.
   solve [rewrite set_tail || rewrite add_set_tail; eauto using cstep, lt_n_S].
 Qed.
 
-Lemma head_thread_step : forall m th th' ths eff,
-  th --[eff]--> th' ->
-  exists m' ths' ceff, m / (th :: ths) ==> m' / ths' # ceff.
-Proof.
-  assert (H : forall {A} (x x' : A) xs, x' :: xs = set (x :: xs) 0 x'). auto.
-  intros * Hstep. destruct eff.
-  - eexists. eexists. exists (CEF_None 0). eauto using cstep, Nat.lt_0_succ.
-  - eexists. eexists. exists (CEF_Spawn 0). eauto using cstep, Nat.lt_0_succ.
-  - eexists. eexists. exists (CEF_Alloc 0).
-    eapply CST_Alloc; eauto using Nat.lt_0_succ.
-    (* TODO :
-      - well_typed_memory => memória não tem buracos e sempre
-        adiciona no último.
-      - acho que limited progress tem que devolver um well_behaved_effect.
-        algo a ser definido ainda.
-    *)
-Admitted.
-
 Lemma limited_progress : forall mt m t T,
-  ~ (value t) ->
   well_typed_memory mt m ->
   mt / empty |-- t is T ->
-  exists t' eff', t --[eff']--> t'.
+  value t \/ exists t' eff', t --[eff']--> t'.
 Proof.
-Admitted.
-
-(*
-  induction Htype; subst; auto using value; right;
+  remember empty as Gamma.
+  intros * Hmem Htype. induction Htype; subst; auto using value; right;
   try match goal with F : lookup empty _ = Some _ |- _ => inversion F end;
   repeat match goal with
-    IH : _ = empty -> _ |- _ => specialize (IH eq_refl) as [? | [? [? [? ?]]]]
+    IH : _ -> _ \/ _ |- _ => specialize (IH eq_refl) as [? | [? [? ?]]]
   end;
-  try solve [eexists; eexists; eexists; eauto using step];
+  try solve [eexists; eexists; eauto using step];
   repeat match goal with
     Hv : value ?t , Htype : _ / _ |-- ?t is _ |- _ =>
       destruct Hv; inversion Htype; subst
   end;
-  eexists; eexists; eexists; eauto using step, value.
-*)
+  eexists; eexists; eauto using step, value.
+Admitted.
 
 Theorem progress : forall m mt ths,
   well_typed_program mt m ths ->
@@ -510,13 +489,18 @@ Proof.
       destruct (IH (well_typed_threads_tail _ _ _ Hths)) as [? | [? [? [? ?]]]].
       * left. intros i. destruct i; eauto.
       * right. eexists. eexists. eauto using concurrent_step_weakening.
-    + apply value_equivalence_false in E.
-      right.
+    + apply value_equivalence_false in E. right.
       specialize (IH (well_typed_threads_tail _ _ _ Hths)) as [? | IH].
       * destruct (Hths 0) as [? ?].
-        assert (exists th' eff, th --[eff]--> th') as [? [? ?]].
-        { eauto using limited_progress. }
-        eauto using head_thread_step.
+        assert (value th \/ exists th' eff, th --[eff]--> th')
+          as [? | [th' [eff Hstep]]];
+        eauto using limited_progress; try contradiction.
+        destruct eff; eauto using cstep, Nat.lt_0_succ.
+        ** exists (add m t). exists (set (th :: ths) 0 th'). exists (CEF_Alloc 0).
+           eapply CST_Alloc; eauto using Nat.lt_0_succ.
+           unfold get_tm. simpl.
+        ** admit.
+        ** admit.
       * specialize IH as [m' [ths' [ceff Hcstep]]].
         exists m'. exists (th :: ths').
         eapply concurrent_step_weakening.
