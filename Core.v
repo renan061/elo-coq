@@ -339,7 +339,7 @@ Inductive step : tm -> effect -> tm -> Prop :=
 
 Inductive ceffect : Set :=
   | CEF_None  (i : num)
-  | CEF_Alloc (i : num)
+  | CEF_Alloc (i : num) (addr : num)
   | CEF_Load  (i : num) (addr : num)
   | CEF_Store (i : num) (addr : num)
   | CEF_Spawn (i : num)
@@ -354,7 +354,7 @@ Inductive cstep : mem -> list tm -> mem -> list tm -> ceffect -> Prop :=
   | CST_Alloc : forall i m ths v t,
     i < length ths ->
     (get_tm ths i) --[EF_Alloc (length m) v]--> t ->
-    m / ths ==> (add m v) / (set ths i t) # (CEF_Alloc i)
+    m / ths ==> (add m v) / (set ths i t) # (CEF_Alloc i (length m))
 
   | CST_Load : forall i m ths addr t,
     i < length ths ->

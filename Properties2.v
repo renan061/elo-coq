@@ -458,24 +458,53 @@ Proof.
   solve [rewrite set_tail || rewrite add_set_tail; eauto using cstep, lt_n_S].
 Qed.
 
+Inductive well_behaved_effect : effect -> mem -> Prop :=
+  | WBE_None : forall m,
+    well_behaved_effect EF_None m
+
+  | WBE_Spawn : forall m block,
+    well_behaved_effect (EF_Spawn block) m
+
+  | WBE_Alloc : forall m v,
+    well_behaved_effect (EF_Alloc (length m) v) m
+
+  | WBE_Load : forall m addr,
+    well_behaved_effect (EF_Load addr (get_tm m addr)) m
+
+  | WBE_Store : forall m addr v,
+    addr < length m ->
+    well_behaved_effect (EF_Store addr v) m
+  .
+
+Lemma memory_length : forall mt m i,
+  well_typed_memory mt m ->
+  (i < length mt) -> (i < length m).
+Proof.
+  intros * [Hlen _]. rewrite Hlen. trivial.
+Qed.
+
 Lemma limited_progress : forall mt m t T,
   well_typed_memory mt m ->
   mt / empty |-- t is T ->
-  value t \/ exists t' eff', t --[eff']--> t'.
+  value t \/ exists t' eff',
+    t --[eff']--> t' /\
+    well_behaved_effect eff' m.
 Proof.
   remember empty as Gamma.
-  intros * Hmem Htype. induction Htype; subst; auto using value; right;
+  intros * Hmem Htype.
+  induction Htype; subst; auto using value; right;
   try match goal with F : lookup empty _ = Some _ |- _ => inversion F end;
   repeat match goal with
-    IH : _ -> _ \/ _ |- _ => specialize (IH eq_refl) as [? | [? [? ?]]]
+    IH : _ -> _ \/ _ |- _ => specialize (IH eq_refl) as [? | [? [? [? ?]]]]
   end;
-  try solve [eexists; eexists; eauto using step];
+  try solve [eexists; eexists; split; eauto using step, well_behaved_effect];
   repeat match goal with
     Hv : value ?t , Htype : _ / _ |-- ?t is _ |- _ =>
       destruct Hv; inversion Htype; subst
   end;
-  eexists; eexists; eauto using step, value.
-Admitted.
+  eexists; eexists; split;
+  eauto using memory_length, step, value, well_behaved_effect.
+Qed.
 
 Theorem progress : forall m mt ths,
   well_typed_program mt m ths ->
@@ -491,18 +520,15 @@ Proof.
       * right. eexists. eexists. eauto using concurrent_step_weakening.
     + apply value_equivalence_false in E. right.
       specialize (IH (well_typed_threads_tail _ _ _ Hths)) as [? | IH].
-      * destruct (Hths 0) as [? ?].
-        assert (value th \/ exists th' eff, th --[eff]--> th')
-          as [? | [th' [eff Hstep]]];
+      * destruct (Hths 0) as [T Htype].
+        unfold get_tm in Htype. simpl in Htype.
+        assert (value th \/ exists th' eff,
+          th --[eff]--> th' /\
+          well_behaved_effect eff m)
+          as [? | [th' [eff [Hstep Heff]]]];
         eauto using limited_progress; try contradiction.
-        destruct eff; eauto using cstep, Nat.lt_0_succ.
-        ** exists (add m t). exists (set (th :: ths) 0 th'). exists (CEF_Alloc 0).
-           eapply CST_Alloc; eauto using Nat.lt_0_succ.
-           unfold get_tm. simpl.
-        ** admit.
-        ** admit.
-      * specialize IH as [m' [ths' [ceff Hcstep]]].
-        exists m'. exists (th :: ths').
-        eapply concurrent_step_weakening.
-        eapply Hcstep.
-Admitted.
+        destruct eff; inversion Heff; subst;
+        eauto using cstep, Nat.lt_0_succ.
+      * specialize IH as [? [? [? ?]]].
+        eexists. eexists. eauto using concurrent_step_weakening.
+Qed.
