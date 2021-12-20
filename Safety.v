@@ -2,6 +2,25 @@ From Coq Require Import Init.Nat.
 
 From Elo Require Export Core.
 
+
+Inductive sequence : nat -> ceffect -> mem -> list tm -> Prop :=
+  | sequence_nil : forall m th,
+    sequence 0 (CEF_None 0) m (th :: nil)
+
+  | sequence_cons : forall i m m' ths ths' eff eff',
+    sequence i eff m ths ->
+    m / ths ==> m' / ths' # eff' ->
+    sequence (S i) eff' m' ths'
+  .
+
+Inductive before : list tm -> list tm -> Prop :=
+  | todo : forall i j eff eff' m m' ths ths',
+    i < j ->
+    sequence i eff  m  ths  ->
+    sequence j eff' m' ths' ->
+    before ths ths'
+  .
+
 Definition synchronize (threads : list tm) (i j : nat) : Prop := False.
 
 Definition happens_before (threads : list tm) i j : Prop :=

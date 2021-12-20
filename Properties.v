@@ -66,6 +66,24 @@ Qed.
 (* Definitions ------------------------------------------------------------- *)
 (* ------------------------------------------------------------------------- *)
 
+Inductive well_behaved_effect : effect -> mem -> Prop :=
+  | well_behaved_none : forall m,
+    well_behaved_effect EF_None m
+
+  | well_behaved_spawn : forall m block,
+    well_behaved_effect (EF_Spawn block) m
+
+  | well_behaved_alloc : forall m v,
+    well_behaved_effect (EF_Alloc (length m) v) m
+
+  | well_behaved_load : forall m addr,
+    well_behaved_effect (EF_Load addr (get_tm m addr)) m
+
+  | well_behaved_store : forall m addr v,
+    addr < length m ->
+    well_behaved_effect (EF_Store addr v) m
+  .
+
 Definition well_typed_memory mt m :=
   length mt = length m /\
   (forall i, mt / empty |-- (get_tm m i) is (get_typ mt i)).
@@ -458,24 +476,6 @@ Proof.
   solve [rewrite set_tail || rewrite add_set_tail; eauto using cstep, lt_n_S].
 Qed.
 
-Inductive well_behaved_effect : effect -> mem -> Prop :=
-  | WBE_None : forall m,
-    well_behaved_effect EF_None m
-
-  | WBE_Spawn : forall m block,
-    well_behaved_effect (EF_Spawn block) m
-
-  | WBE_Alloc : forall m v,
-    well_behaved_effect (EF_Alloc (length m) v) m
-
-  | WBE_Load : forall m addr,
-    well_behaved_effect (EF_Load addr (get_tm m addr)) m
-
-  | WBE_Store : forall m addr v,
-    addr < length m ->
-    well_behaved_effect (EF_Store addr v) m
-  .
-
 Lemma memory_length : forall mt m i,
   well_typed_memory mt m ->
   (i < length mt) -> (i < length m).
@@ -522,10 +522,9 @@ Proof.
       specialize (IH (well_typed_threads_tail _ _ _ Hths)) as [? | IH].
       * destruct (Hths 0) as [T Htype].
         unfold get_tm in Htype. simpl in Htype.
-        assert (value th \/ exists th' eff,
-          th --[eff]--> th' /\
-          well_behaved_effect eff m)
-          as [? | [th' [eff [Hstep Heff]]]];
+        assert (value th \/
+          exists th' eff, th --[eff]--> th' /\ well_behaved_effect eff m)
+        as [? | [? [eff [? Heff]]]];
         eauto using limited_progress; try contradiction.
         destruct eff; inversion Heff; subst;
         eauto using cstep, Nat.lt_0_succ.
@@ -534,7 +533,7 @@ Proof.
 Qed.
 
 (*
-Corollary csoundness : forall mt m m' ths ths',
+Corollary soundness : forall mt m m' ths ths',
   well_typed_program mt m ths ->
   m / ths ==>* m' / ths' ->
   ~ (cstuck m' ths').
