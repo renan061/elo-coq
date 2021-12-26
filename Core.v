@@ -17,8 +17,6 @@ Reserved Notation "t '--[' eff ']-->' t'"
   (at level 40).
 Reserved Notation "m / ths '==>' m' / ths' # ceff"
   (at level 40, ths at next level, m' at next level).
-Reserved Notation "m / ths '==>*' m' / ths'"
-  (at level 40, ths at next level, m' at next level).
 Reserved Notation "Gamma '|--' t 'is' T"
   (at level 40, t at next level).
 Reserved Notation "mt / Gamma '|--' t 'is' T"
@@ -373,19 +371,6 @@ Inductive cstep : mem -> list tm -> mem -> list tm -> ceffect -> Prop :=
     m / ths ==> m / (add (set ths i t) block) # (CEF_Spawn i)
 
   where "m / ths '==>' m' / ths' # ceff" := (cstep m ths m' ths' ceff).
-
-(* Multistep *)
-
-Inductive cmultistep : mem -> list tm -> mem -> list tm -> Prop :=
-  | cmultistep_refl : forall m ths,
-    m / ths ==>* m / ths
-
-  | cmultistep_step : forall m1 m m2 ths1 ths ths2 ceff,
-    m1 / ths1 ==>  m  / ths  # ceff ->
-    m  / ths  ==>* m2 / ths2 ->
-    m1 / ths1 ==>* m2 / ths2
-
-  where "m / ths '==>*' m' / ths'" := (cmultistep m ths m' ths').
 
 (* Typing *)
 
