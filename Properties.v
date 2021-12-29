@@ -352,13 +352,15 @@ Proof.
   intros * [Hlen Hmem] Htype Hstep Heff.
   generalize dependent t'.
   induction Htype; intros * Hstep; inversion Hstep; subst;
-  try solve [ discriminate Heff
-            | eauto using substitution_preserves_typing, @typeof
-            ].
-  - match goal with
-    | Htype : _ / _ |-- _ is TY_Fun _ _ |- _ => inversion Htype; subst
-    end.
-    eauto using substitution_preserves_typing.
+  solve
+    [ discriminate Heff
+    | eauto using substitution_preserves_typing, @typeof
+    | match goal with
+      | Htype : _ / _ |-- _ is _ |- _ =>
+        inversion Htype; subst;
+        eauto using substitution_preserves_typing, @typeof
+      end
+    ].
 Qed.
 
 Lemma alloc_preservation : forall mt t t' v T V,
