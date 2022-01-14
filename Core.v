@@ -56,43 +56,12 @@ Fixpoint is_safe_type T :=
   | _ => false
   end.
 
-Lemma safe_type_equivalence : forall T,
-  safe_type T <-> is_safe_type T = true.
-Proof.
-  intros T. split; induction T; intros H;
-  try inversion H; auto using is_safe_type, safe_type.
-Qed.
-
-Definition safe_context Gamma :=
-  forall id T, lookup Gamma id = Some T -> safe_type T.
-
 Definition safe (Gamma : map typ) :=
   fun k => 
     match Gamma k with
     | None => None
     | Some T => if is_safe_type T then Some T else None
     end.
-
-Theorem safe_guarantees_safe_context : forall Gamma,
-  safe_context (safe Gamma).
-Proof.
-  unfold safe_context, lookup, safe. intros Gamma id T.
-  destruct (Gamma id); intros H; try discriminate.
-  destruct is_safe_type eqn:E; inversion H.
-  subst. apply safe_type_equivalence. assumption.
-Qed.
-
-Theorem safe_semantics : forall Gamma id T,
-  lookup Gamma id = Some T ->
-  (   safe_type T  -> lookup (safe Gamma) id = Some T) /\
-  (~ (safe_type T) -> lookup (safe Gamma) id = None).
-Proof.
-  unfold lookup, safe. intros * H1. split;
-  intros H2; destruct (Gamma id); inversion H1; subst;
-  rewrite safe_type_equivalence in H2;
-  try (apply Bool.not_true_is_false in H2);
-  rewrite H2; reflexivity.
-Qed.
 
 (* Terms *)
 
@@ -132,28 +101,6 @@ Inductive value : tm -> Prop :=
   | V_Fun : forall p P block R, value (TM_Fun p P block R)
   .
 
-Definition is_value t :=
-  match t with
-  | TM_Nil | TM_Num _ | TM_Arr _ _ | TM_Loc _ | TM_Fun _ _ _ _ => true
-  | _ => false
-  end.
-
-Lemma value_equivalence_true : forall t,
-  value t <-> is_value t = true.
-Proof.
-  intros t. split; induction t; intros H;
-  try inversion H; auto using is_value, value.
-Qed.
-
-Lemma value_equivalence_false : forall t,
-  ~ value t <-> is_value t = false.
-Proof.
-  intros t.
-  assert (H : is_value t = false <-> is_value t <> true).
-  { split; destruct t; try discriminate || contradiction || reflexivity. }
-  split; rewrite H; rewrite <- value_equivalence_true; trivial.
-Qed.
-
 (* Effects *)
 
 Inductive effect : Set :=
@@ -168,6 +115,7 @@ Inductive effect : Set :=
 
 Definition ctx := map typ.
 Definition mem := list tm.
+Definition threads := list tm.
 Definition mem_typ := list typ.
 Definition get_typ := get TY_Void.
 Definition get_tm  := get TM_Nil.
@@ -232,8 +180,8 @@ Inductive step : tm -> effect -> tm -> Prop :=
     idx --[eff]--> idx' ->
     TM_ArrIdx arr idx --[eff]--> TM_ArrIdx arr idx'
 
-  | ST_ArrIdx : forall T addr v idx,
-    TM_ArrIdx (TM_Arr T addr) (TM_Num idx) --[EF_Load addr v]--> v
+  | ST_ArrIdx : forall T addr idx,
+    TM_ArrIdx (TM_Arr T addr) (TM_Num idx) --[EF_None]--> TM_Load (TM_Loc addr)
 
   (* Asg *)
   | ST_Asg1 : forall t t' e eff,
@@ -268,7 +216,7 @@ Inductive step : tm -> effect -> tm -> Prop :=
   | ST_ArrAsg : forall T addr idx v,
     value v ->
     value idx ->
-    TM_ArrAsg (TM_Arr T addr) idx v --[EF_Store addr v]--> TM_Nil
+    TM_ArrAsg (TM_Arr T addr) idx v --[EF_None]--> TM_Asg (TM_Loc addr) v
 
   (* Call *)
   | ST_Call1 : forall f f' a eff,
@@ -343,7 +291,7 @@ Inductive ceffect : Set :=
   | CEF_Spawn (i : num)
   .
 
-Inductive cstep : mem -> list tm -> mem -> list tm -> ceffect -> Prop :=
+Inductive cstep : mem -> threads -> mem -> threads -> ceffect -> Prop :=
   | CST_None : forall i m ths t,
     i < length ths ->
     (get_tm ths i) --[EF_None]--> t ->

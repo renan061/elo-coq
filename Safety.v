@@ -7,59 +7,30 @@ From Elo Require Export Map.
 From Elo Require Export Core.
 From Elo Require Export Properties.
 
-Inductive trace : list ceffect -> mem -> list tm -> Prop :=
-  | trace_nil : forall main T,
+Reserved Notation "m / ths '==>*' trace"
+  (at level 40, ths at next level).
+Reserved Notation "'|==' trace"
+  (at level 40).
+
+Definition trace := list ceffect.
+
+Inductive cmultistep : mem -> threads -> trace -> Prop :=
+  | cmultistep_one : forall main T,
     nil / empty |-- main is T ->
-    trace (CEF_None 0 :: nil) nil (main :: nil)
+    nil / (main :: nil) ==>* (CEF_None 0 :: nil)
 
-  | trace_cons : forall m m' ths ths' ceff ceffs,
-    trace ceffs  m  ths ->
-    m / ths ==> m' / ths' # ceff ->
-    trace (ceff :: ceffs) m' ths'
-  .
+  | cmultistep_cons : forall m m' ths ths' ceff trace,
+    m  / ths  ==>* trace ->
+    m  / ths  ==>  m' / ths' # ceff ->
+    m' / ths' ==>* (ceff :: trace)
 
-(* TODO : tem que ser uma relação indutiva! *)
-Fixpoint no_concurrent_write ceffs i addr :=
-  match ceffs with
-  | nil => True
+  where "m / ths '==>*' trace" := (cmultistep m ths trace).
 
-  | CEF_Store i' addr' :: ceffs =>
-    (addr <> addr' \/ i = i') /\ (no_concurrent_write ceffs i addr)
-
-  | _ :: ceffs => no_concurrent_write ceffs i addr
-  end.
-
-Inductive well_formed_trace : list ceffect -> Prop :=
-  | well_formed_trace_nil :
-    well_formed_trace nil
-
-  | well_formed_trace_none : forall i ceffs,
-    well_formed_trace ceffs ->
-    well_formed_trace (CEF_None i :: ceffs)
-
-  | well_formed_trace_alloc : forall i addr ceffs,
-    well_formed_trace ceffs ->
-    well_formed_trace (CEF_Alloc i addr :: ceffs)
-
-  | well_formed_trace_load : forall i addr ceffs,
-    well_formed_trace ceffs ->
-    well_formed_trace (CEF_Load i addr :: ceffs)
-
-  | well_formed_trace_store : forall i addr ceffs,
-    well_formed_trace ceffs ->
-    no_concurrent_write ceffs i addr ->
-    well_formed_trace (CEF_Store i addr :: ceffs)
-
-  | well_formed_trace_spawn : forall i ceffs,
-    well_formed_trace ceffs ->
-    well_formed_trace (CEF_Spawn i :: ceffs)
-  .
-
-Lemma traces_are_well_typed : forall m ths ceffs,
-  trace ceffs m ths ->
+Lemma well_typed_cmultistep : forall m ths trace,
+  m / ths ==>* trace ->
   exists mt, well_typed_program mt m ths.
 Proof.
-  intros * Htrace. induction Htrace as [| ? ? ? ? ? ? ? [mt Hprog]].
+  intros * H. induction H as [| ? ? ? ? ? ? ? [mt ?]].
   - exists nil. split.
     + split; trivial. destruct i; eauto using @typeof.
     + intros i. unfold get_tm. simpl; destruct i;
@@ -70,30 +41,75 @@ Proof.
     eauto using preservation.
 Qed.
 
-Theorem traces_are_well_formed : forall ceffs m ths,
-  trace ceffs m ths ->
-  well_formed_trace ceffs.
+Fixpoint trace_has_concurrent_load trace i addr :=
+  match trace with
+  | nil =>
+      False
+  | CEF_Load j addr :: trace =>
+      i <> j \/ (trace_has_concurrent_load trace i addr)
+  | _ :: trace =>
+      trace_has_concurrent_load trace i addr
+  end.
+
+Fixpoint trace_has_concurrent_store trace i addr :=
+  match trace with
+  | nil =>
+      False
+  | CEF_Store j addr :: trace =>
+      i <> j \/ (trace_has_concurrent_store trace i addr)
+  | _ :: trace =>
+      trace_has_concurrent_store trace i addr
+  end.
+
+Inductive well_formed_trace : trace -> Prop :=
+  | well_formed_trace_nil :
+    |== nil
+
+  | well_formed_trace_none : forall i trace,
+    |== trace ->
+    |== (CEF_None i :: trace)
+
+  | well_formed_trace_alloc : forall i addr trace,
+    |== trace ->
+    |== (CEF_Alloc i addr :: trace)
+
+  | well_formed_trace_load : forall i addr trace,
+    ~ (trace_has_concurrent_load trace i addr) ->
+    |== trace ->
+    |== (CEF_Load i addr :: trace)
+
+  | well_formed_trace_store : forall i addr trace,
+    ~ (trace_has_concurrent_load trace i addr) ->
+    ~ (trace_has_concurrent_store trace i addr) ->
+    |== trace ->
+    |== (CEF_Store i addr :: trace)
+
+  | well_formed_trace_spawn : forall i trace,
+    |== trace ->
+    |== (CEF_Spawn i :: trace)
+
+  where "'|==' trace" := (well_formed_trace trace).
+
+Theorem traces_are_well_formed : forall m ths trace,
+  m / ths ==>* trace ->
+  |== trace.
 Proof.
-  intros ?. induction ceffs as [| ceff ceffs IH]; intros * Htrace.
-  - inversion Htrace.
-  - inversion Htrace; subst;
-    try destruct ceff; eauto using well_formed_trace.
-    eapply well_formed_trace_store; eauto.
 Qed.
 
+(*
 
+  intros ? ? trace. induction trace as [| ceff trace IH]; intros * Hcsteps.
+  - inversion Hcsteps.
+  - assert (exists mt, well_typed_program mt m ths) as [mt [Hmem Hths]].
+    { eauto using well_typed_cmultistep. }
+    inversion Hcsteps; subst;
+    try destruct ceff; eauto using well_formed_trace.
+    + eapply well_formed_trace_load; eauto.
+      specialize (Hths i) as [T Htype].
+      shelve.
+    + eapply well_formed_trace_store; eauto.
+      * shelve.
+      * shelve.
+Admitted.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+*)

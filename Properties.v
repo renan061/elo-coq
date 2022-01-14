@@ -12,15 +12,77 @@ Ltac splits n :=
   | S ?n' => split; [| splits n']
   end.
 
+
 (* ------------------------------------------------------------------------- *)
-(* Determinism ------------------------------------------------------------- *)
+(* Values ------------------------------------------------------------------ *)
 (* ------------------------------------------------------------------------- *)
+
+Definition is_value t :=
+  match t with
+  | TM_Nil | TM_Num _ | TM_Arr _ _ | TM_Loc _ | TM_Fun _ _ _ _ => true
+  | _ => false
+  end.
+
+Lemma value_equivalence_true : forall t,
+  value t <-> is_value t = true.
+Proof.
+  intros t. split; induction t; intros H;
+  try inversion H; auto using is_value, value.
+Qed.
+
+Lemma value_equivalence_false : forall t,
+  ~ value t <-> is_value t = false.
+Proof.
+  intros t.
+  assert (H : is_value t = false <-> is_value t <> true).
+  { split; destruct t; try discriminate || contradiction || reflexivity. }
+  split; rewrite H; rewrite <- value_equivalence_true; trivial.
+Qed.
 
 Lemma value_does_not_step : forall v eff t,
   value v -> ~ (v --[eff]--> t).
 Proof.
   intros * Hv Hstep. destruct Hv; inversion Hstep.
 Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* Safe Types -------------------------------------------------------------- *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma safe_type_equivalence : forall T,
+  safe_type T <-> is_safe_type T = true.
+Proof.
+  intros T. split; induction T; intros H;
+  try inversion H; auto using is_safe_type, safe_type.
+Qed.
+
+Definition safe_context Gamma :=
+  forall id T, lookup Gamma id = Some T -> safe_type T.
+
+Theorem safe_guarantees_safe_context : forall Gamma,
+  safe_context (safe Gamma).
+Proof.
+  unfold safe_context, lookup, safe. intros Gamma id T.
+  destruct (Gamma id); intros H; try discriminate.
+  destruct is_safe_type eqn:E; inversion H.
+  subst. apply safe_type_equivalence. assumption.
+Qed.
+
+Theorem safe_semantics : forall Gamma id T,
+  lookup Gamma id = Some T ->
+  (   safe_type T  -> lookup (safe Gamma) id = Some T) /\
+  (~ (safe_type T) -> lookup (safe Gamma) id = None).
+Proof.
+  unfold lookup, safe. intros * H1. split;
+  intros H2; destruct (Gamma id); inversion H1; subst;
+  rewrite safe_type_equivalence in H2;
+  try (apply Bool.not_true_is_false in H2);
+  rewrite H2; reflexivity.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* Determinism ------------------------------------------------------------- *)
+(* ------------------------------------------------------------------------- *)
 
 Theorem deterministic_step : forall t eff t1 t2,
   t --[eff]--> t1 ->
