@@ -1,6 +1,7 @@
 From Coq Require Import Init.Nat.
 From Coq Require Import Lists.List.
 
+From Elo Require Export Multimap.
 From Elo Require Export Core.
 From Elo Require Export Properties.
 
@@ -11,12 +12,12 @@ Reserved Notation "'|==' trace"
 
 Definition trace := list ceffect.
 (* memory visibility => maps a memory address to a thread *)
-Definition memvis := list nat. (* TODO Criar Multimap *)
+Definition memvis := multimap nat nat.
 
 Inductive trace_cmultistep : mem -> threads -> memvis -> trace -> Prop :=
   | trace_cmultistep_one : forall ths,
     well_typed_program nil nil ths ->
-    nil / ths ==>* nil / (CEF_None 0 :: nil)
+    nil / ths ==>* multimap_empty / (CEF_None 0 :: nil)
 
   | trace_cmultistep_none : forall i m m' ths ths' mvis trace,
     m  / ths  ==>* mvis / trace ->
