@@ -1,44 +1,68 @@
 From Coq Require Import Init.Nat.
 From Coq Require Import Lists.List.
 
-From Elo Require Export Array.
-From Elo Require Export Map.
-
 From Elo Require Export Core.
 From Elo Require Export Properties.
 
-Reserved Notation "m / ths '==>*' trace"
-  (at level 40, ths at next level).
+Reserved Notation "m / ths '==>*' memvis / trace"
+  (at level 40, ths at next level, memvis at next level).
 Reserved Notation "'|==' trace"
   (at level 40).
 
 Definition trace := list ceffect.
+(* memory visibility => maps a memory address to a thread *)
+Definition memvis := list nat. (* TODO Criar Multimap *)
 
-Inductive cmultistep : mem -> threads -> trace -> Prop :=
-  | cmultistep_one : forall main T,
-    nil / empty |-- main is T ->
-    nil / (main :: nil) ==>* (CEF_None 0 :: nil)
+Inductive trace_cmultistep : mem -> threads -> memvis -> trace -> Prop :=
+  | trace_cmultistep_one : forall ths,
+    well_typed_program nil nil ths ->
+    nil / ths ==>* nil / (CEF_None 0 :: nil)
 
-  | cmultistep_cons : forall m m' ths ths' ceff trace,
-    m  / ths  ==>* trace ->
-    m  / ths  ==>  m' / ths' # ceff ->
-    m' / ths' ==>* (ceff :: trace)
+  | trace_cmultistep_none : forall i m m' ths ths' mvis trace,
+    m  / ths  ==>* mvis / trace ->
+    m  / ths  ==>  m' / ths' # (CEF_None i) ->
+    m' / ths' ==>* mvis / (CEF_None i :: trace)
 
-  where "m / ths '==>*' trace" := (cmultistep m ths trace).
+  | trace_cmultistep_alloc : forall i addr m m' ths ths' mvis trace,
+    m  / ths  ==>* mvis / trace ->
+    m  / ths  ==>  m' / ths' # (CEF_Alloc i addr) ->
+    m' / ths' ==>* (add mvis i) / (CEF_Alloc i addr :: trace)
 
-Lemma well_typed_cmultistep : forall m ths trace,
-  m / ths ==>* trace ->
+  | trace_cmultistep_load : forall i addr m m' ths ths' mvis trace,
+    m  / ths  ==>* mvis / trace ->
+    m  / ths  ==>  m' / ths' # (CEF_Load i addr) ->
+    m' / ths' ==>* mvis / (CEF_Load i addr :: trace)
+
+  | trace_cmultistep_store : forall i addr m m' ths ths' mvis trace,
+    m  / ths  ==>* mvis / trace ->
+    m  / ths  ==>  m' / ths' # (CEF_Store i addr) ->
+    m' / ths' ==>* mvis / (CEF_Store i addr :: trace)
+(*
+  | trace_cmultistep_spawn : forall i m m' ths ths' mvis trace,
+    m  / ths  ==>* mvis / trace ->
+    m  / ths  ==>  m' / ths' # (CEF_Spawn i) ->
+    m' / ths' ==>* mvis / (CEF_Spawn i :: trace)
+*)
+  where "m / ths '==>*' mvis / trace" := (trace_cmultistep m ths mvis trace).
+
+Lemma well_typed_trace_cmultistep : forall m ths mvis trace,
+  m / ths ==>* mvis / trace ->
   exists mt, well_typed_program mt m ths.
 Proof.
-  intros * H. induction H as [| ? ? ? ? ? ? ? [mt ?]].
-  - exists nil. split.
-    + split; trivial. destruct i; eauto using @typeof.
-    + intros i. unfold get_tm. simpl; destruct i;
-      try destruct i; eauto using @typeof. 
-  - assert (exists mt',
+  intros * H. induction H;
+  try solve [
+    match goal with
+    | IH : exists mt, _ |- _ =>
+      specialize IH as [mt ?]
+    end;
+    assert (exists mt',
       mt' extends mt /\
       well_typed_program mt' m' ths') as [? [_ ?]];
-    eauto using preservation.
+    eauto using preservation
+  ].
+  exists nil. split.
+  + split; trivial. destruct i; eauto using @typeof.
+  + intros i. specialize H as [_ Hths]. specialize (Hths i). assumption.
 Qed.
 
 Fixpoint trace_has_concurrent_load trace i addr :=
@@ -90,18 +114,18 @@ Inductive well_formed_trace : trace -> Prop :=
 
   where "'|==' trace" := (well_formed_trace trace).
 
-Theorem traces_are_well_formed : forall m ths trace,
-  m / ths ==>* trace ->
+Theorem traces_are_well_formed : forall m ths mvis trace,
+  m / ths ==>* mvis / trace ->
   |== trace.
 Proof.
-Qed.
+Admitted.
 
 (*
 
   intros ? ? trace. induction trace as [| ceff trace IH]; intros * Hcsteps.
   - inversion Hcsteps.
   - assert (exists mt, well_typed_program mt m ths) as [mt [Hmem Hths]].
-    { eauto using well_typed_cmultistep. }
+    { eauto using well_typed_trace_cmultistep. }
     inversion Hcsteps; subst;
     try destruct ceff; eauto using well_formed_trace.
     + eapply well_formed_trace_load; eauto.
