@@ -1,0 +1,184 @@
+
+- N represents a natural number
+- x represents a string (an id)
+- uppercase letters (excluding N), such as T, represent types
+- lowercase letters, such as t, represent terms
+- v represents a term that is a value
+- ad stands for memory address (a natural number)
+- tid stands for thread id (a natural number)
+
+--------------------------------------------------------------------------------
+
+tm  : nil                       // unit-like
+    | N                         // number
+    | x                         // id
+    | fun(x : T1): T2 { t }     // function
+    | &N                        // location
+    | *t                        // load
+    | t1 = t2                   // assignment
+    | t1(t2)                    // call
+    | t1; t2                    // sequencing
+    | letval x: T = t1 in t2    // value binding
+    | letvar x: T = t1 in t2    // variable binding
+
+typ : Void
+    | Num
+    | #T      // reference
+    | @T      // immutable reference
+    | T1->T2  // function
+
+effect : None
+       | Alloc (ad : N) t
+       | Load  (ad : N) t
+       | Store (ad : N) t
+
+ceffect : CNone  (tid : N)
+        | CAlloc (tid : N) (ad : N)
+        | CLoad  (tid : N) (ad : N)
+        | CStore (tid : N) (ad : N)
+
+value : nil
+      | N
+      | &N
+      | fun(x : T1): T2 { t }
+
+--------------------------------------------------------------------------------
+
+STEP      t --[eff]--> t'
+
+t   = term
+eff = effect
+
+    
+    ST-Load    _________________________________
+                *(&ad)    --[Load ad t]-->    t
+
+
+    ST-Asg     ______________________________________
+                &ad := v    --[Store ad v]-->    nil
+
+
+    ST-Call    _______________________________________________________
+                fun(x: T1): T2 { t } (v)    --[None]-->    [x := v] t
+
+
+    ST-Seq     ____________________________
+                nil; t    --[None]-->    t
+
+
+    ST-LetVal  ____________________________________________________________
+                letval x: T := v in t    --[Alloc ad v]-->    [x := &ad] t
+
+
+    ST-LetVar  ____________________________________________________________
+                letvar x: T := v in t    --[Alloc ad v]-->    [x := &ad] t
+
+--------------------------------------------------------------------------------
+
+CONCURRENT STEP      m / ths ==[ceff]==> m' / ths'
+
+m    = memory
+ths  = threads
+ceff = concurrent effect
+
+
+                i < length ths
+                ths[i] --[None]--> t
+    CST-None   _______________________________________________
+                m / ths ==[CNone i]==> m / (ths[i] := t; ths)
+
+
+                i < length ths
+                ths[i] --[Alloc (length m) v]--> t
+    CST-Alloc  __________________________________________________________________
+                m / ths ==[CAlloc i (length m)]==> (m ++ v) / (ths[i] := t; ths)
+
+
+                i < length ths
+                ths[i] --[Load ad m[ad]]--> t
+    CST-Load   __________________________________________________
+                m / ths ==[CLoad i ad]==> m / (ths[i] := t; ths)
+
+
+                i < length ths
+                ad < length m
+                ths[i] --[Store ad v]--> t
+    CST-Store  _________________________________________________________________
+                m / ths ==[CStore i ad]==> (m[ad] := v; m) / (ths[i] := t; ths)
+
+--------------------------------------------------------------------------------
+
+TYPES      mt / Gamma |-- t is T
+
+mt    = memory types
+Gamma = context
+t     = term
+T     = type
+
+
+    T-Nil       ____________________________
+                 mt / Gamma |-- nil is Void
+
+
+    T-Num       _________________________
+                 mt / Gamma |-- N is Num
+
+
+                 Gamma[x] = @T
+    T-Val       ________________________
+                 mt / Gamma |-- x is @T
+
+
+                 Gamma[x] = #T
+    T-Var       ________________________
+                 mt / Gamma |-- x is #T
+
+
+                 mt / (Gamma[p] := P; Gamma) |-- t is R
+    T-Fun       ____________________________________________
+                 mt / Gamma |-- fun(p : P): R { t } is P->R
+
+
+                 ad < length mt
+    (?) T-Loc   _______________________________
+                 mt / Gamma |-- &ad is #mt[ad]
+
+
+                 mt / Gamma |-- t is @T
+    T-LoadVal   ________________________
+                 mt / Gamma |-- *t is T
+
+
+                 mt / Gamma |-- t is #T
+    T-LoadVar   ________________________
+                 mt / Gamma |-- *t is T
+
+
+                 mt / Gamma |-- l is #T
+                 mt / Gamma |-- r is T
+    T-Asg       _________________________________
+                 mt / Gamma |-- (l := r) is Void
+
+
+                 mt / Gamma |-- a is P
+                 mt / Gamma |-- f is P->R
+    T-Call      __________________________
+                 mt / Gamma |-- f(a) is R
+
+
+                 mt / Gamma |-- t  is Void
+                 mt / Gamma |-- t' is T
+    T-Seq       _____________________________
+                 mt / Gamma |-- (t; t') is T
+
+
+                 mt / Gamma |-- e is E
+                 (Gamma[x] := @E; Gamma) |-- t is T
+    T-LetVal    _____________________________________________
+                 mt / Gamma |-- (letval x: E := e in t) is T
+
+
+                 mt / Gamma |-- e is E
+                 (Gamma[x] := #E; Gamma) |-- t is T
+    T-LetVar    _____________________________________________
+                 mt / Gamma |-- (letvar x: E := e in t) is T

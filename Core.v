@@ -116,7 +116,7 @@ Inductive effect : Set :=
 Definition ctx := map typ.
 Definition mem := list tm.
 Definition threads := list tm.
-Definition mem_typ := list typ.
+Definition memtyp := list typ.
 Definition get_typ := get TY_Void.
 Definition get_tm  := get TM_Nil.
 Definition get_ctx := get (@empty typ).
@@ -320,9 +320,61 @@ Inductive cstep : mem -> threads -> mem -> threads -> ceffect -> Prop :=
 
   where "m / ths '==>' m' / ths' # ceff" := (cstep m ths m' ths' ceff).
 
+function f (m th addr) =>
+  se a thread tem TM_Loc addr
+    ret true
+  senão
+    ret false
+
+Loc 2 = x
+
+(Loc 2)[2] = x
+
+
+Inductive rel : m -> tm -> nat : Prop :=
+  | TM_ArrNew : typ -> tm -> tm
+  | TM_ArrIdx : tm -> tm -> tm
+  (* statements *)
+  | TM_Asg : tm -> tm -> tm
+  | TM_ArrAsg : tm -> tm -> tm -> tm
+  | TM_Call : tm -> tm -> tm
+  | TM_Seq : tm -> tm -> tm
+  (* concurrency statements *)
+  | TM_Spawn : tm -> tm
+  (* definitions *)
+  | TM_LetVal : name -> typ -> tm -> tm -> tm
+  | TM_LetVar : name -> typ -> tm -> tm -> tm
+  | TM_LetFun : name -> typ -> tm -> tm -> tm
+  (* internal terms *)
+  | R_Loc : forall m loc,
+      rel m (TM_Loc loc) loc
+  | TM_Load : tm -> tm
+  | TM_Fun : name -> typ -> tm -> typ -> tm
+
+
+  | R_Trans : forall m t loc loc',
+    rel m t loc ->
+    m[loc] = TM_Loc loc' ->
+    rel m t loc'
+
+  .
+
+
+
+
+Inductive something : 
+  | Something_Load
+    tid = alguma thread
+    m / ths ==> m' / ths' # Load tid 23
+    em todas as outras threads que não são tid,
+    não pode ter Loc 23
+    
+
+
+
 (* Typing *)
 
-Inductive typeof {mt : mem_typ} : ctx -> tm -> typ -> Prop :=
+Inductive well_typed_term {mt : memtyp} : ctx -> tm -> typ -> Prop :=
   | T_Nil : forall Gamma,
     Gamma |-- TM_Nil is TY_Void
 
@@ -343,17 +395,8 @@ Inductive typeof {mt : mem_typ} : ctx -> tm -> typ -> Prop :=
     Gamma |-- e is E ->
     Gamma |-- (TM_ArrNew (TY_Arr E) e) is (TY_Arr E)
 
-  | T_IArrNew : forall Gamma e E,
-    Gamma |-- e is E -> (* immutable *)
-    Gamma |-- (TM_ArrNew (TY_IArr E) e) is (TY_IArr E)
-
   | T_ArrIdx : forall Gamma arr idx T,
     Gamma |-- arr is (TY_Arr T) ->
-    Gamma |-- idx is TY_Num ->
-    Gamma |-- (TM_ArrIdx arr idx) is T
-
-  | T_IArrIdx : forall Gamma arr idx T,
-    Gamma |-- arr is (TY_IArr T) ->
     Gamma |-- idx is TY_Num ->
     Gamma |-- (TM_ArrIdx arr idx) is T
 
@@ -407,20 +450,18 @@ Inductive typeof {mt : mem_typ} : ctx -> tm -> typ -> Prop :=
     Gamma |-- (TM_LetFun id F f t) is T
 
   | T_Loc : forall Gamma i,
-    i < length mt ->
-    Gamma |-- (TM_Loc i) is TY_Ref (get_typ mt i)
+    i < length mt ->  
+    mt / Gamma |-- (TM_Loc i) is TY_Ref (get_typ mt i)
 
-  | T_Load_Ref : forall Gamma t T,
+  | T_Load : forall Gamma t T,
     Gamma |-- t is TY_Ref T ->
     Gamma |-- (TM_Load t) is T
 
-  | T_Load_IRef : forall Gamma t T,
-    Gamma |-- t is TY_IRef T ->
-    Gamma |-- (TM_Load t) is T
+Load (Loc 123)
 
   | T_Fun : forall Gamma p P block R,
     (update Gamma p P) |-- block is R ->
     Gamma |-- (TM_Fun p P block R) is (TY_Fun P R)
 
-  where "Gamma '|--' t 'is' T" := (typeof Gamma t T)
-  and "mt / Gamma '|--' t 'is' T" := (@typeof mt Gamma t T).
+  where "Gamma '|--' t 'is' T" := (well_typed_term Gamma t T)
+  and "mt / Gamma '|--' t 'is' T" := (@well_typed_term mt Gamma t T).
