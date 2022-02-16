@@ -149,6 +149,7 @@ Definition well_typed_memory mt m :=
   length mt = length m /\
   (forall i, mt / empty |-- (get_tm m i) is (get_typ mt i)).
 
+(* TODO: shouldn't this T match with the second one from the preservation rule? *)
 Definition well_typed_threads mt ths := forall i,
   exists T, mt / empty |-- (get_tm ths i) is T.
 
@@ -235,8 +236,8 @@ Lemma memory_weakening : forall mt mt' Gamma t T,
   mt  / Gamma |-- t is T.
 Proof.
   intros * Hext Htype.
-  induction Htype; eauto using @typeof, extends_length;
-  subst; erewrite extends_lookup; eauto using extends_length, @typeof.
+  induction Htype; eauto using @well_typed_term, extends_length;
+  subst; erewrite extends_lookup; eauto using extends_length, @well_typed_term.
 Qed.
 
 Lemma concurrent_memory_weakening : forall mt mt' ths,
@@ -257,7 +258,8 @@ Proof.
   intros * Hinc Htype.
   generalize dependent Gamma.
   induction Htype; intros * Hinc;
-  eauto 6 using @typeof, safe_preserves_inclusion, update_preserves_inclusion.
+  eauto 6 using @well_typed_term, safe_preserves_inclusion,
+    update_preserves_inclusion.
 Qed.
 
 Lemma context_weakening_empty : forall mt Gamma t T,
@@ -280,7 +282,7 @@ Proof with eauto using context_weakening, context_weakening_empty,
   intros * Ht Hu.
   generalize dependent T. generalize dependent Gamma.
   induction t; intros * Ht; inversion Ht; simpl; subst;
-  eauto using @typeof;
+  eauto using @well_typed_term;
   try (destruct String.eqb eqn:E);
   try (apply String.eqb_eq in E; subst);
   try (apply String.eqb_neq in E).
@@ -415,11 +417,11 @@ Proof.
   induction Htype; intros * Hstep; inversion Hstep; subst;
   solve
     [ discriminate Heff
-    | eauto using substitution_preserves_typing, @typeof
+    | eauto using substitution_preserves_typing, @well_typed_term
     | match goal with
       | Htype : _ / _ |-- _ is _ |- _ =>
         inversion Htype; subst;
-        eauto using substitution_preserves_typing, @typeof
+        eauto using substitution_preserves_typing, @well_typed_term
       end
     ].
 Qed.
@@ -435,20 +437,20 @@ Proof.
   assert (R : forall T, T = get_typ (add mt T) (length mt)).
   { intros. eauto using get_add_last. }
   induction Htype; intros * Hstep; inversion Hstep; subst;
-  eauto using @typeof, extends_add, memory_weakening;
+  eauto using @well_typed_term, extends_add, memory_weakening;
   match goal with
   | H1 : mt / _ |-- v is ?T1, H2 : mt / _ |-- v is ?T2 |- _ =>
     eapply (deterministic_typing _ _ _ T1 T2) in H1; eauto; subst
   end;
   try match goal with
   |- _ / _ |-- _ is _ ?T =>
-    rewrite (R T); eauto using @typeof, length_lt_add
+    rewrite (R T); eauto using @well_typed_term, length_lt_add
   end.
   - eapply substitution_preserves_typing;
     eauto using extends_add, memory_weakening.
     assert (R' : forall T, TY_Ref T = TY_Ref (get_typ (add mt T) (length mt))).
     { intros. f_equal. eauto using get_add_last. }
-    rewrite R'. eauto using @typeof, length_lt_add.
+    rewrite R'. eauto using @well_typed_term, length_lt_add.
 Qed.
 
 Lemma load_preservation : forall mt m t t' addr T,
@@ -460,7 +462,7 @@ Proof.
   remember empty as Gamma.
   intros * [Hlen Hmem] Htype Hstep. generalize dependent t'.
   induction Htype; intros * Hstep; inversion Hstep; subst;
-  try solve [ eauto using @typeof
+  try solve [ eauto using @well_typed_term
             | repeat match goal with 
               | H : _ / _ |-- _ is _ |- _ => inversion H; subst; eauto
               end
