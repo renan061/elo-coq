@@ -36,9 +36,9 @@ Inductive tm : Set :=
   | TM_Num : num -> tm
   | TM_Id : name -> tm
   | TM_Fun : name -> typ -> tm -> typ -> tm
-  | TM_New : tm -> tm
   | TM_Loc : num -> tm
   | TM_Load : tm -> tm
+  | TM_New : tm -> tm
   | TM_Asg : tm -> tm -> tm
   | TM_Call : tm -> tm -> tm
   | TM_Seq : tm -> tm -> tm
@@ -109,15 +109,6 @@ Fixpoint subst (id : name) (x t : tm) : tm :=
   where "'[' id ':=' x ']' t" := (subst id x t).
 
 Inductive step : tm -> effect -> tm -> Prop :=
-  (* ArrNew *)
-  | ST_New1 : forall t t' eff,
-    t --[eff]--> t' ->
-    TM_New t --[eff]--> t'
-
-  | ST_ArrNew : forall t ad,
-    value t ->
-    TM_New t --[EF_Alloc ad t]--> TM_Loc ad
-
   (* Load *)
   | ST_Load1 : forall t t' eff,
     t --[eff]--> t' ->
@@ -125,6 +116,15 @@ Inductive step : tm -> effect -> tm -> Prop :=
 
   | ST_Load : forall ad t,
     TM_Load (TM_Loc ad) --[EF_Load ad t]--> t
+
+  (* New *)
+  | ST_New1 : forall t t' eff,
+    t --[eff]--> t' ->
+    TM_New t --[eff]--> t'
+
+  | ST_New : forall t ad,
+    value t ->
+    TM_New t --[EF_Alloc ad t]--> TM_Loc ad
 
   (* Asg *)
   | ST_Asg1 : forall l l' r eff,
@@ -216,10 +216,6 @@ Inductive well_typed_term (mt : memtyp) : ctx -> tm -> typ -> Prop :=
     mt / (update Gamma p P) |-- block is R ->
     mt / Gamma |-- (TM_Fun p P block R) is (TY_Fun P R)
 
-  | T_New : forall Gamma t T,
-    mt / Gamma |-- t is T ->
-    mt / Gamma |-- (TM_New t) is (TY_Ref T)
-
   | T_Loc : forall Gamma ad,
     ad < length mt ->
     mt / Gamma |-- (TM_Loc ad) is TY_Ref (get_typ mt ad)
@@ -227,6 +223,10 @@ Inductive well_typed_term (mt : memtyp) : ctx -> tm -> typ -> Prop :=
   | T_Load : forall Gamma t T,
     mt / Gamma |-- t is TY_Ref T ->
     mt / Gamma |-- (TM_Load t) is T
+
+  | T_New : forall Gamma t T,
+    mt / Gamma |-- t is T ->
+    mt / Gamma |-- (TM_New t) is (TY_Ref T)
 
   | T_Asg : forall Gamma t e T,
     mt / Gamma |-- t is (TY_Ref T) ->
