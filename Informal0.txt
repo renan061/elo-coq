@@ -9,37 +9,28 @@
 
 --------------------------------------------------------------------------------
 
-tm  : nil                       // unit-like
+tm  : nil
     | N                         // number
-    | x                         // id
-    | fun(x : T1): T2 { t }     // function
     | &N                        // location
-    | *t                        // load
     | new t                     // new location
+    | *t                        // load
     | t1 := t2                  // assignment
-    | t1(t2)                    // call
-    | t1; t2                    // sequencing
-    | let x: T = t1 in t2       // let binding
 
 typ : Void
     | Num
     | *T      // mutable reference
-    | T1->T2  // function
 
-effect : None
-       | Alloc (ad : N) t
+effect : Alloc (ad : N) t
        | Load  (ad : N) t
        | Store (ad : N) t
 
-ceffect : CNone  (tid : N)
-        | CAlloc (tid : N) (ad : N) t
+ceffect : CAlloc (tid : N) (ad : N) t
         | CLoad  (tid : N) (ad : N) t
         | CStore (tid : N) (ad : N) t
 
 value : nil
       | N
       | &N
-      | fun(x : T1): T2 { t }
 
 --------------------------------------------------------------------------------
 
@@ -48,29 +39,18 @@ STEP      t --[eff]--> t'
 t   = term
 eff = effect
 
-    
-    ST-Load    _________________________________
-                *(&ad)    --[Load ad t]-->    t
-
 
     ST-New     ___________________________________
                 new v    --[Alloc ad v]-->    &ad
 
 
+    ST-Load    _________________________________
+                *(&ad)    --[Load ad t]-->    t
+
+
     ST-Asg     ______________________________________
                 &ad := v    --[Store ad v]-->    nil
 
-
-    ST-Call    _______________________________________________________
-                fun(x: T1): T2 { t } (v)    --[None]-->    [x := v] t
-
-
-    ST-Seq     ____________________________
-                nil; t    --[None]-->    t
-
-
-    ST-Let     _________________________________________________
-                let x: T := v in t    --[None]-->    [x := v] t
 
 --------------------------------------------------------------------------------
 
@@ -79,11 +59,6 @@ CONCURRENT STEP      m / ths ==[ceff]==> m' / ths'
 m    = memory
 ths  = threads
 ceff = concurrent effect
-
-
-                 ths[i] --[None]--> t
-    CST-None    __________________________________________
-                 m / ths ==[CNone i]==> m / (i := t; ths)
 
 
                  ths[i] --[Alloc (length m) v]--> t
@@ -119,23 +94,8 @@ T     = type
                  mt / Gamma |-- N is Num
 
 
-                 Gamma[x] = T
-    T-Id        _______________________
-                 mt / Gamma |-- x is T
-
-
-                 mt / (p := P; Gamma) |-- t is R
-    T-Fun       ________________________________________________
-                 mt / Gamma |-- fun(p : P): R { t } is (P -> R)
-
-
     T-Loc       ______________________________
                  mt / Gamma |-- &ad is mt[ad]
-
-
-                 mt / Gamma |-- t is *T
-    T-Load      ________________________
-                 mt / Gamma |-- *t is T
 
 
                  mt / Gamma |-- t is T
@@ -143,25 +103,12 @@ T     = type
                  mt / Gamma |-- (new t) is *T
 
 
+                 mt / Gamma |-- t is *T
+    T-Load      ________________________
+                 mt / Gamma |-- *t is T
+
+
                  mt / Gamma |-- l is *T
                  mt / Gamma |-- r is T
     T-Asg       _________________________________
                  mt / Gamma |-- (l := r) is Void
-
-
-                 mt / Gamma |-- a is P
-                 mt / Gamma |-- f is (P -> R)
-    T-Call      ______________________________
-                 mt / Gamma |-- f(a) is R
-
-
-                 mt / Gamma |-- t  is Void
-                 mt / Gamma |-- t' is T
-    T-Seq       _____________________________
-                 mt / Gamma |-- (t; t') is T
-
-
-                 mt / Gamma |-- e is E
-                 mt / (x := E; Gamma) |-- t is T
-    T-Let       __________________________________________
-                 mt / Gamma |-- (let x: E := e in t) is T
