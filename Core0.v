@@ -68,8 +68,6 @@ Definition get_ctx := get (@empty typ).
 
 (* Operational Semantics *)
 
-Local Infix "=?" := String.eqb (at level 70, no associativity).
-
 Inductive step : tm -> effect -> tm -> Prop :=
   (* New *)
   | ST_New1 : forall t t' eff,
