@@ -47,7 +47,7 @@ Inductive multistep : mem -> tm -> trace -> mem -> tm -> Prop :=
 
   where "m / t '==[' tc ']==>*' m' / t'" := (multistep m t tc m' t').
 
-Lemma alloc_grants_access_1 : forall m m' t t' ad v,
+Lemma alloc_grants_access_single_step : forall m m' t t' ad v,
   ~ (access m t ad) ->
   t --[EF_Alloc ad v]--> t' ->
   access m' t' ad.
@@ -59,25 +59,50 @@ Proof.
   - eapply access_asg2; eauto using access.
 Qed.
 
-Lemma alloc_grants_access_2 : forall m m' t t' ad v,
+Lemma alloc_grants_access_memory_step : forall m m' t t' ad v,
   ~ (access m t ad) ->
   m / t ==[EF_Alloc ad v]==> m' / t' ->
   access m' t' ad.
 Proof.
   intros * Hacc Hmstep. destruct t';
-  inversion Hmstep; subst; eauto using alloc_grants_access_1.
+  inversion Hmstep; subst; eauto using alloc_grants_access_single_step.
 Qed.
 
-Lemma alloc_grants_access_3 : forall m m' tc t t' ad v,
+Lemma aux0 : forall t t' ad v,
+  TM_New t --[ EF_Alloc ad v ]--> t' ->
+  t' = TM_Loc ad.
+Proof.
+  intros * H. destruct t'.
+  - inversion H; subst.
+Qed.
+
+Lemma aux : forall m m' t ad v,
+  ~ (m / t ==[ EF_Alloc ad v ]==> m' / TM_Nil).
+Proof.
+  intros * F. inversion F; subst. induction t.
+  - inversion H5.
+  - inversion H5.
+  - inversion H5.
+  - eapply IHt. eauto. inversion H5; subst. eauto. inversion H0; subst. eauto.
+  - inversion H5.
+  - inversion H5.
+  
+Qed.
+
+Lemma alloc_grants_access_multistep : forall m m' tc t t' ad v,
   ~ (access m t ad) ->
   m / t ==[EF_Alloc ad v :: tc]==>* m' / t' ->
+  t <> t'->
   access m' t' ad.
 Proof.
-  intros * Hacc Hmultistep. inversion Hmultistep; subst.
-  -
-  - inversion Hmultistep; subst.
-    + inversion Hmultistep.
-  inversion Hmultistep; subst; eauto using alloc_grants_access_2.
+  intros * Hacc Hmultistep Heq.
+  inversion Hmultistep; subst;
+  try solve [contradict Heq; reflexivity].
+  induction t'.
+  - destruct t'0. inversion H6; subst. inversion H7; subst. inversion H; subst.
+  - inversion H3; subst. eauto using alloc_grants_access_memory_step.
+  - eapply IH.
+    + eauto using alloc_grants_access_memory_step.
 Qed.
 
 
