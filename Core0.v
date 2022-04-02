@@ -1,8 +1,8 @@
 From Coq Require Import Init.Nat.
 From Coq Require Import List.
 
-From Elo Require Export Array.
-From Elo Require Export Map.
+From Elo Require Import Array.
+From Elo Require Import Map.
 
 Import ListNotations.
 
@@ -46,7 +46,6 @@ Inductive value : tm -> Prop :=
   .
 
 (* Effects *)
-
 Definition addr := nat.
 
 Inductive effect : Set :=
@@ -147,3 +146,4 @@ Inductive well_typed_term (mt : memtyp) : ctx -> tm -> typ -> Prop :=
     mt / Gamma |-- (TM_Asg l r) is TY_Void
 
   where "mt / Gamma '|--' t 'is' T" := (well_typed_term mt Gamma t T).
+

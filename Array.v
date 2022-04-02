@@ -90,6 +90,12 @@ Proof.
     simpl. auto using PeanoNat.Nat.succ_inj_wd_neg.
 Qed.
 
+Lemma length_add: forall {A} (l : list A) a,
+  length (add l a) = S (length l).
+Proof.
+  intros. unfold add. rewrite last_length. reflexivity.
+Qed.
+
 Lemma length_lt_add : forall {A} (l : list A) a,
   length l < length (add l a).
 Proof.
@@ -114,3 +120,4 @@ Lemma add_set_tail : forall {A} head (tail : list A) i a a',
 Proof.
   eauto.
 Qed.
+

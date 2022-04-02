@@ -2,13 +2,12 @@ From Coq Require Import Arith.Arith.
 From Coq Require Import Lists.List.
 From Coq Require Import Logic.ClassicalFacts.
 
-From Elo Require Export Core0.
+From Elo Require Import Array.
+From Elo Require Import Core0.
 
 Reserved Notation "m / t '==[' tc ']==>*' m' / t'"
   (at level 40, t at next level, tc at next level,
                 m' at next level, t' at next level).
-
-Definition trace := list effect.
 
 Inductive access (m : mem) : tm -> addr -> Prop :=
   | access_trans : forall t ad ad',
@@ -36,188 +35,206 @@ Inductive access (m : mem) : tm -> addr -> Prop :=
     access m (TM_Asg l r) ad
   .
 
-Inductive multistep : mem -> tm -> trace -> mem -> tm -> Prop :=
-  | multistep_refl : forall m t tc,
-    m / t ==[tc]==>* m / t
+Definition trace := list effect.
 
-  | multistep_step : forall m m' m'' t t' t'' tc eff,
-    m  / t  ==[tc       ]==>* m'  / t'  ->
-    m' / t' ==[eff      ]==>  m'' / t'' ->
+(* reflexive transitive closure *)
+Inductive multistep : mem -> tm -> trace -> mem -> tm -> Prop :=
+  | multistep_refl: forall m t,
+      m / t ==[nil]==>* m / t
+
+  | multistep_trans : forall m m' m'' t t' t'' tc eff,
+    m  / t  ==[tc]==>* m'  / t'  ->
+    m' / t' ==[eff]==> m'' / t'' ->
     m  / t  ==[eff :: tc]==>* m'' / t''
 
   where "m / t '==[' tc ']==>*' m' / t'" := (multistep m t tc m' t').
 
-Lemma alloc_grants_access_single_step : forall m m' t t' ad v,
-  ~ (access m t ad) ->
-  t --[EF_Alloc ad v]--> t' ->
-  access m' t' ad.
+Lemma monotonic_nondecreasing_memory_length: forall m m' eff t t',
+  m / t ==[eff]==>* m' / t' ->
+  length m <= length m'.
 Proof.
-  intros ? ? ?. induction t; intros * Hacc Hstep;
-  inversion Hstep; eauto using access.
-  - eapply access_load; eauto using access.
-  - eapply access_asg1; eauto using access.
-  - eapply access_asg2; eauto using access.
+  assert (forall m m' eff t t',
+    m / t ==[eff]==> m' / t' ->
+    length m <= length m').
+  {
+    intros * Hmstep. inversion Hmstep; subst;
+    try (erewrite <- Array.set_preserves_length);
+    eauto using Nat.lt_le_incl, Array.length_lt_add.
+  }
+  intros * Hmultistep. induction Hmultistep; eauto using Nat.le_trans.
+Qed.
+
+Lemma alloc_increments_memory_length : forall m m' t t' ad v,
+  m / t ==[EF_Alloc ad v]==> m' / t' ->
+  length m' = S (length m).
+Proof.
+  intros * Hmstep. inversion Hmstep; subst. eauto using length_add.
+Qed.
+
+Lemma destruct_multistep : forall tc eff m0 mF t0 tF,
+  m0 / t0  ==[tc ++ eff :: nil]==>* mF / tF ->
+  (exists m t, m0 / t0 ==[eff]==> m / t /\ m / t ==[tc]==>* mF / tF).
+Proof.
+  intros ?. induction tc as [| eff tc IH];
+  intros * Hmultistep; inversion Hmultistep; subst.
+  - eexists. eexists. inversion H3; subst. split; eauto using multistep.
+  - specialize (IH _ _ _ _ _ H3) as [m [t [Hmstep' Hmultistep']]].
+    eexists. eexists. split; eauto using multistep.
+Qed.
+
+Lemma not_Sn_le_n : forall n,
+  ~ (S n <= n).
+Proof.
+  unfold not. intros * F. induction n.
+  - inversion F.
+  - eauto using le_S_n.
+Qed.
+
+Theorem duplicate_alloc : forall m m' t t' tc ad v v',
+  m / t ==[EF_Alloc ad v :: tc ++ EF_Alloc ad v' :: nil]==>* m' / t' ->
+  False.
+Proof.
+  intros * Hmultistep. inversion Hmultistep; subst; clear Hmultistep;
+  destruct tc; try discriminate.
+  - match goal with H : _ / _ ==[_]==>* _ / _ |- _ =>
+      rewrite app_nil_l in H; inversion H; subst
+    end.
+    match goal with
+    H1 : _ / _ ==[_]==> _ / _,
+    H2 : _ / _ ==[_]==> _ / _ |- _ =>
+      inversion H1; inversion H2; subst;
+      eapply alloc_increments_memory_length in H1;
+      eapply alloc_increments_memory_length in H2
+    end.
+    match goal with
+    F : length ?x = length (add ?x _) |- _ =>
+      rewrite length_add in F; eapply n_Sn in F
+    end.
+    assumption.
+  - match goal with
+    H : _ / _ ==[_]==>* _ / _ |- _ =>
+      eapply destruct_multistep in H as [? [? [? Hmultistep']]]
+    end.
+    eapply monotonic_nondecreasing_memory_length in Hmultistep'.
+    match goal with
+    H1 : _ / _ ==[_]==> _ / _,
+    H2 : _ / _ ==[_]==> _ / _ |- _ =>
+      inversion H1; inversion H2; subst
+    end.
+    match goal with
+    | H1 : length _ = length ?x, H2 : length _ <= length ?x |- _ =>
+        rewrite <- H1 in H2; rewrite length_add in H2
+    end.
+    eapply not_Sn_le_n in Hmultistep'.
+    assumption.
+Qed.
+
+(*
+
+Lemma :
+  ~ access m t ad ->
+  t --[eff]--> t' ->
+  access m' t' ad ->
+  eff = Alloc ad v.
+
+
+  e depois para ==[]==>
+
+*)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Theorem duplicate_alloc : forall tc1 tc2 m m' t t' ad v,
+  In (EF_Alloc ad v) tc2 ->
+  m / t ==[tc2 ++ tc1]==>* m' / t' ->
+  ~ (In (EF_Alloc ad v) tc1).
+Proof.
+  intros * Hin Hmulti.
+  inversion Hmulti; subst.
+  - admit.
+  - destruct tc2 as [| eff2 tc2]; try contradiction.
+    inversion H. subst. clear H.
+    eapply not_in_cons. split.
+    + unfold not. intros. subst. admit.
+    + erewrite app_cons in Hmulti. eauto using in_or_app.
+
+
+
+  intros ?.
+  induction tc1 as [| eff1 tc1 IH]; intros * Hin Hmulti.
+  - unfold not, In. trivial.
+  - inversion Hmulti; subst.
+    + eapply destruct_multistep in H as [? ?]. subst. contradiction.
+    + destruct tc2 as [| eff2 tc2]; try contradiction.
+      inversion H. subst. clear H.
+      eapply not_in_cons. split.
+      * unfold not. intros. subst. admit.
+      * erewrite app_cons in Hmulti. eauto using in_or_app.
+Qed.
+
+
+
+inversion Hmulti; subst.
+  - unfold not, In. trivial.
+  - induction tc as [| eff tc IH].
+    + inversion H3.
+    + eapply not_in_cons. split.
+      * unfold not. intros. subst. admit.
+      * eapply IH; clear IH.
+        **
+
+Qed.
+
+Lemma alloc_grants_access_single_step : forall m t t' ad v,
+  t --[EF_Alloc ad v]--> t' ->
+  access m t' ad.
+Proof.
+  intros ? ?. induction t; intros * Hstep;
+  inversion Hstep; subst; eauto using access.
 Qed.
 
 Lemma alloc_grants_access_memory_step : forall m m' t t' ad v,
-  ~ (access m t ad) ->
   m / t ==[EF_Alloc ad v]==> m' / t' ->
   access m' t' ad.
 Proof.
-  intros * Hacc Hmstep. destruct t';
-  inversion Hmstep; subst; eauto using alloc_grants_access_single_step.
-Qed.
-
-Lemma aux0 : forall t t' ad v,
-  TM_New t --[ EF_Alloc ad v ]--> t' ->
-  t' = TM_Loc ad.
-Proof.
-  intros * H. destruct t'.
-  - inversion H; subst.
-Qed.
-
-Lemma aux : forall m m' t ad v,
-  ~ (m / t ==[ EF_Alloc ad v ]==> m' / TM_Nil).
-Proof.
-  intros * F. inversion F; subst. induction t.
-  - inversion H5.
-  - inversion H5.
-  - inversion H5.
-  - eapply IHt. eauto. inversion H5; subst. eauto. inversion H0; subst. eauto.
-  - inversion H5.
-  - inversion H5.
-  
+  intros * Hmstep. destruct t';
+  inversion Hmstep; subst;
+  eauto using alloc_grants_access_single_step.
 Qed.
 
 Lemma alloc_grants_access_multistep : forall m m' tc t t' ad v,
-  ~ (access m t ad) ->
   m / t ==[EF_Alloc ad v :: tc]==>* m' / t' ->
-  t <> t'->
   access m' t' ad.
 Proof.
-  intros * Hacc Hmultistep Heq.
-  inversion Hmultistep; subst;
-  try solve [contradict Heq; reflexivity].
-  induction t'.
-  - destruct t'0. inversion H6; subst. inversion H7; subst. inversion H; subst.
-  - inversion H3; subst. eauto using alloc_grants_access_memory_step.
-  - eapply IH.
-    + eauto using alloc_grants_access_memory_step.
+  intros * Hmulti. destruct t';
+  inversion Hmulti; subst;
+  eauto using alloc_grants_access_memory_step.
 Qed.
-
-
-
-Lemma eff_eq_dec : forall (x y : effect),
-  {x = y} + {x <> y}.
-Proof.
-Admitted.
-
-Definition NotIn {A} (a : A) l := ~ (In a l).
-
-Lemma duplicate_alloc' : forall {m m' t t'} tc {ad v},
-  m / t / tc ==>* m' / t' / (EF_Alloc ad v :: tc) ->
-  NotIn (EF_Alloc ad v) tc.
-Proof.
-  unfold NotIn. intros * Hmstep. induction Hmstep; eauto using in_nil.
-Qed.
-
-Lemma duplicate_alloc : forall m m' t t' tc tc' ad v,
-  m / t / tc ==>* m' / t' / (EF_Alloc ad v :: tc') ->
-  ~ (In (EF_Alloc ad v) tc').
-Proof.
-  intros * Hmstep. destruct tc' as [| x xs].
-  - eauto using in_nil.
-  - destruct (eff_eq_dec (EF_Alloc ad v) x).
-    + subst. destruct (list_eq_dec eff_eq_dec xs tc).
-      * subst. exfalso. eapply (duplicate_alloc'). eapply Hmstep.
-      * 
-Qed.
-
-Lemma aux1 : forall {A} l1 l2 (a : A), 
-  (~ (In a (l1 ++ l2))) = ~ (In a l1) /\ ~ (In a l2).
-Proof.
-Admitted.
-
-Lemma duplicate_alloc : forall m m' t t' tc tc' ad v,
-  m / t / tc ==>* m' / t' / (EF_Alloc ad v :: tc') ->
-  ~ (In (EF_Alloc ad v) tc').
-Proof.
-  intros * Hmstep.
-  assert (exists x, tc' = x ++ tc) as [x Htc]. { shelve. } subst.
-  erewrite aux1. split.
-  - destruct x as [| x xs].
-    + eauto using in_nil.
-    + destruct (eq_dec_eff (EF_Alloc ad v) x).
-      * shelve.
-      * eapply not_in_cons. split; auto.
-        inversion Hmstep; subst.
-        inversion H6; subst.
-        ** erewrite app_nil_r in H8. subst. eauto using in_nil.
-        ** induction xs.
-          *** shelve.
-          ***
-  - eauto using duplicate_alloc'.
-Qed.
-
-
-
-
-
-Lemma aux1 : forall m m' t t' tc tc' tc'' eff,
-  m' / t' / tc' ==>* m / t / (eff :: tc) ->
-  m' / t' / tc' ==>* m / t / ((eff :: tc'') ++ tc').
-Proof.
-Admitted.
-
-Lemma in_dec_eff : forall (eff : effect) (l : list effect),
-  {In eff l} + {~ In eff l}.
-Proof.
-  intros *. eauto using in_dec, eq_dec_eff.
-Qed.
-
-Theorem todo : forall m m' t t' tc tc' ad v,
-  m' / t' / tc' ==>* m / t / (EF_Load ad v :: tc) ->
-  In (EF_Alloc ad v) tc.
-Proof.
-  intros * Hmstep.
-  assert (In1 : {In (EF_Alloc ad v) tc} + {~ In (EF_Alloc ad v) tc}).
-  eauto using in_dec_eff. destruct In1 as [In1 | NIn1].
-  - auto.
-  - assert (In2 : {In (EF_Alloc ad v) tc'} + {~ In (EF_Alloc ad v) tc'}).
-    eauto using in_dec_eff. destruct In2 as [In2 | NIn2].
-    + auto.
-    +
-
-
-  induction tc_ as [| ceff tc' IH].
-  - inversion Hmstep; subst.
-  - destruct (ceff_eq_dec ceff (EF_Alloc ad v)); subst.
-    + eapply in_eq.
-    + eapply in_cons. clear H.
-      inversion Hmstep; subst.
-      inversion H6; subst.
-      * shelve.
-      *
-
-
-      inversion Hmstep. subst. clear Hmstep.
-      induction H7.
-      * inversion H8. subst.
-      eapply IH. clear IH.
-
-Qed.
-
-
-
 
 
 (*
 
-Inductive something : 
+Inductive something :
   | Something_Load
     tid = alguma thread
     m / ths ==> m' / ths' # Load tid 23
     em todas as outras threads que não são tid,
     não pode ter Loc 23
-    
+
 *)
