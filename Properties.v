@@ -112,7 +112,7 @@ Theorem deterministic_typing : forall mt Gamma t X Y,
 Proof.
   intros * HX. generalize dependent Y.
   induction HX; intros Y HY; inversion HY; subst;
-  try solve 
+  try solve
     [ congruence
     | auto
     | match goal with
@@ -230,9 +230,9 @@ Proof.
   intros F. inversion F.
 Qed.
 
-Lemma memory_weakening : forall mt mt' Gamma t T, 
+Lemma memory_weakening : forall mt mt' Gamma t T,
   mt extends mt' ->
-  mt' / Gamma |-- t is T ->  
+  mt' / Gamma |-- t is T ->
   mt  / Gamma |-- t is T.
 Proof.
   intros * Hext Htype.
@@ -463,7 +463,7 @@ Proof.
   intros * [Hlen Hmem] Htype Hstep. generalize dependent t'.
   induction Htype; intros * Hstep; inversion Hstep; subst;
   try solve [ eauto using @well_typed_term
-            | repeat match goal with 
+            | repeat match goal with
               | H : _ / _ |-- _ is _ |- _ => inversion H; subst; eauto
               end
             ].
