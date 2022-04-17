@@ -35,6 +35,31 @@ Inductive access (m : mem) : tm -> addr -> Prop :=
     access m (TM_Asg l r) ad
   .
 
+Lemma new_access : forall m t ad,
+  access m (TM_New t) ad ->
+  access m t ad.
+Proof.
+  intros * Hacc. remember (TM_New t) as t'.
+  induction Hacc; inversion Heqt'; subst; eauto using access.
+Qed.
+
+Lemma load_access : forall m t ad,
+  access m (TM_Load t) ad ->
+  access m t ad.
+Proof.
+  intros * Hacc. remember (TM_Load t) as t'.
+  induction Hacc; inversion Heqt'; subst; eauto using access.
+Qed.
+
+Lemma asg_access : forall m l r ad,
+  access m (TM_Asg l r) ad ->
+  access m l ad \/ access m r ad.
+Proof.
+  intros * Hacc. remember (TM_Asg l r) as t.
+  induction Hacc; inversion Heqt; subst; eauto.
+  destruct (IHHacc eq_refl) as [? | ?]; eauto using access.
+Qed.
+
 Definition trace := list effect.
 
 (* reflexive transitive closure *)
@@ -48,6 +73,8 @@ Inductive multistep : mem -> tm -> trace -> mem -> tm -> Prop :=
     m  / t  ==[eff :: tc]==>* m'' / t''
 
   where "m / t '==[' tc ']==>*' m' / t'" := (multistep m t tc m' t').
+
+(* PART 1 *)
 
 Lemma monotonic_nondecreasing_memory_length: forall m m' eff t t',
   m / t ==[eff]==>* m' / t' ->
@@ -78,21 +105,17 @@ Proof.
   intros ?. induction tc as [| eff tc IH];
   intros * Hmultistep; inversion Hmultistep; subst.
   - eexists. eexists. inversion H3; subst. split; eauto using multistep.
-  - specialize (IH _ _ _ _ _ H3) as [m [t [Hmstep' Hmultistep']]].
+  - specialize (IH _ _ _ _ _ H3) as [? [? [? ?]]].
     eexists. eexists. split; eauto using multistep.
-Qed.
-
-Lemma not_Sn_le_n : forall n,
-  ~ (S n <= n).
-Proof.
-  unfold not. intros * F. induction n.
-  - inversion F.
-  - eauto using le_S_n.
 Qed.
 
 Theorem duplicate_alloc : forall m m' t t' tc ad v v',
   ~ (m / t ==[EF_Alloc ad v :: tc ++ EF_Alloc ad v' :: nil]==>* m' / t').
 Proof.
+  assert (not_Sn_le_n : forall n, ~ (S n <= n)). {
+    unfold not. intros * F. induction n;
+    eauto using le_S_n. inversion F.
+  }
   unfold not. intros * Hmultistep.
   inversion Hmultistep; subst; clear Hmultistep;
   destruct tc; try discriminate.
@@ -129,18 +152,7 @@ Proof.
     assumption.
 Qed.
 
-(*
-
-Lemma :
-  ~ access m t ad ->
-  t ==[eff]==> t' ->
-  access m' t' ad ->
-  eff = Alloc ad v.
-
-
-  e depois para ==[]==>
-
-*)
+(* PART 2 *)
 
 Lemma load_if_access: forall m m' t t' ad v,
   m / t ==[EF_Load ad v]==> m' / t' -> 
@@ -172,21 +184,222 @@ Proof.
   intros * Hmstep. inversion Hmstep; subst. eauto.
 Qed.
 
-Lemma load_access: forall m t ad,
-  access m (TM_Load t) ad -> access m t ad.
+Definition well_behaved_locations m t ad :=
+  access m t ad -> ad < length m.
+
+Lemma alloc_grants_access: forall m m' t t' ad v,
+  well_behaved_locations m t ad ->
+  m / t ==[EF_Alloc ad v]==> m' / t' ->
+  ~ access m t ad /\ access m' t' ad.
 Proof.
-  intros * Hacc. remember (TM_Load t) as t'.
-  induction Hacc; inversion Heqt'; subst; eauto using access.
+  intros * Hwbl Hmstep. split.
+  - intros F. specialize (Hwbl F).
+    inversion Hmstep; subst.
+    eapply Nat.lt_irrefl; eauto.
+  - inversion Hmstep; subst.
+    remember (EF_Alloc (length m) v) as eff.
+    clear Hwbl. clear Hmstep.
+    match goal with
+    | Hstep : _ --[_]--> _ |- _ =>    
+      induction Hstep; inversion Heqeff; subst; eauto using access
+    end.
 Qed.
 
-Lemma asg_access: forall m l r ad,
-  access m (TM_Asg l r) ad ->
-  access m l ad \/ access m r ad.
+(* TODO *)
+
+Lemma aux12 : forall m ad,
+  access (add m (TM_Loc ad)) (TM_Loc (length m)) ad.
 Proof.
-  intros * Hacc. remember (TM_Asg l r) as t.
-  induction Hacc; inversion Heqt; subst; eauto.
-  destruct (IHHacc eq_refl) as [? | ?]; eauto using access.
+  intros *. eapply access_trans.
+Admitted.
+
+Lemma aux12 : forall m ad ad',
+  access (add m (TM_Loc ad')) (TM_Loc (length m)) ad ->
+  access m (TM_Loc ad') ad.
+Proof.
+  intros * Hacc.
+  inversion Hacc; subst.
+  - shelve.
+  -
+
+  remember (add m (TM_Loc ad')) as m'.
+  remember (TM_Loc (length m)) as t'.
+  induction Hacc;
+  inversion Heqm'; subst;
+  try (inversion Heqt'; subst).
+  - specialize (IHHacc eq_refl). shelve.
+  -
+
+  specialize (IHHacc eq_refl). subst.
+  exfalso.
+  rewrite (get_add_last TM_Nil) in H.
+  inversion H.
+Admitted.
+
+Lemma aux11 : forall m ad n,
+  access (add m (TM_Num n)) (TM_Loc (length m)) ad ->
+  ad = length m.
+Proof.
+  intros * Hacc.
+  remember (add m TM_Nil) as m'.
+  remember (TM_Loc (length m)) as t'.
+  induction Hacc;
+  inversion Heqm'; subst; try (inversion Heqt'; subst); trivial.
+  specialize (IHHacc eq_refl). subst.
+  exfalso.
+  rewrite (get_add_last TM_Nil) in H.
+  inversion H.
 Qed.
+
+Lemma aux10 : forall m ad,
+  access (add m TM_Nil) (TM_Loc (length m)) ad ->
+  ad = length m.
+Proof.
+  intros * Hacc.
+  remember (add m TM_Nil) as m'.
+  remember (TM_Loc (length m)) as t'.
+  induction Hacc;
+  inversion Heqm'; subst; try (inversion Heqt'; subst); trivial.
+  specialize (IHHacc eq_refl). subst.
+  exfalso.
+  rewrite (get_add_last TM_Nil) in H.
+  inversion H.
+Qed.
+
+Lemma aux9 : forall m t ad ad',
+  ~ access m t ad ->
+  access m t ad' ->
+  get_tm m ad' <> TM_Loc ad.
+Proof.
+  intros * ? Hacc. inversion Hacc; subst; eauto using access.
+Qed.
+
+Lemma aux8 : forall m t ad ad',
+  ~ access m t ad ->
+  get_tm m ad' = TM_Loc ad ->
+  ~ access m t ad'.
+Proof.
+  intros * Hget Hnacc Hacc. eauto using access. 
+Qed.
+
+Lemma aux6 : forall m ad v,
+  ~ access m (TM_New v) ad ->
+  ~ access m v ad ->
+  value v ->
+  ad <> length m ->
+  ~ access (add m v) (TM_Loc (length m)) ad.
+Proof.
+  intros * Hnacc1 Hnacc2 Hvalue Hneq Hacc.
+  assert (Hget : get_tm (add m v) (length m) = v). {
+    eauto using get_add_last.
+  }
+  inversion Hacc; subst; eauto.
+  destruct Hvalue.
+Admitted.
+
+Lemma aux5 : forall m t ad,
+  ~ access m (TM_New t) ad ->
+  ~ access m t ad.
+Proof.
+  intros * Hnacc F. eauto using access.
+Qed.
+
+Lemma aux4 : forall m t ad v,
+  access (add m v) t ad ->
+  access m t ad.
+Proof.
+  intros * Hacc. remember (add m v) as m'.
+  induction Hacc; inversion Heqm'; subst; eauto using access.
+  destruct (lt_eq_lt_dec ad (length m)) as [[Hlt | Heq] | Hgt].
+  - rewrite (get_add_lt TM_Nil _ _ _ Hlt) in H. eauto using access.
+  - subst. rewrite (get_add_last TM_Nil) in H.
+    destruct v eqn:E; inversion H.
+    shelve.
+  - shelve.
+Admitted.
+
+Lemma aux3 : forall m l r ad,
+  ~ access m (TM_Asg l r) ad ->
+  ~ access m l ad /\ ~ access m r ad.
+Proof.
+  intros * Hnacc. split; intros F; eauto using access.
+Qed.
+
+Lemma aux2 : forall m t ad,
+  ~ access m (TM_Load t) ad ->
+  ~ access m t ad.
+Proof.
+  intros * Hnacc F. eauto using access.
+Qed.
+
+Lemma aux1 : forall m m' t t' ad ad' v,
+  ~ access m t ad ->
+  m / t ==[EF_Alloc ad' v]==> m' / t' ->
+  ad <> ad' ->
+  ~ access m' t' ad.
+Proof.
+  intros * Hnacc Hmstep Hneq.
+  inversion Hmstep; subst. clear Hmstep.
+  remember (EF_Alloc (length m) v) as eff.
+  induction H5; inversion Heqeff; subst; eauto using access.
+  - intros F. destruct H; eauto using aux10, aux11.
+    eapply aux5 in Hnacc.
+
+
+
+
+
+
+  ~ access m t ad ->
+  access m t ad' ->
+  get_tm m ad' <> TM_Loc ad.
+      
+    + shelve.
+    + shelve.
+
+    intros Hacc.
+    inversion Hacc; subst; eauto.
+
+    inversion Hacc; subst; eauto.
+    destruct H.
+    + inversion Hacc.
+    shelve.
+  - eapply aux2 in Hnacc.
+    specialize (IHstep Hnacc eq_refl).
+    intros F. eapply load_access in F. eauto.
+  - eapply aux3 in Hnacc as [Hnacc1 Hnacc2].
+    specialize (IHstep Hnacc1 eq_refl).
+    intros F. eapply asg_access in F as [F | F].
+    + eapply IHstep in F. assumption.
+    + eapply Hnacc2. eauto using aux4.
+  - eapply aux3 in Hnacc as [Hnacc1 Hnacc2].
+    specialize (IHstep Hnacc2 eq_refl).
+    intros F. eapply asg_access in F as [F | F].
+    + eauto using aux4.
+    + eapply IHstep in F. assumption.
+Qed.
+
+Lemma well_behaved_locations_preservation : forall m m' t t' eff ad, 
+  well_behaved_locations m t ad ->
+  m / t ==[eff]==> m' / t' ->
+  well_behaved_locations m' t' ad.
+Proof.
+  intros * Hwbl Hmstep. inversion Hmstep; subst.
+  - destruct (Nat.eqb ad (length m)) eqn:E.
+    + eapply Nat.eqb_eq in E; subst. intros _. eauto using length_lt_add.
+    + eapply Nat.eqb_neq in E.
+      unfold well_behaved_locations in Hwbl.
+      assert ((access m t ad) \/ ~ (access m t ad)) as [Hacc | Hnacc].
+      { admit. }
+      * eapply Hwbl in Hacc as Hlen. intros _. rewrite length_add.
+        eauto using Nat.lt_lt_succ_r.
+      * intros F. eapply (aux1 _ _ _ _ _ _ _ Hnacc) in Hmstep as T; eauto.
+        eapply T in F. contradiction.
+  - shelve.
+  - shelve.
+Admitted.
+
+(* BAGUNÇA *)
 
 Lemma auxiliar : forall m t t' ad v,
   t --[ EF_Alloc (length m) v ]--> t' ->
@@ -223,44 +436,75 @@ Proof.
   - exfalso. eapply store_if_access in Hmstep. shelve.
 Admitted.
 
-Definition well_behaved_locations m t ad :=
-  access m t ad -> ad < length m.
 
-Lemma alloc_grants_access: forall m m' t t' ad v,
-  well_behaved_locations m t ad ->
-  m / t ==[EF_Alloc ad v]==> m' / t' ->
-  ~ access m t ad /\ access m' t' ad.
+
+(*
+Lemma monotonic_nondecreasing_memory_length: forall m m' eff t t',
+  m / t ==[eff]==>* m' / t' ->
+  length m <= length m'.
 Proof.
-  intros * Hwbl Hmstep. split.
-  - intros F. specialize (Hwbl F).
-    inversion Hmstep; subst.
-    eapply Nat.lt_irrefl; eauto.
-  - inversion Hmstep; subst.
-    remember (EF_Alloc (length m) v) as eff.
-    clear Hwbl. clear Hmstep.
-    match goal with
-    | Hstep : _ --[_]--> _ |- _ =>    
-      induction Hstep; inversion Heqeff; subst; eauto using access
-    end.
+*)
+
+Lemma aux1 : forall t ad ad' v,
+  t --[ EF_Alloc ad v ]--> TM_Loc ad' ->
+  ad = ad'.
+Proof.
+  intros * Hstep.
+  remember (EF_Alloc ad v) as eff.
+  remember (TM_Loc ad') as t'.
+  induction Hstep;
+  inversion Heqeff; subst;
+  try (inversion Heqt'; subst); eauto.
 Qed.
 
-Lemma auxalloc : forall m m' t t' eff ad, 
-  well_behaved_locations m t ad ->
-  m / t ==[ eff ]==> m' / t' ->
-  well_behaved_locations m' t' ad.
-Proof.
-  intros * Hwbl Hmstep. inversion Hmstep; subst.
-  - destruct (lt_eq_lt_dec ad (length m)) as [[E | E] | E].
-    + eapply Nat.eqb_eq in E; subst.
-      intros ?. eauto using length_lt_add.
-    + eapply Nat.eqb_neq in E.
-      unfold well_behaved_locations in Hwbl.
-      intros Hacc. specialize (Hwbl Hacc).
-Qed.
 
-Lemma something: forall m' t t' ad' tc,
-  (forall ad, ~ access nil t ad) ->
-  nil / t ==[tc]==>* m' / t' ->
+
+
+  - remember (EF_Alloc (length m) v) as eff.
+    induction H; try (inversion Heqeff; subst);
+    subst; eauto using access, load_access.
+    + inversion Hacc; subst.
+      * rewrite length_add. eapply Nat.lt_lt_succ_r. eapply Hwbl.
+        shelve.
+      * eauto using length_lt_add.
+    + inversion Hacc; subst.
+      * shelve.
+      *
+      *
+
+        
+      
+      eapply access_new.
+
+
+    induction Hacc.
+    + shelve.
+    + eapply aux1 in H. subst. eapply length_lt_add.
+    + eapply IHHacc; eauto.
+      * 
+      *
+      *
+
+  - destruct (lt_eq_lt_dec ad (length m)) as [[Hlt | Heq] | Hgt].
+    + rewrite length_add. eauto using Nat.lt_lt_succ_r.
+    + subst. eauto using length_lt_add.
+    + exfalso.
+      assert (TODO: forall n m, n < m -> ~ m < n). shelve.
+      specialize (TODO _ _ Hgt). eapply TODO. eapply Hwbl.
+      clear Hwbl; clear TODO; clear Hmstep.
+      remember (EF_Alloc (length m) v) as eff.
+      generalize dependent Hacc.
+      induction H; eauto using access, load_access.
+      * inversion Heqeff; subst. intros Hacc; inversion Hacc; subst.
+        ** eauto using access. shelve.
+        ** contradict Hgt. eauto using Nat.lt_irrefl.
+      * inversion Heqeff.
+      * subst.
+Admitted.
+
+Lemma something: forall m m' t t' ad' tc,
+  (forall ad, ~ access m t ad) ->
+  m / t ==[tc]==>* m' / t' ->
   well_behaved_locations m' t' ad'.
 Proof.
   intros * Hnacc Hmultistep. induction Hmultistep.
