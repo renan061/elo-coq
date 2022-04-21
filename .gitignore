@@ -3,5 +3,6 @@
 *.vok
 *.vos
 *.glob
+.lia.cache
 
 .DS_Store
