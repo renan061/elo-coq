@@ -11,9 +11,8 @@ Reserved Notation "m / t '==[' tc ']==>*' m' / t'"
                 m' at next level, t' at next level).
 
 Inductive access (m : mem) : tm -> addr -> Prop :=
-  | access_mem : forall t ad ad',
-    get_tm m ad' = t ->
-    access m t ad ->
+  | access_mem : forall ad ad',
+    access m (get_tm m ad') ad ->
     access m (TM_Loc ad') ad
 
   | access_loc : forall ad,
@@ -58,6 +57,25 @@ Lemma asg_access : forall m l r ad,
 Proof.
   intros * Hacc. remember (TM_Asg l r) as t.
   induction Hacc; inversion Heqt; subst; eauto.
+Qed.
+
+Local Lemma access_get_trans : forall m t ad ad',
+  access m t ad' ->
+  access m (get_tm m ad') ad ->
+  access m t ad.
+Proof.
+  intros * Hacc ?. induction Hacc; eauto using access.
+Qed.
+
+Lemma strong_access : forall m t ad ad',
+  access m t ad' ->
+  access m (get_tm m ad') ad ->
+  access m t ad.
+Proof.
+  intros * Hacc ?. induction t;
+  eauto using access, new_access, load_access;
+  try solve [eapply asg_access in Hacc as [? | ?]; eauto using access];
+  inversion Hacc; subst; eauto using access, access_get_trans.
 Qed.
 
 Definition trace := list effect.
@@ -209,7 +227,7 @@ Proof.
   eapply Nat.lt_irrefl; eauto.
 Qed.
 
-(* TODO *)
+(* PART 3 *)
 
 Module wba.
 
@@ -340,7 +358,7 @@ Local Lemma load_preservation : forall m t t' ad,
 Proof.
   intros * Hwba Hstep.
   remember (EF_Load ad (get_tm m ad)) as eff.
-  induction Hstep; subst; try (inversion Heqeff);
+  induction Hstep; subst; try (inversion Heqeff; subst);
   eauto using wba_new, wba_load, wba_load', wba_asg', wba_asg1, wba_asg2;
   eapply wba_load in Hwba; intros ? ?; eauto using access.
 Qed.
@@ -378,7 +396,7 @@ End wba.
 
 
 
-(* BAGUNÇA *)
+(* BAGUNÇA)
 
 Lemma alloc_grants_access_multistep : forall m m' tc t t' ad v,
   m / t ==[EF_Alloc ad v :: tc]==>* m' / t' ->
@@ -388,8 +406,6 @@ Proof.
   inversion Hmulti; subst;
   eauto using alloc_grants_access_memory_step.
 Qed.
-
-(*
 
 Inductive something :
   | Something_Load
