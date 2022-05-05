@@ -35,6 +35,7 @@ Inductive tm : Set :=
   | TM_New  : tm -> tm
   | TM_Load : tm -> tm
   | TM_Asg  : tm -> tm -> tm
+  | TM_Seq  : tm -> tm -> tm 
   .
 
 (* Values *)
@@ -46,6 +47,7 @@ Inductive value : tm -> Prop :=
   .
 
 (* Effects *)
+
 Definition addr := nat.
 
 Inductive effect : Set :=
@@ -59,7 +61,6 @@ Inductive effect : Set :=
 
 Definition ctx := map typ.
 Definition mem := list tm.
-(* Definition threads := list tm. *)
 Definition memtyp := list typ.
 Definition get_typ := get TY_Void.
 Definition get_tm  := get TM_Nil.
@@ -98,6 +99,15 @@ Inductive step : tm -> effect -> tm -> Prop :=
   | ST_Asg : forall t ad,
     value t ->
     TM_Asg (TM_Loc ad) t --[EF_Store ad t]--> TM_Nil
+
+  (* Seq *)
+  | ST_Seq1 : forall t1 t1' t2 eff,
+    t1 --[eff]--> t1' ->
+    TM_Seq t1 t2 --[eff]--> TM_Seq t1' t2
+
+  | ST_Seq : forall t v,
+    value v ->
+    TM_Seq v t --[EF_None]--> t
 
   where "t '--[' eff ']-->' t'" := (step t eff t').
 
@@ -144,6 +154,11 @@ Inductive well_typed_term (mt : memtyp) : ctx -> tm -> typ -> Prop :=
     mt / Gamma |-- l is (TY_Ref T) ->
     mt / Gamma |-- r is T ->
     mt / Gamma |-- (TM_Asg l r) is TY_Void
+
+  | T_Seq : forall Gamma t1 t2 T1 T2,
+    mt / Gamma |-- t1 is T1 ->
+    mt / Gamma |-- t2 is T2 ->
+    mt / Gamma |-- (TM_Seq t1 t2) is T2
 
   where "mt / Gamma '|--' t 'is' T" := (well_typed_term mt Gamma t T).
 

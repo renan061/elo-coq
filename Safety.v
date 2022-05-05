@@ -33,6 +33,14 @@ Inductive access (m : mem) : tm -> addr -> Prop :=
   | access_asg2 : forall l r ad,
     access m r ad ->
     access m (TM_Asg l r) ad
+
+  | access_seq1 : forall t1 t2 ad,
+    access m t1 ad ->
+    access m (TM_Seq t1 t2) ad
+
+  | access_seq2 : forall t1 t2 ad,
+    access m t2 ad ->
+    access m (TM_Seq t1 t2) ad
   .
 
 Lemma new_access : forall m t ad,
@@ -56,6 +64,14 @@ Lemma asg_access : forall m l r ad,
   access m l ad \/ access m r ad.
 Proof.
   intros * Hacc. remember (TM_Asg l r) as t.
+  induction Hacc; inversion Heqt; subst; eauto.
+Qed.
+
+Lemma seq_access : forall m t1 t2 ad,
+  access m (TM_Seq t1 t2) ad ->
+  access m t1 ad \/ access m t2 ad.
+Proof.
+  intros * Hacc. remember (TM_Seq t1 t2) as t.
   induction Hacc; inversion Heqt; subst; eauto.
 Qed.
 
@@ -274,6 +290,28 @@ Proof.
   intros * ? ? ? Hacc. eapply asg_access in Hacc as [? | ?]; eauto.
 Qed.
 
+Local Lemma wba_seq1 : forall m t1 t2,
+  well_behaved_access m (TM_Seq t1 t2) ->
+  well_behaved_access m t1.
+Proof.
+  intros * ? ?. eauto using access.
+Qed.
+
+Local Lemma wba_seq2 : forall m t1 t2,
+  well_behaved_access m (TM_Seq t1 t2) ->
+  well_behaved_access m t2.
+Proof.
+  intros * ? ?. eauto using access.
+Qed.
+
+Local Lemma wba_seq' : forall m t1 t2,
+  well_behaved_access m t1 ->
+  well_behaved_access m t2 ->
+  well_behaved_access m (TM_Seq t1 t2).
+Proof.
+  intros * ? ? ? Hacc. eapply seq_access in Hacc as [? | ?]; eauto.
+Qed.
+
 Local Lemma wba_access_nil : forall m ad, 
   ~ access m TM_Nil ad.
 Proof.
@@ -299,7 +337,8 @@ Proof.
   intros * ? Hstep ? ?.
   remember (EF_Store ad v) as eff.
   induction Hstep; try inversion Heqeff; subst;
-  eauto using access, wba_new, wba_load, wba_asg1, wba_asg2.
+  eauto using access, wba_new, wba_load, wba_asg1, wba_asg2, wba_seq1,
+    wba_seq2.
 Qed.
 
 Local Lemma wba_mem_add: forall m t v,
@@ -309,7 +348,7 @@ Proof.
   intros * Hwba ad Hacc.
   remember (add m v) as m'.
   induction Hacc; subst;
-  eauto using wba_new, wba_load, wba_asg1, wba_asg2.
+  eauto using wba_new, wba_load, wba_asg1, wba_asg2, wba_seq1, wba_seq2.
   - match goal with IH : _ -> ?x |- ?x => eapply IH end.
     intros ad'' Hacc''.
     destruct (lt_eq_lt_dec ad' (length m)) as [[? | ?] | ?]; subst.
@@ -329,7 +368,8 @@ Proof.
   rewrite <- set_preserves_length.
   remember (set m ad v) as m'.
   induction Hacc'; subst;
-  eauto using access, wba_new, wba_load, wba_asg1, wba_asg2.
+  eauto using access, wba_new, wba_load, wba_asg1, wba_asg2, wba_seq1,
+    wba_seq2.
   match goal with IH : _ -> ?x |- ?x => eapply IH; clear IH end.
   destruct (Nat.eqb ad ad') eqn:E.
   - eapply Nat.eqb_eq in E; subst.
@@ -341,25 +381,27 @@ Qed.
   
 Local Lemma alloc_preservation : forall m t t' v,
   well_behaved_access m t ->
-  t --[ EF_Alloc (length m) v ]--> t' ->
+  t --[EF_Alloc (length m) v]--> t' ->
   well_behaved_access (add m v) t'.
 Proof.
   intros * Hwba Hstep.
   remember (EF_Alloc (length m) v) as eff.
   induction Hstep; inversion Heqeff; subst;
   eauto using wba_new, wba_load, wba_load', wba_mem_add, wba_added_value;
-  eapply wba_asg'; eauto using wba_asg1, wba_asg2, wba_mem_add.
+  try (eapply wba_asg' || eapply wba_seq');
+  eauto using wba_asg1, wba_asg2, wba_seq1, wba_seq2, wba_mem_add.
 Qed.
 
 Local Lemma load_preservation : forall m t t' ad,
   well_behaved_access m t ->
-  t --[ EF_Load ad (get_tm m ad) ]--> t' ->
+  t --[EF_Load ad (get_tm m ad)]--> t' ->
   well_behaved_access m t'.
 Proof.
   intros * Hwba Hstep.
   remember (EF_Load ad (get_tm m ad)) as eff.
   induction Hstep; subst; try (inversion Heqeff; subst);
-  eauto using wba_new, wba_load, wba_load', wba_asg', wba_asg1, wba_asg2;
+  eauto using wba_new, wba_load, wba_load', wba_asg1, wba_asg2, wba_asg',
+    wba_seq1, wba_seq2, wba_seq';
   eapply wba_load in Hwba; intros ? ?; eauto using access.
 Qed.
 
@@ -373,11 +415,12 @@ Proof.
   remember (EF_Store ad v) as eff.
   induction Hstep; subst; try (inversion Heqeff; subst);
   eauto using wba_new, wba_load, wba_load';
-  try solve [eapply wba_asg'; eauto using wba_asg1, wba_asg2, wba_mem_set].
+  try (eapply wba_asg' || eapply wba_seq');
+  eauto using wba_asg1, wba_asg2, wba_seq1, wba_seq2, wba_mem_set.
   intros ? F. contradict F. eauto using wba_access_nil.
 Qed.
 
-Lemma well_behaved_access_preservation : forall m m' t t' eff,
+Lemma well_behaved_access_mstep_preservation : forall m m' t t' eff,
   well_behaved_access m t ->
   m / t ==[eff]==> m' / t' ->
   well_behaved_access m' t'.
