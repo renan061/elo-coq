@@ -51,12 +51,33 @@ Proof.
   induction Hacc; inversion Heqt'; subst; eauto using access.
 Qed.
 
+Lemma new_access_inverse: forall m t ad,
+  ~ access m (TM_New t) ad ->
+  ~ access m t ad.
+Proof.
+  intros * ? Hacc. inversion Hacc; subst; eauto using access.
+Qed.
+
 Lemma load_access : forall m t ad,
   access m (TM_Load t) ad ->
   access m t ad.
 Proof.
   intros * Hacc. remember (TM_Load t) as t'.
   induction Hacc; inversion Heqt'; subst; eauto using access.
+Qed.
+
+Lemma load_access_inverse : forall m t ad,
+  ~ access m (TM_Load t) ad ->
+  ~ access m t ad.
+Proof.
+  intros * ? Hacc. inversion Hacc; subst; eauto using access.
+Qed.
+
+Lemma access_load_inverse : forall m t ad,
+  ~ access m t ad ->
+  ~ access m (TM_Load t) ad.
+Proof.
+  intros * ? Hacc. inversion Hacc; subst; eauto.
 Qed.
 
 Lemma asg_access : forall m l r ad,
@@ -67,6 +88,20 @@ Proof.
   induction Hacc; inversion Heqt; subst; eauto.
 Qed.
 
+Lemma asg_access_inverse : forall m l r ad,
+  ~ access m (TM_Asg l r) ad ->
+  ~ access m l ad /\ ~ access m r ad.
+Proof.
+  intros * ?. split; intros Hacc; inversion Hacc; subst; eauto using access.
+Qed.
+
+Lemma access_asg_inverse : forall m l r ad,
+  ~ access m l ad /\ ~ access m r ad ->
+  ~ access m (TM_Asg l r) ad.
+Proof.
+  intros * [? ?] Hacc. inversion Hacc; subst; eauto.
+Qed.
+
 Lemma seq_access : forall m t1 t2 ad,
   access m (TM_Seq t1 t2) ad ->
   access m t1 ad \/ access m t2 ad.
@@ -75,23 +110,27 @@ Proof.
   induction Hacc; inversion Heqt; subst; eauto.
 Qed.
 
+Lemma seq_access_inverse : forall m t1 t2 ad,
+  ~ access m (TM_Seq t1 t2) ad ->
+  ~ access m t1 ad /\ ~ access m t2 ad.
+Proof.
+  intros * ?. split; intros Hacc; inversion Hacc; subst; eauto using access.
+Qed.
+
+Lemma access_seq_inverse : forall m t1 t2 ad,
+  ~ access m t1 ad /\ ~ access m t2 ad ->
+  ~ access m (TM_Seq t1 t2) ad.
+Proof.
+  intros * [? ?] Hacc. inversion Hacc; subst; eauto.
+Qed.
+
+(* strong mem access *)
 Local Lemma access_get_trans : forall m t ad ad',
   access m t ad' ->
   access m (get_tm m ad') ad ->
   access m t ad.
 Proof.
   intros * Hacc ?. induction Hacc; eauto using access.
-Qed.
-
-Lemma strong_access : forall m t ad ad',
-  access m t ad' ->
-  access m (get_tm m ad') ad ->
-  access m t ad.
-Proof.
-  intros * Hacc ?. induction t;
-  eauto using access, new_access, load_access;
-  try solve [eapply asg_access in Hacc as [? | ?]; eauto using access];
-  inversion Hacc; subst; eauto using access, access_get_trans.
 Qed.
 
 Definition trace := list effect.
@@ -247,14 +286,14 @@ Qed.
 
 Module wba.
 
-Local Lemma wba_new : forall m t,
+Lemma wba_new : forall m t,
   well_behaved_access m (TM_New t) ->
   well_behaved_access m t.
 Proof.
   intros * ? ?; eauto using access.
 Qed.
 
-Local Lemma wba_load : forall m t,
+Lemma wba_load : forall m t,
   well_behaved_access m (TM_Load t) ->
   well_behaved_access m t.
 Proof.
@@ -268,14 +307,14 @@ Proof.
   intros * ? ? ?. eauto using load_access.
 Qed.
 
-Local Lemma wba_asg1 : forall m l r,
+Lemma wba_asg1 : forall m l r,
   well_behaved_access m (TM_Asg l r) ->
   well_behaved_access m l.
 Proof.
   intros * ? ?. eauto using access.
 Qed.
 
-Local Lemma wba_asg2 : forall m l r,
+Lemma wba_asg2 : forall m l r,
   well_behaved_access m (TM_Asg l r) ->
   well_behaved_access m r.
 Proof.
@@ -290,7 +329,7 @@ Proof.
   intros * ? ? ? Hacc. eapply asg_access in Hacc as [? | ?]; eauto.
 Qed.
 
-Local Lemma wba_seq1 : forall m t1 t2,
+Lemma wba_seq1 : forall m t1 t2,
   well_behaved_access m (TM_Seq t1 t2) ->
   well_behaved_access m t1.
 Proof.
@@ -420,7 +459,7 @@ Proof.
   intros ? F. contradict F. eauto using wba_access_nil.
 Qed.
 
-Lemma well_behaved_access_mstep_preservation : forall m m' t t' eff,
+Lemma wba_mstep_preservation : forall m m' t t' eff,
   well_behaved_access m t ->
   m / t ==[eff]==> m' / t' ->
   well_behaved_access m' t'.
@@ -431,6 +470,63 @@ Qed.
 
 End wba.
 
+Import wba.
+
+(* PART 4 *)
+
+Lemma not_access_if_load : forall m m' t t' ad ad' v,
+  well_behaved_access m t ->
+  ~ access m t ad ->
+  m / t ==[EF_Load ad' v]==> m' / t' ->
+  ad <> ad' ->
+  ~ access m' t' ad.
+Proof.
+  intros * Hwba1 Hnacc Hmstep Hneq.
+  assert (Hwba2 : well_behaved_access m' t');
+  eauto using wba_mstep_preservation.
+  inversion Hmstep; subst; clear Hmstep.
+  remember (EF_Load ad' (get_tm m' ad')) as eff.
+  induction H5; inversion Heqeff; clear Heqeff; subst;
+  eauto using new_access_inverse, wba_new;
+  eauto using access, load_access_inverse.
+  - eapply access_load_inverse; eauto using load_access_inverse, wba_load.
+  - eapply access_asg_inverse.
+    eapply asg_access_inverse in Hnacc as [? ?].
+    eauto using wba_asg1.
+  - eapply access_asg_inverse.
+    eapply asg_access_inverse in Hnacc as [? ?].
+    eauto using wba_asg2.
+  - eapply access_seq_inverse.
+    eapply seq_access_inverse in Hnacc as [? ?].
+    eauto using wba_seq1.
+Qed.
+
+Lemma access_needs_alloc_1 : forall m m' t t' eff ad,
+  well_behaved_access m t ->
+  ~ access m t ad ->
+  m / t ==[eff]==> m' / t' ->
+  access m' t' ad ->
+  exists v, eff = (EF_Alloc ad v).
+Proof.
+  intros * Hwba Hnacc Hmstep Hacc. inversion Hmstep; subst.
+  - shelve.
+  - destruct (Nat.eqb ad ad0) eqn:E.
+    + eapply Nat.eqb_eq in E; subst.
+      eapply load_if_access in Hmstep. contradiction.
+    + eapply Nat.eqb_neq in E.
+      eapply not_access_if_load in Hmstep; eauto. contradiction.
+  - shelve.
+Qed.
+
+(* 
+quando tiver concorrencia, usar esse para provar o principal
+se não tinha acesso e agora tem, então teve um alloc no meio do caminho
+*)
+Lemma 
+  ~ access m t ad
+  m / t ==[tc]==>* m' / t'
+  access m' t' ad
+  exists v, tc contains (Alloc ad v)
 
 
 
