@@ -1,7 +1,7 @@
 From Coq Require Import Init.Nat.
 From Coq Require Import List.
 
-From Elo Require Import Mem.
+From Elo Require Import Array.
 From Elo Require Import Map.
 
 Definition name := Strings.String.string.
@@ -59,11 +59,6 @@ Inductive effect : Set :=
   | EF_Spawn (t : tm)
   .
 
-(* Auxiliary Aliases *)
-
-Definition ctx := map typ.
-Definition get := get TM_Nil.
-
 (* Operational Semantics *)
 
 Inductive step : tm -> effect -> tm -> Prop :=
@@ -115,15 +110,17 @@ Inductive step : tm -> effect -> tm -> Prop :=
 
 (* Memory Step *)
 
-Inductive mstep : mem tm -> tm -> effect -> mem tm -> tm -> Prop :=
+Definition mem := list tm.
+
+Inductive mstep : mem -> tm -> effect -> mem -> tm -> Prop :=
   | MST_Alloc : forall m t t' ad v,
-    ad = S (length m) ->
+    ad = length m ->
     t --[EF_Alloc ad v]--> t' ->
     m / t ==[EF_Alloc ad v]==> (add m v) / t'
 
   | MST_Load : forall m t t' ad,
-    t --[EF_Load ad (get m ad)]--> t' ->
-    m / t ==[EF_Load ad (get m ad) ]==> m / t'
+    t --[EF_Load ad (get TM_Nil m ad)]--> t' ->
+    m / t ==[EF_Load ad (get TM_Nil m ad) ]==> m / t'
 
   | MST_Store : forall m t t' ad v,
     ad < length m ->
@@ -134,7 +131,7 @@ Inductive mstep : mem tm -> tm -> effect -> mem tm -> tm -> Prop :=
 
 (* Typing *)
 
-Inductive well_typed_term (mt : mem typ) : ctx -> tm -> typ -> Prop :=
+Inductive well_typed_term (mt : list typ) : map typ -> tm -> typ -> Prop :=
   | T_Nil : forall Gamma,
     mt / Gamma |-- TM_Nil is TY_Void
 
@@ -142,7 +139,7 @@ Inductive well_typed_term (mt : mem typ) : ctx -> tm -> typ -> Prop :=
     mt / Gamma |-- (TM_Num n) is TY_Num
 
   | T_Loc : forall Gamma ad,
-    mt / Gamma |-- (TM_Loc ad) is TY_Ref (Mem.get TY_Void mt ad ) (* TODO *)
+    mt / Gamma |-- (TM_Loc ad) is TY_Ref (get TY_Void mt ad ) (* TODO *)
 
   | T_New : forall Gamma t T,
     mt / Gamma |-- t is T ->

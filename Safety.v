@@ -2,18 +2,17 @@ From Coq Require Import Arith.Arith.
 From Coq Require Import Lists.List.
 From Coq Require Import Logic.ClassicalFacts.
 From Coq Require Import Lia.
-From Coq Require Import Logic.FunctionalExtensionality.
 
-From Elo Require Import Mem.
+From Elo Require Import Array.
 From Elo Require Import Core0.
 
 Reserved Notation "m / t '==[' tc ']==>*' m' / t'"
   (at level 40, t at next level, tc at next level,
                 m' at next level, t' at next level).
 
-Inductive access (m : mem tm) : tm -> addr -> Prop :=
+Inductive access (m : mem) : tm -> addr -> Prop :=
   | access_mem : forall ad ad',
-    access m (get m ad') ad ->
+    access m (get TM_Nil m ad') ad ->
     access m (TM_Loc ad') ad
 
   | access_loc : forall ad,
@@ -140,7 +139,7 @@ Qed.
 (* strong mem access *)
 Local Lemma access_get_trans : forall m t ad ad',
   access m t ad' ->
-  access m (get m ad') ad ->
+  access m (get TM_Nil m ad') ad ->
   access m t ad.
 Proof.
   intros * Hacc ?. induction Hacc; eauto using access.
@@ -149,7 +148,7 @@ Qed.
 Definition trace := list effect.
 
 (* reflexive transitive closure *)
-Inductive multistep : mem tm -> tm -> trace -> mem tm -> tm -> Prop :=
+Inductive multistep : mem -> tm -> trace -> mem -> tm -> Prop :=
   | multistep_refl: forall m t,
       m / t ==[nil]==>* m / t
 
@@ -171,8 +170,8 @@ Proof.
     length m <= length m').
   {
     intros * Hmstep. inversion Hmstep; subst; try lia.
-    - rewrite add_increments_memory_length. lia.
-    - eauto using Nat.eq_le_incl, set_preserves_memory_length.
+    - rewrite add_increments_length . lia.
+    - eauto using Nat.eq_le_incl, set_preserves_length.
   }
   intros * Hmultistep. induction Hmultistep; eauto using Nat.le_trans.
 Qed.
@@ -182,7 +181,7 @@ Lemma alloc_increments_memory_length : forall m m' t t' ad v,
   length m' = S (length m).
 Proof.
   intros * Hmstep. inversion Hmstep; subst.
-  eauto using add_increments_memory_length.
+  eauto using add_increments_length.
 Qed.
 
 Lemma destruct_multistep : forall tc eff m0 mF t0 tF,
@@ -228,10 +227,9 @@ Proof.
       inversion H1; inversion H2; subst
     end.
     match goal with
-    | H1 : S (length ?x) = S (length _), H2 : length _ <= length ?x |- _ =>
-        idtac H1; idtac H2; inversion H1 as [H3];
-        rewrite H3 in H2;
-        rewrite add_increments_memory_length in H2
+    | H1 : length ?x = length _, H2 : length _ <= length ?x |- _ =>
+      rewrite H1 in H2;
+      rewrite add_increments_length in H2
     end.
     lia.
 Qed.
@@ -243,10 +241,10 @@ Lemma load_if_access: forall m m' t t' ad v,
   access m t ad.
 Proof.
   assert (forall m t t' ad,
-    t --[ EF_Load ad (get m ad) ]--> t' ->
+    t --[ EF_Load ad (get TM_Nil m ad) ]--> t' ->
     access m t ad). {
       intros * Hstep.
-      remember (EF_Load ad (get m ad)) as eff.
+      remember (EF_Load ad (get TM_Nil m ad)) as eff.
       induction Hstep; eauto using access;
       inversion Heqeff; subst. eauto using access.
   }
@@ -361,7 +359,7 @@ Local Lemma wba_seq' : forall m t1 t2,
 Proof.
   intros * ? ? ? Hacc. eapply seq_access in Hacc as [? | ?]; eauto.
 Qed.
-(*
+
 Local Lemma wba_added_value : forall m v,
   well_behaved_access (add m v) v ->
   well_behaved_access (add m v) (TM_Loc (length m)).
@@ -371,9 +369,9 @@ Proof.
   remember (TM_Loc (length m)) as t'.
   induction Hacc; inversion Heqt'; subst.
   - rewrite (get_add_eq TM_Nil) in *; eauto using access.
-  - rewrite add_increments_memory_length. lia.
+  - rewrite add_increments_length. lia.
 Qed.
-*)
+
 Local Lemma wba_stored_value : forall m t t' ad v,
   well_behaved_access m t ->
   t --[EF_Store ad v]--> t' ->
@@ -401,7 +399,7 @@ Proof.
     + specialize (Hwba (length m) (access_loc m (length m))). lia.
     + rewrite (get_add_gt TM_Nil) in *; eauto.
       contradict Hacc''. eauto using access_nil.
-  - rewrite length_add. eauto using access, Nat.lt_lt_succ_r.
+  - rewrite add_increments_length. eauto using access, Nat.lt_lt_succ_r.
 Qed.
 
 Local Lemma wba_mem_set: forall m t ad v,
@@ -410,7 +408,7 @@ Local Lemma wba_mem_set: forall m t ad v,
   well_behaved_access (set m ad v) t.
 Proof.
   intros * HwbaT HwbaV ad' Hacc'.
-  rewrite <- set_preserves_length.
+  rewrite set_preserves_length.
   remember (set m ad v) as m'.
   induction Hacc'; subst;
   eauto using access, wba_new, wba_load, wba_asg1, wba_asg2, wba_seq1,
@@ -418,9 +416,9 @@ Proof.
   match goal with IH : _ -> ?x |- ?x => eapply IH; clear IH end.
   destruct (Nat.eqb ad ad') eqn:E.
   - eapply Nat.eqb_eq in E; subst.
-    rewrite (get_i_set_i TM_Nil); eauto using access.
+    rewrite (get_set_eq TM_Nil); eauto using access.
   - eapply Nat.eqb_neq in E.
-    rewrite (get_i_set_j TM_Nil) in *; fold get_tm in *; eauto.
+    rewrite (get_set_neq TM_Nil) in *; eauto.
     intros ? ?. eauto using access.
 Qed.
 
@@ -439,11 +437,11 @@ Qed.
 
 Local Lemma load_preservation : forall m t t' ad,
   well_behaved_access m t ->
-  t --[EF_Load ad (get_tm m ad)]--> t' ->
+  t --[EF_Load ad (get TM_Nil m ad)]--> t' ->
   well_behaved_access m t'.
 Proof.
   intros * Hwba Hstep.
-  remember (EF_Load ad (get_tm m ad)) as eff.
+  remember (EF_Load ad (get TM_Nil m ad)) as eff.
   induction Hstep; subst; try (inversion Heqeff; subst);
   eauto using wba_new, wba_load, wba_load', wba_asg1, wba_asg2, wba_asg',
     wba_seq1, wba_seq2, wba_seq';
@@ -491,7 +489,7 @@ Proof.
     eapply load_if_access in Hmstep. contradiction.
   - eapply Nat.eqb_neq in E.
     inversion Hmstep; subst; clear Hmstep.
-    remember (EF_Load ad' (get_tm m' ad')) as eff.
+    remember (EF_Load ad' (get TM_Nil m' ad')) as eff.
     match goal with Hstep : _ --[_]--> _ |- _ => induction Hstep end;
     inversion Heqeff; subst.
     + eauto using new_access_inverse.

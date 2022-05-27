@@ -1,5 +1,6 @@
 From Coq Require Import Arith.Arith.
 From Coq Require Import Lists.List.
+From Coq Require Import Lia.
 
 Definition add {A} (l : list A) (a : A) := l ++ (a :: nil).
 
@@ -19,81 +20,71 @@ Fixpoint set {A} (l : list A) (i : nat) (a : A) : list A :=
 (* Proofs *)
 
 Lemma set_preserves_length : forall {A} (l : list A) i a,
-  length l = length (set l i a).
+  length (set l i a) = length l.
 Proof.
-  intros ?. induction l.
-  - reflexivity.
-  - destruct i; simpl; auto using Lt.lt_S_n.
+  intros ?. induction l; trivial.
+  destruct i; simpl; eauto using Lt.lt_S_n.
 Qed.
 
-Lemma add_preserves_length : forall {A1 A2} (l1 : list A1) (l2 : list A2) a1 a2,
-  length l1 = length l2 ->
-  length (add l1 a1) = length (add l2 a2).
+Lemma add_increments_length : forall {A} (l : list A) a,
+  length (add l a) = S (length l).
 Proof.
-  intros * H. unfold add. rewrite 2 last_length. auto.
+  intros. unfold add. rewrite last_length. reflexivity.
+Qed.
+
+Lemma get_set_eq : forall {A} default (l : list A) i a,
+  i < length l ->
+  get default (set l i a) i = a.
+Proof.
+  intros ? ? l.
+  induction l as [| ? ? IH]; intros * H; try solve [inversion H].
+  destruct i; unfold get; trivial.
+  eapply IH. eauto using Lt.lt_S_n.
+Qed.
+
+Lemma get_set_neq : forall {A} default (l : list A) i j a,
+  i <> j ->
+  get default (set l j a) i = get default l i.
+Proof.
+  intros ? ? l.
+  induction l as [| x xs IH]; intros * H; trivial.
+  destruct i, j; trivial; try contradiction.
+  simpl. eauto using PeanoNat.Nat.succ_inj_wd_neg.
+Qed.
+
+Lemma get_add_eq : forall {A} default (l : list A) a,
+  get default (add l a) (length l) = a.
+Proof.
+  intros. induction l; eauto.
 Qed.
 
 Lemma get_add_lt : forall {A} default (l : list A) a i,
   i < length l ->
   get default (add l a) i = get default l i.
 Proof.
-  intros *. generalize dependent i.
-  induction l. intros * Hlen.
-  - destruct i eqn:E.
-    + inversion Hlen.
-    + destruct n; reflexivity.
-  - intros i. simpl. destruct i; intros H.
-    + reflexivity.
-    + apply PeanoNat.Nat.succ_lt_mono in H. auto.
-Qed.
-
-Lemma get_add_last : forall {A} default (l : list A) a,
-  get default (add l a) (length l) = a.
-Proof.
-  intros. induction l; auto.
+  intros ? ? ? ?. induction l; intros ?.
+  - intros H. destruct i; inversion H.
+  - simpl. intros H. destruct i; trivial.
+    eapply PeanoNat.Nat.succ_lt_mono in H. eauto.
 Qed.
 
 Lemma get_add_gt : forall {A} default (l : list A) a i,
   length l < i ->
   get default (add l a) i = default.
 Proof.
-  intros *. generalize dependent i.
-  induction l. intros * Hlen.
-  - destruct i eqn:E.
-    + inversion Hlen.
-    + destruct n; reflexivity.
-  - intros i. simpl. destruct i; intros H.
-    + inversion H.
-    + apply PeanoNat.Nat.succ_lt_mono in H. auto.
+  intros ? ? ? ?. induction l; intros ? H;
+  destruct i; try solve [inversion H].
+  - destruct i; trivial.
+  - simpl. eapply PeanoNat.Nat.succ_lt_mono in H. eauto.
 Qed.
 
-Lemma get_i_set_i : forall {A} default (l : list A) i a,
-  i < length l ->
-  get default (set l i a) i = a.
-Proof.
-  intros ? ? l.
-  induction l as [| ? ? IH]; intros * H.
-  - inversion H.
-  - destruct i; unfold get.
-    + reflexivity.
-    + apply IH. auto using Lt.lt_S_n.
-Qed.
+(*
 
-Lemma get_i_set_j : forall {A} d (l : list A) i j a,
-  i <> j ->
-  get d (set l j a) i = get d l i.
+Lemma add_preserves_length : forall {A1 A2} (l1 : list A1) (l2 : list A2) a1 a2,
+  length l1 = length l2 ->
+  length (add l1 a1) = length (add l2 a2).
 Proof.
-  intros ? ? l.
-  induction l as [| x xs IH]; intros * Hdiff.
-  - reflexivity.
-  - destruct i, j; try (contradiction || reflexivity).
-    simpl. auto using PeanoNat.Nat.succ_inj_wd_neg.
-Qed.
-
-Lemma length_add: forall {A} (l : list A) a,
-  length (add l a) = S (length l).
-Proof.
-  intros. unfold add. rewrite last_length. reflexivity.
+  intros * H. unfold add. rewrite 2 last_length. auto.
 Qed.
 
 Lemma length_lt_add : forall {A} (l : list A) a,
@@ -121,3 +112,4 @@ Proof.
   eauto.
 Qed.
 
+*)

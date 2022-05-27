@@ -2,46 +2,32 @@ From Coq Require Import Arith.Arith.
 From Coq Require Import Lia.
 From Coq Require Import Lists.List.
 
-Definition mem (A : Type) := list (nat * A).
+Inductive mem {A : Type} : nat -> list (nat * A) -> Prop :=
+  | empty : mem 0 nil
 
-Fixpoint get {A} default (m : mem A) i :=
+  | add : forall n m a,
+    mem n m ->
+    mem (S n) ((n, a) :: m) 
+
+  | set : forall n m i a,
+    mem n m ->
+    i < n ->
+    mem n ((i, a) :: m) 
+  .
+
+Definition length {A} n (l : list (nat * A)) (m : mem n l) :=
+  n.
+
+Definition get {A} n (l : list (nat * A)) (m : mem n l) :=
   match m with
-  | nil => default
-  | (i', a') :: m' => if Nat.eqb i i' then a' else get default m' i
+  | empty => None
+  | add n' m' a H => None
+  | set n' m' i a H1 H2 => None
   end.
-
-Definition set {A} (m : mem A) i a :=
-  (i, a) :: m.
-
-Inductive length {A : Type} : nat -> mem A -> Prop :=
-  | length_nil : length 0 nil 
-  | length_cons : forall m l i a,
-    length l m ->
-    length (if l <? i then i else l) ((i, a) :: m).
-
-(*
-Local Fixpoint max (n m : nat) :=
-  match n with
-  | 0 => m
-  | S n' => match m with
-            | 0 => n
-            | S m' => S (max n' m')
-            end
-  end.
-
-Fixpoint length {A : Type} (m : mem A) :=
-  match m with
-  | nil => 0
-  | (i, _) :: m' => S (max i (length m'))
-  end.
-*)
-
-Definition add {A} (m : mem A) i a :=
-  (i, a) :: m.
 
 (* Proofs *)
 
-Lemma get_set_eq : forall {A} default (m : mem A) i a,
+Lemma get_set_eq : forall {A} n (l : list (nat * A)) (m : mem n l) i a,
   get default ((i, a) :: m) i = a.
 Proof.
   intros. simpl. rewrite PeanoNat.Nat.eqb_refl. reflexivity.
