@@ -35,7 +35,7 @@ Inductive tm : Set :=
   | TM_New   : tm  -> tm
   | TM_Load  : tm  -> tm
   | TM_Asg   : tm  -> tm -> tm
-  | TM_Seq   : tm  -> tm -> tm 
+  | TM_Seq   : tm  -> tm -> tm
   | TM_Spawn : tm  -> tm
   .
 
@@ -62,7 +62,7 @@ Inductive effect : Set :=
 (* Auxiliary Aliases *)
 
 Definition ctx := map typ.
-Definition get m i := @get tm m i TM_Nil.
+Definition get := get TM_Nil.
 
 (* Operational Semantics *)
 
@@ -116,9 +116,10 @@ Inductive step : tm -> effect -> tm -> Prop :=
 (* Memory Step *)
 
 Inductive mstep : mem tm -> tm -> effect -> mem tm -> tm -> Prop :=
-  | MST_Alloc : forall m t t' v,
-    t --[EF_Alloc (length m) v]--> t' ->
-    m / t ==[EF_Alloc (length m) v]==> ((length m, v) :: m) / t'
+  | MST_Alloc : forall m t t' ad v,
+    ad = S (length m) ->
+    t --[EF_Alloc ad v]--> t' ->
+    m / t ==[EF_Alloc ad v]==> (add m v) / t'
 
   | MST_Load : forall m t t' ad,
     t --[EF_Load ad (get m ad)]--> t' ->
@@ -141,7 +142,7 @@ Inductive well_typed_term (mt : mem typ) : ctx -> tm -> typ -> Prop :=
     mt / Gamma |-- (TM_Num n) is TY_Num
 
   | T_Loc : forall Gamma ad,
-    mt / Gamma |-- (TM_Loc ad) is TY_Ref (Mem.get mt ad TY_Void) (* TODO *)
+    mt / Gamma |-- (TM_Loc ad) is TY_Ref (Mem.get TY_Void mt ad ) (* TODO *)
 
   | T_New : forall Gamma t T,
     mt / Gamma |-- t is T ->
