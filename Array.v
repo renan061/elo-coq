@@ -17,6 +17,31 @@ Fixpoint set {A} (l : list A) (i : nat) (a : A) : list A :=
     end
   end.
 
+(* Auxiliary Lemmas *)
+
+Local Lemma set_invalid : forall {A} (l : list A) i a,
+  length l <= i ->
+  set l i a = l.
+Proof.
+  intros *. generalize dependent i.
+  induction l as [| ? ? IH]; intros * H; trivial.
+  simpl. destruct i; try solve [inversion H].
+  simpl in H. eapply le_S_n in H.
+  rewrite IH; eauto.
+Qed.
+
+Local Lemma get_default : forall {A} default (l : list A) i,
+  length l <= i ->
+  get default l i = default.
+Proof.
+  intros *. generalize dependent i.
+  induction l as [| ? ? IH]; intros * H;
+  simpl; destruct i; trivial;
+  try solve [inversion H].
+  simpl in H. eapply le_S_n in H.
+  rewrite IH; eauto.
+Qed.
+
 (* Proofs *)
 
 Lemma set_preserves_length : forall {A} (l : list A) i a,
@@ -52,6 +77,13 @@ Proof.
   simpl. eauto using PeanoNat.Nat.succ_inj_wd_neg.
 Qed.
 
+Lemma get_set_invalid : forall {A} default (l : list A) i a,
+  length l <= i ->
+  get default (set l i a) i = default.
+Proof.
+  intros * H. rewrite set_invalid; trivial. eauto using get_default.
+Qed.
+
 Lemma get_add_eq : forall {A} default (l : list A) a,
   get default (add l a) (length l) = a.
 Proof.
@@ -79,6 +111,8 @@ Proof.
 Qed.
 
 (*
+
+TODO: Probably used by progress/preservation.
 
 Lemma add_preserves_length : forall {A1 A2} (l1 : list A1) (l2 : list A2) a1 a2,
   length l1 = length l2 ->
