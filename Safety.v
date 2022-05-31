@@ -70,6 +70,13 @@ Proof.
   intros * ? Hacc. inversion Hacc; subst; eauto using access.
 Qed.
 
+Lemma access_new_inverse : forall m t ad,
+  ~ access m t ad ->
+  ~ access m (TM_New t) ad.
+Proof.
+  intros * ? Hacc. inversion Hacc; subst; eauto.
+Qed.
+
 Lemma load_access : forall m t ad,
   access m (TM_Load t) ad ->
   access m t ad.
@@ -609,20 +616,80 @@ Proof.
 Qed.
 
 Theorem access_needs_alloc : forall m m' t t' eff ad,
-  well_behaved_access m t ->
   ~ access m t ad ->
   m / t ==[eff]==> m' / t' ->
   access m' t' ad ->
   exists v, eff = (EF_Alloc ad v).
 Proof.
-  intros * Hwba Hnacc Hmstep Hacc. inversion Hmstep; subst.
+  intros * Hnacc Hmstep Hacc. inversion Hmstep; subst.
   - eexists. erewrite <- access_granted_by_alloc_is_memory_length; eauto.
   - contradict Hacc. eauto using load_does_not_grant_access.
   - contradict Hacc. eauto using store_does_not_grant_access.
 Qed.
 
+Lemma access_dec : forall m t ad,
+  {access m t ad} + {~ access m t ad}.
+Proof.
+  intros. induction t.
+  - right. intros F. inversion F.
+  - right. intros F. inversion F.
+  - destruct (Nat.eq_dec n ad); subst; try solve [left; eauto using access].
+    (* decidable (access m (get TM_Nil m ad') ad) *)
+    admit.
+  - destruct IHt.
+    + left. eauto using access.
+    + right. eauto using access_new_inverse.
+  - destruct IHt.
+    + left. eauto using access.
+    + right. eauto using access_load_inverse.
+  - destruct IHt1, IHt2; try solve [left; eauto using access].
+    right. eauto using access_asg_inverse.
+  - destruct IHt1, IHt2; try solve [left; eauto using access].
+    right. eauto using access_seq_inverse.
+Abort.
+
+Axiom access_dec : forall m t ad,
+  {access m t ad} + {~ access m t ad}.
+
+Theorem access_needs_alloc_multistep : forall m m' t t' ad tc, 
+  ~ access m t ad ->
+  m / t ==[tc]==>* m' / t' ->
+  access m' t' ad ->
+  exists v, In (EF_Alloc ad v) tc.
+Proof.
+  intros * Hnacc Hmultistep Hacc.
+  induction Hmultistep; try solve [exfalso; eauto].
+  specialize (IHHmultistep Hnacc); clear Hnacc. destruct eff.
+  - shelve.
+  - destruct (Nat.eq_dec ad ad0); subst.
+    + 
 
 
+  destruct (access_dec m' t' ad) as [Hacc' | ?].
+  - specialize (IHHmultistep Hnacc Hacc') as [? ?].
+    eexists. right. eauto.
+  - assert (Heq : exists v, eff = EF_Alloc ad v);
+    eauto using access_needs_alloc.
+    specialize Heq as [? Heq].
+    eexists. left. eapply Heq.
+Qed.
+
+Theorem access_needs_alloc_multistep_with_axiom : forall m m' t t' ad tc, 
+  ~ access m t ad ->
+  m / t ==[tc]==>* m' / t' ->
+  access m' t' ad ->
+  exists v, In (EF_Alloc ad v) tc.
+Proof.
+  intros * Hnacc Hmultistep Hacc.
+  induction Hmultistep; try solve [exfalso; eauto].
+  destruct (access_dec m' t' ad) as [Hacc' | ?].
+  - specialize (IHHmultistep Hnacc Hacc') as [? ?].
+    eexists. right. eauto.
+  - assert (Heq : exists v, eff = EF_Alloc ad v);
+    eauto using access_needs_alloc.
+    specialize Heq as [? Heq].
+    eexists. left. eapply Heq.
+Qed.
 
 
 
@@ -642,17 +709,6 @@ Qed.
 
 (* BAGUNÇA)
 
-(*
-quando tiver concorrencia, usar esse para provar o principal
-se não tinha acesso e agora tem, então teve um alloc no meio do caminho
-*)
-
-Lemma
-  ~ access m t ad
-  m / t ==[tc]==>* m' / t'
-  access m' t' ad
-  exists v, tc contains (Alloc ad v)
-
 Lemma inverse : forall m ad ad',
   ad <> ad' ->
   access m (TM_Loc ad') ad ->
@@ -662,15 +718,6 @@ Proof.
   remember (TM_Loc ad') as t.
   induction Hacc; inversion Heqt; subst; trivial.
   lia.
-Qed.
-
-Lemma alloc_grants_access_multistep : forall m m' tc t t' ad v,
-  m / t ==[EF_Alloc ad v :: tc]==>* m' / t' ->
-  access m' t' ad.
-Proof.
-  intros * Hmulti. destruct t';
-  inversion Hmulti; subst;
-  eauto using alloc_grants_access_memory_step.
 Qed.
 
 Inductive something :

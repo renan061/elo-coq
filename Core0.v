@@ -1,5 +1,7 @@
 From Coq Require Import Init.Nat.
 From Coq Require Import List.
+From Coq Require Import Logic.Decidable.
+From Coq Require Import Arith.PeanoNat.
 
 From Elo Require Import Array.
 From Elo Require Import Map.
@@ -39,6 +41,12 @@ Inductive tm : Set :=
   | TM_Spawn : tm  -> tm
   .
 
+Theorem tm_eq_dec : forall (t1 t2 : tm),
+  {t1 = t2} + {t1 <> t2}.
+Proof.
+  intros *. decide equality; eauto using Nat.eq_dec.
+Qed.
+
 (* Values *)
 
 Inductive value : tm -> Prop :=
@@ -58,6 +66,12 @@ Inductive effect : Set :=
   | EF_Store (ad : addr) (t : tm)
   | EF_Spawn (t : tm)
   .
+
+Theorem effect_eq_dec : forall (e1 e2 : effect),
+  {e1 = e2} + {e1 <> e2}.
+Proof.
+  intros *. decide equality; eauto using Nat.eq_dec, tm_eq_dec.
+Qed.
 
 (* Operational Semantics *)
 
@@ -128,6 +142,21 @@ Inductive mstep : mem -> tm -> effect -> mem -> tm -> Prop :=
     m / t ==[EF_Store ad v]==> (set m ad v) / t'
 
   where "m / t '==[' eff ']==>' m' / t'" := (mstep m t eff m' t').
+
+Inductive cstep : mem -> list tm -> effect -> mem -> list tm -> Prop :=
+  | CST_Mem : forall m m' t' ths i eff block,
+      i < length ths ->
+      eff <> EF_Spawn block ->
+      m / (get TM_Nil ths i) ==[eff]==> m' / t' ->
+      m / ths ~~[eff]~~> m' / (set ths i t')
+
+  | CST_Spawn : forall m m' t' ths i eff block,
+      i < length ths ->
+      eff = EF_Spawn block ->
+      m / (get TM_Nil ths i) ==[eff]==> m' / t' ->
+      m / ths ~~[eff]~~> m' / (add (set ths i t') block)
+
+  where "m / ths '~~[' eff ']~~>' m' / ths'" := (cstep m ths eff m' ths').
 
 (* Typing *)
 
