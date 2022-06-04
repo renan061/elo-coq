@@ -1,6 +1,6 @@
 From Coq Require Import Arith.Arith.
 From Coq Require Import Lists.List.
-From Coq Require Import Logic.ClassicalFacts.
+From Coq Require Logic.ClassicalFacts.
 From Coq Require Import Lia.
 
 From Elo Require Import Array.
@@ -648,33 +648,15 @@ Proof.
     right. eauto using access_seq_inverse.
 Abort.
 
-Axiom access_dec : forall m t ad,
-  {access m t ad} + {~ access m t ad}.
+Axiom excluded_middle : ClassicalFacts.excluded_middle.
 
-Theorem access_needs_alloc_multistep : forall m m' t t' ad tc, 
-  ~ access m t ad ->
-  m / t ==[tc]==>* m' / t' ->
-  access m' t' ad ->
-  exists v, In (EF_Alloc ad v) tc.
+Lemma access_dec : forall m t ad,
+  (access m t ad) \/ (~ access m t ad).
 Proof.
-  intros * Hnacc Hmultistep Hacc.
-  induction Hmultistep; try solve [exfalso; eauto].
-  specialize (IHHmultistep Hnacc); clear Hnacc. destruct eff.
-  - shelve.
-  - destruct (Nat.eq_dec ad ad0); subst.
-    + 
-
-
-  destruct (access_dec m' t' ad) as [Hacc' | ?].
-  - specialize (IHHmultistep Hnacc Hacc') as [? ?].
-    eexists. right. eauto.
-  - assert (Heq : exists v, eff = EF_Alloc ad v);
-    eauto using access_needs_alloc.
-    specialize Heq as [? Heq].
-    eexists. left. eapply Heq.
+  intros. eauto using excluded_middle.
 Qed.
 
-Theorem access_needs_alloc_multistep_with_axiom : forall m m' t t' ad tc, 
+Theorem access_needs_alloc_multistep : forall m m' t t' ad tc, 
   ~ access m t ad ->
   m / t ==[tc]==>* m' / t' ->
   access m' t' ad ->
