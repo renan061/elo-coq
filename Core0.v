@@ -1,7 +1,5 @@
-From Coq Require Import Init.Nat.
 From Coq Require Import List.
 From Coq Require Import Logic.Decidable.
-From Coq Require Import Arith.PeanoNat.
 
 From Elo Require Import Array.
 From Elo Require Import Map.
@@ -15,8 +13,9 @@ Reserved Notation "t '--[' eff ']-->' t'"
   (at level 40).
 Reserved Notation "m / t '==[' eff ']==>' m' / t'"
   (at level 40, t at next level, eff at next level, m' at next level).
-Reserved Notation "m / ths '~~[' eff ']~~>' m' / ths'"
-  (at level 40, ths at next level, eff at next level, m' at next level).
+Reserved Notation "m / ths '~~[' tid , eff ']~~>' m' / ths'"
+  (at level 40, ths at next level, tid at next level, eff at next level,
+                m' at next level).
 Reserved Notation "mt / Gamma '|--' t 'is' T"
   (at level 40, Gamma at next level).
 
@@ -44,7 +43,7 @@ Inductive tm : Set :=
 Theorem tm_eq_dec : forall (t1 t2 : tm),
   {t1 = t2} + {t1 <> t2}.
 Proof.
-  intros *. decide equality; eauto using Nat.eq_dec.
+  intros *. decide equality; eauto using PeanoNat.Nat.eq_dec.
 Qed.
 
 (* Values *)
@@ -70,7 +69,7 @@ Inductive effect : Set :=
 Theorem effect_eq_dec : forall (e1 e2 : effect),
   {e1 = e2} + {e1 <> e2}.
 Proof.
-  intros *. decide equality; eauto using Nat.eq_dec, tm_eq_dec.
+  intros *. decide equality; eauto using PeanoNat.Nat.eq_dec, tm_eq_dec.
 Qed.
 
 (* Operational Semantics *)
@@ -127,6 +126,10 @@ Inductive step : tm -> effect -> tm -> Prop :=
 Definition mem := list tm.
 
 Inductive mstep : mem -> tm -> effect -> mem -> tm -> Prop :=
+  | MST_None : forall m t t',
+    t --[EF_None]--> t' ->
+    m / t ==[EF_None]==> m / t'
+
   | MST_Alloc : forall m t t' ad v,
     ad = length m ->
     t --[EF_Alloc ad v]--> t' ->
@@ -143,24 +146,32 @@ Inductive mstep : mem -> tm -> effect -> mem -> tm -> Prop :=
 
   where "m / t '==[' eff ']==>' m' / t'" := (mstep m t eff m' t').
 
-Inductive cstep : mem -> list tm -> effect -> mem -> list tm -> Prop :=
-  | CST_Mem : forall m m' t' ths i eff block,
-      i < length ths ->
+(* Concurrent Step *)
+
+Definition threads := list tm.
+
+Inductive cstep : mem -> threads -> nat -> effect -> mem -> threads -> Prop :=
+  | CST_Mem : forall m m' t' ths tid eff block,
+      tid < length ths ->
       eff <> EF_Spawn block ->
-      m / (get TM_Nil ths i) ==[eff]==> m' / t' ->
-      m / ths ~~[eff]~~> m' / (set ths i t')
+      m / (get TM_Nil ths tid) ==[eff]==> m' / t' ->
+      m / ths ~~[tid, eff]~~> m' / (set ths tid t')
 
-  | CST_Spawn : forall m m' t' ths i eff block,
-      i < length ths ->
+  | CST_Spawn : forall m m' t' ths tid eff block,
+      tid < length ths ->
       eff = EF_Spawn block ->
-      m / (get TM_Nil ths i) ==[eff]==> m' / t' ->
-      m / ths ~~[eff]~~> m' / (add (set ths i t') block)
+      m / (get TM_Nil ths tid) ==[eff]==> m' / t' ->
+      m / ths ~~[tid, eff]~~> m' / (add (set ths tid t') block)
 
-  where "m / ths '~~[' eff ']~~>' m' / ths'" := (cstep m ths eff m' ths').
+  where "m / ths '~~[' tid ,  eff ']~~>' m' / ths'" :=
+    (cstep m ths tid eff m' ths').
 
 (* Typing *)
 
-Inductive well_typed_term (mt : list typ) : map typ -> tm -> typ -> Prop :=
+Definition memtyp := list typ.
+Definition ctx := map typ.
+
+Inductive well_typed_term (mt : memtyp) : ctx -> tm -> typ -> Prop :=
   | T_Nil : forall Gamma,
     mt / Gamma |-- TM_Nil is TY_Void
 
