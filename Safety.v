@@ -1,12 +1,17 @@
 From Coq Require Import Arith.Arith.
 From Coq Require Import Lists.List.
-From Coq Require Logic.ClassicalFacts.
 From Coq Require Import Lia.
+
+From Coq Require Logic.ClassicalFacts.
 
 From Elo Require Import Array.
 From Elo Require Import Core0.
 
 Reserved Notation "m / t '==[' tc ']==>*' m' / t'"
+  (at level 40, t at next level, tc at next level,
+                m' at next level, t' at next level).
+
+Reserved Notation "m / t '~~[' tc ']~~>*' m' / t'"
   (at level 40, t at next level, tc at next level,
                 m' at next level, t' at next level).
 
@@ -157,7 +162,7 @@ Definition trace := list effect.
 (* reflexive transitive closure *)
 Inductive multistep : mem -> tm -> trace -> mem -> tm -> Prop :=
   | multistep_refl: forall m t,
-      m / t ==[nil]==>* m / t
+    m / t ==[nil]==>* m / t
 
   | multistep_trans : forall m m' m'' t t' t'' tc eff,
     m  / t  ==[tc]==>* m'  / t'  ->
@@ -427,6 +432,19 @@ Proof.
     intros ? ?. eauto using access.
 Qed.
 
+Local Lemma none_preservation : forall m t t',
+  well_behaved_access m t ->
+  t --[EF_None]--> t' ->
+  well_behaved_access m t'.
+Proof.
+  intros * Hwba Hstep.
+  remember (EF_None) as eff.
+  induction Hstep; inversion Heqeff; subst;
+  eauto using new, load, wba_load';
+  try (eapply wba_asg' || eapply wba_seq');
+  eauto using asg1, asg2, seq1, seq2.
+Qed.
+
 Local Lemma alloc_preservation : forall m t t' v,
   well_behaved_access m t ->
   t --[EF_Alloc (length m) v]--> t' ->
@@ -473,7 +491,10 @@ Lemma mstep_preservation : forall m m' t t' eff,
   well_behaved_access m' t'.
 Proof.
   intros * Hwba Hmstep. inversion Hmstep; subst;
-  eauto using alloc_preservation, load_preservation, store_preservation.
+  eauto using none_preservation, 
+    alloc_preservation,
+    load_preservation,
+    store_preservation.
 Qed.
 
 End wba.
@@ -542,6 +563,26 @@ Proof.
   intros * Hnacc Hstep.
   remember (EF_Alloc ad' v) as eff.
   induction Hstep; inversion Heqeff; subst; eauto using access.
+Qed.
+
+Ltac todo := simpl.
+
+Lemma none_does_not_grant_access : forall m m' t t' ad,
+  ~ access m t ad ->
+  m / t ==[EF_None]==> m' / t' ->
+  ~ access m' t' ad.
+Proof.
+  intros * Hnacc Hmstep. inversion Hmstep; subst; clear Hmstep.
+  remember EF_None as eff.
+  match goal with Hstep : _ --[_]--> _ |- _ => induction Hstep end;
+  inversion Heqeff; subst; eauto using access.
+  - eapply access_load_inverse; eauto using load_access_inverse.
+  - eapply asg_access_inverse in Hnacc as [? ?].
+    eauto using access_asg_inverse.
+  - eapply asg_access_inverse in Hnacc as [? ?].
+    eauto using access_asg_inverse.
+  - eapply seq_access_inverse in Hnacc as [? ?].
+    eauto using access_seq_inverse.
 Qed.
 
 Lemma load_does_not_grant_access : forall m m' t t' ad ad' v,
@@ -622,6 +663,7 @@ Theorem access_needs_alloc : forall m m' t t' eff ad,
   exists v, eff = (EF_Alloc ad v).
 Proof.
   intros * Hnacc Hmstep Hacc. inversion Hmstep; subst.
+  - contradict Hacc. eauto using none_does_not_grant_access.
   - eexists. erewrite <- access_granted_by_alloc_is_memory_length; eauto.
   - contradict Hacc. eauto using load_does_not_grant_access.
   - contradict Hacc. eauto using store_does_not_grant_access.
@@ -653,10 +695,10 @@ Axiom excluded_middle : ClassicalFacts.excluded_middle.
 Lemma access_dec : forall m t ad,
   (access m t ad) \/ (~ access m t ad).
 Proof.
-  intros. eauto using excluded_middle.
+  eauto using excluded_middle.
 Qed.
 
-Theorem access_needs_alloc_multistep : forall m m' t t' ad tc, 
+Theorem access_needs_alloc_multistep : forall m m' t t' ad tc,
   ~ access m t ad ->
   m / t ==[tc]==>* m' / t' ->
   access m' t' ad ->
@@ -665,17 +707,61 @@ Proof.
   intros * Hnacc Hmultistep Hacc.
   induction Hmultistep; try solve [exfalso; eauto].
   destruct (access_dec m' t' ad) as [Hacc' | ?].
-  - specialize (IHHmultistep Hnacc Hacc') as [? ?].
+  - destruct (IHHmultistep Hnacc Hacc').
     eexists. right. eauto.
   - assert (Heq : exists v, eff = EF_Alloc ad v);
     eauto using access_needs_alloc.
-    specialize Heq as [? Heq].
-    eexists. left. eapply Heq.
+    destruct Heq. eexists. left. eauto.
 Qed.
 
+(* PART 5 *)
 
+Definition ctrace := list (nat * effect).
 
+Inductive cmultistep : mem -> threads -> ctrace -> mem -> threads -> Prop :=
+  | cmultistep_refl: forall m ths,
+    m / ths ~~[nil]~~>* m / ths
 
+  | cmultistep_trans : forall m m' m'' tid ths ths' ths'' tc eff,
+    m  / ths  ~~[tc]~~>* m'  / ths'  ->
+    m' / ths' ~~[tid, eff]~~> m'' / ths'' ->
+    m  / ths  ~~[(tid, eff) :: tc]~~>* m'' / ths''
+
+  where "m / t '~~[' tc ']~~>*' m' / t'" := (cmultistep m t tc m' t').
+
+Ltac destruct_cstep :=
+  match goal with
+    | [ H : _ / _ ~~[_, _]~~> _ / _ |- _ ] =>
+      inversion H; subst; clear H
+  end.
+
+Theorem concurrent_duplicate_alloc :
+  forall m m' ths ths' tid tid' tc1 tc2 ad v v',
+  ~ (m / ths ~~[tc1 ++ (tid , EF_Alloc ad v ) ::
+                tc2 ++ (tid', EF_Alloc ad v') :: nil]~~>* m' / ths').
+Proof.
+  intros * F. inversion F; subst; clear F.
+Abort.
+
+Theorem threads_dont_share_memory :
+  forall m m' ths ths' t1 t2 tid tid1 tid2 eff ad,
+  m' / ths' ~~[tid, eff]~~> m / ths ->
+  t1 = get TM_Nil ths tid1 ->
+  access m t1 ad ->
+  t2 = get TM_Nil ths tid2 ->
+  tid1 <> tid2 ->
+  ~ access m t2 ad.
+Proof.
+  intros * Hcstep Ht1 Hacc1 Hte Hneq.
+Abort.
+
+(*
+
+Teorema Final.
+
+m / ths ~~[tc]~~>* m' / ths'
+
+*)
 
 
 
