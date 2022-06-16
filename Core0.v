@@ -124,6 +124,7 @@ Inductive step : tm -> effect -> tm -> Prop :=
 (* Memory Step *)
 
 Definition mem := list tm.
+Definition getTM := get TM_Nil.
 
 Inductive mstep : mem -> tm -> effect -> mem -> tm -> Prop :=
   | MST_None : forall m t t',
@@ -136,8 +137,8 @@ Inductive mstep : mem -> tm -> effect -> mem -> tm -> Prop :=
     m / t ==[EF_Alloc ad v]==> (add m v) / t'
 
   | MST_Load : forall m t t' ad,
-    t --[EF_Load ad (get TM_Nil m ad)]--> t' ->
-    m / t ==[EF_Load ad (get TM_Nil m ad) ]==> m / t'
+    t --[EF_Load ad (getTM m ad)]--> t' ->
+    m / t ==[EF_Load ad (getTM m ad) ]==> m / t'
 
   | MST_Store : forall m t t' ad v,
     ad < length m ->
@@ -154,13 +155,13 @@ Inductive cstep : mem -> threads -> nat -> effect -> mem -> threads -> Prop :=
   | CST_Mem : forall m m' t' ths tid eff block,
       tid < length ths ->
       eff <> EF_Spawn block ->
-      m / (get TM_Nil ths tid) ==[eff]==> m' / t' ->
+      m / (getTM ths tid) ==[eff]==> m' / t' ->
       m / ths ~~[tid, eff]~~> m' / (set ths tid t')
 
   | CST_Spawn : forall m m' t' ths tid eff block,
       tid < length ths ->
       eff = EF_Spawn block ->
-      m / (get TM_Nil ths tid) ==[eff]==> m' / t' ->
+      m / (getTM ths tid) ==[eff]==> m' / t' ->
       m / ths ~~[tid, eff]~~> m' / (add (set ths tid t') block)
 
   where "m / ths '~~[' tid ,  eff ']~~>' m' / ths'" :=
