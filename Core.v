@@ -249,3 +249,4 @@ Inductive well_typed_term (mt : memtyp) : ctx -> tm -> typ -> Prop :=
     mt / Gamma |-- (TM_Let id E e t) is T
 
   where "mt / Gamma '|--' t 'is' T" := (well_typed_term mt Gamma t T).
+

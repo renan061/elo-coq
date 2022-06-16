@@ -1,4 +1,4 @@
-From Coq Require Import Arith.Arith.
+:From Coq Require Import Arith.Arith.
 From Coq Require Import Lists.List.
 From Coq Require Import Lia.
 
@@ -15,147 +15,6 @@ Reserved Notation "m / t '~~[' tc ']~~>*' m' / t'"
   (at level 40, t at next level, tc at next level,
                 m' at next level, t' at next level).
 
-Inductive access (m : mem) : tm -> addr -> Prop :=
-  | access_mem : forall ad ad',
-    access m (get TM_Nil m ad') ad ->
-    access m (TM_Loc ad') ad
-
-  | access_loc : forall ad,
-    access m (TM_Loc ad) ad
-
-  | access_new : forall t ad,
-    access m t ad ->
-    access m (TM_New t) ad
-
-  | access_load : forall t ad,
-    access m t ad ->
-    access m (TM_Load t) ad
-
-  | access_asg1 : forall l r ad,
-    access m l ad ->
-    access m (TM_Asg l r) ad
-
-  | access_asg2 : forall l r ad,
-    access m r ad ->
-    access m (TM_Asg l r) ad
-
-  | access_seq1 : forall t1 t2 ad,
-    access m t1 ad ->
-    access m (TM_Seq t1 t2) ad
-
-  | access_seq2 : forall t1 t2 ad,
-    access m t2 ad ->
-    access m (TM_Seq t1 t2) ad
-  .
-
-Local Lemma access_nil : forall m ad,
-  ~ access m TM_Nil ad.
-Proof.
-  intros * Hacc. inversion Hacc.
-Qed.
-
-Local Lemma access_num : forall m ad n,
-  ~ access m (TM_Num n) ad.
-Proof.
-  intros * Hacc. inversion Hacc.
-Qed.
-
-Lemma new_access : forall m t ad,
-  access m (TM_New t) ad ->
-  access m t ad.
-Proof.
-  intros * Hacc. remember (TM_New t) as t'.
-  induction Hacc; inversion Heqt'; subst; eauto using access.
-Qed.
-
-Lemma new_access_inverse: forall m t ad,
-  ~ access m (TM_New t) ad ->
-  ~ access m t ad.
-Proof.
-  intros * ? Hacc. inversion Hacc; subst; eauto using access.
-Qed.
-
-Lemma access_new_inverse : forall m t ad,
-  ~ access m t ad ->
-  ~ access m (TM_New t) ad.
-Proof.
-  intros * ? Hacc. inversion Hacc; subst; eauto.
-Qed.
-
-Lemma load_access : forall m t ad,
-  access m (TM_Load t) ad ->
-  access m t ad.
-Proof.
-  intros * Hacc. remember (TM_Load t) as t'.
-  induction Hacc; inversion Heqt'; subst; eauto using access.
-Qed.
-
-Lemma load_access_inverse : forall m t ad,
-  ~ access m (TM_Load t) ad ->
-  ~ access m t ad.
-Proof.
-  intros * ? Hacc. inversion Hacc; subst; eauto using access.
-Qed.
-
-Lemma access_load_inverse : forall m t ad,
-  ~ access m t ad ->
-  ~ access m (TM_Load t) ad.
-Proof.
-  intros * ? Hacc. inversion Hacc; subst; eauto.
-Qed.
-
-Lemma asg_access : forall m l r ad,
-  access m (TM_Asg l r) ad ->
-  access m l ad \/ access m r ad.
-Proof.
-  intros * Hacc. remember (TM_Asg l r) as t.
-  induction Hacc; inversion Heqt; subst; eauto.
-Qed.
-
-Lemma asg_access_inverse : forall m l r ad,
-  ~ access m (TM_Asg l r) ad ->
-  ~ access m l ad /\ ~ access m r ad.
-Proof.
-  intros * ?. split; intros Hacc; inversion Hacc; subst; eauto using access.
-Qed.
-
-Lemma access_asg_inverse : forall m l r ad,
-  ~ access m l ad /\ ~ access m r ad ->
-  ~ access m (TM_Asg l r) ad.
-Proof.
-  intros * [? ?] Hacc. inversion Hacc; subst; eauto.
-Qed.
-
-Lemma seq_access : forall m t1 t2 ad,
-  access m (TM_Seq t1 t2) ad ->
-  access m t1 ad \/ access m t2 ad.
-Proof.
-  intros * Hacc. remember (TM_Seq t1 t2) as t.
-  induction Hacc; inversion Heqt; subst; eauto.
-Qed.
-
-Lemma seq_access_inverse : forall m t1 t2 ad,
-  ~ access m (TM_Seq t1 t2) ad ->
-  ~ access m t1 ad /\ ~ access m t2 ad.
-Proof.
-  intros * ?. split; intros Hacc; inversion Hacc; subst; eauto using access.
-Qed.
-
-Lemma access_seq_inverse : forall m t1 t2 ad,
-  ~ access m t1 ad /\ ~ access m t2 ad ->
-  ~ access m (TM_Seq t1 t2) ad.
-Proof.
-  intros * [? ?] Hacc. inversion Hacc; subst; eauto.
-Qed.
-
-(* strong mem access *)
-Local Lemma access_get_trans : forall m t ad ad',
-  access m t ad' ->
-  access m (get TM_Nil m ad') ad ->
-  access m t ad.
-Proof.
-  intros * Hacc ?. induction Hacc; eauto using access.
-Qed.
 
 Definition trace := list effect.
 
@@ -698,6 +557,15 @@ Proof.
   eauto using excluded_middle.
 Qed.
 
+Lemma provar_para_tirar_o_axioma : forall m m' t t' eff ad v,
+  access m' t' ad ->
+  eff <> EF_Alloc ad v ->
+  m / t ==[eff]==> m' / t' ->
+  access m t ad.
+Proof.
+  intros * Hacc Hneq Hmstep.
+Abort.
+
 Theorem access_needs_alloc_multistep : forall m m' t t' ad tc,
   ~ access m t ad ->
   m / t ==[tc]==>* m' / t' ->
@@ -714,7 +582,9 @@ Proof.
     destruct Heq. eexists. left. eauto.
 Qed.
 
-(* PART 5 *)
+(*
+
+(* PART 6 *)
 
 Definition ctrace := list (nat * effect).
 
@@ -763,6 +633,7 @@ m / ths ~~[tc]~~>* m' / ths'
 
 *)
 
+*)
 
 
 
