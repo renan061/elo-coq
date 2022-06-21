@@ -30,18 +30,6 @@ Proof.
   rewrite IH; eauto.
 Qed.
 
-Local Lemma get_default : forall {A} default (l : list A) i,
-  length l <= i ->
-  get default l i = default.
-Proof.
-  intros *. generalize dependent i.
-  induction l as [| ? ? IH]; intros * H;
-  simpl; destruct i; trivial;
-  try solve [inversion H].
-  simpl in H. eapply le_S_n in H.
-  rewrite IH; eauto.
-Qed.
-
 (* Proofs *)
 
 Lemma set_preserves_length : forall {A} (l : list A) i a,
@@ -55,6 +43,18 @@ Lemma add_increments_length : forall {A} (l : list A) a,
   length (add l a) = S (length l).
 Proof.
   intros. unfold add. rewrite last_length. reflexivity.
+Qed.
+
+Lemma get_default : forall {A} default (l : list A) i,
+  length l <= i ->
+  get default l i = default.
+Proof.
+  intros *. generalize dependent i.
+  induction l as [| ? ? IH]; intros * H;
+  simpl; destruct i; trivial;
+  try solve [inversion H].
+  simpl in H. eapply le_S_n in H.
+  rewrite IH; eauto.
 Qed.
 
 Lemma get_set_eq : forall {A} default (l : list A) i a,
