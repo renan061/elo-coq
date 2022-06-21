@@ -2,6 +2,16 @@ From Coq Require Import Arith.Arith.
 From Coq Require Import Lia.
 From Coq Require Import Lists.List.
 
+(*
+Ltac destruct_access_H H :=
+  idtac H;
+  match type of H with
+    | access _ TM_Nil _ => inversion H
+    | access _ (TM_Num _) _ => inversion H
+    | access _ (TM_New _) _ => eapply new_access in H
+  end.
+*)
+
 Inductive mem {A : Type} : nat -> list (nat * A) -> Prop :=
   | empty : mem 0 nil
 

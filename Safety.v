@@ -1,11 +1,10 @@
-:From Coq Require Import Arith.Arith.
+From Coq Require Import Arith.Arith.
 From Coq Require Import Lists.List.
 From Coq Require Import Lia.
 
-From Coq Require Logic.ClassicalFacts.
-
 From Elo Require Import Array.
 From Elo Require Import Core0.
+From Elo Require Import Access.
 
 Reserved Notation "m / t '==[' tc ']==>*' m' / t'"
   (at level 40, t at next level, tc at next level,
@@ -14,7 +13,6 @@ Reserved Notation "m / t '==[' tc ']==>*' m' / t'"
 Reserved Notation "m / t '~~[' tc ']~~>*' m' / t'"
   (at level 40, t at next level, tc at next level,
                 m' at next level, t' at next level).
-
 
 Definition trace := list effect.
 
@@ -184,7 +182,7 @@ Local Lemma wba_load' : forall m t,
   well_behaved_access m t ->
   well_behaved_access m (TM_Load t).
 Proof.
-  intros * ? ? ?. eauto using load_access.
+  intros * ? ? ?. inversion_access. eauto.
 Qed.
 
 Lemma asg1 : forall m l r,
@@ -206,7 +204,7 @@ Local Lemma wba_asg' : forall m l r,
   well_behaved_access m r ->
   well_behaved_access m (TM_Asg l r).
 Proof.
-  intros * ? ? ? Hacc. eapply asg_access in Hacc as [? | ?]; eauto.
+  intros * ? ? ? Hacc. inversion_access; eauto.
 Qed.
 
 Lemma seq1 : forall m t1 t2,
@@ -228,7 +226,7 @@ Local Lemma wba_seq' : forall m t1 t2,
   well_behaved_access m t2 ->
   well_behaved_access m (TM_Seq t1 t2).
 Proof.
-  intros * ? ? ? Hacc. eapply seq_access in Hacc as [? | ?]; eauto.
+  intros * ? ? ? Hacc. inversion_access; eauto.
 Qed.
 
 Local Lemma wba_added_value : forall m v,
@@ -267,8 +265,7 @@ Proof.
     destruct (lt_eq_lt_dec ad' (length m)) as [[? | ?] | ?]; subst.
     + rewrite (get_add_lt TM_Nil) in *; eauto using access.
     + specialize (Hwba (length m) (access_loc m (length m))). lia.
-    + rewrite (get_add_gt TM_Nil) in *; eauto.
-      contradict Hacc''. eauto using access_nil.
+    + rewrite (get_add_gt TM_Nil) in *; eauto. inversion_access.
   - rewrite add_increments_length. eauto using access, Nat.lt_lt_succ_r.
 Qed.
 
@@ -341,7 +338,7 @@ Proof.
   eauto using new, load, wba_load';
   try (eapply wba_asg' || eapply wba_seq');
   eauto using asg1, asg2, seq1, seq2, wba_mem_set.
-  intros ? F. contradict F. eauto using access_nil.
+  intros ? ?. inversion_access.
 Qed.
 
 Lemma mstep_preservation : forall m m' t t' eff,
@@ -384,8 +381,8 @@ Proof.
   - match goal with H : ~ access _ (TM_Loc ?ad) _ |- _ => 
       assert (ad < length m); eauto
     end. 
-    rewrite get_set_eq in F; trivial.
-    rewrite get_set_eq in IHF; eauto.
+    rewrite (get_set_eq TM_Nil) in F; trivial.
+    rewrite (get_set_eq TM_Nil) in IHF; eauto.
   - eapply not_eq_sym in Hneq.
     rewrite (get_set_neq TM_Nil) in *; eauto using access.
 Qed.
@@ -399,9 +396,9 @@ Proof.
   induction Hacc; eauto using access.
   eapply IHHacc; clear IHHacc; trivial.
   decompose sum (lt_eq_lt_dec ad' (length m)); subst.
-  - rewrite get_add_lt; eauto using access.
-  - rewrite get_add_eq. trivial.
-  - rewrite get_add_gt; trivial. intros F. inversion F.
+  - rewrite (get_add_lt TM_Nil); eauto using access.
+  - rewrite (get_add_eq TM_Nil). trivial.
+  - rewrite (get_add_gt TM_Nil); trivial. intros ?. inversion_access.
 Qed.
 
 Local Lemma not_access_stored_value : forall m t t' ad ad' v, 
@@ -424,8 +421,6 @@ Proof.
   induction Hstep; inversion Heqeff; subst; eauto using access.
 Qed.
 
-Ltac todo := simpl.
-
 Lemma none_does_not_grant_access : forall m m' t t' ad,
   ~ access m t ad ->
   m / t ==[EF_None]==> m' / t' ->
@@ -435,7 +430,7 @@ Proof.
   remember EF_None as eff.
   match goal with Hstep : _ --[_]--> _ |- _ => induction Hstep end;
   inversion Heqeff; subst; eauto using access.
-  - eapply access_load_inverse; eauto using load_access_inverse.
+  - inversion_not_access. eapply access_load_inverse; eauto using load_access_inverse.
   - eapply asg_access_inverse in Hnacc as [? ?].
     eauto using access_asg_inverse.
   - eapply asg_access_inverse in Hnacc as [? ?].
@@ -548,14 +543,6 @@ Proof.
   - destruct IHt1, IHt2; try solve [left; eauto using access].
     right. eauto using access_seq_inverse.
 Abort.
-
-Axiom excluded_middle : ClassicalFacts.excluded_middle.
-
-Lemma access_dec : forall m t ad,
-  (access m t ad) \/ (~ access m t ad).
-Proof.
-  eauto using excluded_middle.
-Qed.
 
 Lemma provar_para_tirar_o_axioma : forall m m' t t' eff ad v,
   access m' t' ad ->
