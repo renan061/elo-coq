@@ -105,36 +105,6 @@ Qed.
 
 (* PART 2 *)
 
-Lemma load_if_access: forall m m' t t' ad v,
-  m / t ==[EF_Load ad v]==> m' / t' ->
-  access m t ad.
-Proof.
-  assert (forall m t t' ad,
-    t --[ EF_Load ad (get TM_Nil m ad) ]--> t' ->
-    access m t ad). {
-      intros * Hstep.
-      remember (EF_Load ad (get TM_Nil m ad)) as eff.
-      induction Hstep; eauto using access;
-      inversion Heqeff; subst. eauto using access.
-  }
-  intros * Hmstep. inversion Hmstep; subst. eauto.
-Qed.
-
-Lemma store_if_access: forall m m' t t' ad v,
-  m / t ==[EF_Store ad v]==> m' / t' ->
-  access m t ad.
-Proof.
-  assert (forall m t t' ad v,
-    t --[ EF_Store ad v ]--> t' ->
-    access m t ad). {
-      intros * Hstep.
-      remember (EF_Store ad v) as eff.
-      induction Hstep; eauto using access;
-      inversion Heqeff; subst. eauto using access.
-  }
-  intros * Hmstep. inversion Hmstep; subst. eauto.
-Qed.
-
 Lemma access_if_alloc : forall m m' t t' ad v,
   m / t ==[EF_Alloc ad v]==> m' / t' ->
   access m' t' ad.
@@ -455,28 +425,6 @@ Proof.
     eauto using access_asg_inverse.
   - eapply seq_access_inverse in Hnacc as [? ?].
     eauto using access_seq_inverse.
-Qed.
-
-Lemma store_does_not_grant_access : forall m m' t t' ad ad' v,
-  ~ access m t ad ->
-  m / t ==[EF_Store ad' v]==> m' / t' ->
-  ~ access m' t' ad.
-Proof.
-  intros * Hnacc Hmstep. inversion Hmstep; subst.
-  remember (EF_Store ad' v) as eff; clear Hmstep.
-  match goal with Hstep : _ --[_]--> _ |- _ => induction Hstep end;
-  inversion Heqeff; subst; eauto using access.
-  - eapply access_load_inverse; eauto using load_access_inverse.
-  - eapply asg_access_inverse in Hnacc as [? ?].
-    eapply access_asg_inverse; split;
-    eauto using access_set, (not_access_stored_value _ l).
-  - eapply asg_access_inverse in Hnacc as [? ?].
-    eapply access_asg_inverse; split;
-    eauto using access_set, (not_access_stored_value _ r).
-  - intros F. inversion F.
-  - eapply seq_access_inverse in Hnacc as [? ?].
-    eapply access_seq_inverse; split;
-    eauto using access_set, (not_access_stored_value _ t1).
 Qed.
 
 Lemma access_granted_by_alloc_is_memory_length : forall m t t' ad v,
