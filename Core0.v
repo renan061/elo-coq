@@ -121,6 +121,11 @@ Inductive step : tm -> effect -> tm -> Prop :=
 
   where "t '--[' eff ']-->' t'" := (step t eff t').
 
+Ltac induction_step :=
+  match goal with
+    | H : _ --[_]--> _ |- _ => induction H
+  end.
+
 (* Memory Step *)
 
 Definition mem := list tm.
@@ -146,6 +151,11 @@ Inductive mstep : mem -> tm -> effect -> mem -> tm -> Prop :=
     m / t ==[EF_Store ad v]==> (set m ad v) / t'
 
   where "m / t '==[' eff ']==>' m' / t'" := (mstep m t eff m' t').
+
+Ltac inversion_mstep :=
+  match goal with
+    | H : _ / _ ==[_]==> _ / _ |- _ => inversion H; subst; clear H
+  end.
 
 (* Concurrent Step *)
 

@@ -1,4 +1,5 @@
 From Coq Require Import Arith.Arith.
+From Coq Require Import Lia.
 
 From Elo Require Import Array.
 From Elo Require Import Core0.
@@ -49,56 +50,92 @@ Module Compat.
     intros * ? ? ?. eauto using acc, sym.
   Qed.
 
-  Corollary access_symmetry : forall m m' t ad,
+  Corollary access_iff : forall m m' t ad,
     compat m m' t ->
     access m t ad <-> access m' t ad.
   Proof.
     intros * ?. split; eauto using acc, sym.
   Qed.
 
-  Lemma inaccessible_address : forall m m' t ad v,
+  Lemma inaccessible_address_set : forall m m' t ad v,
     compat m m' t ->
     ~ access m t ad ->
     compat m (set m' ad v) t.
   Proof.
     intros * Hcompat Hnacc ad Hacc. unfold compat in *.
     induction Hacc; try solve [inversion_not_access; eauto using access].
-    - eapply IHHacc; eauto using access.
-    - match goal with H : ~ access _ _ ?ad' |- _ => 
-        destruct (Nat.eq_dec ad ad'); subst
-      end.
-      + exfalso. eauto using access.
-      + rewrite (get_set_neq TM_Nil); eauto using access.
+    match goal with H : ~ access _ _ ?ad' |- _ => 
+      destruct (Nat.eq_dec ad ad'); subst
+    end.
+    - exfalso. eauto using access.
+    - rewrite (get_set_neq TM_Nil); eauto using access.
+  Qed.
+
+  Lemma inaccessible_address_add : forall m m' t v,
+    compat m m' t ->
+    ~ access m t (length m') ->
+    compat m (add m' v) t.
+  Proof.
+    intros * Hcompat Hnacc ad Hacc. unfold compat in *.
+    induction Hacc; try solve [inversion_not_access; eauto using access].
+    destruct (Nat.eq_dec ad (length m')); subst.
+    + exfalso. eauto using access.
+    + destruct (not_eq ad (length m')); trivial.
+      * rewrite (get_add_lt TM_Nil); eauto using access.
+      * specialize (Hcompat ad (access_loc m ad)).
+        rewrite (get_default TM_Nil m') in Hcompat; try lia.
+        rewrite (get_add_gt TM_Nil); trivial.
   Qed.
 End Compat.
 
-(* changing an inaccessible address does not interfere with access *)
-(* TODO: maybe remove this one. *)
-Lemma access_inaccessible_address1 : forall m t ad ad' v,
-  access m t ad ->
-  ~ access m t ad' ->
-  access (set m ad' v) t ad.
-Proof.
-  intros * ? ?.
-  eauto using Compat.refl, Compat.inaccessible_address, Compat.acc.
-Qed.
-
-Lemma access_inaccessible_address2 : forall m t ad ad' v,
+(*
+  Changing the contents of an inaccessible
+  address does not interfere with access.
+*)
+Lemma access_inaccessible_address : forall m t ad ad' v,
   ~ access m t ad' ->
   access (set m ad' v) t ad ->
   access m t ad.
 Proof.
   intros * ? ?.
-  eauto using Compat.refl, Compat.sym, Compat.inaccessible_address, Compat.acc.
+  eauto using Compat.refl,
+              Compat.sym,
+              Compat.inaccessible_address_set,
+              Compat.acc.
 Qed.
 
-Lemma access_inaccessible_address3 : forall m t ad ad' v,
+(*
+  Changing the contents of an inaccessible
+  address does not interfere with access.
+*)
+Lemma not_access_inaccessible_address  : forall m t ad ad' v,
   ~ access m t ad ->
   ~ access m t ad' ->
   ~ access (set m ad' v) t ad.
 Proof.
   intros * Hnacc Hnacc'.
-  eauto using Compat.refl, Compat.inaccessible_address, Compat.acc_not.
+  eauto using Compat.refl, Compat.inaccessible_address_set, Compat.acc_not.
+Qed.
+
+Lemma inaccessible_address_add_1 : forall m t ad v,
+  ~ access m t (length m) ->
+  access (add m v) t ad ->
+  access m t ad.
+Proof.
+  intros * ? ?.
+  eauto using Compat.refl,
+              Compat.sym,
+              Compat.inaccessible_address_add,
+              Compat.acc.
+Qed.
+
+Lemma inaccessible_address_add_2 : forall m t ad v,
+  ~ access m t ad ->
+  ~ access m t (length m) ->
+  ~ access (add m v) t ad.
+Proof.
+  intros * Hnacc Hnacc'.
+  eauto using Compat.refl, Compat.inaccessible_address_add, Compat.acc_not.
 Qed.
 
 Definition disjoint_memory m ths := forall tid1 tid2 ad,
@@ -106,71 +143,45 @@ Definition disjoint_memory m ths := forall tid1 tid2 ad,
   tid1 <> tid2 ->
   ~ access m (getTM ths tid2) ad.
 
-Theorem disjoint_memory_preservation' : forall m m' ths ths' tid eff,
-  (forall block, eff <> EF_Spawn block) ->
+Theorem disjoint_memory_preservation : forall m m' ths t' tid eff,
   disjoint_memory m ths ->
-  m / ths ~~[tid, eff]~~> m' / ths' ->
-  disjoint_memory m' ths'.
+  tid < length ths ->
+  m / (getTM ths tid) ==[eff]==> m' / t' ->
+  disjoint_memory m' (set ths tid t').
 Proof.
-  intros * Hspawn Hdis Hcstep tid1 tid2 ad' Hacc Hneq.
-  inversion Hcstep; subst.
-  - clear Hcstep; inversion H1; subst.
+  intros * Hdis ? Hmstep tid1 tid2 ad' Hacc Hneq. inversion Hmstep; subst.
+  - destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; eauto.
+    + rewrite (get_set_neq TM_Nil);
+      rewrite (get_set_eq TM_Nil) in *;
+      eauto using MStep.None.inherits_access.
+    + rewrite (get_set_eq TM_Nil);
+      rewrite (get_set_neq TM_Nil) in *;
+      eauto using MStep.None.preserves_not_access.
+    + rewrite (get_set_neq TM_Nil) in *; eauto.
+  - destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; eauto;
+    (rewrite (get_set_eq TM_Nil) || rewrite (get_set_neq TM_Nil));
+    (rewrite (get_set_eq TM_Nil) in * || rewrite (get_set_neq TM_Nil) in *);
+    eauto 8 using inaccessible_address_add_1,
+                  inaccessible_address_add_2.
+    + specialize (Hdis tid1 tid2 ad') as Hdis1.
+      eapply inaccessible_address_add_2.
     + admit.
     + admit.
-    + admit.
-    + destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; eauto;
-      (rewrite (get_set_eq TM_Nil) || rewrite (get_set_neq TM_Nil));
-      (rewrite (get_set_eq TM_Nil) in * || rewrite (get_set_neq TM_Nil) in *);
-      eauto 8 using Step.store_ad_access,
-                    Step.store_access_backwards,
-                    Step.store_does_not_grant_access1,
-                    access_inaccessible_address2,
-                    access_inaccessible_address3.
-  - exfalso. eapply Hspawn. trivial.
-Qed.
-
-Theorem disjoint_memory_preservation : forall m m' ths ths' tid eff,
-  disjoint_memory m ths ->
-  m / ths ~~[tid, eff]~~> m' / ths' ->
-  disjoint_memory m' ths'.
-Proof.
-  intros * Hdis Hcstep tid1 tid2 ad Hacc1 Hacc2.
-  specialize (Hdis tid1 tid2 ad) as Hdis'.
-  inversion Hcstep; subst.
-  - clear Hcstep; inversion H1; subst.
-    + destruct (Nat.eq_dec tid tid1) as [? | Hneq]; 
-      destruct (Nat.eq_dec tid tid2);
-      subst; trivial.
-      * rewrite (get_set_eq TM_Nil) in Hacc1;
-        rewrite (get_set_neq TM_Nil) in Hacc2;
-        eauto using mstep_none_does_not_grant_access.
-      * rewrite (get_set_eq TM_Nil) in Hacc2;
-        rewrite (get_set_neq TM_Nil) in Hacc1;
-        eauto using mstep_none_does_not_grant_access.
-      * rewrite (get_set_neq TM_Nil) in *; eauto.
-    + admit.
-    + destruct (Nat.eq_dec tid tid1) as [? | Hneq]; 
-      destruct (Nat.eq_dec tid tid2);
-      subst; trivial.
-      * rewrite (get_set_eq TM_Nil) in Hacc1;
-        rewrite (get_set_neq TM_Nil) in Hacc2;
-        eauto using mstep_load_does_not_grant_access.
-      * rewrite (get_set_eq TM_Nil) in Hacc2;
-        rewrite (get_set_neq TM_Nil) in Hacc1;
-        eauto using mstep_load_does_not_grant_access.
-      * rewrite (get_set_neq TM_Nil) in *; eauto.
-    + destruct (Nat.eq_dec tid tid1) as [? | Hneq]; 
-      destruct (Nat.eq_dec tid tid2);
-      subst; trivial.
-      * rewrite (get_set_eq TM_Nil) in Hacc1;
-        rewrite (get_set_neq TM_Nil) in Hacc2; eauto.
-        
-      * exfalso.
-        eapply not_eq_sym in Hneq.
-        rewrite (get_set_eq TM_Nil) in Hacc2;
-        rewrite (get_set_neq TM_Nil) in Hacc1;
-        eauto using mstep_load_does_not_grant_access. admit.
-      * rewrite (get_set_neq TM_Nil) in *; eauto. admit.
-  - admit.
+  - destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; eauto.
+    + rewrite (get_set_neq TM_Nil);
+      rewrite (get_set_eq TM_Nil) in *;
+      eauto using MStep.Load.inherits_access.
+    + rewrite (get_set_eq TM_Nil);
+      rewrite (get_set_neq TM_Nil) in *;
+      eauto using MStep.Load.preserves_not_access.
+    + rewrite (get_set_neq TM_Nil) in *; eauto.
+  - destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; eauto;
+    (rewrite (get_set_eq TM_Nil) || rewrite (get_set_neq TM_Nil));
+    (rewrite (get_set_eq TM_Nil) in * || rewrite (get_set_neq TM_Nil) in *);
+    eauto 8 using Step.Store.address_access,
+                  Step.store_access_backwards,
+                  Step.store_does_not_grant_access1,
+                  access_inaccessible_address,
+                  not_access_inaccessible_address.
 Qed.
 

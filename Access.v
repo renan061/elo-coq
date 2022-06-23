@@ -5,11 +5,6 @@ From Coq Require Logic.ClassicalFacts.
 From Elo Require Import Array.
 From Elo Require Import Core0.
 
-Ltac induction_step :=
-  match goal with
-    | H : _ --[_]--> _ |- _ => induction H
-  end.
-
 Inductive access (m : mem) : tm -> addr -> Prop :=
   | access_mem : forall ad ad',
     access m (getTM m ad') ad ->
@@ -71,6 +66,13 @@ Ltac inversion_access :=
     | H : access _ (TM_Seq _ _) _ |- _ => inversion H; subst; clear H
   end.
 
+Lemma inversion_not_access_loc : forall m ad ad',
+  ~ access m (TM_Loc ad) ad' ->
+  ~ access m (getTM m ad) ad'.
+Proof.
+  intros * ? F. inversion F; subst; eauto using access.
+Qed.
+
 Lemma inversion_not_access_new : forall m t ad,
   ~ access m (TM_New t) ad ->
   ~ access m t ad.
@@ -103,6 +105,10 @@ Ltac inversion_not_access :=
   match goal with
     | H : _ |- ~ access _ TM_Nil _   =>
         intros F; inversion F 
+    | H : _ |- ~ access _ (TM_Num _) _   =>
+        intros F; inversion F 
+    | H : ~ access _ (TM_Loc _) _   |- _ =>
+        eapply inversion_not_access_loc in H
     | H : ~ access _ (TM_New _) _   |- _ =>
         eapply inversion_not_access_new in H
     | H : ~ access _ (TM_Load _) _  |- _ =>
@@ -218,15 +224,6 @@ Module Step.
     inversion Heqeff; subst. eauto using access.
   Qed.
 
-  Lemma store_ad_access : forall m t t' ad v,
-    t --[EF_Store ad v]--> t' ->
-    access m t ad.
-  Proof.
-    intros * Hstep.
-    remember (EF_Store ad v) as eff.
-    induction Hstep; eauto using access;
-    inversion Heqeff; subst. eauto using access.
-  Qed.
 
   Lemma store_not_v_access : forall m t t' ad ad' v,
     ~ access m t ad ->
@@ -291,130 +288,122 @@ Module Step.
                 Mem.set_preserves_not_access,
                 store_not_v_access.
   Qed.
+
+  Module Store.
+    Lemma address_access : forall m t t' ad v,
+      t --[EF_Store ad v]--> t' ->
+      access m t ad.
+    Proof.
+      intros * Hstep. remember (EF_Store ad v) as eff.
+      induction_step; inversion Heqeff; subst; eauto using access.
+    Qed.
+  End Store.
 End Step.
 
-Module MStep.
-  Lemma load_ad_access: forall m m' t t' ad v,
-    m / t ==[EF_Load ad v]==> m' / t' ->
-    access m t ad.
-  Proof.
-    intros * Hmstep. inversion Hmstep; subst.
-    eauto using Step.load_ad_access.
-  Qed.
-
-  Lemma store_ad_access: forall m m' t t' ad v,
-    m / t ==[EF_Store ad v]==> m' / t' ->
-    access m t ad.
-  Proof.
-    intros * Hmstep. inversion Hmstep; subst.
-    eauto using Step.store_ad_access.
-  Qed.
-End MStep.
-
-
-
-
-
-
-
-
-
-
-
-
-
-(* Properties of access over step. *)
-
-
-
-Lemma mstep_none_does_not_grant_access : forall m m' t t' ad,
-  access m' t' ad ->
-  m / t ==[EF_None]==> m' / t' ->
-  access m t ad.
-Proof.
-  intros * Hacc Hmstep. inversion Hmstep; subst; clear Hmstep.
-  remember EF_None as eff. induction_step; inversion Heqeff; subst;
-  try inversion_access; eauto using access.
-Qed.
-
-Lemma mstep_load_does_not_grant_access : forall m m' t t' ad ad' v,
-  access m' t' ad ->
-  m / t ==[EF_Load ad' v]==> m' / t' ->
-  access m t ad.
-Proof.
-  intros * Hacc Hmstep. inversion Hmstep; subst; clear Hmstep.
-  remember (EF_Load ad' (getTM m' ad')) as eff. 
-  induction_step; inversion Heqeff; subst;
-  try inversion_access; eauto using access.
-Qed.
-
-Lemma mstep_store_does_not_grant_access : forall m m' t t' ad ad' v,
-  access m' t' ad ->
-  m / t ==[EF_Store ad' v]==> m' / t' ->
-  access m t ad.
-Proof.
-  intros * Hacc Hmstep. inversion Hmstep; subst; clear Hmstep.
-  remember (EF_Store ad' v) as eff. 
-  induction_step; inversion Heqeff; subst;
-  try inversion_access; eauto using access.
-  - eapply access_asg2.
-Abort.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Lemma alloc_preserves_access : forall m m' t t' ad ad' v,
-  access m t ad ->
-  m / t ==[EF_Alloc ad' v]==> m' / t' ->
-  access m' t' ad.
-Proof.
-  intros * Hacc Hmstep. inversion Hmstep; subst; clear Hmstep.
-  remember (EF_Alloc (length m) v) as eff.
-  induction_step; inversion Heqeff; subst; inversion_access;
-  eauto using access, Mem.add_preserves_access.
-  eapply access_mem. rewrite (get_add_eq TM_Nil).
-  eauto using Mem.add_preserves_access.
-Qed.
-
-Lemma when_load_preserves_access : forall m m' t t' ad ad' v,
-  ad <> ad' ->
-  access m t ad ->
-  m / t ==[EF_Load ad' v]==> m' / t' ->
-  access m' t' ad.
-Proof.
-  intros * Hneq Hacc Hmstep. inversion Hmstep; subst; clear Hmstep.
-  remember (EF_Load ad' (getTM m' ad')) as eff.
-  induction_step; inversion Heqeff; subst; inversion_access; eauto using access.
-  inversion_access; subst; trivial. exfalso. eauto.
-Qed.
-
-Lemma when_store_preserves_access : forall m m' t t' ad ad' v,
-  ad <> ad' ->
-  access m t ad ->
-  m / t ==[EF_Store ad' v]==> m' / t' ->
-  access m' t' ad.
-Proof.
-  intros * Hneq Hacc Hmstep. inversion Hmstep; subst; clear Hmstep.
-  remember (EF_Store ad' v) as eff.
-  induction_step; inversion Heqeff; subst; inversion_access;
-  eauto using access.
-  - eapply access_asg2.
-Abort.
-
 (*
+
+Inductive effect : Set :=
+  | EF_None
   | EF_Alloc (ad : addr) (t : tm)
   | EF_Load  (ad : addr) (t : tm)
   | EF_Store (ad : addr) (t : tm)
+  | EF_Spawn (t : tm)
+  .
+
 *)
+
+Module MStep.
+  Module None.
+    Lemma inherits_access : forall m m' t t' ad,
+      access m' t' ad ->
+      m / t ==[EF_None]==> m' / t' ->
+      access m t ad.
+    Proof.
+      intros * ? ?. inversion_mstep. remember EF_None as eff.
+      induction_step; inversion Heqeff; subst;
+      try inversion_access; eauto using access.
+    Qed.
+
+    Lemma preserves_not_access : forall m m' t t' ad,
+      ~ access m t ad ->
+      m / t ==[EF_None]==> m' / t' ->
+      ~ access m' t' ad.
+    Proof.
+      intros * ? ?. inversion_mstep. remember EF_None as eff.
+      induction_step; inversion Heqeff; subst; inversion_not_access;
+      eauto using not_access_load, not_access_asg, not_access_seq.
+    Qed.
+  End None.
+
+  Module Alloc.
+    Lemma preserves_access : forall m m' t t' ad ad' v,
+      access m t ad ->
+      m / t ==[EF_Alloc ad' v]==> m' / t' ->
+      access m' t' ad.
+    Proof.
+      intros * ? ?. inversion_mstep.
+      remember (EF_Alloc (length m) v) as eff.
+      induction_step; inversion Heqeff; subst;
+      inversion_access; eauto using access, Mem.add_preserves_access.
+      eapply access_mem. rewrite (get_add_eq TM_Nil).
+      eauto using Mem.add_preserves_access.
+    Qed.
+  End Alloc.
+
+  Module Load.
+    Lemma inherits_access : forall m m' t t' ad ad' v,
+      access m' t' ad ->
+      m / t ==[EF_Load ad' v]==> m' / t' ->
+      access m t ad.
+    Proof.
+      intros * ? ?. inversion_mstep.
+      remember (EF_Load ad' (getTM m' ad')) as eff. 
+      induction_step; inversion Heqeff; subst;
+      try inversion_access; eauto using access.
+    Qed.
+
+    (* unused *)
+    Lemma preserves_access : forall m m' t t' ad ad' v,
+      ad <> ad' ->
+      access m t ad ->
+      m / t ==[EF_Load ad' v]==> m' / t' ->
+      access m' t' ad.
+    Proof.
+      intros * Hneq Hacc Hmstep. inversion_mstep.
+      remember (EF_Load ad' (getTM m' ad')) as eff.
+      induction_step; inversion Heqeff; subst;
+      inversion_access; eauto using access.
+      inversion_access; subst; trivial. exfalso. eauto.
+    Qed.
+
+    Lemma preserves_not_access : forall m m' t t' ad ad' v,
+      ~ access m t ad ->
+      m / t ==[EF_Load ad' v]==> m' / t' ->
+      ~ access m' t' ad.
+    Proof.
+      intros * ? ?. inversion_mstep.
+      remember (EF_Load ad' (getTM m' ad')) as eff.
+      induction_step; inversion Heqeff; subst;
+      eauto using access; inversion_not_access;
+      eauto using not_access_load, not_access_asg, not_access_seq.
+    Qed.
+
+    Lemma address_access: forall m m' t t' ad v,
+      m / t ==[EF_Load ad v]==> m' / t' ->
+      access m t ad.
+    Proof.
+      intros * Hmstep. inversion Hmstep; subst.
+      eauto using Step.load_ad_access.
+    Qed.
+  End Load.
+
+  Module Store.
+    Lemma address_access: forall m m' t t' ad v,
+      m / t ==[EF_Store ad v]==> m' / t' ->
+      access m t ad.
+    Proof.
+      intros * ?. inversion_mstep. eauto using Step.Store.address_access.
+    Qed.
+  End Store.
+End MStep.
+

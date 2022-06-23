@@ -391,23 +391,6 @@ Proof.
   induction Hstep; inversion Heqeff; subst; eauto using access.
 Qed.
 
-Lemma none_does_not_grant_access : forall m m' t t' ad,
-  ~ access m t ad ->
-  m / t ==[EF_None]==> m' / t' ->
-  ~ access m' t' ad.
-Proof.
-  intros * Hnacc Hmstep. inversion Hmstep; subst; clear Hmstep.
-  remember EF_None as eff.
-  match goal with Hstep : _ --[_]--> _ |- _ => induction Hstep end;
-  inversion Heqeff; subst; eauto using access.
-  - inversion_not_access. eapply access_load_inverse; eauto using load_access_inverse.
-  - eapply asg_access_inverse in Hnacc as [? ?].
-    eauto using access_asg_inverse.
-  - eapply asg_access_inverse in Hnacc as [? ?].
-    eauto using access_asg_inverse.
-  - eapply seq_access_inverse in Hnacc as [? ?].
-    eauto using access_seq_inverse.
-Qed.
 
 Lemma load_does_not_grant_access : forall m m' t t' ad ad' v,
   ~ access m t ad ->
