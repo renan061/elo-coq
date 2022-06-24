@@ -36,10 +36,9 @@ Lemma monotonic_nondecreasing_memory_length: forall m m' eff t t',
 Proof.
   assert (forall m m' eff t t',
     m / t ==[eff]==> m' / t' ->
-    length m <= length m').
-  {
+    length m <= length m'). {
     intros * Hmstep. inversion Hmstep; subst; try lia.
-    - rewrite add_increments_length . lia.
+    - rewrite add_increments_length. lia.
     - eauto using Nat.eq_le_incl, set_preserves_length.
   }
   intros * Hmultistep. induction Hmultistep; eauto using Nat.le_trans.
@@ -103,228 +102,6 @@ Proof.
     lia.
 Qed.
 
-(* PART 2 *)
-
-Lemma access_if_alloc : forall m m' t t' ad v,
-  m / t ==[EF_Alloc ad v]==> m' / t' ->
-  access m' t' ad.
-Proof.
-  assert (forall m t t' ad v, t --[EF_Alloc ad v]--> t' -> access m t' ad). {
-    intros ? ?. induction t; intros * Hstep;
-    inversion Hstep; subst; eauto using access.
-  }
-  intros * Hmstep. destruct t'; inversion Hmstep; subst; eauto.
-Qed.
-
-Definition well_behaved_access m t :=
-  forall ad, access m t ad -> ad < length m.
-
-Lemma alloc_grants_access: forall m m' t t' ad v,
-  well_behaved_access m t ->
-  m / t ==[EF_Alloc ad v]==> m' / t' ->
-  ~ access m t ad /\ access m' t' ad.
-Proof.
-  intros * Hwba Hmstep. split; eauto using access_if_alloc.
-  intros F. eapply Hwba in F.
-  inversion Hmstep; subst.
-  eapply Nat.lt_irrefl; eauto.
-Qed.
-
-(* PART 3 *)
-
-Module wba.
-
-Lemma new : forall m t,
-  well_behaved_access m (TM_New t) ->
-  well_behaved_access m t.
-Proof.
-  intros * ? ?; eauto using access.
-Qed.
-
-Lemma load : forall m t,
-  well_behaved_access m (TM_Load t) ->
-  well_behaved_access m t.
-Proof.
-  intros * ? ?; eauto using access.
-Qed.
-
-Local Lemma wba_load' : forall m t,
-  well_behaved_access m t ->
-  well_behaved_access m (TM_Load t).
-Proof.
-  intros * ? ? ?. inversion_access. eauto.
-Qed.
-
-Lemma asg1 : forall m l r,
-  well_behaved_access m (TM_Asg l r) ->
-  well_behaved_access m l.
-Proof.
-  intros * ? ?. eauto using access.
-Qed.
-
-Lemma asg2 : forall m l r,
-  well_behaved_access m (TM_Asg l r) ->
-  well_behaved_access m r.
-Proof.
-  intros * ? ?. eauto using access.
-Qed.
-
-Local Lemma wba_asg' : forall m l r,
-  well_behaved_access m l ->
-  well_behaved_access m r ->
-  well_behaved_access m (TM_Asg l r).
-Proof.
-  intros * ? ? ? Hacc. inversion_access; eauto.
-Qed.
-
-Lemma seq1 : forall m t1 t2,
-  well_behaved_access m (TM_Seq t1 t2) ->
-  well_behaved_access m t1.
-Proof.
-  intros * ? ?. eauto using access.
-Qed.
-
-Lemma seq2 : forall m t1 t2,
-  well_behaved_access m (TM_Seq t1 t2) ->
-  well_behaved_access m t2.
-Proof.
-  intros * ? ?. eauto using access.
-Qed.
-
-Local Lemma wba_seq' : forall m t1 t2,
-  well_behaved_access m t1 ->
-  well_behaved_access m t2 ->
-  well_behaved_access m (TM_Seq t1 t2).
-Proof.
-  intros * ? ? ? Hacc. inversion_access; eauto.
-Qed.
-
-Local Lemma wba_added_value : forall m v,
-  well_behaved_access (add m v) v ->
-  well_behaved_access (add m v) (TM_Loc (length m)).
-Proof.
-  intros * Hwba ad Hacc.
-  remember (add m v) as m'.
-  remember (TM_Loc (length m)) as t'.
-  induction Hacc; inversion Heqt'; subst.
-  - rewrite (get_add_eq TM_Nil) in *; eauto using access.
-  - rewrite add_increments_length. lia.
-Qed.
-
-Local Lemma wba_stored_value : forall m t t' ad v,
-  well_behaved_access m t ->
-  t --[EF_Store ad v]--> t' ->
-  well_behaved_access m v.
-Proof.
-  intros * ? Hstep ? ?.
-  remember (EF_Store ad v) as eff.
-  induction Hstep; try inversion Heqeff; subst;
-  eauto using access, new, load, asg1, asg2, seq1, seq2.
-Qed.
-
-Lemma mem_add: forall m t v,
-  well_behaved_access m t ->
-  well_behaved_access (add m v) t.
-Proof.
-  intros * Hwba ad Hacc.
-  remember (add m v) as m'.
-  induction Hacc; subst;
-  eauto using new, load, asg1, asg2, seq1, seq2.
-  - match goal with IH : _ -> ?x |- ?x => eapply IH end.
-    intros ad'' Hacc''.
-    destruct (lt_eq_lt_dec ad' (length m)) as [[? | ?] | ?]; subst.
-    + rewrite (get_add_lt TM_Nil) in *; eauto using access.
-    + specialize (Hwba (length m) (access_loc m (length m))). lia.
-    + rewrite (get_add_gt TM_Nil) in *; eauto. inversion_access.
-  - rewrite add_increments_length. eauto using access, Nat.lt_lt_succ_r.
-Qed.
-
-Local Lemma wba_mem_set: forall m t ad v,
-  well_behaved_access m t ->
-  well_behaved_access m v ->
-  well_behaved_access (set m ad v) t.
-Proof.
-  intros * HwbaT HwbaV ad' Hacc'.
-  rewrite set_preserves_length.
-  remember (set m ad v) as m'.
-  induction Hacc'; subst;
-  eauto using access, new, load, asg1, asg2, seq1, seq2.
-  match goal with IH : _ -> ?x |- ?x => eapply IH; clear IH end.
-  destruct (Nat.eqb ad ad') eqn:E.
-  - eapply Nat.eqb_eq in E; subst.
-    rewrite (get_set_eq TM_Nil); eauto using access.
-  - eapply Nat.eqb_neq in E.
-    rewrite (get_set_neq TM_Nil) in *; eauto.
-    intros ? ?. eauto using access.
-Qed.
-
-Local Lemma none_preservation : forall m t t',
-  well_behaved_access m t ->
-  t --[EF_None]--> t' ->
-  well_behaved_access m t'.
-Proof.
-  intros * Hwba Hstep.
-  remember (EF_None) as eff.
-  induction Hstep; inversion Heqeff; subst;
-  eauto using new, load, wba_load';
-  try (eapply wba_asg' || eapply wba_seq');
-  eauto using asg1, asg2, seq1, seq2.
-Qed.
-
-Local Lemma alloc_preservation : forall m t t' v,
-  well_behaved_access m t ->
-  t --[EF_Alloc (length m) v]--> t' ->
-  well_behaved_access (add m v) t'.
-Proof.
-  intros * Hwba Hstep.
-  remember (EF_Alloc (length m) v) as eff.
-  induction Hstep; inversion Heqeff; subst;
-  eauto using new, load, wba_load', mem_add, wba_added_value;
-  try (eapply wba_asg' || eapply wba_seq');
-  eauto using asg1, asg2, seq1, seq2, mem_add.
-Qed.
-
-Local Lemma load_preservation : forall m t t' ad,
-  well_behaved_access m t ->
-  t --[EF_Load ad (get TM_Nil m ad)]--> t' ->
-  well_behaved_access m t'.
-Proof.
-  intros * Hwba Hstep.
-  remember (EF_Load ad (get TM_Nil m ad)) as eff.
-  induction Hstep; subst; try (inversion Heqeff; subst);
-  eauto using new, load, wba_load', asg1, asg2, wba_asg', seq1, seq2, wba_seq';
-  eapply load in Hwba; intros ? ?; eauto using access.
-Qed.
-
-Local Lemma store_preservation : forall m t t' ad v,
-  well_behaved_access m t ->
-  t --[EF_Store ad v]--> t' ->
-  well_behaved_access (set m ad v) t'.
-Proof.
-  intros * Hwba Hstep.
-  assert (well_behaved_access m v); eauto using wba_stored_value.
-  remember (EF_Store ad v) as eff.
-  induction Hstep; subst; try (inversion Heqeff; subst);
-  eauto using new, load, wba_load';
-  try (eapply wba_asg' || eapply wba_seq');
-  eauto using asg1, asg2, seq1, seq2, wba_mem_set.
-  intros ? ?. inversion_access.
-Qed.
-
-Lemma mstep_preservation : forall m m' t t' eff,
-  well_behaved_access m t ->
-  m / t ==[eff]==> m' / t' ->
-  well_behaved_access m' t'.
-Proof.
-  intros * Hwba Hmstep. inversion Hmstep; subst;
-  eauto using none_preservation, 
-    alloc_preservation,
-    load_preservation,
-    store_preservation.
-Qed.
-
-End wba.
-
 (* PART 4 *)
 
 Local Lemma access_set : forall m t ad ad' v,
@@ -334,14 +111,12 @@ Local Lemma access_set : forall m t ad ad' v,
 Proof.
   assert (ge_iff_le : forall m n, m >= n <-> n <= m).
   { intros. split; destruct n; eauto. }
-
   assert (forall m ad ad' v,
     access (set m ad' v) (get TM_Nil (set m ad' v) ad') ad ->
     ad' < length m). {
     intros * H. eapply not_ge. rewrite ge_iff_le. intros ?.
     rewrite get_set_invalid in H; trivial. inversion H.
   }
-
   intros * HnaccT HnaccV F.
   remember (set m ad' v) as m'.
   induction F; inversion Heqm'; subst; eauto using access.
@@ -389,25 +164,6 @@ Proof.
   intros * Hnacc Hstep.
   remember (EF_Alloc ad' v) as eff.
   induction Hstep; inversion Heqeff; subst; eauto using access.
-Qed.
-
-
-Lemma load_does_not_grant_access : forall m m' t t' ad ad' v,
-  ~ access m t ad ->
-  m / t ==[EF_Load ad' v]==> m' / t' ->
-  ~ access m' t' ad.
-Proof.
-  intros * Hnacc Hmstep. inversion Hmstep; subst; clear Hmstep.
-  remember (EF_Load ad' (get TM_Nil m' ad')) as eff.
-  match goal with Hstep : _ --[_]--> _ |- _ => induction Hstep end;
-  inversion Heqeff; subst; eauto using access.
-  - eapply access_load_inverse; eauto using load_access_inverse.
-  - eapply asg_access_inverse in Hnacc as [? ?].
-    eauto using access_asg_inverse.
-  - eapply asg_access_inverse in Hnacc as [? ?].
-    eauto using access_asg_inverse.
-  - eapply seq_access_inverse in Hnacc as [? ?].
-    eauto using access_seq_inverse.
 Qed.
 
 Lemma access_granted_by_alloc_is_memory_length : forall m t t' ad v,
