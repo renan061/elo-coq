@@ -7,6 +7,9 @@ main:
 	$(COQC) Map.v
 	$(COQC) Core0.v
 	$(COQC) Access.v
+	$(COQC) Compat.v
+	$(COQC) WBA.v
+	$(COQC) AccessProp.v
 	$(COQC) Disjoint.v
 
 clean:

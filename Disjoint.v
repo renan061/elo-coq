@@ -4,6 +4,9 @@ From Coq Require Import Lia.
 From Elo Require Import Array.
 From Elo Require Import Core0.
 From Elo Require Import Access.
+From Elo Require Import Compat.
+From Elo Require Import WBA.
+From Elo Require Import AccessProp.
 
 Definition disjoint_memory m ths := forall tid1 tid2 ad,
   access m (getTM ths tid1) ad ->
@@ -19,9 +22,9 @@ Proof.
   intros * ? ? Hmstep tid1 tid2 ? ? ?. inversion Hmstep; subst.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; eauto.
   - rewrite (get_set_neq TM_Nil); rewrite (get_set_eq TM_Nil) in *;
-    eauto using MStep.None.inherits_access.
+    eauto using mstep_none_inherits_access.
   - rewrite (get_set_eq TM_Nil); rewrite (get_set_neq TM_Nil) in *;
-    eauto using MStep.None.preserves_not_access.
+    eauto using mstep_none_preserves_not_access.
   - rewrite (get_set_neq TM_Nil) in *; eauto.
 Qed.
 
@@ -34,9 +37,9 @@ Proof.
   intros * ? ? Hmstep tid1 tid2 ? ? ?. inversion Hmstep; subst.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; eauto.
   - rewrite (get_set_neq TM_Nil); rewrite (get_set_eq TM_Nil) in *;
-    eauto using MStep.Load.inherits_access.
+    eauto using mstep_load_inherits_access.
   - rewrite (get_set_eq TM_Nil); rewrite (get_set_neq TM_Nil) in *;
-    eauto using MStep.Load.preserves_not_access.
+    eauto using mstep_load_preserves_not_access.
   - rewrite (get_set_neq TM_Nil) in *; eauto.
 Qed.
 
@@ -55,10 +58,10 @@ Proof.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; eauto.
   - rewrite (get_set_neq TM_Nil); rewrite (get_set_eq TM_Nil) in *; eauto.
     destruct (Nat.eq_dec ad' (length m)); subst;
-    eauto using inaccessible_address_add_2, MStep.Alloc.inherits_access.
+    eauto using inaccessible_address_add_2, mstep_alloc_inherits_access.
   - rewrite (get_set_eq TM_Nil); rewrite (get_set_neq TM_Nil) in *; eauto.
     destruct (Nat.eq_dec ad' (length m)); subst; eauto;
-    eauto using inaccessible_address_add_1, MStep.Alloc.preserves_not_access.
+    eauto using inaccessible_address_add_1, mstep_alloc_preserves_not_access.
   - rewrite (get_set_neq TM_Nil) in *; eauto.
     eauto using inaccessible_address_add_1, inaccessible_address_add_2.
 Qed.
@@ -72,15 +75,15 @@ Proof.
   intros * ? ? Hmstep tid1 tid2 ? ? ?. inversion Hmstep; subst.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; eauto.
   - rewrite (get_set_neq TM_Nil); rewrite (get_set_eq TM_Nil) in *;
-    eauto 6 using MStep.Store.address_access,
-                  MStep.Store.inherits_access,
+    eauto 6 using mstep_store_address_access,
+                  mstep_store_inherits_access,
                   inaccessible_address_set_2.
   - rewrite (get_set_eq TM_Nil); rewrite (get_set_neq TM_Nil) in *;
-    eauto 6 using MStep.Store.address_access,
-                  MStep.Store.preserves_not_access,
+    eauto 6 using mstep_store_address_access,
+                  mstep_store_preserves_not_access,
                   inaccessible_address_set_1.
   - rewrite (get_set_neq TM_Nil) in *;
-    eauto 8 using MStep.Store.address_access,
+    eauto 8 using mstep_store_address_access,
                   inaccessible_address_set_1,
                   inaccessible_address_set_2.
 Qed.
