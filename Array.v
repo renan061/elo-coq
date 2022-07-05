@@ -77,6 +77,20 @@ Proof.
   simpl. eauto using PeanoNat.Nat.succ_inj_wd_neg.
 Qed.
 
+Lemma get_set_lt : forall {A} default (l : list A) i j a,
+  i < j ->
+  get default (set l j a) i = get default l i.
+Proof.
+  intros. eapply get_set_neq. lia. 
+Qed.
+
+Lemma get_set_gt : forall {A} default (l : list A) i j a,
+  j < i ->
+  get default (set l j a) i = get default l i.
+Proof.
+  intros. eapply get_set_neq. lia.
+Qed.
+
 Lemma get_set_invalid : forall {A} default (l : list A) i a,
   length l <= i ->
   get default (set l i a) i = default.

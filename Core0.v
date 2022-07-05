@@ -1,5 +1,4 @@
 From Coq Require Import List.
-From Coq Require Import Logic.Decidable.
 
 From Elo Require Import Array.
 From Elo Require Import Map.
@@ -43,7 +42,7 @@ Inductive tm : Set :=
 Theorem tm_eq_dec : forall (t1 t2 : tm),
   {t1 = t2} + {t1 <> t2}.
 Proof.
-  intros *. decide equality; eauto using PeanoNat.Nat.eq_dec.
+  intros. decide equality; eauto using PeanoNat.Nat.eq_dec.
 Qed.
 
 (* Values *)
@@ -69,7 +68,7 @@ Inductive effect : Set :=
 Theorem effect_eq_dec : forall (e1 e2 : effect),
   {e1 = e2} + {e1 <> e2}.
 Proof.
-  intros *. decide equality; eauto using PeanoNat.Nat.eq_dec, tm_eq_dec.
+  intros. decide equality; eauto using PeanoNat.Nat.eq_dec, tm_eq_dec.
 Qed.
 
 (* Operational Semantics *)
@@ -168,19 +167,24 @@ Inductive cstep : mem -> threads -> nat -> effect -> mem -> threads -> Prop :=
       m / (getTM ths tid) ==[eff]==> m' / t' ->
       m / ths ~~[tid, eff]~~> m' / (set ths tid t')
 
-  | CST_Spawn : forall m m' t' ths tid eff block,
+  | CST_Spawn : forall m t' ths tid block,
       tid < length ths ->
-      eff = EF_Spawn block ->
-      m / (getTM ths tid) ==[eff]==> m' / t' ->
-      m / ths ~~[tid, eff]~~> m' / (add (set ths tid t') block)
+      (getTM ths tid) --[EF_Spawn block]--> t' ->
+      m / ths ~~[tid, EF_Spawn block]~~> m / (add (set ths tid t') block)
 
   where "m / ths '~~[' tid ,  eff ']~~>' m' / ths'" :=
     (cstep m ths tid eff m' ths').
+
+Ltac inversion_cstep :=
+  match goal with
+    | H : _ / _ ~~[_, _]~~> _ / _ |- _ => inversion H; subst; clear H
+  end.
 
 (* Typing *)
 
 Definition memtyp := list typ.
 Definition ctx := map typ.
+Definition getTY := get TY_Void.
 
 Inductive well_typed_term (mt : memtyp) : ctx -> tm -> typ -> Prop :=
   | T_Nil : forall Gamma,
@@ -190,7 +194,8 @@ Inductive well_typed_term (mt : memtyp) : ctx -> tm -> typ -> Prop :=
     mt / Gamma |-- (TM_Num n) is TY_Num
 
   | T_Loc : forall Gamma ad,
-    mt / Gamma |-- (TM_Loc ad) is TY_Ref (get TY_Void mt ad ) (* TODO *)
+    ad < length mt ->
+    mt / Gamma |-- (TM_Loc ad) is TY_Ref (get TY_Void mt ad )
 
   | T_New : forall Gamma t T,
     mt / Gamma |-- t is T ->
@@ -211,7 +216,7 @@ Inductive well_typed_term (mt : memtyp) : ctx -> tm -> typ -> Prop :=
     mt / Gamma |-- (TM_Seq t1 t2) is T2
 
   | T_Spawn : forall Gamma t T,
-    mt / Gamma |-- t is T ->
+    mt / empty |-- t is T ->
     mt / Gamma |-- (TM_Spawn t) is TY_Void
 
   where "mt / Gamma '|--' t 'is' T" := (well_typed_term mt Gamma t T).
