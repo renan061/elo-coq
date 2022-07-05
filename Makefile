@@ -10,6 +10,7 @@ main:
 	$(COQC) Compat.v
 	$(COQC) WBA.v
 	$(COQC) AccessProp.v
+	$(COQC) NoLoc.v
 	$(COQC) Disjoint.v
 
 clean:

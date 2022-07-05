@@ -109,6 +109,26 @@ Proof.
   induction_step; inversion Heqeff; subst; eauto using access.
 Qed.
 
+Lemma step_spawn_inherits_access : forall m t t' ad block,
+  access m t' ad ->
+  t --[EF_Spawn block]--> t' ->
+  access m t ad.
+Proof.
+  intros. remember (EF_Spawn _) as eff.
+  induction_step; inversion Heqeff; subst;
+  try inversion_access; eauto using access.
+Qed.
+
+Lemma step_spawn_preserves_not_access : forall m t t' ad block,
+  ~ access m t ad ->
+  t --[EF_Spawn block]--> t' ->
+  ~ access m t' ad.
+Proof.
+  intros. remember (EF_Spawn _) as eff.
+  induction_step; inversion Heqeff; subst; inversion_not_access;
+  eauto using not_access_load, not_access_asg, not_access_seq.
+Qed.
+
 (*****************************************************************************)
 (* MStep *********************************************************************)
 (*****************************************************************************)

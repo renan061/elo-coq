@@ -62,6 +62,7 @@ Ltac inversion_access :=
     | H : access _ (TM_Load _)  _ |- _ => inversion H; subst; clear H
     | H : access _ (TM_Asg _ _) _ |- _ => inversion H; subst; clear H
     | H : access _ (TM_Seq _ _) _ |- _ => inversion H; subst; clear H
+    | H : access _ (TM_Spawn _) _ |- _ => inversion H; clear H
   end.
 
 Lemma inversion_not_access_loc : forall m ad ad',
