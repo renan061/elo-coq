@@ -17,9 +17,9 @@ Fixpoint set {A} (l : list A) (i : nat) (a : A) : list A :=
     end
   end.
 
-(* Auxiliary Lemmas *)
+(* Proofs *)
 
-Local Lemma set_invalid : forall {A} (l : list A) i a,
+Lemma set_invalid : forall {A} (l : list A) i a,
   length l <= i ->
   set l i a = l.
 Proof.
@@ -29,8 +29,6 @@ Proof.
   simpl in H. eapply le_S_n in H.
   rewrite IH; eauto.
 Qed.
-
-(* Proofs *)
 
 Lemma set_preserves_length : forall {A} (l : list A) i a,
   length (set l i a) = length l.
