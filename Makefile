@@ -3,9 +3,10 @@
 COQC= coqc -Q . Elo
 
 main:
+	$(COQC) Util.v
 	$(COQC) Array.v
 	$(COQC) Map.v
-	$(COQC) Core0.v
+	$(COQC) Core.v
 	$(COQC) Access.v
 	$(COQC) Compat.v
 	$(COQC) WBA.v

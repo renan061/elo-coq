@@ -2,7 +2,7 @@ From Coq Require Import Arith.Arith.
 From Coq Require Import Lia.
 
 From Elo Require Import Array.
-From Elo Require Import Core0.
+From Elo Require Import Core.
 From Elo Require Import Access.
 
 Definition compat m m' t := forall ad,
@@ -67,7 +67,7 @@ Proof.
     destruct (Nat.eq_dec ad ad'); subst
   end.
   - exfalso. eauto using access.
-  - rewrite (get_set_neq TM_Nil); eauto using access.
+  - rewrite (get_set_neq TM_Unit); eauto using access.
 Qed.
 
 Lemma compat_inaccessible_address_add : forall m m' t v,
@@ -80,10 +80,10 @@ Proof.
   destruct (Nat.eq_dec ad (length m')); subst.
   + exfalso. eauto using access.
   + destruct (not_eq ad (length m')); trivial.
-    * rewrite (get_add_lt TM_Nil); eauto using access.
+    * rewrite (get_add_lt TM_Unit); eauto using access.
     * specialize (Hcompat ad (access_loc m ad)).
-      rewrite (get_default TM_Nil m') in Hcompat; try lia.
-      rewrite (get_add_gt TM_Nil); trivial.
+      rewrite (get_default TM_Unit m') in Hcompat; try lia.
+      rewrite (get_add_gt TM_Unit); trivial.
 Qed.
 
 Corollary inaccessible_address_set_1 : forall m t ad ad' v,
