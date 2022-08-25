@@ -122,6 +122,37 @@ Proof.
   - simpl. eapply PeanoNat.Nat.succ_lt_mono in H. eauto.
 Qed.
 
+(* Properties *)
+
+Definition property {A} (a : A) (P : A -> Prop) (l : list A) : Prop :=
+  forall i, P (get a l i).
+
+Lemma property_add : forall {A} (P : A -> Prop) default l a,
+  P default ->
+  P a ->
+  property default P l ->
+  property default P (add l a).
+Proof.
+  intros; intros i. decompose sum (lt_eq_lt_dec i (length l)); subst.
+  - rewrite (get_add_lt default); trivial.
+  - rewrite (get_add_eq default); trivial.
+  - rewrite (get_add_gt default); trivial.
+Qed.
+
+Lemma property_set : forall {A} (P : A -> Prop) default l i a,
+  P default ->
+  P a ->
+  property default P l ->
+  property default P (set l i a).
+Proof.
+  intros; intros i'. decompose sum (lt_eq_lt_dec i i'); subst.
+  - rewrite (get_set_gt default); trivial.
+  - decompose sum (le_lt_dec (length l) i').
+    + rewrite set_invalid in *; trivial.
+    + rewrite (get_set_eq default); trivial.
+  - rewrite (get_set_lt default); trivial.
+Qed.
+
 (*
 
 TODO: Probably used by progress/preservation.

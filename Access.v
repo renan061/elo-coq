@@ -79,6 +79,9 @@ Ltac inversion_access :=
   | H : access _ (TM_Spawn _)   _ |- _ => inversion H; clear H
   end.
 
+Definition well_behaved_access (m : mem) (t : tm) :=
+  forall ad, access m t ad -> ad < length m.
+
 (* -------------------------------------------------------------------------- *)
 (* not_access --------------------------------------------------------------- *)
 (* -------------------------------------------------------------------------- *)

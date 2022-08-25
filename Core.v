@@ -172,7 +172,8 @@ Inductive step : tm -> effect -> tm -> Prop :=
 
 Ltac induction_step :=
   match goal with
-    | H : _ --[?e]--> _ |- _ => remember e as eff; induction H
+  | H : _ --[?e]--> _ |- _ =>
+    remember e as eff; induction H; inversion Heqeff; subst
   end.
 
 (* Memory Step *)
@@ -234,6 +235,14 @@ Ltac inversion_cstep :=
   match goal with
     | H : _ / _ ~~[_, _]~~> _ / _ |- _ => inversion H; subst; clear H
   end.
+
+(* Array Properties *)
+
+Definition memory_property P (m : mem) : Prop :=
+  property TM_Unit P m.
+
+Definition threads_property P (ths : threads) : Prop :=
+  property TM_Unit P ths.
 
 (* Typing *)
 

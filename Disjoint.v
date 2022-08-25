@@ -105,8 +105,8 @@ Proof.
 Qed.
 
 Theorem disjoint_memory_preservation : forall m m' ths ths' tid eff,
-  (forall tid, SpawnNoLoc (getTM ths tid)) ->
-  (forall tid, well_behaved_access m (getTM ths tid)) ->
+  threads_property SpawnNoLoc ths ->
+  threads_property (well_behaved_access m) ths ->
   disjoint_memory m ths ->
   tid < length ths ->
   m / ths ~~[tid, eff]~~> m' / ths' ->
