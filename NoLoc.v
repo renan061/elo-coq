@@ -112,39 +112,6 @@ Proof.
   inversion_spawn_noloc; eauto using SpawnNoLoc.
 Qed.
 
-Definition memory_property (P : tm -> Prop) (m : mem) : Prop :=
-  forall ad, P (getTM m ad).
-
-Local Lemma memory_property_alloc_preservation :
-  forall (P : tm -> Prop) m t t' v,
-    P TM_Unit ->
-    P v ->
-    memory_property P m ->
-    t --[EF_Alloc (length m) v]--> t' ->
-    memory_property P (add m v).
-Proof.
-  intros; intros ad. decompose sum (lt_eq_lt_dec ad (length m)); subst.
-  - rewrite (get_add_lt TM_Unit); trivial.
-  - rewrite (get_add_eq TM_Unit); trivial.
-  - rewrite (get_add_gt TM_Unit); trivial.
-Qed.
-
-Local Lemma memory_property_store_preservation :
-  forall (P : tm -> Prop) m t t' ad v,
-    P TM_Unit ->
-    P v ->
-    memory_property P m ->
-    t --[EF_Store ad v]--> t' ->
-    memory_property P (set m ad v).
-Proof.
-  intros; intros ad'. decompose sum (lt_eq_lt_dec ad ad'); subst.
-  - rewrite (get_set_gt TM_Unit); trivial.
-  - decompose sum (le_lt_dec (length m) ad').
-    + rewrite set_invalid in *; trivial.
-    + rewrite (get_set_eq TM_Unit); trivial.
-  - rewrite (get_set_lt TM_Unit); trivial.
-Qed.
-
 Local Lemma spawn_noloc_alloc : forall m t t' v,
   SpawnNoLoc t ->
   memory_property SpawnNoLoc m ->
@@ -152,8 +119,8 @@ Local Lemma spawn_noloc_alloc : forall m t t' v,
   memory_property SpawnNoLoc (add m v).
 Proof.
   intros. assert (SpawnNoLoc v).
-  { induction_step; inversion Heqeff; subst; inversion_spawn_noloc; eauto. }
-  eauto using memory_property_alloc_preservation, SpawnNoLoc.
+  { induction_step; inversion_spawn_noloc; eauto. }
+  unfold memory_property. eauto using property_add, SpawnNoLoc.
 Qed.
 
 Local Lemma spawn_noloc_store : forall m t t' ad v,
@@ -163,8 +130,8 @@ Local Lemma spawn_noloc_store : forall m t t' ad v,
   memory_property SpawnNoLoc (set m ad v).
 Proof.
   intros. assert (SpawnNoLoc v).
-  { induction_step; inversion Heqeff; subst; inversion_spawn_noloc; eauto. }
-  eauto using memory_property_store_preservation, SpawnNoLoc.
+  { induction_step; inversion_spawn_noloc; eauto. }
+  unfold memory_property. eauto using property_set, SpawnNoLoc.
 Qed.
 
 Local Lemma mstep_mem_spawn_noloc_preservation : forall (m m' : mem) t t' eff,
@@ -182,8 +149,19 @@ Local Lemma mstep_tm_spawn_noloc_preservation : forall m m' t t' eff,
   m / t ==[eff]==> m' / t' ->
   SpawnNoLoc t'.
 Proof.
-  intros. inversion_mstep; induction_step; inversion Heqeff; subst;
-  inversion_spawn_noloc; eauto using SpawnNoLoc, spawn_noloc_subst.
+  intros. inversion_mstep; induction_step; inversion_spawn_noloc;
+  eauto using SpawnNoLoc, spawn_noloc_subst.
+Qed.
+
+Local Lemma noloc_then_spawn_noloc : forall t,
+  NoLoc t ->
+  SpawnNoLoc t.
+Proof.
+  intros. induction t;
+  match goal with
+  | H : NoLoc _ |- _ =>
+    induction H; eauto using SpawnNoLoc
+  end.
 Qed.
 
 Local Lemma spawn_noloc_for_block : forall t t' block,
@@ -191,43 +169,31 @@ Local Lemma spawn_noloc_for_block : forall t t' block,
   t --[EF_Spawn block]--> t' ->
   SpawnNoLoc block.
 Proof.
-  intros * Hsnl Hstep.
-  induction_step; inversion Heqeff; subst;
-  inversion_spawn_noloc; eauto.
-  match goal with | H : NoLoc _ |- _ => induction H; eauto using SpawnNoLoc end.
+  intros. induction_step; inversion_spawn_noloc;
+  eauto using SpawnNoLoc, noloc_then_spawn_noloc.
+Qed.
+
+Local Lemma step_spawn_noloc_preservation : forall t t' block,
+  SpawnNoLoc t ->
+  t --[EF_Spawn block]--> t' ->
+  SpawnNoLoc t'.
+Proof.
+  intros. induction_step; inversion_spawn_noloc;
+  eauto using SpawnNoLoc, noloc_then_spawn_noloc.
 Qed.
 
 Theorem spawn_noloc_preservation : forall m m' ths ths' tid eff,
   memory_property SpawnNoLoc m ->
-  (forall tid, SpawnNoLoc (getTM ths tid)) ->
+  threads_property SpawnNoLoc ths ->
   m / ths ~~[tid, eff]~~> m' / ths' ->
-  (forall tid,SpawnNoLoc (getTM ths' tid)).
+  (memory_property SpawnNoLoc m' /\ threads_property SpawnNoLoc ths').
 Proof.
-  intros * Hmsnl Hsnl Hcstep. inversion_cstep.
-  - intros tid'. destruct (Nat.eq_dec tid tid'); subst.
-    + rewrite (get_set_eq TM_Unit); trivial.
-      inversion_mstep';
-      eauto using mstep_tm_spawn_noloc_preservation.
-    + rewrite (get_set_neq TM_Unit); trivial. lia.
-  - intros tid'.
-    decompose sum (lt_eq_lt_dec tid (length ths)); subst; try lia.
-    destruct (Nat.eq_dec tid tid'); subst.
-    + rewrite (get_add_lt TM_Unit).
-      * rewrite (get_set_eq TM_Unit); trivial.
-        specialize (Hsnl tid').
-        induction_step; inversion Heqeff; subst;
-        inversion Hsnl; subst; eauto using SpawnNoLoc.
-      * rewrite set_preserves_length. trivial.
-    + decompose sum (lt_eq_lt_dec tid' (length ths)); subst.
-      * rewrite (get_add_lt TM_Unit).
-        ** rewrite (get_set_neq TM_Unit); trivial. lia.
-        ** rewrite set_preserves_length; trivial.
-      * erewrite <- set_preserves_length.
-        rewrite (get_add_eq TM_Unit).
-        eauto using spawn_noloc_for_block.
-      * rewrite (get_add_gt TM_Unit).
-        ** eauto using SpawnNoLoc.
-        ** rewrite set_preserves_length; trivial.
+  intros. split; inversion_cstep;
+  eauto using mstep_mem_spawn_noloc_preservation.
+  - eapply property_set; eauto using SpawnNoLoc.
+    eauto using mstep_tm_spawn_noloc_preservation. (* performance *)
+  - eapply property_add; eauto using SpawnNoLoc, spawn_noloc_for_block.
+    eapply property_set; eauto using SpawnNoLoc, step_spawn_noloc_preservation.
 Qed.
 
 Lemma noloc_for_block : forall t t' block,
@@ -235,9 +201,7 @@ Lemma noloc_for_block : forall t t' block,
   t --[EF_Spawn block]--> t' ->
   NoLoc block.
 Proof.
-  intros * Hsnl ?.
-  induction_step; inversion Heqeff; subst;
-  inversion Hsnl; subst; eauto.
+  intros. induction_step; inversion_spawn_noloc; eauto.
 Qed.
 
 Lemma noloc_then_not_access : forall m t ad,

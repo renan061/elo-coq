@@ -5,9 +5,6 @@ From Elo Require Import Array.
 From Elo Require Import Core.
 From Elo Require Import Access.
 
-Definition well_behaved_access m t :=
-  forall ad, access m t ad -> ad < length m.
-
 (* -------------------------------------------------------------------------- *)
 (* wba_destruct ------------------------------------------------------------- *)
 (* -------------------------------------------------------------------------- *)
@@ -136,9 +133,7 @@ Local Lemma wba_stored_value : forall m t t' ad v,
   t --[EF_Store ad v]--> t' ->
   well_behaved_access m v.
 Proof.
-  intros * ? ? ? ?.
-  induction_step; try inversion Heqeff; subst;
-  destruct_wba; eauto using access. 
+  intros. induction_step; destruct_wba; eauto using access. 
 Qed.
 
 Local Lemma wba_mem_add : forall m t v,
@@ -192,7 +187,7 @@ Local Lemma none_preservation : forall m t t',
   t --[EF_None]--> t' ->
   well_behaved_access m t'.
 Proof.
-  intros. induction_step; inversion Heqeff; subst;
+  intros. induction_step;
   destruct_wba; eauto using wba_load, wba_asg, wba_fun, wba_call, wba_seq. 
   destruct_wba. eauto using wba_subst.
 Qed.
@@ -202,8 +197,7 @@ Local Lemma alloc_preservation : forall m t t' v,
   t --[EF_Alloc (length m) v]--> t' ->
   well_behaved_access (add m v) t'.
 Proof.
-  intros. induction_step; inversion Heqeff; subst;
-  destruct_wba;
+  intros. induction_step; destruct_wba;
   eauto using wba_load, wba_asg, wba_call, wba_seq, wba_mem_add,
               wba_added_value. 
 Qed.
@@ -213,8 +207,8 @@ Local Lemma load_preservation : forall m t t' ad,
   t --[EF_Load ad (get TM_Unit m ad)]--> t' ->
   well_behaved_access m t'.
 Proof.
-  intros. induction_step; inversion Heqeff; subst;
-  destruct_wba; eauto using wba_load, wba_asg, wba_call, wba_seq.
+  intros. induction_step; destruct_wba;
+  eauto using wba_load, wba_asg, wba_call, wba_seq.
   intros ? ?. eauto using access.
 Qed.
 
@@ -225,8 +219,8 @@ Local Lemma store_preservation : forall m t t' ad v,
 Proof.
   intros.
   assert (well_behaved_access m v); eauto using wba_stored_value.
-  induction_step; inversion Heqeff; subst;
-  destruct_wba; eauto using wba_load, wba_asg, wba_call, wba_seq, wba_mem_set.
+  induction_step; destruct_wba;
+  eauto using wba_load, wba_asg, wba_call, wba_seq, wba_mem_set.
   intros ? ?. inversion_access.
 Qed.
 

@@ -87,7 +87,7 @@ Lemma step_alloc_address_access2 : forall m t t' ad v,
   t --[EF_Alloc ad v]--> t' ->
   access m t' ad.
 Proof.
-  intros. induction_step; inversion Heqeff; subst; eauto using access.
+  intros. induction_step; eauto using access.
 Qed. 
 
 Lemma step_store_value_access : forall m t t' ad ad' v,
@@ -95,7 +95,7 @@ Lemma step_store_value_access : forall m t t' ad ad' v,
   t --[EF_Store ad' v]--> t' ->
   access m t ad.
 Proof.
-  intros. induction_step; inversion Heqeff; subst; eauto using access.
+  intros. induction_step; eauto using access.
 Qed.
 
 Lemma step_store_value_not_access : forall m t t' ad ad' v,
@@ -103,7 +103,7 @@ Lemma step_store_value_not_access : forall m t t' ad ad' v,
   t --[EF_Store ad' v]--> t' ->
   ~ access m v ad.
 Proof.
-  intros. induction_step; inversion Heqeff; subst; eauto using access.
+  intros. induction_step; eauto using access.
 Qed.
 
 Lemma step_spawn_inherits_access : forall m t t' ad block,
@@ -111,8 +111,7 @@ Lemma step_spawn_inherits_access : forall m t t' ad block,
   t --[EF_Spawn block]--> t' ->
   access m t ad.
 Proof.
-  intros. induction_step; inversion Heqeff; subst;
-  try inversion_access; eauto using access.
+  intros. induction_step; try inversion_access; eauto using access.
 Qed.
 
 Lemma step_spawn_preserves_not_access : forall m t t' ad block,
@@ -120,7 +119,7 @@ Lemma step_spawn_preserves_not_access : forall m t t' ad block,
   t --[EF_Spawn block]--> t' ->
   ~ access m t' ad.
 Proof.
-  intros. induction_step; inversion Heqeff; subst; inversion_not_access;
+  intros. induction_step; inversion_not_access;
   eauto using not_access_load, not_access_asg, not_access_call, not_access_seq.
 Qed.
 
@@ -133,7 +132,7 @@ Lemma mstep_none_inherits_access : forall m m' t t' ad,
   m / t ==[EF_None]==> m' / t' ->
   access m t ad.
 Proof.
-  intros. inversion_mstep. induction_step; inversion Heqeff; subst;
+  intros. inversion_mstep. induction_step;
   try inversion_access; eauto using access, access_subst.
 Qed.
 
@@ -142,8 +141,7 @@ Lemma mstep_none_preserves_not_access : forall m m' t t' ad,
   m / t ==[EF_None]==> m' / t' ->
   ~ access m' t' ad.
 Proof.
-  intros. inversion_mstep. induction_step; inversion Heqeff; subst;
-  inversion_not_access;
+  intros. inversion_mstep. induction_step; inversion_not_access;
   eauto using not_access_load, not_access_asg, not_access_call, not_access_seq.
   inversion_not_access. eauto using not_access_subst.
 Qed.
@@ -171,8 +169,7 @@ Lemma mstep_alloc_inherits_access : forall m m' t t' ad ad' v,
   m / t ==[EF_Alloc ad' v]==> m' / t' ->
   access m t ad.
 Proof.
-  intros * Hwba ? ? Hmstep. inversion_mstep.
-  induction_step; inversion Heqeff; subst;
+  intros * Hwba ? ? Hmstep. inversion_mstep. induction_step;
   WBA.destruct_wba; try inversion_access; eauto using access; try lia.
   - rewrite (get_add_eq TM_Unit) in *.
     eapply access_new; eapply inaccessible_address_add_1; eauto. intros F.
@@ -204,8 +201,8 @@ Lemma mstep_alloc_preserves_access : forall m m' t t' ad ad' v,
   m / t ==[EF_Alloc ad' v]==> m' / t' ->
   access m' t' ad.
 Proof.
-  intros. inversion_mstep. induction_step; inversion Heqeff; subst;
-  inversion_access; eauto using access, Mem.Add.preserves_access.
+  intros. inversion_mstep. induction_step; inversion_access;
+  eauto using access, Mem.Add.preserves_access.
   eapply access_mem. rewrite (get_add_eq TM_Unit).
   eauto using Mem.Add.preserves_access.
 Qed.
@@ -218,8 +215,8 @@ Lemma mstep_alloc_preserves_not_access : forall m m' t t' ad ad' v,
   ~ access m' t' ad.
 Proof.
   intros * Hwba ? ? ?. inversion_mstep.
-  induction_step; inversion Heqeff; subst; WBA.destruct_wba;
-  inversion_not_access; eauto using access, not_access_load. 
+  induction_step; WBA.destruct_wba; inversion_not_access;
+  eauto using access, not_access_load. 
   - intros ?. inversion_access; eauto.
     rewrite (get_add_eq TM_Unit) in *.
     eapply inaccessible_address_add_2; eauto. intros F.
@@ -250,8 +247,7 @@ Lemma mstep_load_address_access: forall m m' t t' ad v,
   m / t ==[EF_Load ad v]==> m' / t' ->
   access m t ad.
 Proof.
-  intros. inversion_mstep.
-  induction_step; inversion Heqeff; subst; eauto using access.
+  intros. inversion_mstep. induction_step; eauto using access.
 Qed.
 
 Lemma mstep_load_inherits_access : forall m m' t t' ad ad' v,
@@ -259,8 +255,7 @@ Lemma mstep_load_inherits_access : forall m m' t t' ad ad' v,
   m / t ==[EF_Load ad' v]==> m' / t' ->
   access m t ad.
 Proof.
-  intros * ? ?. inversion_mstep.
-  induction_step; inversion Heqeff; subst;
+  intros * ? ?. inversion_mstep. induction_step;
   try inversion_access; eauto using access.
 Qed.
 
@@ -270,8 +265,7 @@ Lemma mstep_load_preserves_access : forall m m' t t' ad ad' v,
   m / t ==[EF_Load ad' v]==> m' / t' ->
   access m' t' ad.
 Proof.
-  intros * Hneq Hacc Hmstep. inversion_mstep.
-  induction_step; inversion Heqeff; subst;
+  intros * Hneq Hacc Hmstep. inversion_mstep. induction_step;
   inversion_access; eauto using access.
   inversion_access; subst; trivial. exfalso. eauto.
 Qed.
@@ -281,8 +275,7 @@ Lemma mstep_load_preserves_not_access : forall m m' t t' ad ad' v,
   m / t ==[EF_Load ad' v]==> m' / t' ->
   ~ access m' t' ad.
 Proof.
-  intros * ? ?. inversion_mstep.
-  induction_step; inversion Heqeff; subst;
+  intros * ? ?. inversion_mstep. induction_step;
   eauto using access; inversion_not_access;
   eauto using not_access_load, not_access_asg, not_access_call, not_access_seq.
 Qed.
@@ -291,8 +284,7 @@ Lemma mstep_store_address_access: forall m m' t t' ad v,
   m / t ==[EF_Store ad v]==> m' / t' ->
   access m t ad.
 Proof.
-  intros * ?. inversion_mstep.
-  induction_step; inversion Heqeff; subst; eauto using access.
+  intros * ?. inversion_mstep. induction_step; eauto using access.
 Qed.
 
 Lemma mstep_store_inherits_access : forall m m' t t' ad ad' v,
@@ -300,8 +292,7 @@ Lemma mstep_store_inherits_access : forall m m' t t' ad ad' v,
   m / t ==[EF_Store ad' v]==> m' / t' ->
   access m t ad.
 Proof.
-  intros. inversion_mstep.
-  induction_step; inversion Heqeff; subst;
+  intros. inversion_mstep. induction_step;
   try inversion_access; eauto using access;
   destruct (access_dec m v ad);
   eauto using access, step_store_value_access, Mem.Set_.preserves_access.
@@ -312,9 +303,7 @@ Lemma mstep_store_preserves_not_access : forall m m' t t' ad ad' v,
   m / t ==[EF_Store ad' v]==> m' / t' ->
   ~ access m' t' ad.
 Proof.
-  intros * Hnacc ?. inversion_mstep.
-  induction_step; inversion Heqeff; subst;
-  inversion_not_access;
+  intros * Hnacc ?. inversion_mstep. induction_step; inversion_not_access;
   eauto using not_access_load, not_access_asg, not_access_call, not_access_seq,
               Mem.Set_.preserves_not_access, step_store_value_not_access.
 Qed.
