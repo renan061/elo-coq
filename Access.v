@@ -7,14 +7,14 @@ From Elo Require Import Core.
 Inductive access (m : mem) : tm -> addr -> Prop :=
   | access_mem : forall ad ad',
     access m (getTM m ad') ad ->
-    access m (TM_Loc ad') ad
+    access m (TM_LocM ad') ad
 
   | access_loc : forall ad,
-    access m (TM_Loc ad) ad
+    access m (TM_LocM ad) ad
 
-  | access_new : forall t ad,
+  | access_new : forall T t ad,
     access m t ad ->
-    access m (TM_New t) ad
+    access m (TM_New T t) ad
 
   | access_load : forall t ad,
     access m t ad ->
@@ -218,8 +218,11 @@ Proof.
   try solve [
     inversion_not_access;
     eauto using not_access_new, not_access_load, not_access_asg,
-      not_access_call, not_access_seq
+      not_access_fun, not_access_call, not_access_seq
   ];
   simpl; destruct String.eqb; trivial.
-  inversion_not_access. eauto using not_access_fun.
+  try solve [inversion_not_access; eauto using not_access_fun].
+  - shelve.
+  - shelve.
 Qed.
+
