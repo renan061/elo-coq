@@ -17,8 +17,8 @@ Local Ltac solve_wba_destruct :=
   end;
   eauto using access.
 
-Local Lemma wba_destruct_new : forall m t,
-  well_behaved_access m (TM_New t) ->
+Local Lemma wba_destruct_new : forall m t T,
+  well_behaved_access m (TM_New T t) ->
   well_behaved_access m t.
 Proof. solve_wba_destruct. Qed.
 
@@ -49,7 +49,7 @@ Proof. solve_wba_destruct. Qed.
 
 Ltac destruct_wba :=
   match goal with
-    | H : well_behaved_access _ (TM_New _)   |- _ =>
+    | H : well_behaved_access _ (TM_New _ _)   |- _ =>
         eapply wba_destruct_new in H
     | H : well_behaved_access _ (TM_Load _)  |- _ =>
         eapply wba_destruct_load in H
@@ -67,9 +67,9 @@ Ltac destruct_wba :=
 (* wba_* -------------------------------------------------------------------- *)
 (* -------------------------------------------------------------------------- *)
 
-Local Lemma wba_new: forall m t,
+Local Lemma wba_new: forall m t T,
   well_behaved_access m t ->
-  well_behaved_access m (TM_New t).
+  well_behaved_access m (TM_New T t).
 Proof.
   intros. intros ? ?. inversion_access; eauto.
 Qed.
@@ -116,13 +116,13 @@ Qed.
 (* mem & subst -------------------------------------------------------------- *)
 (* -------------------------------------------------------------------------- *)
 
-Local Lemma wba_added_value : forall m v,
+Local Lemma wba_added_value : forall m v T,
   well_behaved_access (add m v) v ->
-  well_behaved_access (add m v) (TM_Loc (length m)).
+  well_behaved_access (add m v) (TM_Ref T (length m)).
 Proof.
   intros * ? ? Hacc.
   remember (add m v) as m'.
-  remember (TM_Loc (length m)) as t'.
+  remember (TM_Ref T (length m)) as t'.
   induction Hacc; inversion Heqt'; subst.
   - rewrite (get_add_eq TM_Unit) in *; eauto using access.
   - rewrite add_increments_length. lia.
@@ -130,7 +130,7 @@ Qed.
 
 Local Lemma wba_stored_value : forall m t t' ad v,
   well_behaved_access m t ->
-  t --[EF_Store ad v]--> t' ->
+  t --[EF_Write ad v]--> t' ->
   well_behaved_access m v.
 Proof.
   intros. induction_step; destruct_wba; eauto using access. 
@@ -145,7 +145,7 @@ Proof.
   - eapply IHHacc. intros ad'' Hacc''.
     destruct (lt_eq_lt_dec ad' (length m)) as [[? | ?] | ?]; subst.
     + rewrite (get_add_lt TM_Unit) in *; eauto using access.
-    + specialize (Hwba (length m) (access_loc m (length m))). lia.
+    + specialize (Hwba (length m) (access_loc m (length m) _)). lia.
     + rewrite (get_add_gt TM_Unit) in *; eauto. inversion_access.
   - rewrite add_increments_length. eauto using access, Nat.lt_lt_succ_r.
 Qed.
@@ -174,9 +174,11 @@ Proof.
   try solve [ destruct_wba
             ; eauto using wba_new, wba_load, wba_asg, wba_call, wba_seq
             ].
-  - simpl. destruct String.eqb; trivial.
-  - destruct_wba. simpl. destruct String.eqb; eauto using wba_fun.
+  - simpl. destruct String.string_dec; trivial.
+  - destruct_wba. simpl. destruct String.string_dec; eauto using wba_fun.
 Qed.
+
+(*
 
 (* -------------------------------------------------------------------------- *)
 (* preservation ------------------------------------------------------------- *)
@@ -189,8 +191,9 @@ Local Lemma none_preservation : forall m t t',
 Proof.
   intros. induction_step;
   destruct_wba; eauto using wba_load, wba_asg, wba_fun, wba_call, wba_seq. 
-  destruct_wba. eauto using wba_subst.
-Qed.
+  - admit.
+  - destruct_wba. eauto using wba_subst.
+Admitted.
 
 Local Lemma alloc_preservation : forall m t t' v,
   well_behaved_access m t ->
@@ -236,3 +239,4 @@ Proof.
     store_preservation.
 Qed.
 
+*)

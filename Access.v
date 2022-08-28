@@ -5,12 +5,12 @@ From Elo Require Import Array.
 From Elo Require Import Core.
 
 Inductive access (m : mem) : tm -> addr -> Prop :=
-  | access_mem : forall ad ad',
+  | access_mem : forall ad ad' T,
     access m (getTM m ad') ad ->
-    access m (TM_LocM ad') ad
+    access m (TM_Ref T ad') ad
 
-  | access_loc : forall ad,
-    access m (TM_LocM ad) ad
+  | access_loc : forall ad T,
+    access m (TM_Ref T ad) ad
 
   | access_new : forall T t ad,
     access m t ad ->
@@ -68,8 +68,8 @@ Ltac inversion_access :=
   match goal with
   | H : access _ TM_Unit        _ |- _ => inversion H; clear H
   | H : access _ (TM_Num _)     _ |- _ => inversion H; clear H
-  | H : access _ (TM_Loc _)     _ |- _ => inversion H; subst; clear H
-  | H : access _ (TM_New _)     _ |- _ => inversion H; subst; clear H
+  | H : access _ (TM_Ref _ _)   _ |- _ => inversion H; subst; clear H
+  | H : access _ (TM_New _ _)   _ |- _ => inversion H; subst; clear H
   | H : access _ (TM_Load _)    _ |- _ => inversion H; subst; clear H
   | H : access _ (TM_Asg _ _)   _ |- _ => inversion H; subst; clear H
   | H : access _ (TM_Id _)      _ |- _ => inversion H; clear H
@@ -89,9 +89,9 @@ Definition well_behaved_access (m : mem) (t : tm) :=
 Local Ltac solve_not_access :=
   intros; intros ?; inversion_access; eauto.
 
-Lemma not_access_new : forall m t ad,
+Lemma not_access_new : forall m t ad T,
   ~ access m t ad ->
-  ~ access m (TM_New t) ad.
+  ~ access m (TM_New T t) ad.
 Proof. solve_not_access. Qed.
 
 Lemma not_access_load : forall m t ad,
@@ -134,13 +134,13 @@ Local Ltac solve_inversion_not_access :=
   end;
   intros F; inversion F; subst; eauto using access.
 
-Local Lemma inversion_not_access_loc : forall m ad ad',
-  ~ access m (TM_Loc ad) ad' ->
+Local Lemma inversion_not_access_loc : forall m ad ad' T,
+  ~ access m (TM_Ref T ad) ad' ->
   ~ access m (getTM m ad) ad'.
 Proof. solve_inversion_not_access. Qed.
 
-Local Lemma inversion_not_access_new : forall m t ad,
-  ~ access m (TM_New t) ad ->
+Local Lemma inversion_not_access_new : forall m t ad T,
+  ~ access m (TM_New T t) ad ->
   ~ access m t ad.
 Proof. solve_inversion_not_access. Qed.
 
@@ -175,9 +175,9 @@ Ltac inversion_not_access :=
         intros F; inversion F 
     | H : _ |- ~ access _ (TM_Num _) _   =>
         intros F; inversion F 
-    | H : ~ access _ (TM_Loc _) _   |- _ =>
+    | H : ~ access _ (TM_Ref _ _) _   |- _ =>
         eapply inversion_not_access_loc in H
-    | H : ~ access _ (TM_New _) _   |- _ =>
+    | H : ~ access _ (TM_New _ _) _   |- _ =>
         eapply inversion_not_access_new in H
     | H : ~ access _ (TM_Load _) _  |- _ =>
         eapply inversion_not_access_load in H
@@ -197,6 +197,7 @@ Ltac inversion_not_access :=
 (* subst -------------------------------------------------------------------- *)
 (* -------------------------------------------------------------------------- *)
 
+(*
 Lemma access_subst : forall m x X t t' ad,
   access m ([x := t'] t) ad ->
   access m (TM_Call (TM_Fun x X t) t') ad.
@@ -225,4 +226,4 @@ Proof.
   - shelve.
   - shelve.
 Qed.
-
+*)
