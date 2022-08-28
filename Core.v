@@ -18,15 +18,16 @@ Reserved Notation "m / t '==[' eff ']==>' m' / t'"
 Reserved Notation "m / ths '~~[' tid , eff ']~~>' m' / ths'"
   (at level 40, ths at next level, tid at next level, eff at next level,
                 m' at next level).
-Reserved Notation "mt / Gamma '|--' t 'is' T"
-  (at level 40, Gamma at next level).
+Reserved Notation "Gamma '|--' t 'is' T"
+  (at level 40).
 
 (* Types *)
 
 Inductive typ : Set :=
   | TY_Unit
   | TY_Num
-  | TY_Ref : typ -> typ
+  | TY_RefM : typ -> typ
+  | TY_RefI : typ -> typ
   | TY_Fun : typ -> typ -> typ
   .
 
@@ -41,8 +42,8 @@ Qed.
 Inductive tm : Set :=
   | TM_Unit
   | TM_Num   : num -> tm
-  | TM_Loc   : num -> tm
-  | TM_New   : tm  -> tm
+  | TM_Loc   : typ -> num -> tm
+  | TM_New   : typ -> tm  -> tm
   | TM_Load  : tm  -> tm
   | TM_Asg   : tm  -> tm  -> tm
   | TM_Id    : id  -> tm
@@ -62,10 +63,10 @@ Qed.
 (* Values *)
 
 Inductive value : tm -> Prop :=
-  | V_Nil : value TM_Unit
+  | V_Unit : value TM_Unit
   | V_Num : forall n, value (TM_Num n)
-  | V_Loc : forall i, value (TM_Loc i)
-  | V_Fun : forall x X t, value (TM_Fun x X t)
+  | V_Loc : forall ad T, value (TM_Loc ad T)
+  | V_Fun : forall x Tx t, value (TM_Fun x Tx t)
   .
 
 (* Effects *)
@@ -88,22 +89,21 @@ Qed.
 
 (* Substitution *)
 
-Local Infix "=?" := String.eqb (at level 70, no associativity).
+Local Infix "=?" := String.string_dec (at level 70, no associativity).
 
 Fixpoint subst (id : id) (x t : tm) : tm :=
   match t with
-  | TM_Unit         => t
-  | TM_Num _        => t
-  | TM_Loc _        => t
-  | TM_New t'       => TM_New  ([id := x] t')
-  | TM_Load t'      => TM_Load ([id := x] t')
-  | TM_Asg t1 t2    => TM_Asg  ([id := x] t1) ([id := x] t2)
-  | TM_Id id'       => if id =? id' then x else t
-  | TM_Fun id' X t' => if id =? id' then t else TM_Fun id' X ([id := x] t')
-  | TM_Call t1 t2   => TM_Call ([id := x] t1) ([id := x] t2)
-  | TM_Seq t1 t2    => TM_Seq  ([id := x] t1) ([id := x] t2)
-  (* | TM_Spawn t'     => TM_Spawn ([id := x] t') *)
-  | TM_Spawn _      => t
+  | TM_Unit          => t
+  | TM_Num _         => t
+  | TM_Loc _ _       => t
+  | TM_New T t'      => TM_New T ([id := x] t')
+  | TM_Load t'       => TM_Load  ([id := x] t')
+  | TM_Asg t1 t2     => TM_Asg   ([id := x] t1) ([id := x] t2)
+  | TM_Id id'        => if id =? id' then x else t
+  | TM_Fun id' Tx t' => if id =? id' then t else TM_Fun id' Tx ([id := x] t')
+  | TM_Call t1 t2    => TM_Call  ([id := x] t1) ([id := x] t2)
+  | TM_Seq t1 t2     => TM_Seq   ([id := x] t1) ([id := x] t2)
+  | TM_Spawn t'      => TM_Spawn ([id := x] t')
   end
   where "'[' id ':=' x ']' t" := (subst id x t).
 
@@ -111,56 +111,56 @@ Fixpoint subst (id : id) (x t : tm) : tm :=
 
 Inductive step : tm -> effect -> tm -> Prop :=
   (* New *)
-  | ST_New1 : forall t t' eff,
+  | ST_New1 : forall T t t' eff,
     t --[eff]--> t' ->
-    TM_New t --[eff]--> t'
+    TM_New T t --[eff]--> TM_New T t'
 
-  | ST_New : forall t ad,
-    value t ->
-    TM_New t --[EF_Alloc ad t]--> TM_Loc ad
+  | ST_New : forall T ad v,
+    value v ->
+    TM_New T v --[EF_Alloc ad v]--> TM_Loc T ad
 
   (* Load *)
   | ST_Load1 : forall t t' eff,
     t --[eff]--> t' ->
     TM_Load t --[eff]--> TM_Load t'
 
-  | ST_Load : forall ad t,
-    TM_Load (TM_Loc ad) --[EF_Load ad t]--> t
+  | ST_LoadM : forall ad t T,
+    TM_Load (TM_Loc T ad) --[EF_Load ad t]--> t
 
   (* Asg *)
-  | ST_Asg1 : forall l l' r eff,
-    l --[eff]--> l' ->
-    TM_Asg l r --[eff]--> TM_Asg l' r
+  | ST_Asg1 : forall t1 t1' t2 eff,
+    t1 --[eff]--> t1' ->
+    TM_Asg t1 t2 --[eff]--> TM_Asg t1' t2
 
-  | ST_Asg2 : forall l r r' eff,
-    value l ->
-    r --[eff]--> r' ->
-    TM_Asg l r --[eff]--> TM_Asg l r'
+  | ST_Asg2 : forall v t t' eff,
+    value v ->
+    t --[eff]--> t' ->
+    TM_Asg v t --[eff]--> TM_Asg v t'
 
-  | ST_Asg : forall t ad,
-    value t ->
-    TM_Asg (TM_Loc ad) t --[EF_Store ad t]--> TM_Unit
+  | ST_Asg : forall ad v T,
+    value v ->
+    TM_Asg (TM_Loc T ad) v --[EF_Store ad v]--> TM_Unit
 
   (* Call *)
-  | ST_Call1 : forall f f' x eff,
-    f --[eff]--> f' ->
-    TM_Call f x --[eff]--> TM_Call f' x
+  | ST_Call1 : forall t1 t1' t2 eff,
+    t1 --[eff]--> t1' ->
+    TM_Call t1 t2 --[eff]--> TM_Call t1' t2
 
-  | ST_Call2 : forall f x x' eff,
-    value f ->
-    x --[eff]--> x' ->
-    TM_Call f x --[eff]--> TM_Call f x'
+  | ST_Call2 : forall v t t' eff,
+    value v ->
+    t --[eff]--> t' ->
+    TM_Call v t --[eff]--> TM_Call v t'
 
-  | ST_Call : forall id X t x,
-    value x ->
-    TM_Call (TM_Fun id X t) x --[EF_None]--> [id := x] t
+  | ST_Call : forall x Tx t v,
+    value v ->
+    TM_Call (TM_Fun x Tx t) v --[EF_None]--> [x := v] t
 
   (* Seq *)
   | ST_Seq1 : forall t1 t1' t2 eff,
     t1 --[eff]--> t1' ->
     TM_Seq t1 t2 --[eff]--> TM_Seq t1' t2
 
-  | ST_Seq : forall t v,
+  | ST_Seq : forall v t,
     value v ->
     TM_Seq v t --[EF_None]--> t
 
@@ -174,6 +174,11 @@ Ltac induction_step :=
   match goal with
   | H : _ --[?e]--> _ |- _ =>
     remember e as eff; induction H; inversion Heqeff; subst
+  end.
+
+Ltac inversion_step :=
+  match goal with
+    | H : _ --[_]--> _ |- _ => inversion H; subst; clear H
   end.
 
 (* Memory Step *)
@@ -192,6 +197,7 @@ Inductive mstep : mem -> tm -> effect -> mem -> tm -> Prop :=
     m / t ==[EF_Alloc ad v]==> (add m v) / t'
 
   | MST_Load : forall m t t' ad,
+    ad < length m ->
     t --[EF_Load ad (getTM m ad)]--> t' ->
     m / t ==[EF_Load ad (getTM m ad) ]==> m / t'
 
@@ -202,7 +208,7 @@ Inductive mstep : mem -> tm -> effect -> mem -> tm -> Prop :=
 
   where "m / t '==[' eff ']==>' m' / t'" := (mstep m t eff m' t').
 
-Ltac inversion_mstep' :=
+Ltac inversion_mstep_noclear :=
   match goal with
     | H : _ / _ ==[_]==> _ / _ |- _ => inversion H; subst
   end.
@@ -217,9 +223,8 @@ Ltac inversion_mstep :=
 Definition threads := list tm.
 
 Inductive cstep : mem -> threads -> nat -> effect -> mem -> threads -> Prop :=
-  | CST_Mem : forall m m' t' ths tid eff block,
+  | CST_Mem : forall m m' t' ths tid eff,
       tid < length ths ->
-      eff <> EF_Spawn block ->
       m / (getTM ths tid) ==[eff]==> m' / t' ->
       m / ths ~~[tid, eff]~~> m' / (set ths tid t')
 
@@ -246,51 +251,68 @@ Definition threads_property P (ths : threads) : Prop :=
 
 (* Typing *)
 
-Definition memtyp := list typ.
 Definition ctx := map typ.
 Definition getTY := get TY_Unit.
 
-Inductive well_typed_term (mt : memtyp) : ctx -> tm -> typ -> Prop :=
-  | T_Nil : forall Gamma,
-    mt / Gamma |-- TM_Unit is TY_Unit
+Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
+  | T_Unit : forall Gamma,
+    Gamma |-- TM_Unit is TY_Unit
 
   | T_Num : forall Gamma n,
-    mt / Gamma |-- (TM_Num n) is TY_Num
+    Gamma |-- (TM_Num n) is TY_Num
 
-  | T_Loc : forall Gamma ad,
-    ad < length mt ->
-    mt / Gamma |-- (TM_Loc ad) is TY_Ref (get TY_Unit mt ad )
+  | T_Loc : forall Gamma ad T,
+    Gamma |-- (TM_Loc T ad) is T
 
-  | T_New : forall Gamma t T,
-    mt / Gamma |-- t is T ->
-    mt / Gamma |-- (TM_New t) is (TY_Ref T)
+  | T_NewM : forall Gamma t T,
+    Gamma |-- t is T ->
+    Gamma |-- (TM_New (TY_RefM T) t) is (TY_RefM T)
 
-  | T_Load : forall Gamma t T,
-    mt / Gamma |-- t is TY_Ref T ->
-    mt / Gamma |-- (TM_Load t) is T
+  | T_NewI : forall Gamma t T,
+    Gamma |-- t is T ->
+    Gamma |-- (TM_New (TY_RefI T) t) is (TY_RefI T)
+
+  | T_LoadM : forall Gamma t T,
+    Gamma |-- t is TY_RefM T ->
+    Gamma |-- (TM_Load t) is T
+
+  | T_LoadI : forall Gamma t T,
+    Gamma |-- t is TY_RefI T ->
+    Gamma |-- (TM_Load t) is T
 
   | T_Asg : forall Gamma t1 t2 T,
-    mt / Gamma |-- t1 is (TY_Ref T) ->
-    mt / Gamma |-- t2 is T ->
-    mt / Gamma |-- (TM_Asg t1 t2) is TY_Unit
+    Gamma |-- t1 is (TY_RefM T) ->
+    Gamma |-- t2 is T ->
+    Gamma |-- (TM_Asg t1 t2) is TY_Unit
 
-  | T_Fun : forall Gamma x t X T,
-    mt / (update Gamma x X) |-- t is T ->
-    mt / Gamma |-- (TM_Fun x X t) is (TY_Fun X T)
+  | T_Fun : forall Gamma x t T Tx,
+    (update Gamma x Tx) |-- t is T ->
+    Gamma |-- (TM_Fun x Tx t) is (TY_Fun Tx T)
 
-  | T_Call : forall Gamma f x X T,
-    mt / Gamma |-- f is (TY_Fun X T) ->
-    mt / Gamma |-- x is X ->
-    mt / Gamma |-- (TM_Call f x) is T
+  | T_Call : forall Gamma t1 t2 T Tx,
+    Gamma |-- t1 is (TY_Fun Tx T) ->
+    Gamma |-- t2 is Tx ->
+    Gamma |-- (TM_Call t1 t2) is T
 
   | T_Seq : forall Gamma t1 t2 T1 T2,
-    mt / Gamma |-- t1 is T1 ->
-    mt / Gamma |-- t2 is T2 ->
-    mt / Gamma |-- (TM_Seq t1 t2) is T2
+    Gamma |-- t1 is T1 ->
+    Gamma |-- t2 is T2 ->
+    Gamma |-- (TM_Seq t1 t2) is T2
 
   | T_Spawn : forall Gamma t T,
-    mt / empty |-- t is T ->
-    mt / Gamma |-- (TM_Spawn t) is TY_Unit
+    empty |-- t is T ->
+    Gamma |-- (TM_Spawn t) is TY_Unit
 
-  where "mt / Gamma '|--' t 'is' T" := (well_typed_term mt Gamma t T).
+  where "Gamma '|--' t 'is' T" := (well_typed_term Gamma t T).
 
+Ltac induction_type :=
+  match goal with
+  | H : _ |-- _ is _ |- _ =>
+    induction H
+  end.
+
+Ltac inversion_type :=
+  match goal with
+  | H : _ |-- _ is _ |- _ =>
+    inversion H; subst; clear H
+  end.

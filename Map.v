@@ -16,6 +16,8 @@ Definition update {A : Type} (m : map A) k v :=
 
 Definition lookup {A : Type} (m : map A) k := m k.
 
+Notation "m '[' k '<==' v ']'" := (update m k v) (at level 20).
+
 (* Proofs *)
 
 Lemma lookup_update_keq : forall {A} (m : map A) k v,
@@ -58,7 +60,7 @@ Proof.
 Qed.
 
 Lemma update_overwrite : forall {A} (m : map A) k v v',
-  (update m k v) includes (update (update m k v') k v).
+  m[k <== v] includes (m[k <== v'])[k <== v].
 Proof.
   unfold includes', update, update'. intros.
   destruct eqb; intros; assumption.
