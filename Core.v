@@ -1,16 +1,17 @@
+From Coq Require Import Strings.String.
 From Coq Require Import List.
 
 From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Map.
  
-Definition id := Strings.String.string.
+Definition id := string.
 Definition num := nat.
 
 (* Notations *)
 
-Reserved Notation "'[' id ':=' x ']' t"
-  (at level 20, id constr).
+Reserved Notation "'[' x ':=' tx ']' t"
+  (at level 20, x constr).
 Reserved Notation "t '--[' eff ']-->' t'"
   (at level 40).
 Reserved Notation "m / t '==[' eff ']==>' m' / t'"
@@ -31,6 +32,18 @@ Inductive typ : Set :=
   | TY_Fun : typ -> typ -> typ
   .
 
+Declare Custom Entry elo_typ.
+Notation "<{{ T }}>" := T (T custom elo_typ at level 99).
+Notation "( x )"     := x (in custom elo_typ, x at level 99).
+Notation "x"         := x (in custom elo_typ at level 0, x constr at level 0).
+
+Notation "'Unit'"   := (TY_Unit)      (in custom elo_typ at level 0).
+Notation "'Num'"    := (TY_Num)       (in custom elo_typ at level 0).
+Notation "'&m' T"   := (TY_RefM T)    (in custom elo_typ at level 5).
+Notation "'&i' T"   := (TY_RefI T)    (in custom elo_typ at level 5).
+Notation "T1 -> T2" := (TY_Fun T1 T2) (in custom elo_typ at level 50,
+                                                right associativity).
+
 Theorem typ_eq_dec : forall (t1 t2 : typ),
   {t1 = t2} + {t1 <> t2}.
 Proof.
@@ -42,7 +55,7 @@ Qed.
 Inductive tm : Set :=
   | TM_Unit
   | TM_Num   : num -> tm
-  | TM_Loc   : typ -> num -> tm
+  | TM_Ref   : typ -> num -> tm
   | TM_New   : typ -> tm  -> tm
   | TM_Load  : tm  -> tm
   | TM_Asg   : tm  -> tm  -> tm
@@ -57,16 +70,51 @@ Theorem tm_eq_dec : forall (t1 t2 : tm),
   {t1 = t2} + {t1 <> t2}.
 Proof.
   intros. decide equality; 
-  eauto using PeanoNat.Nat.eq_dec, Strings.String.string_dec, typ_eq_dec.
+  eauto using PeanoNat.Nat.eq_dec, string_dec, typ_eq_dec.
 Qed.
+
+(* Syntax *)
+
+(* Declare Custom Entry stlc_ty. *)
+
+Declare Custom Entry elo.
+Notation "<{ t }>" := t (t custom elo at level 99).
+Notation "( x )"   := x (in custom elo, x at level 99).
+Notation "x"       := x (in custom elo at level 0, x constr at level 0).
+
+Notation "'unit'"                 := (TM_Unit)       (in custom elo at level 0).
+Notation "'N' n"                  := (TM_Num n)      (in custom elo at level 0,
+                                                                  n at level 0).
+Notation "'&' ad ':' T"           := (TM_Ref T ad)   (in custom elo at level 0,
+                                                   T custom elo_typ at level 0,
+                                                                 ad at level 0).
+Notation "'new' T t"              := (TM_New T t)    (in custom elo at level 0,
+                                                   T custom elo_typ at level 0,
+                                                       t custom elo at level 0).
+Notation "'*' t"                  := (TM_Load t)     (in custom elo at level 0,
+                                                       t custom elo at level 0).
+Notation "t1 '=' t2"              := (TM_Asg t1 t2)  (in custom elo at level 1,
+                                                            left associativity).
+Notation "'ID' x"                 := (TM_Id x)       (in custom elo at level 0,
+                                                                  x at level 0).
+Notation "'fun' x ':' Tx '->' t"  := (TM_Fun x Tx t) (in custom elo at level 0,
+                                                                  x at level 0,
+                                                  Tx custom elo_typ at level 0,
+                                                       t custom elo at level 0).
+Notation "t1 t2"                  := (TM_Call t1 t2) (in custom elo at level 1,
+                                                            left associativity).
+Notation "t1 ';' t2"              := (TM_Seq t1 t2)  (in custom elo at level 1,
+                                                            left associativity).
+Notation "'spawn' t"              := (TM_Spawn t)    (in custom elo at level 0,
+                                                                  t at level 0).
 
 (* Values *)
 
 Inductive value : tm -> Prop :=
-  | V_Unit : value TM_Unit
-  | V_Num : forall n, value (TM_Num n)
-  | V_Loc : forall ad T, value (TM_Loc ad T)
-  | V_Fun : forall x Tx t, value (TM_Fun x Tx t)
+  | V_Unit : value <{ unit }> 
+  | V_Num : forall n, value <{ N n }>
+  | V_Ref : forall ad T, value <{ &ad: T }>
+  | V_Fun : forall x Tx t, value <{ fun x: Tx -> t }>
   .
 
 (* Effects *)
@@ -76,8 +124,8 @@ Definition addr := nat.
 Inductive effect : Set :=
   | EF_None
   | EF_Alloc (ad : addr) (t : tm)
-  | EF_Load  (ad : addr) (t : tm)
-  | EF_Store (ad : addr) (t : tm)
+  | EF_Read  (ad : addr) (t : tm)
+  | EF_Write (ad : addr) (t : tm)
   | EF_Spawn (t : tm)
   .
 
@@ -89,21 +137,24 @@ Qed.
 
 (* Substitution *)
 
-Local Infix "=?" := String.string_dec (at level 70, no associativity).
+Local Infix "=?" := string_dec (at level 70, no associativity).
 
-Fixpoint subst (id : id) (x t : tm) : tm :=
+Fixpoint subst (x : id) (tx t : tm) : tm :=
   match t with
-  | TM_Unit          => t
-  | TM_Num _         => t
-  | TM_Loc _ _       => t
-  | TM_New T t'      => TM_New T ([id := x] t')
-  | TM_Load t'       => TM_Load  ([id := x] t')
-  | TM_Asg t1 t2     => TM_Asg   ([id := x] t1) ([id := x] t2)
-  | TM_Id id'        => if id =? id' then x else t
-  | TM_Fun id' Tx t' => if id =? id' then t else TM_Fun id' Tx ([id := x] t')
-  | TM_Call t1 t2    => TM_Call  ([id := x] t1) ([id := x] t2)
-  | TM_Seq t1 t2     => TM_Seq   ([id := x] t1) ([id := x] t2)
-  | TM_Spawn t'      => TM_Spawn ([id := x] t')
+  | <{ unit }>             => t
+  | <{ N _ }>              => t
+  | <{ & _ : _ }>          => t
+  | <{ new T t' }>         => TM_New T ([x := tx] t')
+  | <{ *t' }>              => TM_Load  ([x := tx] t')
+  | <{ t1 = t2 }>          => TM_Asg   ([x := tx] t1) ([x := tx] t2)
+  | <{ ID x' }>            => if x =? x' then tx else t
+  | <{ fun x': Tx -> t' }> => if x =? x'
+                                then t 
+                                else TM_Fun x' Tx ([x := tx] t')
+  | <{ t1 t2  }>           => TM_Call  ([x := tx] t1) ([x := tx] t2)
+  | <{ t1; t2 }>           => TM_Seq   ([x := tx] t1) ([x := tx] t2)
+  (* | <{ spawn t' }>         => TM_Spawn ([x := tx] t') *)
+  | <{ spawn t' }>         => t
   end
   where "'[' id ':=' x ']' t" := (subst id x t).
 
@@ -113,60 +164,60 @@ Inductive step : tm -> effect -> tm -> Prop :=
   (* New *)
   | ST_New1 : forall T t t' eff,
     t --[eff]--> t' ->
-    TM_New T t --[eff]--> TM_New T t'
+    <{ new T t }> --[eff]--> <{ new T t' }>
 
   | ST_New : forall T ad v,
     value v ->
-    TM_New T v --[EF_Alloc ad v]--> TM_Loc T ad
+    <{ new T v }> --[EF_Alloc ad v]--> <{ &ad: T }>
 
   (* Load *)
   | ST_Load1 : forall t t' eff,
     t --[eff]--> t' ->
-    TM_Load t --[eff]--> TM_Load t'
+    <{ *t }> --[eff]--> <{ *t' }>
 
   | ST_LoadM : forall ad t T,
-    TM_Load (TM_Loc T ad) --[EF_Load ad t]--> t
+    <{ * (&ad: T) }> --[EF_Read ad t]--> t
 
   (* Asg *)
   | ST_Asg1 : forall t1 t1' t2 eff,
     t1 --[eff]--> t1' ->
-    TM_Asg t1 t2 --[eff]--> TM_Asg t1' t2
+    <{ t1 = t2 }> --[eff]--> <{ t1' = t2 }>
 
   | ST_Asg2 : forall v t t' eff,
     value v ->
     t --[eff]--> t' ->
-    TM_Asg v t --[eff]--> TM_Asg v t'
+    <{ v = t }> --[eff]--> <{ v = t' }>
 
   | ST_Asg : forall ad v T,
     value v ->
-    TM_Asg (TM_Loc T ad) v --[EF_Store ad v]--> TM_Unit
+    <{ &ad: T = v }> --[EF_Write ad v]--> <{ unit }> 
 
   (* Call *)
   | ST_Call1 : forall t1 t1' t2 eff,
     t1 --[eff]--> t1' ->
-    TM_Call t1 t2 --[eff]--> TM_Call t1' t2
+    <{ t1 t2 }> --[eff]--> <{ t1' t2 }>
 
   | ST_Call2 : forall v t t' eff,
     value v ->
     t --[eff]--> t' ->
-    TM_Call v t --[eff]--> TM_Call v t'
+    <{ v t }> --[eff]--> <{ v t' }>
 
   | ST_Call : forall x Tx t v,
     value v ->
-    TM_Call (TM_Fun x Tx t) v --[EF_None]--> [x := v] t
+    <{ (fun x: Tx -> t) v }> --[EF_None]--> [x := v] t
 
   (* Seq *)
   | ST_Seq1 : forall t1 t1' t2 eff,
     t1 --[eff]--> t1' ->
-    TM_Seq t1 t2 --[eff]--> TM_Seq t1' t2
+    <{ t1; t2 }> --[eff]--> <{ t1'; t2 }>
 
   | ST_Seq : forall v t,
     value v ->
-    TM_Seq v t --[EF_None]--> t
+    <{ v; t }> --[EF_None]--> t
 
   (* Spawn *)
   | ST_Spawn : forall t,
-    TM_Spawn t --[EF_Spawn t]--> TM_Unit
+    <{ spawn t }> --[EF_Spawn t]--> <{ unit }>
 
   where "t '--[' eff ']-->' t'" := (step t eff t').
 
@@ -196,15 +247,15 @@ Inductive mstep : mem -> tm -> effect -> mem -> tm -> Prop :=
     t --[EF_Alloc ad v]--> t' ->
     m / t ==[EF_Alloc ad v]==> (add m v) / t'
 
-  | MST_Load : forall m t t' ad,
+  | MST_Read : forall m t t' ad,
     ad < length m ->
-    t --[EF_Load ad (getTM m ad)]--> t' ->
-    m / t ==[EF_Load ad (getTM m ad) ]==> m / t'
+    t --[EF_Read ad (getTM m ad)]--> t' ->
+    m / t ==[EF_Read ad (getTM m ad)]==> m / t'
 
-  | MST_Store : forall m t t' ad v,
+  | MST_Write : forall m t t' ad v,
     ad < length m ->
-    t --[EF_Store ad v]--> t' ->
-    m / t ==[EF_Store ad v]==> (set m ad v) / t'
+    t --[EF_Write ad v]--> t' ->
+    m / t ==[EF_Write ad v]==> (set m ad v) / t'
 
   where "m / t '==[' eff ']==>' m' / t'" := (mstep m t eff m' t').
 
@@ -256,52 +307,52 @@ Definition getTY := get TY_Unit.
 
 Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
   | T_Unit : forall Gamma,
-    Gamma |-- TM_Unit is TY_Unit
+    Gamma |-- <{ unit }> is <{{ Unit }}>
 
   | T_Num : forall Gamma n,
-    Gamma |-- (TM_Num n) is TY_Num
+    Gamma |-- <{ N n }> is <{{ Num }}>
 
-  | T_Loc : forall Gamma ad T,
-    Gamma |-- (TM_Loc T ad) is T
+  | T_Ref : forall Gamma ad T,
+    Gamma |-- <{ &ad: T }> is T
 
   | T_NewM : forall Gamma t T,
     Gamma |-- t is T ->
-    Gamma |-- (TM_New (TY_RefM T) t) is (TY_RefM T)
+    Gamma |-- <{ new (&m T) t }> is <{{ &m T }}>
 
   | T_NewI : forall Gamma t T,
     Gamma |-- t is T ->
-    Gamma |-- (TM_New (TY_RefI T) t) is (TY_RefI T)
+    Gamma |-- <{ new (&i T) t }> is <{{ &i T }}>
 
   | T_LoadM : forall Gamma t T,
-    Gamma |-- t is TY_RefM T ->
-    Gamma |-- (TM_Load t) is T
+    Gamma |-- t is <{{ &m T }}> ->
+    Gamma |-- <{ *t }> is T
 
   | T_LoadI : forall Gamma t T,
-    Gamma |-- t is TY_RefI T ->
-    Gamma |-- (TM_Load t) is T
+    Gamma |-- t is <{{ &i T }}> ->
+    Gamma |-- <{ *t }> is T
 
   | T_Asg : forall Gamma t1 t2 T,
-    Gamma |-- t1 is (TY_RefM T) ->
+    Gamma |-- t1 is <{{ &m T }}> ->
     Gamma |-- t2 is T ->
-    Gamma |-- (TM_Asg t1 t2) is TY_Unit
+    Gamma |-- <{ t1 = t2 }> is <{{ Unit }}>
 
   | T_Fun : forall Gamma x t T Tx,
-    (update Gamma x Tx) |-- t is T ->
-    Gamma |-- (TM_Fun x Tx t) is (TY_Fun Tx T)
+    Gamma[x <== Tx] |-- t is T ->
+    Gamma |-- <{ fun x: Tx -> t }> is <{{ Tx -> T }}>
 
   | T_Call : forall Gamma t1 t2 T Tx,
-    Gamma |-- t1 is (TY_Fun Tx T) ->
+    Gamma |-- t1 is <{{ Tx -> T }}> ->
     Gamma |-- t2 is Tx ->
-    Gamma |-- (TM_Call t1 t2) is T
+    Gamma |-- <{ t1 t2 }> is T
 
   | T_Seq : forall Gamma t1 t2 T1 T2,
     Gamma |-- t1 is T1 ->
     Gamma |-- t2 is T2 ->
-    Gamma |-- (TM_Seq t1 t2) is T2
+    Gamma |-- <{ t1; t2 }> is T2
 
   | T_Spawn : forall Gamma t T,
     empty |-- t is T ->
-    Gamma |-- (TM_Spawn t) is TY_Unit
+    Gamma |-- <{ spawn t }> is <{{ Unit }}> 
 
   where "Gamma '|--' t 'is' T" := (well_typed_term Gamma t T).
 
@@ -316,3 +367,4 @@ Ltac inversion_type :=
   | H : _ |-- _ is _ |- _ =>
     inversion H; subst; clear H
   end.
+
