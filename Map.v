@@ -16,7 +16,7 @@ Definition update {A : Type} (m : map A) k v :=
 
 Definition lookup {A : Type} (m : map A) k := m k.
 
-Notation "m '[' k '<==' v ']'" := (update m k v) (at level 20).
+Notation "m '[' k '<==' v ']'" := (update m k v) (at level 9).
 
 (* Proofs *)
 
