@@ -6,7 +6,7 @@ From Elo Require Import Core.
 
 Inductive access (m : mem) : tm -> addr -> Prop :=
   | access_mem : forall ad ad' T,
-    access m (getTM m ad') ad ->
+    access m m[ad'] ad ->
     access m (TM_Ref T ad') ad
 
   | access_loc : forall ad T,
@@ -52,7 +52,7 @@ Inductive access (m : mem) : tm -> addr -> Prop :=
 (* strong access_mem *)
 Theorem access_get_trans : forall m t ad ad',
   access m t ad' ->
-  access m (getTM m ad') ad ->
+  access m m[ad'] ad ->
   access m t ad.
 Proof.
   intros * Hacc ?. induction Hacc; eauto using access.
@@ -136,7 +136,7 @@ Local Ltac solve_inversion_not_access :=
 
 Local Lemma inversion_not_access_loc : forall m ad ad' T,
   ~ access m (TM_Ref T ad) ad' ->
-  ~ access m (getTM m ad) ad'.
+  ~ access m m[ad] ad'.
 Proof. solve_inversion_not_access. Qed.
 
 Local Lemma inversion_not_access_new : forall m t ad T,

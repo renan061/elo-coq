@@ -17,11 +17,17 @@ Fixpoint set {A} (l : list A) (i : nat) (a : A) : list A :=
     end
   end.
 
+(* Notations *)
+
+Notation " l +++ a " := (add l a) (at level 50).
+Notation " l '[' i ']' 'or' default " := (get default l i) (at level 9).
+Notation " l '[' i <- a ']' " := (set l i a) (at level 9).
+
 (* Proofs *)
 
 Lemma set_invalid : forall {A} (l : list A) i a,
   length l <= i ->
-  set l i a = l.
+  l[i <- a] = l.
 Proof.
   intros *. generalize dependent i.
   induction l as [| ? ? IH]; intros * H; trivial.
@@ -31,21 +37,21 @@ Proof.
 Qed.
 
 Lemma set_preserves_length : forall {A} (l : list A) i a,
-  length (set l i a) = length l.
+  length l[i <- a] = length l.
 Proof.
   intros ?. induction l; trivial.
   destruct i; simpl; eauto using Lt.lt_S_n.
 Qed.
 
 Lemma add_increments_length : forall {A} (l : list A) a,
-  length (add l a) = S (length l).
+  length (l +++ a) = S (length l).
 Proof.
   intros. unfold add. rewrite last_length. reflexivity.
 Qed.
 
 Lemma get_default : forall {A} default (l : list A) i,
   length l <= i ->
-  get default l i = default.
+  l[i] or default = default.
 Proof.
   intros *. generalize dependent i.
   induction l as [| ? ? IH]; intros * H;
@@ -57,7 +63,7 @@ Qed.
 
 Lemma get_set_eq : forall {A} default (l : list A) i a,
   i < length l ->
-  get default (set l i a) i = a.
+  l[i <- a][i] or default = a.
 Proof.
   intros ? ? l.
   induction l as [| ? ? IH]; intros * H; try solve [inversion H].
@@ -67,7 +73,7 @@ Qed.
 
 Lemma get_set_neq : forall {A} default (l : list A) i j a,
   i <> j ->
-  get default (set l j a) i = get default l i.
+  l[j <- a][i] or default = l[i] or default.
 Proof.
   intros ? ? l.
   induction l as [| x xs IH]; intros * H; trivial.
@@ -77,34 +83,34 @@ Qed.
 
 Lemma get_set_lt : forall {A} default (l : list A) i j a,
   i < j ->
-  get default (set l j a) i = get default l i.
+  l[j <- a][i] or default = l[i] or default.
 Proof.
   intros. eapply get_set_neq. lia. 
 Qed.
 
 Lemma get_set_gt : forall {A} default (l : list A) i j a,
   j < i ->
-  get default (set l j a) i = get default l i.
+  l[j <- a][i] or default = l[i] or default.
 Proof.
   intros. eapply get_set_neq. lia.
 Qed.
 
 Lemma get_set_invalid : forall {A} default (l : list A) i a,
   length l <= i ->
-  get default (set l i a) i = default.
+  l[i <- a][i] or default = default.
 Proof.
   intros * H. rewrite set_invalid; trivial. eauto using get_default.
 Qed.
 
 Lemma get_add_eq : forall {A} default (l : list A) a,
-  get default (add l a) (length l) = a.
+  (l +++ a)[length l] or default = a.
 Proof.
   intros. induction l; eauto.
 Qed.
 
 Lemma get_add_lt : forall {A} default (l : list A) a i,
   i < length l ->
-  get default (add l a) i = get default l i.
+  (l +++ a)[i] or default = l[i] or default.
 Proof.
   intros ? ? ? ?. induction l; intros ?.
   - intros H. destruct i; inversion H.
@@ -114,7 +120,7 @@ Qed.
 
 Lemma get_add_gt : forall {A} default (l : list A) a i,
   length l < i ->
-  get default (add l a) i = default.
+  (l +++ a)[i] or default = default.
 Proof.
   intros ? ? ? ?. induction l; intros ? H;
   destruct i; try solve [inversion H].
@@ -124,14 +130,14 @@ Qed.
 
 (* Properties *)
 
-Definition property {A} (a : A) (P : A -> Prop) (l : list A) : Prop :=
-  forall i, P (get a l i).
+Definition property {A} (default : A) (P : A -> Prop) (l : list A) : Prop :=
+  forall i, P (l[i] or default).
 
 Lemma property_add : forall {A} (P : A -> Prop) default l a,
   P default ->
   P a ->
   property default P l ->
-  property default P (add l a).
+  property default P (l +++ a).
 Proof.
   intros; intros i. decompose sum (lt_eq_lt_dec i (length l)); subst.
   - rewrite (get_add_lt default); trivial.
@@ -143,7 +149,7 @@ Lemma property_set : forall {A} (P : A -> Prop) default l i a,
   P default ->
   P a ->
   property default P l ->
-  property default P (set l i a).
+  property default P l[i <- a].
 Proof.
   intros; intros i'. decompose sum (lt_eq_lt_dec i i'); subst.
   - rewrite (get_set_gt default); trivial.
