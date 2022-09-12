@@ -17,6 +17,13 @@ Local Ltac solve_wba_destruct :=
   end;
   eauto using access.
 
+Lemma wba_destruct_ref : forall m ad T,
+  well_behaved_access m <{ & ad :: T }> ->
+  well_behaved_access m m[ad].
+Proof.
+  intros * Hwba ad' ?. eapply (Hwba ad'). eauto using access.
+Qed.
+
 Local Lemma wba_destruct_new : forall m t T,
   well_behaved_access m (TM_New T t) ->
   well_behaved_access m t.
@@ -49,6 +56,8 @@ Proof. solve_wba_destruct. Qed.
 
 Ltac destruct_wba :=
   match goal with
+    | H : well_behaved_access _ <{ & _ :: _ }> |- _ =>
+        eapply wba_destruct_ref in H as Hwba'
     | H : well_behaved_access _ (TM_New _ _)   |- _ =>
         eapply wba_destruct_new in H
     | H : well_behaved_access _ (TM_Load _)  |- _ =>
@@ -117,8 +126,8 @@ Qed.
 (* -------------------------------------------------------------------------- *)
 
 Local Lemma wba_added_value : forall m v T,
-  well_behaved_access (add m v) v ->
-  well_behaved_access (add m v) (TM_Ref T (length m)).
+  well_behaved_access (m +++ v) v ->
+  well_behaved_access (m +++ v) <{ &(length m) :: T }>.
 Proof.
   intros * ? ? Hacc.
   remember (add m v) as m'.
@@ -138,10 +147,10 @@ Qed.
 
 Local Lemma wba_mem_add : forall m t v,
   well_behaved_access m t ->
-  well_behaved_access (add m v) t.
+  well_behaved_access (m +++ v) t.
 Proof.
   intros * Hwba ? Hacc. remember (add m v) as m'.
-  induction Hacc; subst; try destruct_wba; eauto.
+  induction Hacc; subst; destruct_wba; eauto.
   - eapply IHHacc. intros ad'' Hacc''.
     destruct (lt_eq_lt_dec ad' (length m)) as [[? | ?] | ?]; subst.
     + rewrite (get_add_lt TM_Unit) in *; eauto using access.
@@ -153,16 +162,15 @@ Qed.
 Local Lemma wba_mem_set : forall m t ad v,
   well_behaved_access m t ->
   well_behaved_access m v ->
-  well_behaved_access (set m ad v) t.
+  well_behaved_access m[ad <- v] t.
 Proof.
   intros * ? ? ? Hacc.
   rewrite set_preserves_length.
   remember (set m ad v) as m'.
-  induction Hacc; subst; try destruct_wba; eauto using access.
+  induction Hacc; subst; destruct_wba; eauto using access.
   eapply IHHacc. destruct (Nat.eq_dec ad ad'); subst.
   - rewrite (get_set_eq TM_Unit); eauto using access.
   - rewrite (get_set_neq TM_Unit) in *; eauto.
-    intros ? ?. eauto using access.
 Qed.
 
 Local Lemma wba_subst : forall m id t x,

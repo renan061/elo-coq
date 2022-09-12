@@ -9,8 +9,8 @@ From Elo Require Import Access.
 From Elo Require Import WBA.
 
 Lemma context_weakening : forall Gamma Gamma' t T,
-  Gamma includes Gamma' ->
   Gamma' |-- t is T ->
+  Gamma includes Gamma' ->
   Gamma  |-- t is T.
 Proof.
   intros. generalize dependent Gamma.
@@ -38,10 +38,12 @@ Inductive well_behaved_references (m : mem) : tm -> Prop :=
 
   | wbr_refM : forall T ad,
     empty |-- m[ad] is T ->
+    well_behaved_references m m[ad] ->
     well_behaved_references m <{ &ad :: &T }>
 
   | wbr_refI : forall T ad,
     empty |-- m[ad] is T ->
+    well_behaved_references m m[ad] ->
     well_behaved_references m <{ &ad :: i&T }>
 
   | wbr_new : forall T t,
@@ -92,50 +94,99 @@ Lemma wbr_mem_add : forall m t v,
   well_behaved_references m t ->
   well_behaved_references (m +++ v) t.
 Proof.
-  intros * Hwba Hwbr. induction t; eauto using well_behaved_references;
-  inversion_clear Hwbr; subst; try (destruct_wba);
+  intros * Hwba Hwbr. generalize dependent v.
+  induction Hwbr; intros; try (destruct_wba);
   eauto using well_behaved_references;
-  try (eapply wbr_refM || eapply wbr_refI);
-  match goal with
-  | H : _ |-- _ [ ?ad ] is _ |- _ => 
-    decompose sum (lt_eq_lt_dec (length m) ad); subst
-  end;
-  try (specialize (Hwba _ (access_loc _ _ _)));
-  solve [ rewrite (get_add_gt TM_Unit); lia
-        | rewrite (get_add_eq TM_Unit); lia
-        | rewrite (get_add_lt TM_Unit); trivial
-        ].
+  (eapply wbr_refM || eapply wbr_refI);
+  rewrite (get_add_lt TM_Unit); eauto using access.
 Qed.
 
-Lemma wbr_preservation : forall m m' t t' eff T,
+Lemma wbr_preservation_none : forall m t t',
+  well_behaved_references m t ->
+  t --[ EF_None ]--> t' ->
+  well_behaved_references m t'.
+Proof.
+  intros * Hwbr ?.
+  induction_step; inversion Hwbr; subst;
+  eauto using well_behaved_references, wbr_subst.
+Qed.
+
+Lemma wbr_preservation_alloc : forall m t t' v T,
+  empty |-- t is T ->
+  well_behaved_access m t ->
+  well_behaved_references m t ->
+  t --[EF_Alloc (length m) v]--> t' ->
+  well_behaved_references (m +++ v) t'.
+Proof.
+  intros * ? ? Hwbr ?.
+  generalize dependent T.
+  induction_step; intros * Htype;
+  inversion_type; inversion_clear Hwbr; destruct_wba;
+  eauto using well_behaved_references, wbr_mem_add;
+  try (eapply wbr_refM || eapply wbr_refI);
+  rewrite (get_add_eq TM_Unit); eauto using wbr_mem_add.
+Qed.
+
+Lemma wbr_preservation_read : forall m t t' ad,
+  well_behaved_references m t ->
+  t --[EF_Read ad m[ad]]--> t' ->
+  well_behaved_references m t'.
+Proof.
+  intros * Hwbr ?.
+  induction_step;
+  inversion_clear Hwbr;
+  eauto using well_behaved_references.
+  inversion_clear H; eauto. (* TODO *)
+Qed.
+
+Lemma wbr_mem_set : forall m t ad v, 
+  ad < length m ->
+  well_behaved_references m t ->
+  well_behaved_references m[ad <- v] t.
+Proof.
+  intros * ? Hwbr. generalize dependent v.
+  induction Hwbr; intros; try (destruct_wba);
+  eauto using well_behaved_references;
+  (eapply wbr_refM || eapply wbr_refI).
+  - decompose sum (lt_eq_lt_dec ad ad0); subst.
+    + rewrite (get_set_gt TM_Unit) in *; trivial.
+    + rewrite (get_set_eq TM_Unit) in *; trivial.
+      shelve.
+    + rewrite (get_set_lt TM_Unit) in *; trivial.
+
+
+
+  - shelve.
+  - shelve.
+  - shelve.
+
+  (* rewrite (get_add_lt TM_Unit); eauto using access. *)
+Admitted.
+
+Lemma wbr_preservation_write: forall m t t' ad v,
+  well_behaved_access m t ->
+  well_behaved_references m t ->
+  t --[EF_Write ad v]--> t' ->
+  well_behaved_references m[ad <- v] t'.
+Proof.
+  intros * ? Hwbr ?.
+  induction_step;
+  destruct_wba; inversion_clear Hwbr;
+  eauto using well_behaved_references, wbr_mem_set.
+  - eapply wbr_asg; eauto using wbr_mem_set.
+Admitted.
+
+Theorem wbr_preservation : forall m m' t t' eff T,
   empty |-- t is T ->
   well_behaved_access m t ->
   well_behaved_references m t ->
   m / t ==[eff]==> m' / t' ->
   well_behaved_references m' t'.
 Proof.
-  intros * Htype Hwba Hwbr ?. inversion_mstep.
-  - clear Htype. clear Hwba.
-    induction_step; inversion Hwbr; subst;
-    eauto using well_behaved_references, wbr_subst.
-  - generalize dependent T.
-    induction_step; intros * Htype; inversion_clear Htype; 
-    try solve [
-      inversion_clear Hwbr; destruct_wba;
-      eauto using well_behaved_references, wbr_mem_add
-    ];
-    try (eapply wbr_refM || eapply wbr_refI);
-    rewrite (get_add_eq TM_Unit); trivial.
-  - clear Hwba.
-    generalize dependent T. 
-    induction_step; intros * Htype; inversion_clear Htype;
-    try solve [
-      inversion_clear Hwbr;
-      eauto using well_behaved_references, wbr_mem_add
-    ].
-    + inversion_clear Hwbr; subst.
-      inversion_clear H1; subst.
-Admitted.
+  intros * Htype Hwba Hwbr ?. inversion_mstep;
+  eauto using wbr_preservation_none, wbr_preservation_alloc,
+    wbr_preservation_read, wbr_preservation_write.
+Qed.
 
 (* ------------------------------------------------------------------------- *)
 (* ------------------------------------------------------------------------- *)

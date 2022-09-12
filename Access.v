@@ -10,7 +10,7 @@ Inductive access (m : mem) : tm -> addr -> Prop :=
     access m (TM_Ref T ad') ad
 
   | access_loc : forall ad T,
-    access m (TM_Ref T ad) ad
+    access m <{ & ad :: T }> ad
 
   | access_new : forall T t ad,
     access m t ad ->
