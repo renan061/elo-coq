@@ -7,46 +7,46 @@ From Elo Require Import Core.
 Inductive access (m : mem) : tm -> addr -> Prop :=
   | access_mem : forall ad ad' T,
     access m m[ad'] ad ->
-    access m (TM_Ref T ad') ad
+    access m <{ & ad' :: T }> ad
 
-  | access_loc : forall ad T,
+  | access_ref : forall ad T,
     access m <{ & ad :: T }> ad
 
   | access_new : forall T t ad,
     access m t ad ->
-    access m (TM_New T t) ad
+    access m <{ new T t }> ad
 
   | access_load : forall t ad,
     access m t ad ->
-    access m (TM_Load t) ad
+    access m <{ *t }> ad
 
-  | access_asg1 : forall l r ad,
-    access m l ad ->
-    access m (TM_Asg l r) ad
+  | access_asg1 : forall t1 t2 ad,
+    access m t1 ad ->
+    access m <{ t1 = t2 }> ad
 
-  | access_asg2 : forall l r ad,
-    access m r ad ->
-    access m (TM_Asg l r) ad
+  | access_asg2 : forall t1 t2 ad,
+    access m t2 ad ->
+    access m <{ t1 = t2 }> ad
 
-  | access_fun : forall x X t ad,
+  | access_fun : forall x Tx t ad,
     access m t ad ->
-    access m (TM_Fun x X t) ad
+    access m <{ fn x Tx --> t }> ad
 
   | access_call1 : forall t1 t2 ad,
     access m t1 ad ->
-    access m (TM_Call t1 t2) ad
+    access m <{ call t1 t2 }> ad
 
   | access_call2 : forall t1 t2 ad,
     access m t2 ad ->
-    access m (TM_Call t1 t2) ad
+    access m <{ call t1 t2 }> ad
 
   | access_seq1 : forall t1 t2 ad,
     access m t1 ad ->
-    access m (TM_Seq t1 t2) ad
+    access m <{ t1; t2 }> ad
 
   | access_seq2 : forall t1 t2 ad,
     access m t2 ad ->
-    access m (TM_Seq t1 t2) ad
+    access m <{ t1; t2 }> ad
   .
 
 (* strong access_mem *)
@@ -82,120 +82,73 @@ Ltac inversion_access :=
 Definition well_behaved_access (m : mem) (t : tm) :=
   forall ad, access m t ad -> ad < length m.
 
-(* -------------------------------------------------------------------------- *)
-(* not_access --------------------------------------------------------------- *)
-(* -------------------------------------------------------------------------- *)
+(* ------------------------------------------------------------------------- *)
+(* not_access                                                                *)
+(* ------------------------------------------------------------------------- *)
 
-Local Ltac solve_not_access :=
-  intros; intros ?; inversion_access; eauto.
+Inductive not_access (m : mem) : tm -> addr -> Prop :=
+  | not_access_unit : forall ad,
+    not_access m <{ unit }> ad
 
-Lemma not_access_new : forall m t ad T,
-  ~ access m t ad ->
-  ~ access m (TM_New T t) ad.
-Proof. solve_not_access. Qed.
+  | not_access_num : forall n ad,
+    not_access m <{ N n }> ad
 
-Lemma not_access_load : forall m t ad,
-  ~ access m t ad ->
-  ~ access m (TM_Load t) ad.
-Proof. solve_not_access. Qed.
+  | not_access_ref : forall T ad ad',
+    ad <> ad' ->
+    ~ access m m[ad] ad' ->
+    not_access m <{ &ad :: T }> ad'
 
-Lemma not_access_fun : forall m x X t ad,
-  ~ access m t ad ->
-  ~ access m (TM_Fun x X t) ad.
-Proof. solve_not_access. Qed.
+  | not_access_new : forall T t ad,
+    ~ access m t ad ->
+    not_access m <{ new T t }> ad
 
-Lemma not_access_call : forall m t1 t2 ad,
-  ~ access m t1 ad ->
-  ~ access m t2 ad ->
-  ~ access m (TM_Call t1 t2) ad.
-Proof. solve_not_access. Qed.
+  | not_access_load : forall t ad,
+    ~ access m t ad ->
+    not_access m <{ *t }> ad
 
-Lemma not_access_asg : forall m t1 t2 ad,
-  ~ access m t1 ad ->
-  ~ access m t2 ad ->
-  ~ access m (TM_Asg t1 t2) ad.
-Proof. solve_not_access. Qed.
+  | not_access_asg : forall t1 t2 ad,
+    ~ access m t1 ad ->
+    ~ access m t2 ad ->
+    not_access m <{ t1 = t2 }> ad
 
-Lemma not_access_seq : forall m t1 t2 ad,
-  ~ access m t1 ad ->
-  ~ access m t2 ad ->
-  ~ access m (TM_Seq t1 t2) ad.
-Proof. solve_not_access. Qed.
+  | not_access_id : forall x ad,
+    not_access m <{ ID x }> ad
 
-(* -------------------------------------------------------------------------- *)
-(* inversion_not_access ----------------------------------------------------- *)
-(* -------------------------------------------------------------------------- *)
+  | not_access_fun : forall x Tx t ad,
+    ~ access m t ad ->
+    not_access m <{ fn x Tx --> t }> ad
 
-Local Ltac solve_inversion_not_access :=
-  intros;
-  match goal with
-  | |- _ /\ _ => split 
-  | |- _  => idtac
-  end;
-  intros F; inversion F; subst; eauto using access.
+  | not_access_call : forall t1 t2 ad,
+    ~ access m t1 ad ->
+    ~ access m t2 ad ->
+    not_access m <{ call t1 t2 }> ad
 
-Local Lemma inversion_not_access_loc : forall m ad ad' T,
-  ~ access m (TM_Ref T ad) ad' ->
-  ~ access m m[ad] ad'.
-Proof. solve_inversion_not_access. Qed.
+  | not_access_seq : forall t1 t2 ad,
+    ~ access m t1 ad ->
+    ~ access m t2 ad ->
+    not_access m <{ t1; t2 }> ad
 
-Local Lemma inversion_not_access_new : forall m t ad T,
-  ~ access m (TM_New T t) ad ->
-  ~ access m t ad.
-Proof. solve_inversion_not_access. Qed.
+  | not_access_spawn : forall t ad,
+    not_access m <{ spawn t }> ad
+  .
 
-Local Lemma inversion_not_access_load : forall m t ad,
-  ~ access m (TM_Load t) ad ->
-  ~ access m t ad.
-Proof. solve_inversion_not_access. Qed.
+Theorem not_access_iff : forall m t ad,
+  ~ access m t ad <-> not_access m t ad.
+Proof.
+  intros. split; intros H; destruct t;
+  try ( eapply not_access_ref
+       || eapply not_access_asg
+       || eapply not_access_call
+       || eapply not_access_seq);
+  eauto using access, not_access;
+  intros ?; subst;
+  try (inversion_access; inversion_clear H);
+  eauto using access.
+Qed.
 
-Local Lemma inversion_not_access_asg : forall m l r ad,
-  ~ access m (TM_Asg l r) ad ->
-  ~ access m l ad /\ ~ access m r ad.
-Proof. solve_inversion_not_access. Qed.
-
-Local Lemma inversion_not_access_fun : forall m x X t ad,
-  ~ access m (TM_Fun x X t) ad ->
-  ~ access m t ad.
-Proof. solve_inversion_not_access. Qed.
-
-Local Lemma inversion_not_access_call : forall m t1 t2 ad,
-  ~ access m (TM_Call t1 t2) ad ->
-  ~ access m t1 ad /\ ~ access m t2 ad.
-Proof. solve_inversion_not_access. Qed.
-
-Local Lemma inversion_not_access_seq : forall m t1 t2 ad,
-  ~ access m (TM_Seq t1 t2) ad ->
-  ~ access m t1 ad /\ ~ access m t2 ad.
-Proof. solve_inversion_not_access. Qed.
-
-Ltac inversion_not_access :=
-  match goal with
-    | H : _ |- ~ access _ TM_Unit _   =>
-        intros F; inversion F 
-    | H : _ |- ~ access _ (TM_Num _) _   =>
-        intros F; inversion F 
-    | H : ~ access _ (TM_Ref _ _) _   |- _ =>
-        eapply inversion_not_access_loc in H
-    | H : ~ access _ (TM_New _ _) _   |- _ =>
-        eapply inversion_not_access_new in H
-    | H : ~ access _ (TM_Load _) _  |- _ =>
-        eapply inversion_not_access_load in H
-    | H : _ |- ~ access _ (TM_Id _) _   =>
-        intros F; inversion F 
-    | H : ~ access _ (TM_Fun _ _ _) _ |- _ =>
-        eapply inversion_not_access_fun in H
-    | H : ~ access _ (TM_Call _ _) _ |- _ =>
-        eapply inversion_not_access_call in H as [? ?]
-    | H : ~ access _ (TM_Asg _ _) _ |- _ =>
-        eapply inversion_not_access_asg in H as [? ?]
-    | H : ~ access _ (TM_Seq _ _) _ |- _ =>
-        eapply inversion_not_access_seq in H as [? ?]
-  end.
-
-(* -------------------------------------------------------------------------- *)
-(* subst -------------------------------------------------------------------- *)
-(* -------------------------------------------------------------------------- *)
+(* ------------------------------------------------------------------------- *)
+(* subst                                                                     *)
+(* ------------------------------------------------------------------------- *)
 
 (*
 Lemma access_subst : forall m x X t t' ad,

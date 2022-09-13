@@ -141,12 +141,23 @@ Qed.
 
 Lemma wbr_mem_set : forall m t ad v, 
   ad < length m ->
+  well_behaved_references m v ->
   well_behaved_references m t ->
   well_behaved_references m[ad <- v] t.
 Proof.
-  intros * ? Hwbr. generalize dependent v.
-  induction Hwbr; intros; try (destruct_wba);
-  eauto using well_behaved_references;
+  intros * ? ? Hwbr. generalize dependent v.
+  induction Hwbr; intros; eauto using well_behaved_references.
+  - eapply wbr_refM.
+    + shelve.
+    + decompose sum (lt_eq_lt_dec ad ad0); subst.
+      * rewrite (get_set_gt TM_Unit); eauto.
+      * rewrite (get_set_eq TM_Unit); trivial.
+        shelve.
+      * rewrite (get_set_lt TM_Unit); eauto.
+
+
+
+
   (eapply wbr_refM || eapply wbr_refI).
   - decompose sum (lt_eq_lt_dec ad ad0); subst.
     + rewrite (get_set_gt TM_Unit) in *; trivial.
@@ -164,17 +175,28 @@ Proof.
 Admitted.
 
 Lemma wbr_preservation_write: forall m t t' ad v,
+  ad < length m ->
   well_behaved_access m t ->
+  well_behaved_references m v ->
   well_behaved_references m t ->
   t --[EF_Write ad v]--> t' ->
   well_behaved_references m[ad <- v] t'.
 Proof.
-  intros * ? Hwbr ?.
-  induction_step;
-  destruct_wba; inversion_clear Hwbr;
-  eauto using well_behaved_references, wbr_mem_set.
-  - eapply wbr_asg; eauto using wbr_mem_set.
+  intros * ? ? ? Hwbr ?.
+  induction_step; destruct_wba; inversion_clear Hwbr;
+  eauto using well_behaved_references.
+  - eapply wbr_asg; eauto. 
+    clear H0; clear H2; clear H3; clear H5; clear IHstep; clear t1; clear t1'.
+  (* eauto using well_behaved_references, wbr_mem_set *)
 Admitted.
+
+Lemma wbr_write_value : forall m t t' ad v,
+  well_behaved_references m t ->
+  t --[EF_Write ad v]--> t' ->
+  well_behaved_references m v.
+Proof.
+  intros * Hwbr ?. induction_step; inversion_clear Hwbr; eauto.
+Qed.
 
 Theorem wbr_preservation : forall m m' t t' eff T,
   empty |-- t is T ->
@@ -185,7 +207,9 @@ Theorem wbr_preservation : forall m m' t t' eff T,
 Proof.
   intros * Htype Hwba Hwbr ?. inversion_mstep;
   eauto using wbr_preservation_none, wbr_preservation_alloc,
-    wbr_preservation_read, wbr_preservation_write.
+    wbr_preservation_read.
+  assert (well_behaved_references m v) by eauto using wbr_write_value.
+  eauto using wbr_preservation_write.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
