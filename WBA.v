@@ -5,9 +5,9 @@ From Elo Require Import Array.
 From Elo Require Import Core.
 From Elo Require Import Access.
 
-(* -------------------------------------------------------------------------- *)
-(* wba_destruct ------------------------------------------------------------- *)
-(* -------------------------------------------------------------------------- *)
+(* ------------------------------------------------------------------------- *)
+(* wba_destruct                                                              *)
+(* ------------------------------------------------------------------------- *)
 
 Local Ltac solve_wba_destruct := 
   intros; unfold well_behaved_access in *;
@@ -154,7 +154,7 @@ Proof.
   - eapply IHHacc. intros ad'' Hacc''.
     destruct (lt_eq_lt_dec ad' (length m)) as [[? | ?] | ?]; subst.
     + rewrite (get_add_lt TM_Unit) in *; eauto using access.
-    + specialize (Hwba (length m) (access_loc m (length m) _)). lia.
+    + specialize (Hwba (length m) (access_ref m (length m) _)). lia.
     + rewrite (get_add_gt TM_Unit) in *; eauto. inversion_access.
   - rewrite add_increments_length. eauto using access, Nat.lt_lt_succ_r.
 Qed.
@@ -188,9 +188,9 @@ Qed.
 
 (*
 
-(* -------------------------------------------------------------------------- *)
-(* preservation ------------------------------------------------------------- *)
-(* -------------------------------------------------------------------------- *)
+(* ------------------------------------------------------------------------- *)
+(* preservation                                                              *)
+(* ------------------------------------------------------------------------- *)
 
 Local Lemma none_preservation : forall m t t',
   well_behaved_access m t ->
