@@ -26,6 +26,23 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
+(* TODO                                                                      *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma deterministic_typing : forall Gamma t T1 T2,
+  Gamma |-- t is T1 ->
+  Gamma |-- t is T2 ->
+  T1 = T2.
+Proof.
+Admitted.
+
+Ltac apply_deterministic_typing :=
+  match goal with
+  | H1 : _ |-- ?t is ?T1, H2 : _ |-- ?t is ?T2 |- _ =>
+    assert (T1 = T2) by eauto using deterministic_typing; subst
+  end.
+
+(* ------------------------------------------------------------------------- *)
 (* ------------------------------------------------------------------------- *)
 (* ------------------------------------------------------------------------- *)
 
@@ -139,39 +156,28 @@ Proof.
   inversion_clear H; eauto. (* TODO *)
 Qed.
 
-Lemma wbr_mem_set : forall m t ad v, 
+Lemma wbr_mem_set : forall m t ad v,
   ad < length m ->
+  (* empty |-- m[ad] is T -> *)
+  (* empty |-- v is T -> *)
+  (* well_behaved_references m m[ad] -> *)
   well_behaved_references m v ->
   well_behaved_references m t ->
   well_behaved_references m[ad <- v] t.
 Proof.
-  intros * ? ? Hwbr. generalize dependent v.
-  induction Hwbr; intros; eauto using well_behaved_references.
+  intros * Hlen Hwbr2 Hwbr.
+  induction Hwbr; eauto using well_behaved_references.
   - eapply wbr_refM.
-    + shelve.
     + decompose sum (lt_eq_lt_dec ad ad0); subst.
-      * rewrite (get_set_gt TM_Unit); eauto.
-      * rewrite (get_set_eq TM_Unit); trivial.
-        shelve.
-      * rewrite (get_set_lt TM_Unit); eauto.
-
-
-
-
-  (eapply wbr_refM || eapply wbr_refI).
-  - decompose sum (lt_eq_lt_dec ad ad0); subst.
-    + rewrite (get_set_gt TM_Unit) in *; trivial.
-    + rewrite (get_set_eq TM_Unit) in *; trivial.
-      shelve.
-    + rewrite (get_set_lt TM_Unit) in *; trivial.
-
-
-
+      * rewrite (get_set_gt TM_Unit) in *; trivial.
+      * rewrite (get_set_eq TM_Unit) in *; trivial. shelve.
+        (* apply_deterministic_typing; trivial. *)
+      * rewrite (get_set_lt TM_Unit) in *; trivial.
+    + decompose sum (lt_eq_lt_dec ad ad0); subst.
+      * rewrite (get_set_gt TM_Unit) in *; trivial.
+      * rewrite (get_set_eq TM_Unit) in *; trivial. shelve.
+      * rewrite (get_set_lt TM_Unit) in *; trivial.
   - shelve.
-  - shelve.
-  - shelve.
-
-  (* rewrite (get_add_lt TM_Unit); eauto using access. *)
 Admitted.
 
 Lemma wbr_preservation_write: forall m t t' ad v,
@@ -184,11 +190,8 @@ Lemma wbr_preservation_write: forall m t t' ad v,
 Proof.
   intros * ? ? ? Hwbr ?.
   induction_step; destruct_wba; inversion_clear Hwbr;
-  eauto using well_behaved_references.
-  - eapply wbr_asg; eauto. 
-    clear H0; clear H2; clear H3; clear H5; clear IHstep; clear t1; clear t1'.
-  (* eauto using well_behaved_references, wbr_mem_set *)
-Admitted.
+  eauto using well_behaved_references, wbr_mem_set.
+Qed.
 
 Lemma wbr_write_value : forall m t t' ad v,
   well_behaved_references m t ->
@@ -213,7 +216,7 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* ------------------------------------------------------------------------- *)
+(* preservation                                                              *)
 (* ------------------------------------------------------------------------- *)
 
 Lemma preservation_subst : forall t tx T Tx Tx' Gamma x,
