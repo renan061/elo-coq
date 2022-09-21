@@ -17,9 +17,9 @@ core:
 	$(COQC) Core.v
 
 soundness: core
-	$(COQC) References.v
 	$(COQC) Access.v
 	$(COQC) WBA.v
+	$(COQC) References.v
 	$(COQC) Soundness.v
 
 clean:
