@@ -386,6 +386,31 @@ Definition threads_property P (ths : threads) : Prop :=
   property TM_Unit P ths.
 
 (* ------------------------------------------------------------------------- *)
+(* Determinism                                                               *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma deterministic_typing : forall Gamma t T1 T2,
+  Gamma |-- t is T1 ->
+  Gamma |-- t is T2 ->
+  T1 = T2.
+Proof.
+  intros * Htype1. generalize dependent T2.
+  induction Htype1; intros ? Htype2;
+  inversion Htype2; subst; eauto;
+  repeat match goal with
+    | IH : forall _, _ |-- ?t is _ -> _, H : _ |-- ?t is _ |- _ =>
+      eapply IH in H; subst
+  end;
+  congruence.
+Qed.
+
+Ltac apply_deterministic_typing :=
+  match goal with
+  | H1 : _ |-- ?t is ?T1, H2 : _ |-- ?t is ?T2 |- _ =>
+    assert (T1 = T2) by eauto using deterministic_typing; subst
+  end.
+
+(* ------------------------------------------------------------------------- *)
 (* Auxiliary Tactics                                                         *)
 (* ------------------------------------------------------------------------- *)
 
