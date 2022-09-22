@@ -72,9 +72,9 @@ Ltac destruct_wba :=
         eapply wba_destruct_seq in H as [? ?]
   end.
 
-(* -------------------------------------------------------------------------- *)
-(* wba_* -------------------------------------------------------------------- *)
-(* -------------------------------------------------------------------------- *)
+(* ------------------------------------------------------------------------- *)
+(* wba_*                                                                     *)
+(* ------------------------------------------------------------------------- *)
 
 Local Lemma wba_new: forall m t T,
   well_behaved_access m t ->
@@ -121,9 +121,26 @@ Proof.
   intros. intros ? ?. inversion_access; eauto.
 Qed.
 
-(* -------------------------------------------------------------------------- *)
-(* mem & subst -------------------------------------------------------------- *)
-(* -------------------------------------------------------------------------- *)
+(* ------------------------------------------------------------------------- *)
+(* mem & subst                                                               *)
+(* ------------------------------------------------------------------------- *)
+
+
+Lemma wba_write_value : forall m t t' ad v,
+  well_behaved_access m t ->
+  t --[EF_Write ad v]--> t' ->
+  well_behaved_access m v.
+Proof.
+  intros. induction_step; destruct_wba; eauto using access. 
+Qed.
+
+Lemma wba_alloc_value : forall m t t' ad v,
+  well_behaved_access m t ->
+  t --[EF_Alloc ad v]--> t' ->
+  well_behaved_access m v.
+Proof.
+  intros. induction_step; destruct_wba; eauto using access. 
+Qed.
 
 Local Lemma wba_added_value : forall m v T,
   well_behaved_access (m +++ v) v ->
@@ -135,14 +152,6 @@ Proof.
   induction Hacc; inversion Heqt'; subst.
   - rewrite (get_add_eq TM_Unit) in *; eauto using access.
   - rewrite add_increments_length. lia.
-Qed.
-
-Local Lemma wba_stored_value : forall m t t' ad v,
-  well_behaved_access m t ->
-  t --[EF_Write ad v]--> t' ->
-  well_behaved_access m v.
-Proof.
-  intros. induction_step; destruct_wba; eauto using access. 
 Qed.
 
 Local Lemma wba_mem_add : forall m t v,

@@ -61,7 +61,7 @@ Definition well_typed_memory (m : mem) := forall ad,
 (* Auxiliary.                                                                *)
 (* ------------------------------------------------------------------------- *)
 
-Local Lemma well_typed_alloc_value : forall t t' ad v T,
+Local Lemma wtt_alloc_value : forall t t' ad v T,
   empty |-- t is T ->
   t --[EF_Alloc ad v]--> t' ->
   exists V, empty |-- v is V.
@@ -70,13 +70,31 @@ Proof.
   induction_step; intros; inversion_type; eauto.
 Qed.
 
-Local Lemma well_typed_write_value : forall t t' ad v T,
+Local Lemma wtt_write_value : forall t t' ad v T,
   empty |-- t is T ->
   t --[EF_Write ad v]--> t' ->
   exists V, empty |-- v is V.
 Proof.
   intros. generalize dependent T.
   induction_step; intros; inversion_type; eauto.
+Qed.
+
+Local Lemma wtt_write_memory_address : forall m t t' ad v T V,
+  empty |-- t is T ->
+  empty |-- v is V ->
+  well_typed_references m t ->
+  t --[EF_Write ad v]--> t' ->
+  empty |-- m[ad] is V.
+Proof.
+  intros * Htype ? Hwtr ?. generalize dependent T.
+  induction_step; intros; inversion_clear Htype; inversion_clear Hwtr; eauto.
+  match goal with
+  | Htype : empty |-- <{ &_ :: _ }> is _,
+    Hwtr : well_typed_references m <{ &_ :: _ }>
+    |- _ =>
+        inversion Htype; subst; inversion_clear Hwtr
+  end.
+  erewrite deterministic_typing; eauto.
 Qed.
 
 Local Lemma wtr_alloc_value : forall m t t' ad v,
@@ -129,8 +147,8 @@ Local Lemma wtr_mem_set : forall m t ad v T,
   well_typed_references m t ->
   well_typed_references m[ad <- v] t.
 Proof.
-  intros * ? ? ? HwtrT.
-  induction HwtrT; eauto using well_typed_references;
+  intros * ? ? ? Hwtr. 
+  induction Hwtr; eauto using well_typed_references;
   (eapply wtr_refM || eapply wtr_refI);
   match goal with
   |- _ |-- _[?ad'] is _ =>
@@ -189,26 +207,10 @@ Local Lemma wtr_preservation_write : forall m t t' ad v T,
   well_typed_references m[ad <- v] t'.
 Proof.
   intros * Hlen HtypeT Hwtr Hwtm ?.
-
-  assert (exists V, empty |-- v is V) as [V ?]
-    by eauto using well_typed_write_value.
-
-  assert (empty |-- m[ad] is V). {
-    generalize dependent T.
-    induction_step; intros;
-    inversion_clear HtypeT; inversion_clear Hwtr; eauto.
-    match goal with
-    | Htype : empty |-- <{ &_ :: _ }> is _,
-      Hwtr : well_typed_references m <{ &_ :: _ }>
-      |- _ =>
-          inversion Htype; subst; inversion_clear Hwtr
-    end.
-    erewrite deterministic_typing; eauto.
-  }
-
+  assert (exists V, empty |-- v is V) as [V ?] by eauto using wtt_write_value.
   generalize dependent T.
   induction_step; intros; inversion_type; inversion_clear Hwtr;
-  eauto using well_typed_references, wtr_mem_set.
+  eauto using well_typed_references, wtr_mem_set, wtt_write_memory_address.
 Qed.
 
 Theorem well_typed_references_preservation : forall m m' t t' eff T,
@@ -228,94 +230,36 @@ Qed.
 (* well-typed-memory preservation                                            *)
 (* ------------------------------------------------------------------------- *)
 
-Local Lemma todo0 : forall m ad v,
-  well_behaved_access m m[ad] ->
-  well_typed_references m m[ad] ->
-  well_typed_references (m +++ v) m[ad].
-Proof.
-  intros * Hwba Hwtr. induction Hwtr;
-  try destruct_wba; eauto using well_typed_references.
-  - eapply wtr_refM.
-    decompose sum (lt_eq_lt_dec ad0 (length m)); subst.
-    + rewrite (get_add_lt TM_Unit); trivial.
-    + specialize (Hwba (length m) (access_ref _ _ _)). lia.
-    + rewrite (get_add_gt TM_Unit); trivial.
-      rewrite (get_default TM_Unit) in H; trivial. lia.
-  - eapply wtr_refI.
-    decompose sum (lt_eq_lt_dec ad0 (length m)); subst. (* TODO *)
-    + rewrite (get_add_lt TM_Unit); trivial.
-    + specialize (Hwba (length m) (access_ref _ _ _)). lia.
-    + rewrite (get_add_gt TM_Unit); trivial.
-      rewrite (get_default TM_Unit) in H; trivial. lia.
-Qed.
+Ltac rewrite_array_ x :=
+  match x with
+  | (?l +++ _)[length ?l]  => rewrite (get_add_eq TM_Unit); trivial
+  | (?l +++ _)[?i] =>
+      match goal with
+      | _ : i < length l |- _ =>
+        rewrite (get_add_lt TM_Unit); trivial
+      | _ : length l < i |- _ =>
+        rewrite (get_add_gt TM_Unit); trivial
+      end
+  | ?l[?i <- _][?i]  => rewrite (get_set_eq TM_Unit); trivial
+  | ?l[?i <- _][?i'] =>
+      match goal with
+      | _ : i' < i |- _ =>
+        rewrite (get_set_lt TM_Unit); trivial
+      | _ : i < i' |- _ =>
+        rewrite (get_set_gt TM_Unit); trivial
+      end
+  end.
 
-Local Lemma todo1 : forall m t ad v T,
-  ad < length m ->
-  empty |-- v is T ->
-  empty |-- m[ad] is T ->
-  well_typed_references m t ->
-  well_typed_references m v ->
-  well_typed_references m[ad <- v] t.
-Proof.
-  intros * ? ? ? Hwtr ?. generalize dependent T. 
-  induction Hwtr; intros * HtypeV HtypeM; 
-  eauto using well_typed_references.
-  - eapply wtr_refM.
-    decompose sum (lt_eq_lt_dec ad0 ad); subst.
-    + rewrite (get_set_lt TM_Unit); trivial.
-    + apply_deterministic_typing. rewrite (get_set_eq TM_Unit); trivial.
-    + rewrite (get_set_gt TM_Unit); trivial.
-  - eapply wtr_refI.
-    decompose sum (lt_eq_lt_dec ad0 ad); subst.
-    + rewrite (get_set_lt TM_Unit); trivial.
-    + apply_deterministic_typing. rewrite (get_set_eq TM_Unit); trivial.
-    + rewrite (get_set_gt TM_Unit); trivial.
-Qed.
+Ltac rewrite_array H :=
+  match H with
+  | ?f ?x =>
+      rewrite_array_ x + rewrite_array f
+  end.
 
-Local Lemma todo2 : forall m ad ad' v T,
-  ad < length m ->
-  empty |-- v is T ->
-  empty |-- m[ad] is T ->
-  well_typed_references m v ->
-  well_typed_references m m[ad'] ->
-  well_typed_references m [ad <- v] m [ad'].
-Proof.
-  intros * ? ? ? HwtrV HwtrM.
-  induction HwtrM; eauto using well_typed_references.
-  - eapply wtr_refM.
-    decompose sum (lt_eq_lt_dec ad0 ad); subst.
-    + rewrite (get_set_lt TM_Unit); trivial.
-    + apply_deterministic_typing. rewrite (get_set_eq TM_Unit); trivial.
-    + rewrite (get_set_gt TM_Unit); trivial.
-  - eapply wtr_refI.
-    decompose sum (lt_eq_lt_dec ad0 ad); subst.
-    + rewrite (get_set_lt TM_Unit); trivial.
-    + apply_deterministic_typing. rewrite (get_set_eq TM_Unit); trivial.
-    + rewrite (get_set_gt TM_Unit); trivial.
-Qed.
-
-Local Lemma todo3 : forall m t v,
-  well_behaved_access m t ->
-  well_typed_references m t ->
-  well_typed_references m v ->
-  well_typed_references (m +++ v) t.
-Proof.
-  intros * Hwba Hwtr ?.
-  induction Hwtr; try destruct_wba;
-  eauto using well_typed_references.
-  - eapply wtr_refM.
-    decompose sum (lt_eq_lt_dec ad (length m)); subst.
-    + rewrite (get_add_lt TM_Unit); trivial.
-    + specialize (Hwba (length m) (access_ref _ _ _)). lia.
-    + rewrite (get_add_gt TM_Unit); trivial.
-      rewrite get_default in H0; trivial. lia.
-  - eapply wtr_refI.
-    decompose sum (lt_eq_lt_dec ad (length m)); subst.
-    + rewrite (get_add_lt TM_Unit); trivial.
-    + specialize (Hwba (length m) (access_ref _ _ _)). lia.
-    + rewrite (get_add_gt TM_Unit); trivial.
-      rewrite get_default in H0; trivial. lia.
-Qed.
+Ltac get_goal :=
+  match goal with
+  |- ?g => g
+  end.
 
 Theorem well_typed_memory_preservation : forall m m' t t' eff T,
   empty |-- t is T ->
@@ -325,50 +269,30 @@ Theorem well_typed_memory_preservation : forall m m' t t' eff T,
   m / t ==[eff]==> m' / t' ->
   well_typed_memory m'.
 Proof.
-  intros * Htype Hwba Hwtr Hwtm ?. inversion_mstep; trivial.
-  - intros ad Hlen. split;
-    rewrite add_increments_length in Hlen.
-    + destruct (lt_eq_lt_dec ad (length m)) as [[Hlt | ?] | ?]; subst.
-      * specialize (Hwtm ad Hlt) as [? _].
-        rewrite (get_add_lt TM_Unit); trivial.
-      * rewrite (get_add_eq TM_Unit); eauto using well_typed_alloc_value.
-      * rewrite (get_add_gt TM_Unit); eauto using well_typed_term.
-    + destruct (lt_eq_lt_dec ad (length m)) as [[Hlt | ?] | ?]; subst.
-      * specialize (Hwtm ad Hlt) as [_ ?].
-        rewrite (get_add_lt TM_Unit); trivial.
-        eapply todo0; trivial.
-        shelve.
-      * rewrite (get_add_eq TM_Unit); trivial.
-        eapply todo3; trivial.
-        ** shelve.
-        ** shelve.
-        ** shelve.
-      * rewrite (get_add_gt TM_Unit); eauto using well_typed_references.
-  - intros ad' Hlen. rewrite set_preserves_length in Hlen. split.
-    + decompose sum (lt_eq_lt_dec ad' ad); subst.
-      * specialize (Hwtm ad' Hlen) as [? _].
-        rewrite (get_set_lt TM_Unit); trivial.
-      * rewrite (get_set_eq TM_Unit); eauto using well_typed_write_value.
-      * specialize (Hwtm ad' Hlen) as [? _].
-        rewrite (get_set_gt TM_Unit); trivial.
-    + decompose sum (lt_eq_lt_dec ad' ad); subst.
-      * specialize (Hwtm ad' Hlen) as [_ ?].
-        rewrite (get_set_lt TM_Unit); trivial.
-        eapply todo2; trivial.
-        ** shelve.
-        ** shelve.
-        ** shelve.
-      * rewrite (get_set_eq TM_Unit); trivial.
-        eapply todo1; trivial.
-        ** shelve.
-        ** shelve.
-        ** shelve.
-        ** shelve.
-      * specialize (Hwtm ad' Hlen) as [_ ?].
-        rewrite (get_set_gt TM_Unit); trivial.
-        eapply todo2; trivial.
-        ** shelve.
-        ** shelve.
-        ** shelve.
+  intros * Htype Hwba Hwtr Hwtm ?. inversion_mstep; trivial;
+  intros ad' Hlen. 
+  - rewrite add_increments_length in Hlen.
+    assert (exists V, empty |-- v is V) as [? ?] by eauto using wtt_alloc_value.
+    split.
+    + destruct (lt_eq_lt_dec ad' (length m)) as [[Hlt | ?] | ?]; subst;
+      try solve [eexists; rewrite_array get_goal; eauto using well_typed_term].
+      specialize (Hwtm ad' Hlt) as [[? ?] _].
+      eexists. rewrite_array get_goal. eauto.
+    + destruct (lt_eq_lt_dec ad' (length m)) as [[Hlt | ?] | ?]; subst;
+      rewrite_array get_goal;
+      eauto using wtr_mem_add, wba_alloc_value, wtr_alloc_value;
+      eauto using well_typed_references.
+      specialize (Hwtm ad' Hlt) as [_ ?].
+      eapply wtr_mem_add; trivial.
+      admit.
+  - rewrite set_preserves_length in Hlen.
+    specialize (Hwtm ad' Hlen) as [[? ?] ?].
+    assert (exists V, empty |-- v is V) as [? ?] by eauto using wtt_write_value.
+    split.
+    + decompose sum (lt_eq_lt_dec ad' ad); subst;
+      eexists; rewrite_array get_goal; eauto.
+    + decompose sum (lt_eq_lt_dec ad' ad); subst;
+      rewrite_array get_goal; 
+      eauto using wtr_mem_set, wtr_write_value, wtt_write_memory_address.
 Qed.
 
