@@ -128,6 +128,38 @@ Proof.
   - simpl. eapply PeanoNat.Nat.succ_lt_mono in H. eauto.
 Qed.
 
+(* ------------------------------------------------------------------------- *)
+(* rewrite get_set & get_add                                                 *)
+(* ------------------------------------------------------------------------- *)
+
+Ltac rewrite_array :=
+  match goal with
+  | [ H : (?l +++ _)[length ?l] ] =>
+    rewrite (get_add_eq TM_Unit); trivial
+  (*
+  | (?l +++ _)[?i] =>
+      match goal with
+      | _ : i < length l |- _ =>
+        rewrite (get_add_lt TM_Unit); trivial
+      | _ : length l < i |- _ =>
+        rewrite (get_add_gt TM_Unit); trivial
+      end
+  | ?l[?i <- _][?i]  => rewrite (get_set_eq TM_Unit); trivial
+  | ?l[?i <- _][?i'] =>
+      match goal with
+      | _ : i' < i |- _ =>
+        rewrite (get_set_lt TM_Unit); trivial
+      | _ : i < i' |- _ =>
+        rewrite (get_set_gt TM_Unit); trivial
+      end
+  end.
+  *)
+
+Ltac get_goal :=
+  match goal with
+  |- ?g => g
+  end.
+
 (* Properties *)
 
 Definition property {A} (default : A) (P : A -> Prop) (l : list A) : Prop :=

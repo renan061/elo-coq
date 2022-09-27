@@ -7,6 +7,8 @@ From Elo Require Import Core.
 From Elo Require Import Access.
 From Elo Require Import WBA.
 
+(* The types of all addresses inside the term correspond with the types in the
+memory. *)
 Inductive well_typed_references (m : mem) : tm -> Prop :=
   | wtr_unit :
     well_typed_references m <{ unit }> 
@@ -53,6 +55,8 @@ Inductive well_typed_references (m : mem) : tm -> Prop :=
     well_typed_references m <{ t1; t2 }>
   .
 
+(* All terms inside the memory are well typed and satisfy the 
+well-typed-references property. *)
 Definition well_typed_memory (m : mem) := forall ad,
   ad < length m ->
   ((exists T, empty |-- m[ad] is T) /\ well_typed_references m m[ad]).
@@ -250,6 +254,7 @@ Ltac rewrite_array_ x :=
       end
   end.
 
+(* TODO context for exists? *)
 Ltac rewrite_array H :=
   match H with
   | ?f ?x =>
@@ -264,6 +269,7 @@ Ltac get_goal :=
 Theorem well_typed_memory_preservation : forall m m' t t' eff T,
   empty |-- t is T ->
   well_behaved_access m t ->
+  (* well_behaved_memory_access m -> *)
   well_typed_references m t ->
   well_typed_memory m ->
   m / t ==[eff]==> m' / t' ->

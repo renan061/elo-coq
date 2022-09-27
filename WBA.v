@@ -125,8 +125,7 @@ Qed.
 (* mem & subst                                                               *)
 (* ------------------------------------------------------------------------- *)
 
-
-Lemma wba_write_value : forall m t t' ad v,
+Lemma va_write_value : forall m t t' ad v,
   well_behaved_access m t ->
   t --[EF_Write ad v]--> t' ->
   well_behaved_access m v.
@@ -134,7 +133,7 @@ Proof.
   intros. induction_step; destruct_wba; eauto using access. 
 Qed.
 
-Lemma wba_alloc_value : forall m t t' ad v,
+Lemma va_alloc_value : forall m t t' ad v,
   well_behaved_access m t ->
   t --[EF_Alloc ad v]--> t' ->
   well_behaved_access m v.
