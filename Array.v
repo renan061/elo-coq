@@ -132,32 +132,47 @@ Qed.
 (* rewrite get_set & get_add                                                 *)
 (* ------------------------------------------------------------------------- *)
 
-Ltac rewrite_array :=
+Ltac rewrite_array default :=
   match goal with
-  | [ H : (?l +++ _)[length ?l] ] =>
-    rewrite (get_add_eq TM_Unit); trivial
-  (*
-  | (?l +++ _)[?i] =>
-      match goal with
-      | _ : i < length l |- _ =>
-        rewrite (get_add_lt TM_Unit); trivial
-      | _ : length l < i |- _ =>
-        rewrite (get_add_gt TM_Unit); trivial
-      end
-  | ?l[?i <- _][?i]  => rewrite (get_set_eq TM_Unit); trivial
-  | ?l[?i <- _][?i'] =>
-      match goal with
-      | _ : i' < i |- _ =>
-        rewrite (get_set_lt TM_Unit); trivial
-      | _ : i < i' |- _ =>
-        rewrite (get_set_gt TM_Unit); trivial
-      end
-  end.
-  *)
-
-Ltac get_goal :=
-  match goal with
-  |- ?g => g
+  (* get_add_eq *)
+  | H : context C [ (?l +++ _)[length ?l] or default] |- _ =>
+    rewrite (get_add_eq default) in H; trivial
+  | |-  context C [ (?l +++ _)[length ?l] or default] =>
+    rewrite (get_add_eq default); trivial
+  (* get_add_lt *)
+  | H : context C [ (?l +++ _)[?i] or default], _ : ?i < length ?l |- _ => 
+    rewrite (get_add_lt default) in H; trivial
+  | _ : ?i < length ?l |- context C [ (?l +++ _)[?i] or default] => 
+    rewrite (get_add_lt default); trivial
+  (* get_add_gt *)
+  | H : context C [ (?l +++ _)[?i] or default], _ : length ?l < ?i |- _ => 
+    rewrite (get_add_gt default) in H; trivial
+  | _ : length ?l < ?i |- context C [ (?l +++ _)[?i] or default] => 
+    rewrite (get_add_gt default); trivial
+  (* get_set_eq *)
+  | _ : ?i < length ?l, H : context C [ ?l[?i <- _ ][?i] or default] |- _ =>
+    rewrite (get_set_eq default) in H; trivial
+  | _ : ?i < length ?l  |- context C [ ?l[?i <- _ ][?i] or default] =>
+    rewrite (get_set_eq default); trivial
+  (* get_set_neq *)
+  | H : context C [ ?l[?j <- _][?i] or default], _ : ?i <> ?j |- _ => 
+    rewrite (get_set_neq default) in H; trivial
+  | H : context C [ ?l[?j <- _][?i] or default], _ : ?j <> ?i |- _ => 
+    rewrite (get_set_neq default) in H; trivial
+  | _ : ?i <> ?j |- context C [ ?l[?j <- _][?i] or default] => 
+    rewrite (get_set_neq default); trivial
+  | _ : ?j <> ?i |- context C [ ?l[?j <- _][?i] or default] => 
+    rewrite (get_set_neq default); trivial
+  (* get_set_lt *)
+  | H : context C [ ?l[?j <- _][?i] or default], _ : ?i < ?j |- _ => 
+    rewrite (get_set_lt default) in H; trivial
+  | _ : ?i < ?j |- context C [ ?l[?j <- _][?i] or default] => 
+    rewrite (get_set_lt default); trivial
+  (* get_set_gt *)
+  | H : context C [ ?l[?j <- _][?i] or default], _ : ?j < ?i |- _ => 
+    rewrite (get_set_gt default) in H; trivial
+  | _ : ?j < ?i |- context C [ ?l[?j <- _][?i] or default] => 
+    rewrite (get_set_gt default); trivial
   end.
 
 (* Properties *)

@@ -199,7 +199,7 @@ Local Lemma va_seq : forall m t1 t2,
 Proof. solve_constructor_va. Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* inversion-valid-accesses                                                  *)
+(* inversion-va                                                              *)
 (* ------------------------------------------------------------------------- *)
 
 Local Ltac solve_inversion_va := 
@@ -283,49 +283,6 @@ Proof.
   intros. induction_step; inversion_va; eauto using access.
 Qed.
 
-Ltac rewrite_array default :=
-  match goal with
-  (* get_add_eq *)
-  | H : context C [ (?l +++ _)[length ?l] ] |- _ =>
-    rewrite (get_add_eq default) in H; trivial
-  | |-  context C [ (?l +++ _)[length ?l] ] =>
-    rewrite (get_add_eq default); trivial
-  (* get_add_lt *)
-  | H : context C [ (?l +++ _)[?i] ], _ : ?i < length ?l |- _ => 
-    rewrite (get_add_lt default) in H; trivial
-  | _ : ?i < length ?l |- context C [ (?l +++ _)[?i] ] => 
-    rewrite (get_add_lt default); trivial
-  (* get_add_gt *)
-  | H : context C [ (?l +++ _)[?i] ], _ : length ?l < ?i |- _ => 
-    rewrite (get_add_gt default) in H; trivial
-  | _ : length ?l < ?i |- context C [ (?l +++ _)[?i] ] => 
-    rewrite (get_add_gt default); trivial
-  (* get_set_eq *)
-  | H : context C [ ?l[?i <- _ ][?i] ] |- _ =>
-    rewrite (get_set_eq default) in H; trivial
-  | |-  context C [ ?l[?i <- _ ][?i] ] =>
-    rewrite (get_set_eq default); trivial
-  (* get_set_neq *)
-  | H : context C [ ?l[?j <- _][?i] ], _ : ?i <> ?j |- _ => 
-    rewrite (get_set_neq default) in H; trivial
-  | H : context C [ ?l[?j <- _][?i] ], _ : ?j <> ?i |- _ => 
-    rewrite (get_set_neq default) in H; trivial
-  | _ : ?i <> ?j |- context C [ ?l[?j <- _][?i] ] => 
-    rewrite (get_set_neq default); trivial
-  | _ : ?j <> ?i |- context C [ ?l[?j <- _][?i] ] => 
-    rewrite (get_set_neq default); trivial
-  (* get_set_lt *)
-  | H : context C [ ?l[?j <- _][?i] ], _ : ?i < ?j |- _ => 
-    rewrite (get_set_lt default) in H; trivial
-  | _ : ?i < ?j |- context C [ ?l[?j <- _][?i] ] => 
-    rewrite (get_set_lt default); trivial
-  (* get_set_gt *)
-  | H : context C [ ?l[?j <- _][?i] ], _ : ?j < ?i |- _ => 
-    rewrite (get_set_gt default) in H; trivial
-  | _ : ?j < ?i |- context C [ ?l[?j <- _][?i] ] => 
-    rewrite (get_set_gt default); trivial
-  end.
-
 Local Lemma va_added_value : forall m v T,
   valid_accesses (m +++ v) v ->
   valid_accesses (m +++ v) <{ &(length m) :: T }>.
@@ -359,6 +316,7 @@ Proof.
   rewrite set_preserves_length.
   induction Hacc; inversion_va; eauto using access.
   destruct (Nat.eq_dec ad ad'); subst;
+  assert (ad' < length m) by eauto using access;
   do 2 (rewrite_array TM_Unit); eauto using access.
 Qed.
 
@@ -430,18 +388,18 @@ Proof.
     va_write_preservation.
 Qed.
 
-Definition va_memory (m : mem) := forall ad,
-  valid_accesses m m[ad].
-
 (* ------------------------------------------------------------------------- *)
-(* va memory                                                                 *)
+(* memory-valid-accesses preservation                                        *)
 (* ------------------------------------------------------------------------- *)
 
-Local Lemma va_memory_alloc_preservation : forall m t t' v,
+Definition memory_valid_accesses (m : mem) :=
+  forall ad, valid_accesses m m[ad].
+
+Local Lemma mva_alloc_preservation : forall m t t' v,
   valid_accesses m t ->
-  (forall ad, valid_accesses m m[ad]) ->
+  memory_valid_accesses m ->
   t --[EF_Alloc (length m) v]--> t' ->
-  (forall ad, valid_accesses (m +++ v) (m +++ v)[ad]).
+  memory_valid_accesses (m +++ v).
 Proof.
   intros * Hva Hmva ? ad. induction_step; inversion_va; eauto.
   decompose sum (lt_eq_lt_dec ad (length m)); subst;
@@ -449,40 +407,27 @@ Proof.
   intros ? ?. inversion_access.
 Qed.
 
-Local Lemma va_memory_write_preservation : forall m t t' ad v,
+Local Lemma mva_write_preservation : forall m t t' ad v,
   valid_accesses m t ->
-  (forall ad, valid_accesses m m[ad]) ->
+  memory_valid_accesses m ->
   t --[EF_Write ad v]--> t' ->
-  (forall ad', valid_accesses m[ad <- v] m[ad <- v][ad']).
+  memory_valid_accesses m[ad <- v].
 Proof.
   intros * Hva Hmva ? ad'. induction_step; inversion_va; eauto.
   decompose sum (lt_eq_lt_dec ad ad'); subst;
+  try (assert (ad' < length m) by eauto using access);
   rewrite_array TM_Unit; eauto using va_mem_set.
-  TODO
 Qed.
 
-Theorem memory_va_mstep_preservation : forall m m' t t' eff,
+Theorem mva_mstep_preservation : forall m m' t t' eff,
   valid_accesses m t ->
-  va_memory m ->
+  memory_valid_accesses m ->
   m / t ==[eff]==> m' / t' ->
-  va_memory m'.
+  memory_valid_accesses m'.
 Proof.
-  intros * Hva Hmva ?. inversion_mstep; trivial.
-  - induction_step; inversion_va; eauto.
-    intros ad.
-    decompose sum (lt_eq_lt_dec ad (length m)); subst; rewrite_array TM_Unit.
-    + eauto using va_mem_add.
-    + intros ad Hacc.
-      rewrite add_increments_length.
-      specialize (Hva ad).
-      eapply Nat.lt_lt_succ_r.
-      eapply Hva; clear Hva.
-      specialize (Hmva ad ad).
-    + 
-
+  intros. inversion_mstep;
+  eauto using mva_alloc_preservation, mva_write_preservation.
 Qed.
-
-  forall ad ad', access m m[ad'] ad -> ad < length m.
 
 (* ------------------------------------------------------------------------- *)
 (* subst                                                                     *)

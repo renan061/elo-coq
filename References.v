@@ -1,11 +1,11 @@
 From Coq Require Import Arith.Arith.
 From Coq Require Import Lia.
 
+From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Map.
 From Elo Require Import Core.
 From Elo Require Import Access.
-From Elo Require Import WBA.
 
 (* The types of all addresses inside the term correspond with the types in the
 memory. *)
@@ -133,12 +133,12 @@ Proof.
 Qed.
 
 Local Lemma wtr_mem_add : forall m t v,
-  well_behaved_access m t ->
+  valid_accesses m t ->
   well_typed_references m t ->
   well_typed_references (m +++ v) t.
 Proof.
   intros * ? Hwtr. generalize dependent v.
-  induction Hwtr; intros; try (destruct_wba);
+  induction Hwtr; intros; try (inversion_va);
   eauto using well_typed_references;
   (eapply wtr_refM || eapply wtr_refI);
   rewrite (get_add_lt TM_Unit); eauto using access.
@@ -158,10 +158,7 @@ Proof.
   |- _ |-- _[?ad'] is _ =>
     decompose sum (lt_eq_lt_dec ad' ad); subst
   end;
-  solve [ rewrite (get_set_lt TM_Unit); trivial
-        | rewrite (get_set_eq TM_Unit); apply_deterministic_typing; trivial
-        | rewrite (get_set_gt TM_Unit); trivial
-        ].
+  rewrite_array TM_Unit; apply_deterministic_typing; trivial.
 Qed.
 
 Local Lemma wtr_preservation_none : forall m t t',
@@ -175,17 +172,17 @@ Qed.
 
 Local Lemma wtr_preservation_alloc: forall m t t' v T,
   empty |-- t is T ->
-  well_behaved_access m t ->
+  valid_accesses m t ->
   well_typed_references m t ->
   t --[EF_Alloc (length m) v]--> t' ->
   well_typed_references (m +++ v) t'.
 Proof.
   intros * ? ? Hwtr ?. generalize dependent T.
   induction_step; intros;
-  destruct_wba; inversion_type; inversion_clear Hwtr;
+  inversion_va; inversion_type; inversion_clear Hwtr;
   eauto using well_typed_references, wtr_mem_add;
   (eapply wtr_refM || eapply wtr_refI);
-  rewrite (get_add_eq TM_Unit); trivial. 
+  rewrite_array TM_Unit; trivial. 
 Qed.
 
 Local Lemma wtr_preservation_read : forall m t t' ad,
@@ -219,7 +216,7 @@ Qed.
 
 Theorem well_typed_references_preservation : forall m m' t t' eff T,
   empty |-- t is T ->
-  well_behaved_access m t ->
+  valid_accesses m t ->
   well_typed_references m t ->
   well_typed_memory m ->
   m / t ==[eff]==> m' / t' ->
@@ -234,71 +231,26 @@ Qed.
 (* well-typed-memory preservation                                            *)
 (* ------------------------------------------------------------------------- *)
 
-Ltac rewrite_array_ x :=
-  match x with
-  | (?l +++ _)[length ?l]  => rewrite (get_add_eq TM_Unit); trivial
-  | (?l +++ _)[?i] =>
-      match goal with
-      | _ : i < length l |- _ =>
-        rewrite (get_add_lt TM_Unit); trivial
-      | _ : length l < i |- _ =>
-        rewrite (get_add_gt TM_Unit); trivial
-      end
-  | ?l[?i <- _][?i]  => rewrite (get_set_eq TM_Unit); trivial
-  | ?l[?i <- _][?i'] =>
-      match goal with
-      | _ : i' < i |- _ =>
-        rewrite (get_set_lt TM_Unit); trivial
-      | _ : i < i' |- _ =>
-        rewrite (get_set_gt TM_Unit); trivial
-      end
-  end.
-
-(* TODO context for exists? *)
-Ltac rewrite_array H :=
-  match H with
-  | ?f ?x =>
-      rewrite_array_ x + rewrite_array f
-  end.
-
-Ltac get_goal :=
-  match goal with
-  |- ?g => g
-  end.
-
 Theorem well_typed_memory_preservation : forall m m' t t' eff T,
   empty |-- t is T ->
-  well_behaved_access m t ->
-  (* well_behaved_memory_access m -> *)
+  valid_accesses m t ->
+  memory_valid_accesses m ->
   well_typed_references m t ->
   well_typed_memory m ->
   m / t ==[eff]==> m' / t' ->
   well_typed_memory m'.
 Proof.
-  intros * Htype Hwba Hwtr Hwtm ?. inversion_mstep; trivial;
-  intros ad' Hlen. 
+  intros * ? ? ? ? Hwtm ?. inversion_mstep; trivial;
+  intros ad' Hlen; specialize (Hwtm ad'); destruct_and Hwtm;
+  assert (exists V, empty |-- v is V) as [? ?]
+    by eauto using wtt_alloc_value, wtt_write_value.
   - rewrite add_increments_length in Hlen.
-    assert (exists V, empty |-- v is V) as [? ?] by eauto using wtt_alloc_value.
-    split.
-    + destruct (lt_eq_lt_dec ad' (length m)) as [[Hlt | ?] | ?]; subst;
-      try solve [eexists; rewrite_array get_goal; eauto using well_typed_term].
-      specialize (Hwtm ad' Hlt) as [[? ?] _].
-      eexists. rewrite_array get_goal. eauto.
-    + destruct (lt_eq_lt_dec ad' (length m)) as [[Hlt | ?] | ?]; subst;
-      rewrite_array get_goal;
-      eauto using wtr_mem_add, wba_alloc_value, wtr_alloc_value;
-      eauto using well_typed_references.
-      specialize (Hwtm ad' Hlt) as [_ ?].
-      eapply wtr_mem_add; trivial.
-      admit.
+    split; decompose sum (lt_eq_lt_dec ad' (length m)); subst;
+    rewrite_array TM_Unit; eauto using well_typed_references;
+    eauto using well_typed_term, wtr_mem_add, wtr_alloc_value.
   - rewrite set_preserves_length in Hlen.
-    specialize (Hwtm ad' Hlen) as [[? ?] ?].
-    assert (exists V, empty |-- v is V) as [? ?] by eauto using wtt_write_value.
-    split.
-    + decompose sum (lt_eq_lt_dec ad' ad); subst;
-      eexists; rewrite_array get_goal; eauto.
-    + decompose sum (lt_eq_lt_dec ad' ad); subst;
-      rewrite_array get_goal; 
-      eauto using wtr_mem_set, wtr_write_value, wtt_write_memory_address.
+    split; decompose sum (lt_eq_lt_dec ad' ad); subst;
+    rewrite_array TM_Unit;
+    eauto using wtr_mem_set, wtr_write_value, wtt_write_memory_address.
 Qed.
 

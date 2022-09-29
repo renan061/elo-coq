@@ -5,6 +5,15 @@ Ltac auto_specialize :=
   | P : ?x, H : ?x -> _ |- _ => specialize (H P)
   end.
 
+Local Lemma destruct_and' : forall a x y,
+  (a -> x /\ y) -> ((a -> x) /\ (a -> y)). 
+Proof.
+  intros * H. split; intros a'; specialize (H a') as [? ?]; trivial.
+Qed.
+
+Ltac destruct_and H :=
+  eapply destruct_and' in H as [? ?].
+
 (* Unused
 
 Definition memory_has_values (m : mem) :=

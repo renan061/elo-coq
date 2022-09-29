@@ -18,7 +18,6 @@ core:
 
 soundness: core
 	$(COQC) Access.v
-	$(COQC) WBA.v
 	$(COQC) References.v
 	$(COQC) Soundness.v
 
