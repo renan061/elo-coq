@@ -25,10 +25,6 @@ Proof.
   intros. eapply (context_weakening _ empty); trivial. discriminate.
 Qed.
 
-(* ------------------------------------------------------------------------- *)
-(* preservation                                                              *)
-(* ------------------------------------------------------------------------- *)
-
 Local Lemma preservation_subst : forall t tx T Tx Tx' Gamma x,
   Gamma |-- (TM_Fun x Tx t) is (TY_Fun Tx' T) ->
   empty |-- tx is Tx' ->
@@ -49,7 +45,7 @@ Proof.
   intros * ?. inversion_type. intros. eauto.
 Qed.
 
-Theorem preservation : forall m m' t t' eff T,
+Theorem mstep_preservation : forall m m' t t' eff T,
   well_typed_references m t ->
   empty |-- t is T ->
   m / t ==[eff]==> m' / t' ->
@@ -64,5 +60,55 @@ Proof.
   | H : well_typed_references _ _ |- _ => inversion_clear H
   end;
   eauto using context_weakening_empty.
+Qed.
+
+Ltac solve_with_steps :=
+  eexists; eexists; eexists; eauto using step, mstep.
+
+Ltac destruct_IH :=
+  match goal with
+  | IH : valid_accesses _ _ -> value _ \/ _ |- _ =>
+    destruct IH as [? | [[eff [? [? ?]]] | [? [? ?]]]]; trivial
+  end.
+
+Ltac solve_mstep_progress :=
+  match goal with
+  | eff : effect |- _ =>
+    try solve [solve_with_steps];
+    destruct eff; inversion_mstep; try solve [solve_with_steps]
+  end.
+
+Theorem progress : forall m t T,
+  valid_accesses m t ->
+  empty |-- t is T ->
+  (value t
+    \/ (exists eff m' t', m / t ==[eff]==> m' / t')
+    \/ (exists block t', t --[EF_Spawn block]--> t')).
+Proof.
+  intros. induction_type; try inversion_va;
+  try solve [left; eauto using value]; right;
+  try solve [right; eauto using step];
+  try solve [left; solve_mstep_progress].
+  - destruct_IH.
+    + left. solve_with_steps.
+    + left. destruct eff; inversion_mstep; solve_with_steps.
+    + right. eauto using step.
+  - destruct_IH.
+    + left. solve_with_steps.
+    + left. destruct eff; inversion_mstep; solve_with_steps.
+    + right. eauto using step.
+  - destruct_IH.
+    + left. inversion H1; subst; inversion_type.
+      eexists. eexists. eexists. eauto using step, mstep, access.
+    + left. destruct eff; inversion_mstep; solve_with_steps.
+    + right. eauto using step.
+  - destruct_IH.
+    + left. inversion H1; subst; inversion_type.
+      eexists. eexists. eexists. eauto using step, mstep, access.
+    + left. destruct eff; inversion_mstep; solve_with_steps.
+    + right. eauto using step.
+  - shelve.
+  - shelve.
+  - shelve.
 Qed.
 
