@@ -33,7 +33,7 @@ Proof.
   assert (forall t tx T Tx Gamma x,
     Gamma[x <== Tx] |-- t is T ->
     empty |-- tx is Tx ->
-    Gamma |-- [x := tx] t is T
+    Gamma |-- ([x := tx] t) is T
   ). {
     unfold subst. intros ?.
     induction t; intros * Htype ?; 
@@ -62,6 +62,7 @@ Proof.
   eauto using context_weakening_empty.
 Qed.
 
+(*
 Ltac solve_with_steps :=
   eexists; eexists; eexists; eauto using step, mstep.
 
@@ -111,4 +112,5 @@ Proof.
   - shelve.
   - shelve.
 Qed.
+*)
 

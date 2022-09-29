@@ -151,6 +151,9 @@ Proof.
   eauto using access.
 Qed.
 
+Ltac inversion_not_access H :=
+  eapply not_access_iff in H; inversion H; subst; eauto using access.
+
 (* ------------------------------------------------------------------------- *)
 (* valid-accesses                                                            *)
 (* ------------------------------------------------------------------------- *)
@@ -429,37 +432,3 @@ Proof.
   eauto using mva_alloc_preservation, mva_write_preservation.
 Qed.
 
-(* ------------------------------------------------------------------------- *)
-(* subst                                                                     *)
-(* ------------------------------------------------------------------------- *)
-
-(*
-Lemma access_subst : forall m x X t t' ad,
-  access m ([x := t'] t) ad ->
-  access m (TM_Call (TM_Fun x X t) t') ad.
-Proof.
-  intros. induction t; eauto using access; simpl in *;
-  try (destruct String.eqb; eauto using access);
-  try solve [ 
-    inversion_access; auto_specialize;
-    inversion_access; try inversion_access; eauto using access
-  ].
-Qed.
-
-Lemma not_access_subst : forall m id t x ad,
-  ~ access m t ad ->
-  ~ access m x ad ->
-  ~ access m ([id := x] t) ad.
-Proof.
-  intros. induction t; trivial;
-  try solve [
-    inversion_not_access;
-    eauto using not_access_new, not_access_load, not_access_asg,
-      not_access_fun, not_access_call, not_access_seq
-  ];
-  simpl; destruct String.eqb; trivial.
-  try solve [inversion_not_access; eauto using not_access_fun].
-  - shelve.
-  - shelve.
-Qed.
-*)

@@ -20,20 +20,6 @@ Inductive typ : Set :=
   | TY_Fun : typ -> typ -> typ
   .
 
-(*
-Inductive typI : Set :=
-  | TYI_Unit
-  | TYI_Num
-  | TYI_RefI : typ -> typ
-  | TYI_Fun : typ -> typ -> typ
-  .
-
-Inductive typM : Set :=
-  | TYM_RefIM : typI -> typM 
-  | TYM_RefM : typM -> typM
-  | TYM_RefI : typM -> typM
-*)
-
 (* ------------------------------------------------------------------------- *)
 (* Terms                                                                     *)
 (* ------------------------------------------------------------------------- *)
@@ -278,24 +264,17 @@ Inductive cstep : mem -> threads -> nat -> effect -> mem -> threads -> Prop :=
 Definition ctx := map typ.
 Definition getTY := get TY_Unit.
 
-(*
-Inductive is_immutable : typ -> Prop :=
-  | is_immutable_unit :
-      TY_Void
+Inductive immutable : typ -> Prop :=
+  | immut_unit :
+    immutable <{{ Unit }}>
 
-  | is_immutable_ref :
-      is_immut_ref T ->
-      <{{ &iT }}>
+  | immut_num :
+    immutable <{{ Num }}>
 
-Inductive is_mutable : typ -> Prop :=
-  | is_mutable_refM : forall T,
-      is_mutable <{{ &T }}>
-
-  | is_mutable_refI : forall T,
-      is_mutable T ->
-      is_mutable <{{ i&T }}>
+  | immut_refI : forall T,
+    immutable T ->
+    immutable <{{ i&T }}>
   .
-*)
 
 Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
   | T_Unit : forall Gamma,
@@ -308,7 +287,7 @@ Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
     Gamma |-- <{ &ad :: &T }> is <{{ &T }}>
 
   | T_RefI : forall Gamma ad T,
-    (* is_immutable T *)
+    immutable T ->
     Gamma |-- <{ &ad :: i&T }> is <{{ i&T }}>
 
   | T_NewM : forall Gamma t T,
@@ -316,8 +295,8 @@ Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
     Gamma |-- <{ new &T t }> is <{{ &T }}>
 
   | T_NewI : forall Gamma t T,
+    immutable T ->
     Gamma |-- t is T ->
-    (* is_immutable T *)
     Gamma |-- <{ new i&T t }> is <{{ i&T }}>
 
   | T_LoadM : forall Gamma t T,
@@ -326,7 +305,6 @@ Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
 
   | T_LoadI : forall Gamma t T,
     Gamma |-- t is <{{ i&T }}> ->
-    (* is_immutable T *)
     Gamma |-- <{ *t }> is T
 
   | T_Asg : forall Gamma t1 t2 T,
@@ -398,8 +376,8 @@ Proof.
   induction Htype1; intros ? Htype2;
   inversion Htype2; subst; eauto;
   repeat match goal with
-    | IH : forall _, _ |-- ?t is _ -> _, H : _ |-- ?t is _ |- _ =>
-      eapply IH in H; subst
+  | IH : forall _, _ |-- ?t is _ -> _, H : _ |-- ?t is _ |- _ =>
+    eapply IH in H; subst
   end;
   congruence.
 Qed.

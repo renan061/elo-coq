@@ -3,9 +3,7 @@
 COQC= coqc -Q . Elo
 
 main: core
-	$(COQC) Access.v
 	$(COQC) Compat.v
-	$(COQC) WBA.v
 	$(COQC) AccessProp.v
 	$(COQC) NoLoc.v
 	$(COQC) Disjoint.v
