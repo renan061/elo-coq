@@ -133,58 +133,59 @@ Lemma mstep_none_preserves_not_access : forall m m' t t' ad,
   m / t ==[EF_None]==> m' / t' ->
   ~ access m' t' ad.
 Proof.
-  intros. inversion_mstep. induction_step; inversion_not_access;
-  eauto using not_access_load, not_access_asg, not_access_call, not_access_seq.
-  inversion_not_access. eauto using not_access_subst.
+  intros * Hnacc ?. inversion_mstep.
+  induction_step; inversion_not_access Hnacc;
+  eapply not_access_iff; eauto using not_access.
+  eapply not_access_iff. eauto using not_access_subst.
 Qed.
 
 Local Lemma mstep_alloc_address_access: forall m m' t t' ad v,
   m / t ==[EF_Alloc ad v]==> m' / t' ->
   access m' t' ad.
 Proof.
-  intros. inversion_mstep. eauto using step_alloc_address_access2.
+  intros. inversion_mstep. eauto using alloc_step_access_t'_ad.
 Qed.
 
 Lemma mstep_alloc_grants_access : forall m m' t t' ad v,
-  well_behaved_access m t ->
+  valid_accesses m t ->
   m / t ==[EF_Alloc ad v]==> m' / t' ->
   ~ access m t ad /\ access m' t' ad.
 Proof.
-  intros * Hwba ?. split; eauto using mstep_alloc_address_access.
-  inversion_mstep. intros F. eapply Hwba in F. lia.
+  intros * Hva ?. split; eauto using mstep_alloc_address_access.
+  inversion_mstep. intros F. eapply Hva in F. lia.
 Qed.
 
 Lemma mstep_alloc_inherits_access : forall m m' t t' ad ad' v,
-  well_behaved_access m t ->
+  valid_accesses m t ->
   ad <> ad' ->
   access m' t' ad ->
   m / t ==[EF_Alloc ad' v]==> m' / t' ->
   access m t ad.
 Proof.
-  intros * Hwba ? ? Hmstep. inversion_mstep. induction_step;
-  WBA.destruct_wba; try inversion_access; eauto using access; try lia.
+  intros * Hva ? ? Hmstep. inversion_mstep. induction_step;
+  inversion_va; try inversion_access; eauto using access; try lia.
   - rewrite (get_add_eq TM_Unit) in *.
     eapply access_new; eapply inaccessible_address_add_1; eauto. intros F.
-    specialize (Hwba (length m) F). lia.
+    specialize (Hva (length m) F). lia.
   - eapply access_asg2; eapply inaccessible_address_add_1; eauto. intros F.
-    match goal with Hwba : well_behaved_access m ?t |- _ =>
-      specialize (Hwba (length m) F); lia
+    match goal with Hva : valid_accesses m ?t |- _ =>
+      specialize (Hva (length m) F); lia
     end.
   - eapply access_asg1; eapply inaccessible_address_add_1; eauto. intros F.
-    match goal with Hwba : well_behaved_access m ?t |- _ =>
-      specialize (Hwba (length m) F); lia
+    match goal with Hva : valid_accesses m ?t |- _ =>
+      specialize (Hva (length m) F); lia
     end.
   - eapply access_call2; eapply inaccessible_address_add_1; eauto. intros F.
-    match goal with Hwba : well_behaved_access m ?t |- _ =>
-      specialize (Hwba (length m) F); lia
+    match goal with Hva : valid_accesses m ?t |- _ =>
+      specialize (Hva (length m) F); lia
     end.
   - eapply access_call1; eapply inaccessible_address_add_1; eauto. intros F.
-    match goal with Hwba : well_behaved_access m ?t |- _ =>
-      specialize (Hwba (length m) F); lia
+    match goal with Hva : valid_accesses m ?t |- _ =>
+      specialize (Hva (length m) F); lia
     end.
   - eapply access_seq2; eapply inaccessible_address_add_1; eauto. intros F.
-    match goal with Hwba : well_behaved_access m ?t |- _ =>
-      specialize (Hwba (length m) F); lia
+    match goal with Hva : valid_accesses m ?t |- _ =>
+      specialize (Hva (length m) F); lia
     end.
 Qed.
 
@@ -200,43 +201,44 @@ Proof.
 Qed.
 
 Lemma mstep_alloc_preserves_not_access : forall m m' t t' ad ad' v,
-  well_behaved_access m t ->
+  valid_accesses m t ->
   ad <> ad' ->
   ~ access m t ad ->
   m / t ==[EF_Alloc ad' v]==> m' / t' ->
   ~ access m' t' ad.
 Proof.
-  intros * Hwba ? ? ?. inversion_mstep.
-  induction_step; WBA.destruct_wba; inversion_not_access;
-  eauto using access, not_access_load. 
-  - intros ?. inversion_access; eauto.
-    rewrite (get_add_eq TM_Unit) in *.
+  intros * Hva ? Hnacc ?. inversion_mstep.
+  induction_step; inversion_va;
+  eapply not_access_iff; inversion_not_access Hnacc;
+  eauto using access, not_access. 
+  - eapply not_access_ref; eauto.
+    rewrite_array TM_Unit.
     eapply inaccessible_address_add_2; eauto. intros F.
-    specialize (Hwba (length m) F). lia.
+    specialize (Hva (length m) F). lia.
   - eapply not_access_asg; eauto. eapply inaccessible_address_add_2; eauto.
-    intros F. match goal with Hwba : well_behaved_access m ?t |- _ =>
-      specialize (Hwba (length m) F); lia
+    intros F. match goal with Hva : valid_accesses m ?t |- _ =>
+      specialize (Hva (length m) F); lia
     end.
-  - eapply not_access_asg; eauto; eapply inaccessible_address_add_2; eauto.
-    intros F. match goal with Hwba : well_behaved_access m ?t |- _ =>
-      specialize (Hwba (length m) F); lia
+  - eapply not_access_asg; eauto. eapply inaccessible_address_add_2; eauto.
+    intros F. match goal with Hva : valid_accesses m ?t |- _ =>
+      specialize (Hva (length m) F); lia
     end.
-  - eapply not_access_call; eauto; eapply inaccessible_address_add_2; eauto.
-    intros F. match goal with Hwba : well_behaved_access m ?t |- _ =>
-      specialize (Hwba (length m) F); lia
+  - eapply not_access_call; eauto. eapply inaccessible_address_add_2; eauto.
+    intros F. match goal with Hva : valid_accesses m ?t |- _ =>
+      specialize (Hva (length m) F); lia
     end.
-  - eapply not_access_call; eauto; eapply inaccessible_address_add_2; eauto.
-    intros F. match goal with Hwba : well_behaved_access m ?t |- _ =>
-      specialize (Hwba (length m) F); lia
+  - eapply not_access_call; eauto. eapply inaccessible_address_add_2; eauto.
+    intros F. match goal with Hva : valid_accesses m ?t |- _ =>
+      specialize (Hva (length m) F); lia
     end.
   - eapply not_access_seq; eauto; eapply inaccessible_address_add_2; eauto.
-    intros F. match goal with Hwba : well_behaved_access m ?t |- _ =>
-      specialize (Hwba (length m) F); lia
+    intros F. match goal with Hva : valid_accesses m ?t |- _ =>
+      specialize (Hva (length m) F); lia
     end.
 Qed.
 
 Lemma mstep_load_address_access: forall m m' t t' ad v,
-  m / t ==[EF_Load ad v]==> m' / t' ->
+  m / t ==[EF_Read ad v]==> m' / t' ->
   access m t ad.
 Proof.
   intros. inversion_mstep. induction_step; eauto using access.
@@ -244,7 +246,7 @@ Qed.
 
 Lemma mstep_load_inherits_access : forall m m' t t' ad ad' v,
   access m' t' ad ->
-  m / t ==[EF_Load ad' v]==> m' / t' ->
+  m / t ==[EF_Read ad' v]==> m' / t' ->
   access m t ad.
 Proof.
   intros * ? ?. inversion_mstep. induction_step;
@@ -254,7 +256,7 @@ Qed.
 Lemma mstep_load_preserves_access : forall m m' t t' ad ad' v,
   ad <> ad' ->
   access m t ad ->
-  m / t ==[EF_Load ad' v]==> m' / t' ->
+  m / t ==[EF_Read ad' v]==> m' / t' ->
   access m' t' ad.
 Proof.
   intros * Hneq Hacc Hmstep. inversion_mstep. induction_step;
@@ -264,12 +266,12 @@ Qed.
 
 Lemma mstep_load_preserves_not_access : forall m m' t t' ad ad' v,
   ~ access m t ad ->
-  m / t ==[EF_Load ad' v]==> m' / t' ->
+  m / t ==[EF_Read ad' v]==> m' / t' ->
   ~ access m' t' ad.
 Proof.
-  intros * ? ?. inversion_mstep. induction_step;
-  eauto using access; inversion_not_access;
-  eauto using not_access_load, not_access_asg, not_access_call, not_access_seq.
+  intros * Hnacc ?. inversion_mstep. induction_step;
+  eauto using access; inversion_not_access Hnacc;
+  eapply not_access_iff; eauto using not_access.
 Qed.
 
 Lemma mstep_store_address_access: forall m m' t t' ad v,
@@ -287,7 +289,7 @@ Proof.
   intros. inversion_mstep. induction_step;
   try inversion_access; eauto using access;
   destruct (access_dec m v ad);
-  eauto using access, step_store_value_access, Mem.Set_.preserves_access.
+  eauto using access, write_step_access_t_ad, Mem.Set_.preserves_access.
 Qed.
 
 Lemma mstep_store_preserves_not_access : forall m m' t t' ad ad' v,
@@ -295,8 +297,17 @@ Lemma mstep_store_preserves_not_access : forall m m' t t' ad ad' v,
   m / t ==[EF_Write ad' v]==> m' / t' ->
   ~ access m' t' ad.
 Proof.
-  intros * Hnacc ?. inversion_mstep. induction_step; inversion_not_access;
-  eauto using not_access_load, not_access_asg, not_access_call, not_access_seq,
-              Mem.Set_.preserves_not_access, step_store_value_not_access.
+  intros * Hnacc ?. inversion_mstep. induction_step;
+  inversion_not_access Hnacc; eapply not_access_iff; eauto using not_access.
+  - eapply not_access_asg; eauto using not_access,
+      Mem.Set_.preserves_not_access, write_step_not_access_v. 
+  - eapply not_access_asg; eauto using not_access,
+      Mem.Set_.preserves_not_access, write_step_not_access_v. 
+  - eapply not_access_call; eauto using not_access,
+      Mem.Set_.preserves_not_access, write_step_not_access_v. 
+  - eapply not_access_call; eauto using not_access,
+      Mem.Set_.preserves_not_access, write_step_not_access_v. 
+  - eapply not_access_seq; eauto using not_access,
+      Mem.Set_.preserves_not_access, write_step_not_access_v. 
 Qed.
 

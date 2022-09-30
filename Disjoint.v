@@ -6,20 +6,19 @@ From Elo Require Import Map.
 From Elo Require Import Core.
 From Elo Require Import Access.
 From Elo Require Import Compat.
-From Elo Require Import WBA.
 From Elo Require Import AccessProp.
 From Elo Require Import NoLoc.
 
 Definition disjoint_memory m ths := forall tid1 tid2 ad,
-  access m (getTM ths tid1) ad ->
+  access m ths[tid1] ad ->
   tid1 <> tid2 ->
-  ~ access m (getTM ths tid2) ad.
+  ~ access m ths[tid2] ad.
 
 Local Lemma none_disjoint_memory_preservation : forall m m' ths t' tid,
   disjoint_memory m ths ->
   tid < length ths ->
-  m / (getTM ths tid) ==[EF_None]==> m' / t' ->
-  disjoint_memory m' (set ths tid t').
+  m / ths[tid] ==[EF_None]==> m' / t' ->
+  disjoint_memory m' ths[tid <- t'].
 Proof.
   intros * ? ? Hmstep tid1 tid2 ? ? ?. inversion Hmstep; subst.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; eauto.
@@ -33,8 +32,8 @@ Qed.
 Local Lemma load_disjoint_memory_preservation : forall m m' ths t' tid ad v,
   disjoint_memory m ths ->
   tid < length ths ->
-  m / (getTM ths tid) ==[EF_Load ad v]==> m' / t' ->
-  disjoint_memory m' (set ths tid t').
+  m / ths[tid] ==[EF_Read ad v]==> m' / t' ->
+  disjoint_memory m' ths[tid <- t'].
 Proof.
   intros * ? ? Hmstep tid1 tid2 ? ? ?. inversion Hmstep; subst.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; eauto.
@@ -46,11 +45,11 @@ Proof.
 Qed.
 
 Local Lemma alloc_disjoint_memory_preservation : forall m m' ths t' tid ad v,
-  (forall tid, well_behaved_access m (getTM ths tid)) ->
+  (forall tid, valid_accesses m ths[tid]) ->
   disjoint_memory m ths ->
   tid < length ths ->
-  m / (getTM ths tid) ==[EF_Alloc ad v]==> m' / t' ->
-  disjoint_memory m' (set ths tid t').
+  m / ths[tid] ==[EF_Alloc ad v]==> m' / t' ->
+  disjoint_memory m' ths[tid <- t'].
 Proof.
   intros * Hwba Hdis ? Hmstep tid1 tid2 ad' ? ?. inversion Hmstep; subst.
   assert (~ access m (get TM_Unit ths tid1) (length m)).
@@ -71,8 +70,8 @@ Qed.
 Local Lemma store_disjoint_memory_preservation : forall m m' ths t' tid ad v,
   disjoint_memory m ths ->
   tid < length ths ->
-  m / (getTM ths tid) ==[EF_Store ad v]==> m' / t' ->
-  disjoint_memory m' (set ths tid t').
+  m / ths[tid] ==[EF_Write ad v]==> m' / t' ->
+  disjoint_memory m' ths[tid <- t'].
 Proof.
   intros * ? ? Hmstep tid1 tid2 ? ? ?. inversion Hmstep; subst.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; eauto.
@@ -91,11 +90,11 @@ Proof.
 Qed.
 
 Local Lemma disjoint_memory_preservation' : forall m m' ths t' tid eff,
-  (forall tid, well_behaved_access m (getTM ths tid)) ->
+  (forall tid, valid_accesses m ths[tid]) ->
   disjoint_memory m ths ->
   tid < length ths ->
-  m / (getTM ths tid) ==[eff]==> m' / t' ->
-  disjoint_memory m' (set ths tid t').
+  m / ths[tid] ==[eff]==> m' / t' ->
+  disjoint_memory m' ths[tid <- t'].
 Proof.
   intros * ? ? ? Hmstep. inversion Hmstep; subst;
   eauto using none_disjoint_memory_preservation,
@@ -106,7 +105,7 @@ Qed.
 
 Theorem disjoint_memory_preservation : forall m m' ths ths' tid eff,
   threads_property SpawnNoLoc ths ->
-  threads_property (well_behaved_access m) ths ->
+  threads_property (valid_accesses m) ths ->
   disjoint_memory m ths ->
   tid < length ths ->
   m / ths ~~[tid, eff]~~> m' / ths' ->
@@ -135,15 +134,8 @@ Proof.
       eauto.
     + rewrite (get_add_lt TM_Unit) in Hacc;
       try solve [rewrite set_preserves_length; trivial].
-      destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; eauto.
-      * rewrite (get_set_neq TM_Unit); try lia.
-        rewrite (get_set_eq TM_Unit) in *; trivial.
-        eauto using step_spawn_inherits_access.
-      * rewrite (get_set_eq TM_Unit); trivial.
-        rewrite (get_set_neq TM_Unit) in *; trivial.
-        eauto using step_spawn_preserves_not_access.
-      * rewrite (get_set_neq TM_Unit); try lia.
-        rewrite (get_set_neq TM_Unit) in *; try lia.
-        eauto.
+      destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; eauto;
+      do 2 (rewrite_array TM_Unit);
+      eauto using step_spawn_inherits_access, step_spawn_preserves_not_access.
 Qed.
 

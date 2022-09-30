@@ -156,13 +156,13 @@ Ltac rewrite_array default :=
     rewrite (get_set_eq default); trivial
   (* get_set_neq *)
   | H : context C [ ?l[?j <- _][?i] or default], _ : ?i <> ?j |- _ => 
-    rewrite (get_set_neq default) in H; trivial
+    rewrite (get_set_neq default) in H; eauto
   | H : context C [ ?l[?j <- _][?i] or default], _ : ?j <> ?i |- _ => 
-    rewrite (get_set_neq default) in H; trivial
+    rewrite (get_set_neq default) in H; eauto
   | _ : ?i <> ?j |- context C [ ?l[?j <- _][?i] or default] => 
-    rewrite (get_set_neq default); trivial
+    rewrite (get_set_neq default); eauto
   | _ : ?j <> ?i |- context C [ ?l[?j <- _][?i] or default] => 
-    rewrite (get_set_neq default); trivial
+    rewrite (get_set_neq default); eauto
   (* get_set_lt *)
   | H : context C [ ?l[?j <- _][?i] or default], _ : ?i < ?j |- _ => 
     rewrite (get_set_lt default) in H; trivial

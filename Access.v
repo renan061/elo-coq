@@ -155,6 +155,46 @@ Ltac inversion_not_access H :=
   eapply not_access_iff in H; inversion H; subst; eauto using access.
 
 (* ------------------------------------------------------------------------- *)
+(* access-subst * not-access-subst                                           *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma access_subst : forall m x Tx t t' ad,
+  access m ([x := t'] t) ad ->
+  access m <{ call <{ fn x Tx --> t }> t' }> ad.
+Proof.
+  intros. induction t; eauto using access; simpl in *;
+  try (destruct String.string_dec; eauto using access);
+  try solve [ 
+    inversion_access; auto_specialize;
+    inversion_access; try inversion_access; eauto using access
+  ].
+Qed.
+
+Lemma not_access_subst' : forall m t tx ad x,
+  ~ access m t ad ->
+  ~ access m tx ad ->
+  ~ access m ([x := tx] t) ad.
+Proof.
+  intros * Hnacc ?.
+  generalize dependent tx.
+  induction t; intros; trivial; simpl;
+  try solve [
+    eapply not_access_iff;
+    inversion_not_access Hnacc; eauto using not_access
+  ];
+  destruct String.string_dec; trivial.
+  inversion_not_access Hnacc. eapply not_access_iff. eauto using not_access.
+Qed.
+
+Lemma not_access_subst : forall m t tx ad x Tx,
+  ~ access m <{ fn x Tx --> t }> ad ->
+  ~ access m tx ad ->
+  ~ access m ([x := tx] t) ad.
+Proof.
+  intros * Hnacc ?. inversion_not_access Hnacc; eauto using not_access_subst'.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
 (* valid-accesses                                                            *)
 (* ------------------------------------------------------------------------- *)
 
