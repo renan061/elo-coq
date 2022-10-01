@@ -140,10 +140,9 @@ Fixpoint subst (x : id) (tx t : tm) : tm :=
   | <{ fn x' Tx --> t' }> => if x =? x'
                               then t 
                               else TM_Fun x' Tx ([x := tx] t')
-  | <{ call t1 t2 }>      => TM_Call ([x := tx] t1) ([x := tx] t2)
-  | <{ t1; t2 }>          => TM_Seq  ([x := tx] t1) ([x := tx] t2)
-  (* | <{ spawn t' }>        => TM_Spawn ([x := tx] t') *)
-  | <{ spawn t' }>        => t
+  | <{ call t1 t2 }>      => TM_Call  ([x := tx] t1) ([x := tx] t2)
+  | <{ t1; t2 }>          => TM_Seq   ([x := tx] t1) ([x := tx] t2)
+  | <{ spawn t' }>        => TM_Spawn ([x := tx] t')
   end
   where "'[' x ':=' tx ']' t" := (subst x tx t).
 

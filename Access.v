@@ -170,7 +170,7 @@ Proof.
   ].
 Qed.
 
-Lemma not_access_subst' : forall m t tx ad x,
+Local Lemma not_access_subst' : forall m t tx ad x,
   ~ access m t ad ->
   ~ access m tx ad ->
   ~ access m ([x := tx] t) ad.
@@ -371,6 +371,7 @@ Proof.
   intros. induction t;
   try inversion_va; simpl; try (destruct String.string_dec);
   eauto using va_new, va_load, va_asg, va_call, va_seq, va_fun.
+  intros ? F. inversion F.
 Qed.
 
 (* ------------------------------------------------------------------------- *)

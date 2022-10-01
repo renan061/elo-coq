@@ -107,6 +107,7 @@ Local Ltac inversion_safe_spawns :=
   end.
 
 Local Lemma safe_spawns_subst : forall x Tx t t',
+  (* TODO : typing here? *)
   SafeSpawns <{ fn x Tx --> t }> ->
   SafeSpawns t' ->
   SafeSpawns ([x := t'] t).
