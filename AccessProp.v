@@ -237,14 +237,14 @@ Proof.
     end.
 Qed.
 
-Lemma mstep_load_address_access: forall m m' t t' ad v,
+Lemma mstep_read_address_access: forall m m' t t' ad v,
   m / t ==[EF_Read ad v]==> m' / t' ->
   access m t ad.
 Proof.
   intros. inversion_mstep. induction_step; eauto using access.
 Qed.
 
-Lemma mstep_load_inherits_access : forall m m' t t' ad ad' v,
+Lemma mstep_read_inherits_access : forall m m' t t' ad ad' v,
   access m' t' ad ->
   m / t ==[EF_Read ad' v]==> m' / t' ->
   access m t ad.
@@ -253,7 +253,7 @@ Proof.
   try inversion_access; eauto using access.
 Qed.
 
-Lemma mstep_load_preserves_access : forall m m' t t' ad ad' v,
+Lemma mstep_read_preserves_access : forall m m' t t' ad ad' v,
   ad <> ad' ->
   access m t ad ->
   m / t ==[EF_Read ad' v]==> m' / t' ->
@@ -264,7 +264,7 @@ Proof.
   inversion_access; subst; trivial. exfalso. eauto.
 Qed.
 
-Lemma mstep_load_preserves_not_access : forall m m' t t' ad ad' v,
+Lemma mstep_read_preserves_not_access : forall m m' t t' ad ad' v,
   ~ access m t ad ->
   m / t ==[EF_Read ad' v]==> m' / t' ->
   ~ access m' t' ad.
@@ -274,14 +274,14 @@ Proof.
   eapply not_access_iff; eauto using not_access.
 Qed.
 
-Lemma mstep_store_address_access: forall m m' t t' ad v,
+Lemma mstep_write_address_access: forall m m' t t' ad v,
   m / t ==[EF_Write ad v]==> m' / t' ->
   access m t ad.
 Proof.
   intros * ?. inversion_mstep. induction_step; eauto using access.
 Qed.
 
-Lemma mstep_store_inherits_access : forall m m' t t' ad ad' v,
+Lemma mstep_write_inherits_access : forall m m' t t' ad ad' v,
   access m' t' ad ->
   m / t ==[EF_Write ad' v]==> m' / t' ->
   access m t ad.
@@ -292,7 +292,7 @@ Proof.
   eauto using access, write_step_access_t_ad, Mem.Set_.preserves_access.
 Qed.
 
-Lemma mstep_store_preserves_not_access : forall m m' t t' ad ad' v,
+Lemma mstep_write_preserves_not_access : forall m m' t t' ad ad' v,
   ~ access m t ad ->
   m / t ==[EF_Write ad' v]==> m' / t' ->
   ~ access m' t' ad.

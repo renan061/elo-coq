@@ -21,7 +21,7 @@ Inductive well_typed_references (m : mem) : tm -> Prop :=
     well_typed_references m <{ &ad :: &T }>
 
   | wtr_refI : forall T ad,
-    empty |-- m[ad] is T ->
+    empty |-- m[ad] is (TY_Immut T) ->
     well_typed_references m <{ &ad :: i&T }>
 
   | wtr_new : forall T t,

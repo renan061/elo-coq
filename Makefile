@@ -18,7 +18,7 @@ soundness: core
 safety: core
 	$(COQC) Compat.v
 	$(COQC) AccessProp.v
-	$(COQC) NoLoc.v
+	$(COQC) Safe.v
 	$(COQC) Disjoint.v
 
 clean:

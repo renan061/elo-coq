@@ -12,11 +12,15 @@ Definition num := nat.
 (* Types                                                                     *)
 (* ------------------------------------------------------------------------- *)
 
-Inductive typ : Set :=
+Inductive immutable_typ : Set :=
   | TY_Unit
   | TY_Num
+  | TY_RefI : immutable_typ -> immutable_typ
+  .
+
+Inductive typ : Set :=
+  | TY_Immut : immutable_typ -> typ
   | TY_RefM : typ -> typ
-  | TY_RefI : typ -> typ
   | TY_Fun : typ -> typ -> typ
   .
 
@@ -52,12 +56,12 @@ Notation "<{{ T }}>" := T (T custom elo_typ at level 99).
 Notation "( x )"     := x (in custom elo_typ, x at level 99).
 Notation "x"         := x (in custom elo_typ at level 0, x constr at level 0).
 
-Notation "'Unit'"      := (TY_Unit)      (in custom elo_typ at level 0).
-Notation "'Num'"       := (TY_Num)       (in custom elo_typ at level 0).
-Notation "'&' T"       := (TY_RefM T)    (in custom elo_typ at level 5).
-Notation "'i&' T"      := (TY_RefI T)    (in custom elo_typ at level 5).
-Notation "T1 '-->' T2" := (TY_Fun T1 T2) (in custom elo_typ at level 50,
-                                                   right associativity).
+Notation "'Unit'"      := (TY_Immut TY_Unit)     (in custom elo_typ at level 0).
+Notation "'Num'"       := (TY_Immut TY_Num)      (in custom elo_typ at level 0).
+Notation "'&' T"       := (TY_RefM T)            (in custom elo_typ at level 5).
+Notation "'i&' T"      := (TY_Immut (TY_RefI T)) (in custom elo_typ at level 5).
+Notation "T1 '-->' T2" := (TY_Fun T1 T2)         (in custom elo_typ at level 50,
+                                                           right associativity).
 
 Declare Custom Entry elo.
 Notation "<{ t }>" := t (t custom elo at level 99).
@@ -144,7 +148,7 @@ Fixpoint subst (x : id) (tx t : tm) : tm :=
   where "'[' x ':=' tx ']' t" := (subst x tx t).
 
 (* ------------------------------------------------------------------------- *)
-(* Operational Semantics                                                     *)
+(* Operational Semantics -- Term Step                                        *)
 (* ------------------------------------------------------------------------- *)
 
 Inductive step : tm -> effect -> tm -> Prop :=
@@ -209,7 +213,7 @@ Inductive step : tm -> effect -> tm -> Prop :=
   where "t '--[' eff ']-->' t'" := (step t eff t').
 
 (* ------------------------------------------------------------------------- *)
-(* Memory Step                                                               *)
+(* Operational Semantics -- Memory Step                                      *)
 (* ------------------------------------------------------------------------- *)
 
 Definition mem := list tm.
@@ -238,7 +242,7 @@ Inductive mstep : mem -> tm -> effect -> mem -> tm -> Prop :=
   where "m / t '==[' eff ']==>' m' / t'" := (mstep m t eff m' t').
 
 (* ------------------------------------------------------------------------- *)
-(* Concurrent Step                                                           *)
+(* Operation Semantics -- Concurrent Step                                    *)
 (* ------------------------------------------------------------------------- *)
 
 Definition threads := list tm.
@@ -264,18 +268,6 @@ Inductive cstep : mem -> threads -> nat -> effect -> mem -> threads -> Prop :=
 Definition ctx := map typ.
 Definition getTY := get TY_Unit.
 
-Inductive immutable : typ -> Prop :=
-  | immut_unit :
-    immutable <{{ Unit }}>
-
-  | immut_num :
-    immutable <{{ Num }}>
-
-  | immut_refI : forall T,
-    immutable T ->
-    immutable <{{ i&T }}>
-  .
-
 Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
   | T_Unit : forall Gamma,
     Gamma |-- <{ unit }> is <{{ Unit }}>
@@ -287,7 +279,6 @@ Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
     Gamma |-- <{ &ad :: &T }> is <{{ &T }}>
 
   | T_RefI : forall Gamma ad T,
-    immutable T ->
     Gamma |-- <{ &ad :: i&T }> is <{{ i&T }}>
 
   | T_NewM : forall Gamma t T,
@@ -295,8 +286,7 @@ Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
     Gamma |-- <{ new &T t }> is <{{ &T }}>
 
   | T_NewI : forall Gamma t T,
-    immutable T ->
-    Gamma |-- t is T ->
+    Gamma |-- t is (TY_Immut T) ->
     Gamma |-- <{ new i&T t }> is <{{ i&T }}>
 
   | T_LoadM : forall Gamma t T,
@@ -305,7 +295,7 @@ Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
 
   | T_LoadI : forall Gamma t T,
     Gamma |-- t is <{{ i&T }}> ->
-    Gamma |-- <{ *t }> is T
+    Gamma |-- <{ *t }> is (TY_Immut T)
 
   | T_Asg : forall Gamma t1 t2 T,
     Gamma |-- t1 is <{{ &T }}> ->
@@ -336,9 +326,13 @@ Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
 (* Decidability                                                              *)
 (* ------------------------------------------------------------------------- *)
 
-Theorem typ_eq_dec : forall (t1 t2 : typ),
-  {t1 = t2} + {t1 <> t2}.
+Theorem immutable_typ_eq_dec : forall (T1 T2 : immutable_typ),
+  {T1 = T2} + {T1 <> T2}.
 Proof. intros. decide equality; eauto. Qed.
+
+Theorem typ_eq_dec : forall (T1 T2 : typ),
+  {T1 = T2} + {T1 <> T2}.
+Proof. intros. decide equality; eauto using immutable_typ_eq_dec. Qed.
 
 Theorem tm_eq_dec : forall (t1 t2 : tm),
   {t1 = t2} + {t1 <> t2}.
