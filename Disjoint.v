@@ -9,6 +9,12 @@ From Elo Require Import Compat.
 From Elo Require Import AccessProp.
 From Elo Require Import Safe.
 
+Definition safe_memory_sharing m ths := forall tid1 tid2 ad,
+  tid1 <> tid2 ->
+  access m ths[tid1] ad ->
+  access m ths[tid2] ad ->
+  (exists T, empty |-- m[ad] is TY_Immut T).
+
 Definition disjoint_memory m ths := forall tid1 tid2 ad,
   access m ths[tid1] ad ->
   tid1 <> tid2 ->

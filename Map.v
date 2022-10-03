@@ -20,18 +20,18 @@ Notation "m '[' k '<==' v ']'" := (update m k v) (at level 9).
 
 (* Proofs *)
 
-Lemma lookup_update_keq : forall {A} (m : map A) k v,
-  lookup (update m k v) k = Some v.
+Lemma lookup_update_eq : forall {A} (m : map A) k v,
+  m[k <== v] k = Some v.
 Proof.
   intros. unfold lookup, update, update'.
   rewrite eqb_refl. reflexivity.
 Qed.
 
-Lemma lookup_update_kneq : forall {A} (m : map A) k k' v,
+Lemma lookup_update_neq : forall {A} (m : map A) k k' v,
   k' <> k ->
-  lookup (update m k' v) k = lookup m k.
+  m[k' <== v] k = m k.
 Proof.
-  intros. unfold lookup, update, update'.
+  intros. unfold update, update'.
   destruct eqb eqn:E; trivial.
   apply eqb_eq in E. contradiction.
 Qed.
@@ -44,15 +44,14 @@ Infix "includes" := includes' (at level 50, left associativity).
 
 Lemma update_preserves_inclusion : forall {A} (m m' : map A) k v,
   m includes m' ->
-  (update m k v) includes (update m' k v).
+  m[k <== v] includes m'[k <== v].
 Proof.
-  unfold includes', update, update'. intros.
-  destruct eqb; auto.
+  unfold includes', update, update'. intros. destruct eqb; auto.
 Qed.
 
 Lemma update_permutation : forall {A} (m : map A) k1 k2 v1 v2,
   k1 <> k2 ->
-  update (update m k1 v1) k2 v2 includes update (update m k2 v2) k1 v1.
+  m[k1 <== v1][k2 <== v2] includes m[k2 <== v2][k1 <== v1].
 Proof.
   unfold includes', update, update'. intros.
   destruct (eqb k1 k) eqn:E1; destruct (eqb k2 k) eqn:E2; auto.
@@ -60,7 +59,7 @@ Proof.
 Qed.
 
 Lemma update_overwrite : forall {A} (m : map A) k v v',
-  m[k <== v] includes (m[k <== v'])[k <== v].
+  m[k <== v] includes m[k <== v'][k <== v].
 Proof.
   unfold includes', update, update'. intros.
   destruct eqb; intros; assumption.

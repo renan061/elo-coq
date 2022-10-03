@@ -3,56 +3,57 @@ From Coq Require Import Lia.
 
 From Elo Require Import Util.
 From Elo Require Import Array.
+From Elo Require Import Map.
 From Elo Require Import Core.
 From Elo Require Import Access.
 
-(* A term is safe if it has no mutable references. *)
-Inductive Safe : tm -> Prop :=
-  | safe_unit :
-    Safe <{ unit }> 
+(* A term is NoMut if it has no mutable references. *)
+Inductive NoMut : tm -> Prop :=
+  | nomut_unit :
+    NoMut <{ unit }> 
 
-  | safe_num : forall n,
-    Safe <{ N n }>
+  | nomut_num : forall n,
+    NoMut <{ N n }>
 
-  | safe_refI : forall ad T,
-    Safe <{ &ad :: i&T }>
+  | nomut_refI : forall ad T,
+    NoMut <{ &ad :: i&T }>
 
-  | safe_new : forall T t,
-    Safe t ->
-    Safe <{ new T t }>
+  | nomut_new : forall T t,
+    NoMut t ->
+    NoMut <{ new T t }>
 
-  | safe_load : forall t,
-    Safe t ->
-    Safe <{ *t }>
+  | nomut_load : forall t,
+    NoMut t ->
+    NoMut <{ *t }>
 
-  | safe_asg : forall t1 t2,
-    Safe t1 ->
-    Safe t2 ->
-    Safe <{ t1 = t2 }>
+  | nomut_asg : forall t1 t2,
+    NoMut t1 ->
+    NoMut t2 ->
+    NoMut <{ t1 = t2 }>
 
-  | safe_id : forall x,
-    Safe <{ ID x }>
+  | nomut_id : forall x,
+    NoMut <{ ID x }>
 
-  | safe_fun : forall x Tx t,
-    Safe t ->
-    Safe <{ fn x Tx --> t }>
+  | nomut_fun : forall x Tx t,
+    NoMut t ->
+    NoMut <{ fn x Tx --> t }>
 
-  | safe_call : forall t1 t2,
-    Safe t1 ->
-    Safe t2 ->
-    Safe <{ call t1 t2 }>
+  | nomut_call : forall t1 t2,
+    NoMut t1 ->
+    NoMut t2 ->
+    NoMut <{ call t1 t2 }>
 
-  | safe_seq : forall t1 t2,
-    Safe t1 ->
-    Safe t2 ->
-    Safe <{ t1; t2 }>
+  | nomut_seq : forall t1 t2,
+    NoMut t1 ->
+    NoMut t2 ->
+    NoMut <{ t1; t2 }>
 
-  | safe_spawn : forall t,
-    Safe t ->
-    Safe <{ spawn t }>
+  | nomut_spawn : forall t,
+    NoMut t ->
+    NoMut <{ spawn t }>
   .
 
-(* A term has safe spawns if all its spawns are safe. *)
+(* A term has safe spawns if all its spawns have no mutable references. *)
 Inductive SafeSpawns : tm -> Prop :=
   | safe_spawns_unit :
       SafeSpawns <{ unit }> 
@@ -94,7 +95,7 @@ Inductive SafeSpawns : tm -> Prop :=
       SafeSpawns <{ t1; t2 }>
 
   | safe_spawns_spawn : forall t,
-      Safe t ->
+      NoMut t ->
       SafeSpawns <{ spawn t }>
   .
 
@@ -106,16 +107,35 @@ Local Ltac inversion_safe_spawns :=
   | H : SafeSpawns (_ _ _ _) |- _ => inversion H; subst; clear H
   end.
 
-Local Lemma safe_spawns_subst : forall x Tx t t',
-  (* TODO : typing here? *)
+Local Lemma safe_spawns_subst : forall Gamma x Tx t t' T,
+  Gamma[x <== Tx] |-- t is T ->
+  Gamma |-- t' is Tx ->
   SafeSpawns <{ fn x Tx --> t }> ->
   SafeSpawns t' ->
   SafeSpawns ([x := t'] t).
 Proof.
-  intros * H ?. inversion_clear H;
+  intros * ? ? H ?. inversion_clear H.
+  induction t; eauto using SafeSpawns.
+  - simpl.
+    inversion_safe_spawns.
+    eapply safe_spawns_new.
+    eapply IHt; clear IHt; trivial.
+    inversion_clear H0.
+    +
+  
+
+
+
+
+  generalize dependent T.
+  generalize dependent Tx.
   induction t; eauto using SafeSpawns; simpl; 
   try (destruct String.string_dec; trivial);
   inversion_safe_spawns; eauto using SafeSpawns.
+  - intros Tx HtypeX T Htype.
+    eapply safe_spawns_new.
+    eapply IHt; clear IHt; eauto.
+    eapply T_Fun.
 Qed.
 
 Local Lemma safe_spawns_alloc : forall m t t' v,

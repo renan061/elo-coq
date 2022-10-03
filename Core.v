@@ -24,6 +24,14 @@ Inductive typ : Set :=
   | TY_Fun : typ -> typ -> typ
   .
 
+Definition safe (Gamma : map typ) :=
+  fun k => 
+    match Gamma k with
+    | None => None
+    | Some (TY_Immut T) => Some (TY_Immut T)
+    | Some _ => None
+    end.
+
 (* ------------------------------------------------------------------------- *)
 (* Terms                                                                     *)
 (* ------------------------------------------------------------------------- *)
@@ -316,7 +324,7 @@ Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
     Gamma |-- <{ t1; t2 }> is T2
 
   | T_Spawn : forall Gamma t T,
-    empty |-- t is T ->
+    safe Gamma |-- t is T ->
     Gamma |-- <{ spawn t }> is <{{ Unit }}> 
 
   where "Gamma '|--' t 'is' T" := (well_typed_term Gamma t T).
