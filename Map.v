@@ -58,9 +58,25 @@ Proof.
   apply eqb_eq in E1, E2. subst. contradiction.
 Qed.
 
+Lemma update_permutation' : forall {A} (m : map A) k k1 k2 v1 v2,
+  k1 <> k2 ->
+  m[k1 <== v1][k2 <== v2] k = m[k2 <== v2][k1 <== v1] k.
+Proof.
+  unfold includes', update, update'. intros.
+  destruct (eqb k1 k) eqn:E1; destruct (eqb k2 k) eqn:E2; auto.
+  apply eqb_eq in E1, E2. subst. contradiction.
+Qed.
+
 Lemma update_overwrite : forall {A} (m : map A) k v v',
   m[k <== v] includes m[k <== v'][k <== v].
 Proof.
   unfold includes', update, update'. intros.
   destruct eqb; intros; assumption.
+Qed.
+
+Lemma update_overwrite' : forall {A} (m : map A) k k' v v',
+  m[k' <== v] k = m[k' <== v'][k' <== v] k.
+Proof.
+  unfold includes', update, update'. intros.
+  destruct eqb; intros; trivial.
 Qed.

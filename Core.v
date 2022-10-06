@@ -309,6 +309,10 @@ Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
     Gamma |-- t2 is T ->
     Gamma |-- <{ t1 = t2 }> is <{{ Unit }}>
 
+  | T_Id : forall Gamma x T,
+    Gamma x = Some T ->
+    Gamma |-- <{ ID x }> is T
+
   | T_Fun : forall Gamma x t T Tx,
     Gamma[x <== Tx] |-- t is T ->
     Gamma |-- <{ fn x Tx --> t }> is <{{ Tx --> T }}>
@@ -431,7 +435,13 @@ Ltac induction_type :=
 
 Ltac inversion_type :=
   match goal with
-  | H : _ |-- _ is _ |- _ =>
+  | H : _ |-- <{ unit }> is _ |- _ =>
+    inversion H; subst; clear H
+  | H : _ |-- (_ _) is _ |- _ =>
+    inversion H; subst; clear H
+  | H : _ |-- (_ _ _) is _ |- _ =>
+    inversion H; subst; clear H
+  | H : _ |-- (_ _ _ _) is _ |- _ =>
     inversion H; subst; clear H
   end.
 

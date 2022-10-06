@@ -10,7 +10,7 @@ From Elo Require Import Access.
 (* A term is NoMut if it has no mutable references. *)
 Inductive NoMut : tm -> Prop :=
   | nomut_unit :
-    NoMut <{ unit }> 
+    NoMut <{ unit }>
 
   | nomut_num : forall n,
     NoMut <{ N n }>
@@ -56,7 +56,7 @@ Inductive NoMut : tm -> Prop :=
 (* A term has safe spawns if all its spawns have no mutable references. *)
 Inductive SafeSpawns : tm -> Prop :=
   | safe_spawns_unit :
-      SafeSpawns <{ unit }> 
+      SafeSpawns <{ unit }>
 
   | safe_spawns_num : forall n,
       SafeSpawns <{ N n }>
@@ -107,6 +107,19 @@ Local Ltac inversion_safe_spawns :=
   | H : SafeSpawns (_ _ _ _) |- _ => inversion H; subst; clear H
   end.
 
+Local Lemma todo : forall Gamma1 Gamma2 t T,
+  Gamma1 |-- t is T ->
+  Gamma2 includes Gamma1 ->
+  Gamma2 |-- t is T.
+Proof.
+  intros * Htype1 Hinc.
+  generalize dependent Gamma2.
+  induction Htype1; intros; eauto using well_typed_term.
+  - eapply T_Fun.
+    specialize (IHHtype1 (Gamma2[x <== Tx])).
+    fazer preservation includes para a regra de set do map!!!
+Qed.
+
 Local Lemma safe_spawns_subst : forall Gamma x Tx t t' T,
   Gamma[x <== Tx] |-- t is T ->
   Gamma |-- t' is Tx ->
@@ -115,17 +128,15 @@ Local Lemma safe_spawns_subst : forall Gamma x Tx t t' T,
   SafeSpawns ([x := t'] t).
 Proof.
   intros * ? ? H ?. inversion_clear H.
-  induction t; eauto using SafeSpawns.
-  - simpl.
-    inversion_safe_spawns.
-    eapply safe_spawns_new.
-    eapply IHt; clear IHt; trivial.
-    inversion_clear H0.
-    +
-  
-
-
-
+  generalize dependent t'. generalize dependent Gamma.
+   generalize dependent T. generalize dependent Tx.
+  induction t; intros;
+  simpl; inversion_safe_spawns; try inversion_type; eauto using SafeSpawns.
+  - destruct String.string_dec; eauto using SafeSpawns.
+  - destruct String.string_dec; eauto using SafeSpawns.
+    eapply safe_spawns_fun.
+    erewrite update_permutation' in H8.
+    eapply IHt; clear IHt; eauto.
 
   generalize dependent T.
   generalize dependent Tx.
