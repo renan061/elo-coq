@@ -52,6 +52,14 @@ Proof.
   unfold equivalent in *. intros. eauto.
 Qed.
 
+Lemma equivalent_trans : forall {A} (m1 m2 m3 : map A),
+  equivalent m1 m2 ->
+  equivalent m2 m3 ->
+  equivalent m1 m3.
+Proof.
+  unfold equivalent in *. intros * H ? *. rewrite H. eauto.
+Qed.
+
 Lemma equivalent_lookup : forall {A} (m1 m2 : map A) k v,
   equivalent m1 m2 ->
   m1 k = v ->

@@ -24,7 +24,7 @@ Inductive typ : Set :=
   | TY_Fun : typ -> typ -> typ
   .
 
-Definition safe (Gamma : map typ) :=
+Definition safe (Gamma : map typ) : map typ :=
   fun k => 
     match Gamma k with
     | None => None
