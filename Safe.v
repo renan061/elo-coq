@@ -107,46 +107,70 @@ Local Ltac inversion_safe_spawns :=
   | H : SafeSpawns (_ _ _ _) |- _ => inversion H; subst; clear H
   end.
 
-Local Lemma todo : forall Gamma1 Gamma2 t T,
-  Gamma1 |-- t is T ->
-  Gamma2 includes Gamma1 ->
-  Gamma2 |-- t is T.
+Local Lemma equivalent_safe : forall Gamma1 Gamma2,
+  equivalent Gamma1 Gamma2 ->
+  equivalent (safe Gamma1) (safe Gamma2).
 Proof.
-  intros * Htype1 Hinc.
-  generalize dependent Gamma2.
-  induction Htype1; intros; eauto using well_typed_term.
-  - eapply T_Fun.
-    specialize (IHHtype1 (Gamma2[x <== Tx])).
-    fazer preservation includes para a regra de set do map!!!
+  unfold equivalent, safe. intros * Heq k.
+  specialize (Heq k). rewrite Heq. trivial.
 Qed.
 
-Local Lemma safe_spawns_subst : forall Gamma x Tx t t' T,
+Local Lemma equivalent_wtt : forall Gamma1 Gamma2 t T,
+  equivalent Gamma1 Gamma2 ->
+  Gamma1 |-- t is T ->
+  Gamma2 |-- t is T.
+Proof.
+  intros * Heq Htype.
+  generalize dependent Gamma2.
+  induction Htype; intros;
+  eauto using well_typed_term, equivalent_lookup, equivalent_update,
+    equivalent_safe.
+Qed.
+
+Local Lemma safe_spawns_subst : forall x t t',
+  (*
   Gamma[x <== Tx] |-- t is T ->
   Gamma |-- t' is Tx ->
   SafeSpawns <{ fn x Tx --> t }> ->
+  *)
+  SafeSpawns t ->
   SafeSpawns t' ->
   SafeSpawns ([x := t'] t).
 Proof.
+  intros * ? ?.
+  induction t; simpl;
+  try (destruct String.string_dec);
+  inversion_safe_spawns; eauto using SafeSpawns.
+  eapply safe_spawns_spawn.
+
+
+  intros * HtypeT HtypeTx Hsst Hsst'.
+  remember (Gamma[x <== Tx]) as Gamma'.
+  generalize dependent Gamma. generalize dependent Gamma'.
+  generalize dependent T. generalize dependent Tx.
+  induction t; intros * ? ? ? ?; simpl; try (destruct String.string_dec);
+  try inversion_type; inversion_safe_spawns; eauto using SafeSpawns.
+  - eapply safe_spawns_fun.
+    eapply (equivalent_wtt _ (Gamma[i <== t][x <== Tx])) in H4;
+    eauto using equivalent_update_permutation.
+    specialize (IHt H0 Tx T0).
+
+
+    eauto using equivalent_wtt, equivalent_update_permutation,
+      equivalent_update_overwrite.
+    eapply IHt; eauto. 
+
   intros * ? ? H ?. inversion_clear H.
   generalize dependent t'. generalize dependent Gamma.
-   generalize dependent T. generalize dependent Tx.
+  generalize dependent T. generalize dependent Tx.
   induction t; intros;
-  simpl; inversion_safe_spawns; try inversion_type; eauto using SafeSpawns.
-  - destruct String.string_dec; eauto using SafeSpawns.
-  - destruct String.string_dec; eauto using SafeSpawns.
-    eapply safe_spawns_fun.
-    erewrite update_permutation' in H8.
-    eapply IHt; clear IHt; eauto.
-
-  generalize dependent T.
-  generalize dependent Tx.
-  induction t; eauto using SafeSpawns; simpl; 
-  try (destruct String.string_dec; trivial);
+  simpl; try (destruct String.string_dec); try inversion_type;
   inversion_safe_spawns; eauto using SafeSpawns.
-  - intros Tx HtypeX T Htype.
-    eapply safe_spawns_new.
-    eapply IHt; clear IHt; eauto.
-    eapply T_Fun.
+  - eapply safe_spawns_fun.
+    eapply IHt; eauto.
+    admit.
+  - eapply safe_spawns_spawn; eauto.
+    admit.
 Qed.
 
 Local Lemma safe_spawns_alloc : forall m t t' v,

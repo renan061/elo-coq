@@ -35,8 +35,7 @@ Local Lemma context_weakening : forall Gamma Gamma' t T,
 Proof.
   intros. generalize dependent Gamma.
   induction_type; intros;
-  eauto using well_typed_term, update_preserves_inclusion,
-    safe_preserves_inclusion.
+  eauto using well_typed_term, inclusion_update, safe_preserves_inclusion.
 Qed.
 
 Local Lemma context_weakening_empty : forall Gamma t T,
@@ -60,7 +59,7 @@ Proof.
     induction t; intros * Htype ?; 
     try (destruct String.string_dec); try inversion_type;
     eauto using well_typed_term, context_weakening, context_weakening_empty,
-      update_overwrite, update_permutation,
+      inclusion_update_overwrite, inclusion_update_permutation,
       update_safe_includes_safe_update.
     - erewrite lookup_update_eq in H2. inversion H2; subst.
       eauto using context_weakening_empty. (* TODO *)
