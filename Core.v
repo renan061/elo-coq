@@ -328,6 +328,7 @@ Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
     Gamma |-- <{ t1; t2 }> is T2
 
   | T_Spawn : forall Gamma t T,
+    (* TODO : mudar isso aqui para receber como parâmetros de função os args *)
     safe Gamma |-- t is T ->
     Gamma |-- <{ spawn t }> is <{{ Unit }}> 
 
@@ -435,13 +436,9 @@ Ltac induction_type :=
 
 Ltac inversion_type :=
   match goal with
-  | H : _ |-- <{ unit }> is _ |- _ =>
-    inversion H; subst; clear H
-  | H : _ |-- (_ _) is _ |- _ =>
-    inversion H; subst; clear H
-  | H : _ |-- (_ _ _) is _ |- _ =>
-    inversion H; subst; clear H
-  | H : _ |-- (_ _ _ _) is _ |- _ =>
-    inversion H; subst; clear H
+  | H : _ |-- <{ unit }> is _ |- _ => inversion H; subst; clear H
+  | H : _ |-- (_ _) is _      |- _ => inversion H; subst; clear H
+  | H : _ |-- (_ _ _) is _    |- _ => inversion H; subst; clear H
+  | H : _ |-- (_ _ _ _) is _  |- _ => inversion H; subst; clear H
   end.
 

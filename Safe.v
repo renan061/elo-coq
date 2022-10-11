@@ -107,6 +107,53 @@ Inductive SafeSpawns : tm -> Prop :=
       SafeSpawns <{ spawn t }>
   .
 
+(* A term has safe substitutions if... *)
+Inductive SafeSubsts : tm -> Prop :=
+  | safe_substs_unit :
+      SafeSubsts <{ unit }>
+
+  | safe_substs_num : forall n,
+      SafeSubsts <{ N n }>
+
+  | safe_substs_ref : forall ad T,
+      SafeSubsts <{ &ad :: T }>
+
+  | safe_substs_new : forall T t,
+      SafeSubsts t ->
+      SafeSubsts <{ new T t }>
+
+  | safe_substs_load : forall t,
+      SafeSubsts t ->
+      SafeSubsts <{ *t }>
+
+  | safe_substs_asg : forall t1 t2,
+      SafeSubsts t1 ->
+      SafeSubsts t2 ->
+      SafeSubsts <{ t1 = t2 }>
+
+  | safe_substs_id : forall x,
+      SafeSubsts <{ ID x }>
+
+  | safe_substs_fun : forall x Tx t,
+      SafeSubsts t ->
+      SafeSubsts <{ fn x Tx --> t }>
+
+  | safe_substs_call : forall t1 t2 T,
+      empty |-- t2 is (TY_Immut T) ->
+      SafeSubsts t1 ->
+      SafeSubsts t2 ->
+      SafeSubsts <{ call t1 t2 }>
+
+  | safe_substs_seq : forall t1 t2,
+      SafeSubsts t1 ->
+      SafeSubsts t2 ->
+      SafeSubsts <{ t1; t2 }>
+
+  | safe_substs_spawn : forall t,
+      SafeSubsts t ->
+      SafeSubsts <{ spawn t }>
+  .
+
 Local Ltac inversion_safe_spawns :=
   match goal with
   | H : SafeSpawns TM_Unit   |- _ => inversion H; subst; clear H
@@ -135,12 +182,27 @@ Proof.
     equivalent_safe.
 Qed.
 
-Local Lemma includes_wtt1 : forall Gamma1 Gamma2 t T,
+Lemma safe_preserves_inclusion : forall Gamma Gamma',
+  Gamma includes Gamma' ->
+  (safe Gamma) includes (safe Gamma').
+Proof.
+  unfold includes', safe. intros * H *.
+  destruct (Gamma k) eqn:E1; destruct (Gamma' k) eqn:E2;
+  solve [ intros F; inversion F
+        | eapply H in E2; rewrite E1 in E2; inversion E2; subst; trivial
+        ].
+Qed.
+
+Local Lemma includes_wtt : forall Gamma1 Gamma2 t T,
   Gamma1 includes Gamma2 ->
   Gamma2 |-- t is T ->
   Gamma1 |-- t is T.
 Proof.
-Admitted.
+  intros * Hinc Htype. generalize dependent Gamma1.
+  induction Htype; intros;
+  try inversion_type; eauto using well_typed_term, inclusion_update,
+    safe_preserves_inclusion.
+Qed.
 
 Local Lemma nomut_subst : forall x t t',
   NoMut t ->
@@ -168,14 +230,23 @@ Proof.
   - rewrite lookup_update_neq; trivial.
 Qed.
 
-Local Lemma todo2 : forall x t v T Tx,
+Local Lemma todo13 : forall x T,
+ equivalent (safe empty[x <== TY_Immut T]) empty[x <== TY_Immut T].
+Proof.
+  unfold equivalent, safe. intros. destruct (String.string_dec x k); subst;
+  try (rewrite lookup_update_eq || rewrite lookup_update_neq); trivial.
+Qed.
+
+Local Lemma todo2 : forall Gamma2 x t v T Tx,
   value v ->
-  safe (empty [x <== Tx]) |-- t is T ->
-  empty |-- v is Tx ->
+  SafeSpawns v ->
+  Gamma2 |-- v is Tx ->
+  safe empty[x <== Tx] |-- t is T ->
+  (* precisa de algo do tipo (exists T, Tx = TY_Immut T) *)
   NoMut t ->
   NoMut ([x := v] t).
 Proof.
-  intros * Hvalue ? ? Hnomut.
+  intros * Hvalue ? HtypeV ? Hnomut.
   generalize dependent T. generalize dependent Tx.
   induction Hnomut; intros; simpl;
   inversion_type; subst;
@@ -186,33 +257,25 @@ Proof.
     destruct Hvalue; inversion_type; eauto using NoMut.
   - destruct String.string_dec; subst; eauto using NoMut.
     eapply nomut_fun.
-    destruct Hvalue; eauto using NoMut, nomut_subst.
-    + assert (Hx : (safe empty [x <== Tx0]) = empty). admit.
-      specialize (IHHnomut Tx0).
-      rewrite Hx in IHHnomut.
-      rewrite Hx in H6; clear Hx.
-
-      inversion H0; subst.
-      * eapply includes_wtt1 in H6; eauto.
-        admit.
+    eapply IHHnomut; clear IHHnomut;
+    eauto.
 Abort.
 
-Local Lemma safe_spawns_subst : forall x t t' T Tx,
-  empty [x <== Tx] |-- t is T ->
-  empty |-- t' is Tx ->
+Local Lemma safe_spawns_subst : forall Gamma1 Gamma2 x t v T Tx,
+  value v ->
+  Gamma1[x <== Tx] |-- t is T ->
+  Gamma2|-- v is Tx ->
   SafeSpawns t ->
-  SafeSpawns t' ->
-  SafeSpawns ([x := t'] t).
+  SafeSpawns v ->
+  SafeSpawns ([x := v] t).
 Proof.
-  intros * ? ? ? ?.
-  generalize dependent T. generalize dependent Tx. 
-  induction t; intros;
-  inversion_type; inversion_safe_spawns;
+  intros * Hvalue HtypeT HtypeV Hsst Hssv.
+  generalize dependent Gamma1. generalize dependent T. generalize dependent Tx. 
+  induction Hsst; intros; inversion_type;
   simpl; try (destruct String.string_dec);
   eauto using SafeSpawns, equivalent_wtt, equivalent_update_permutation.
-  - admit.
-  - eapply safe_spawns_spawn.
-    admit.
+  eapply safe_spawns_spawn.
+  (* eauto using todo2. *)
 Abort.
 
 Local Lemma safe_spawns_alloc : forall m t t' v,
@@ -246,6 +309,17 @@ Proof.
   intros. inversion_mstep; eauto using safe_spawns_alloc, safe_spawns_store.
 Qed.
 
+Local Lemma todo : forall x t v T Tx,
+  value v ->
+  empty |-- <{ call <{ fn x Tx --> t }> v }> is T ->
+  SafeSpawns <{ call <{ fn x Tx --> t }> v }> ->
+  (exists T, Tx = TY_Immut T).
+Proof.
+  intros * Hvalue Hss Htype.
+  do 2 inversion_safe_spawns.
+  induction_type.
+Abort.
+
 Local Lemma mstep_tm_safe_spawns_preservation : forall m m' t t' eff T,
   empty |-- t is T ->
   memory_property SafeSpawns m ->
@@ -255,9 +329,11 @@ Local Lemma mstep_tm_safe_spawns_preservation : forall m m' t t' eff T,
 Proof.
   intros. generalize dependent T.
   inversion_mstep; induction_step; intros;
-  try inversion_type; inversion_safe_spawns; eauto using SafeSpawns.
-  inversion_clear H4.
-  inversion_clear H6.
+  try solve [inversion_type; inversion_safe_spawns; eauto using SafeSpawns].
+  inversion_safe_spawns.
+  inversion_safe_spawns.
+  inversion_type.
+  inversion_type.
 Qed.
 
 Local Lemma safe_then_safe_spawns : forall t,
