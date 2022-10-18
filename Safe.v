@@ -6,6 +6,7 @@ From Elo Require Import Array.
 From Elo Require Import Map.
 From Elo Require Import Core.
 From Elo Require Import Access.
+From Elo Require Import Soundness.
 
 (* A term is NoMut if it has no mutable references. *)
 Inductive NoMut : tm -> Prop :=
@@ -204,6 +205,33 @@ Proof.
     safe_preserves_inclusion.
 Qed.
 
+Local Lemma gamma_includes_safe_gamma : forall Gamma,
+  Gamma includes (safe Gamma).
+Proof.
+  unfold safe, includes'. intros ? ? ? H.
+  destruct (Gamma k) as [T' | _]; subst; try solve [inversion H].
+  destruct T'; subst; inversion H; subst. trivial.
+Qed.
+
+Lemma well_typed_gamma_from_safe_gamma : forall Gamma t T,
+  safe Gamma |-- t is T ->
+  Gamma |-- t is T.
+Proof.
+  intros. eauto using includes_wtt, gamma_includes_safe_gamma.
+Qed.
+
+(* unused *)
+Local Lemma safe_gamma_includes_update : forall Gamma x T,
+ (safe Gamma)[x <== T] includes (safe Gamma[x <== T]).
+Proof.
+  unfold includes'. intros * H.
+  destruct (String.string_dec x k); subst; unfold safe in H.
+  - rewrite lookup_update_eq in *.
+    destruct T; subst; trivial;
+    inversion H; subst.
+  - rewrite lookup_update_neq in *; trivial.
+Qed.
+
 Local Lemma nomut_subst : forall x t t',
   NoMut t ->
   NoMut t' ->
@@ -230,11 +258,24 @@ Proof.
   - rewrite lookup_update_neq; trivial.
 Qed.
 
+Local Lemma todo11 : forall Gamma k T,
+  (safe Gamma) includes (safe Gamma[k <== <{{ & T }}>]).
+Proof.
+Admitted.
+
 Local Lemma todo13 : forall x T,
- equivalent (safe empty[x <== TY_Immut T]) empty[x <== TY_Immut T].
+  equivalent (safe empty[x <== TY_Immut T]) empty[x <== TY_Immut T].
 Proof.
   unfold equivalent, safe. intros. destruct (String.string_dec x k); subst;
   try (rewrite lookup_update_eq || rewrite lookup_update_neq); trivial.
+Qed.
+
+Local Lemma todo12 : forall Gamma x T,
+  equivalent (safe Gamma)[x <== TY_Immut T] (safe Gamma[x <== TY_Immut T]).
+Proof.
+  unfold equivalent, safe. intros. destruct (String.string_dec x k); subst.
+  - do 2 (rewrite lookup_update_eq). trivial.
+  - do 2 (rewrite lookup_update_neq; trivial).
 Qed.
 
 Local Lemma todo2 : forall Gamma2 x t v T Tx,
@@ -261,6 +302,34 @@ Proof.
     eauto.
 Abort.
 
+Local Lemma todododo : forall Gamma t v x T Tx,
+  empty |-- v is Tx ->
+  Gamma[x <== Tx] |-- t is T ->
+  Gamma[x <== Tx] |-- ([x := v] t) is T.
+Proof.
+  intros * H1 H2. generalize dependent Gamma. generalize dependent T.
+  induction t; intros;
+  try solve [inversion_type; eauto using well_typed_term].
+  - simpl. destruct String.string_dec; subst; trivial.
+    inversion_type.
+    rewrite lookup_update_eq in H3. inversion H3; subst.
+    eauto using context_weakening_empty.
+  - simpl. destruct String.string_dec; subst; trivial.
+    inversion_type.
+    eapply T_Fun.
+    eauto 6 using equivalent_wtt, equivalent_update_permutation.
+  - simpl. inversion_type. eapply T_Spawn.
+    assert (Hx : (safe Gamma)[x <== Tx] |-- t is T0) by
+      eauto using includes_wtt, safe_gamma_includes_update.
+    destruct Tx.
+    + specialize (IHt T0 (safe Gamma) Hx).
+      eapply equivalent_wtt; eauto using todo12.
+    + specialize (IHt T0).
+      eapply includes_wtt in H3; eauto using todo11.
+
+
+Qed.
+
 Local Lemma safe_spawns_subst : forall Gamma1 Gamma2 x t v T Tx,
   value v ->
   Gamma1[x <== Tx] |-- t is T ->
@@ -275,7 +344,11 @@ Proof.
   simpl; try (destruct String.string_dec);
   eauto using SafeSpawns, equivalent_wtt, equivalent_update_permutation.
   eapply safe_spawns_spawn.
-  (* eauto using todo2. *)
+  eapply nomut_subst; trivial.
+  inversion Hvalue; subst; eauto using NoMut.
+  - inversion HtypeV; subst; eauto using NoMut.
+  - inversion Hvalue; subst; inversion HtypeV; subst. admit.
+  - admit.
 Abort.
 
 Local Lemma safe_spawns_alloc : forall m t t' v,
@@ -308,17 +381,6 @@ Local Lemma mstep_mem_safe_spawns_preservation : forall (m m' : mem) t t' eff,
 Proof.
   intros. inversion_mstep; eauto using safe_spawns_alloc, safe_spawns_store.
 Qed.
-
-Local Lemma todo : forall x t v T Tx,
-  value v ->
-  empty |-- <{ call <{ fn x Tx --> t }> v }> is T ->
-  SafeSpawns <{ call <{ fn x Tx --> t }> v }> ->
-  (exists T, Tx = TY_Immut T).
-Proof.
-  intros * Hvalue Hss Htype.
-  do 2 inversion_safe_spawns.
-  induction_type.
-Abort.
 
 Local Lemma mstep_tm_safe_spawns_preservation : forall m m' t t' eff T,
   empty |-- t is T ->

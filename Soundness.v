@@ -28,7 +28,7 @@ Proof.
   - rewrite lookup_update_neq in *; trivial.
 Qed.
 
-Local Lemma context_weakening : forall Gamma Gamma' t T,
+Lemma context_weakening : forall Gamma Gamma' t T,
   Gamma' |-- t is T ->
   Gamma includes Gamma' ->
   Gamma  |-- t is T.
@@ -38,7 +38,7 @@ Proof.
   eauto using well_typed_term, inclusion_update, safe_preserves_inclusion.
 Qed.
 
-Local Lemma context_weakening_empty : forall Gamma t T,
+Lemma context_weakening_empty : forall Gamma t T,
   empty |-- t is T ->
   Gamma |-- t is T.
 Proof.

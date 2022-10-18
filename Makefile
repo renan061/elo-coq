@@ -15,7 +15,7 @@ soundness: core
 	$(COQC) References.v
 	$(COQC) Soundness.v
 
-safety: core
+safety: soundness 
 	$(COQC) Compat.v
 	$(COQC) AccessProp.v
 	$(COQC) Safe.v

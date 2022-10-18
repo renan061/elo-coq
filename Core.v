@@ -328,7 +328,6 @@ Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
     Gamma |-- <{ t1; t2 }> is T2
 
   | T_Spawn : forall Gamma t T,
-    (* TODO : mudar isso aqui para receber como parâmetros de função os args *)
     safe Gamma |-- t is T ->
     Gamma |-- <{ spawn t }> is <{{ Unit }}> 
 
