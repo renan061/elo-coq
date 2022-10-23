@@ -8,6 +8,10 @@ From Elo Require Import Core.
 From Elo Require Import Access.
 From Elo Require Import Soundness.
 
+(* ------------------------------------------------------------------------- *)
+(* NotMut                                                                    *)
+(* ------------------------------------------------------------------------- *)
+
 (* A term is NoMut if it has no mutable references. *)
 Inductive NoMut : tm -> Prop :=
   | nomut_unit :
@@ -54,15 +58,13 @@ Inductive NoMut : tm -> Prop :=
     NoMut <{ spawn t }>
   .
 
-Local Ltac inversion_nomut :=
-  match goal with
-  | H : NoMut TM_Unit   |- _ => inversion H; subst; clear H
-  | H : NoMut (_ _)     |- _ => inversion H; subst; clear H
-  | H : NoMut (_ _ _)   |- _ => inversion H; subst; clear H
-  | H : NoMut (_ _ _ _) |- _ => inversion H; subst; clear H
-  end.
+Local Ltac inversion_nomut := inversion_over_term_predicate NoMut.
 
-(* A term has safe spawns if all its spawns have no mutable references. *)
+(* ------------------------------------------------------------------------- *)
+(* SafeSpawns                                                                *)
+(* ------------------------------------------------------------------------- *)
+
+(* A term has safe spawns if all of its spawns have no mutable references. *)
 Inductive SafeSpawns : tm -> Prop :=
   | safe_spawns_unit :
       SafeSpawns <{ unit }>
@@ -108,123 +110,79 @@ Inductive SafeSpawns : tm -> Prop :=
       SafeSpawns <{ spawn t }>
   .
 
-(* A term has safe substitutions if... *)
-Inductive SafeSubsts : tm -> Prop :=
-  | safe_substs_unit :
-      SafeSubsts <{ unit }>
+Local Ltac inversion_safe_spawns := inversion_over_term_predicate SafeSpawns.
 
-  | safe_substs_num : forall n,
-      SafeSubsts <{ N n }>
+(* ------------------------------------------------------------------------- *)
+(* Equivalence                                                               *)
+(* ------------------------------------------------------------------------- *)
 
-  | safe_substs_ref : forall ad T,
-      SafeSubsts <{ &ad :: T }>
-
-  | safe_substs_new : forall T t,
-      SafeSubsts t ->
-      SafeSubsts <{ new T t }>
-
-  | safe_substs_load : forall t,
-      SafeSubsts t ->
-      SafeSubsts <{ *t }>
-
-  | safe_substs_asg : forall t1 t2,
-      SafeSubsts t1 ->
-      SafeSubsts t2 ->
-      SafeSubsts <{ t1 = t2 }>
-
-  | safe_substs_id : forall x,
-      SafeSubsts <{ ID x }>
-
-  | safe_substs_fun : forall x Tx t,
-      SafeSubsts t ->
-      SafeSubsts <{ fn x Tx --> t }>
-
-  | safe_substs_call : forall t1 t2 T,
-      empty |-- t2 is (TY_Immut T) ->
-      SafeSubsts t1 ->
-      SafeSubsts t2 ->
-      SafeSubsts <{ call t1 t2 }>
-
-  | safe_substs_seq : forall t1 t2,
-      SafeSubsts t1 ->
-      SafeSubsts t2 ->
-      SafeSubsts <{ t1; t2 }>
-
-  | safe_substs_spawn : forall t,
-      SafeSubsts t ->
-      SafeSubsts <{ spawn t }>
-  .
-
-Local Ltac inversion_safe_spawns :=
-  match goal with
-  | H : SafeSpawns TM_Unit   |- _ => inversion H; subst; clear H
-  | H : SafeSpawns (_ _)     |- _ => inversion H; subst; clear H
-  | H : SafeSpawns (_ _ _)   |- _ => inversion H; subst; clear H
-  | H : SafeSpawns (_ _ _ _) |- _ => inversion H; subst; clear H
-  end.
-
-Local Lemma equivalent_safe : forall Gamma1 Gamma2,
-  equivalent Gamma1 Gamma2 ->
-  equivalent (safe Gamma1) (safe Gamma2).
+Local Lemma equivalence_safe : forall Gamma1 Gamma2,
+  Gamma1 === Gamma2 ->
+  safe Gamma1 === safe Gamma2.
 Proof.
-  unfold equivalent, safe. intros * Heq k.
+  unfold map_equivalence, safe. intros * Heq k.
   specialize (Heq k). rewrite Heq. trivial.
 Qed.
 
-Local Lemma equivalent_wtt : forall Gamma1 Gamma2 t T,
-  equivalent Gamma1 Gamma2 ->
+Local Lemma equivalence_typing : forall Gamma1 Gamma2 t T,
+  Gamma1 === Gamma2 ->
   Gamma1 |-- t is T ->
   Gamma2 |-- t is T.
 Proof.
-  intros * Heq Htype.
-  generalize dependent Gamma2.
-  induction Htype; intros;
-  eauto using well_typed_term, equivalent_lookup, equivalent_update,
-    equivalent_safe.
+  intros. generalize dependent Gamma2. induction_type; intros;
+  eauto using well_typed_term, equivalence_safe,
+    MapEquivalence.lookup, MapEquivalence.update_equivalence.
 Qed.
 
-Lemma safe_preserves_inclusion : forall Gamma Gamma',
+(* ------------------------------------------------------------------------- *)
+(* Inclusion                                                                 *)
+(* ------------------------------------------------------------------------- *)
+
+Local Lemma inclusion_safe : forall Gamma Gamma',
   Gamma includes Gamma' ->
   (safe Gamma) includes (safe Gamma').
 Proof.
-  unfold includes', safe. intros * H *.
+  unfold inclusion, safe. intros * H *.
   destruct (Gamma k) eqn:E1; destruct (Gamma' k) eqn:E2;
   solve [ intros F; inversion F
-        | eapply H in E2; rewrite E1 in E2; inversion E2; subst; trivial
+        | eapply H in E2; rewrite E1 in E2; inversion_clear E2; trivial
         ].
 Qed.
 
-Local Lemma includes_wtt : forall Gamma1 Gamma2 t T,
-  Gamma1 includes Gamma2 ->
-  Gamma2 |-- t is T ->
-  Gamma1 |-- t is T.
+Local Lemma inclusion_typing : forall Gamma Gamma' t T,
+  Gamma includes Gamma' ->
+  Gamma' |-- t is T ->
+  Gamma  |-- t is T.
 Proof.
-  intros * Hinc Htype. generalize dependent Gamma1.
-  induction Htype; intros;
-  try inversion_type; eauto using well_typed_term, inclusion_update,
-    safe_preserves_inclusion.
+  intros. generalize dependent Gamma. induction_type; intros;
+  try inversion_type; eauto using well_typed_term, inclusion_safe,
+    MapInclusion.update_inclusion.
 Qed.
 
 Local Lemma gamma_includes_safe_gamma : forall Gamma,
   Gamma includes (safe Gamma).
 Proof.
-  unfold safe, includes'. intros ? ? ? H.
+  unfold safe, inclusion. intros ? ? ? H.
   destruct (Gamma k) as [T' | _]; subst; try solve [inversion H].
   destruct T'; subst; inversion H; subst. trivial.
 Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* SafeSpawns mstep preservation                                             *)
+(* ------------------------------------------------------------------------- *)
 
 Lemma well_typed_gamma_from_safe_gamma : forall Gamma t T,
   safe Gamma |-- t is T ->
   Gamma |-- t is T.
 Proof.
-  intros. eauto using includes_wtt, gamma_includes_safe_gamma.
+  intros. eauto using inclusion_typing, gamma_includes_safe_gamma.
 Qed.
 
 (* unused *)
 Local Lemma safe_gamma_includes_update : forall Gamma x T,
  (safe Gamma)[x <== T] includes (safe Gamma[x <== T]).
 Proof.
-  unfold includes'. intros * H.
+  unfold inclusion. intros * H.
   destruct (String.string_dec x k); subst; unfold safe in H.
   - rewrite lookup_update_eq in *.
     destruct T; subst; trivial;
@@ -242,9 +200,9 @@ Proof.
 Qed.
 
 Local Lemma todo3 : forall k T,
-  equivalent empty (safe empty [k <== <{{ & T }}>]).
+  empty === (safe empty [k <== <{{ & T }}>]).
 Proof.
-  unfold equivalent, safe. intros ? ? k'.
+  unfold map_equivalence, safe. intros ? ? k'.
   destruct (String.string_dec k k'); subst;
   try (rewrite lookup_update_eq || rewrite lookup_update_neq); eauto.
 Qed.
@@ -252,7 +210,7 @@ Qed.
 Local Lemma todo4 : forall Gamma k T,
   (safe Gamma) includes (safe Gamma [k <== <{{ & T }}>]).
 Proof.
-  unfold includes', safe. intros ? ? ? k' v.
+  unfold inclusion, safe. intros ? ? ? k' v.
   destruct (String.string_dec k k'); subst.
   - rewrite lookup_update_eq. discriminate.
   - rewrite lookup_update_neq; trivial.
@@ -264,16 +222,16 @@ Proof.
 Admitted.
 
 Local Lemma todo13 : forall x T,
-  equivalent (safe empty[x <== TY_Immut T]) empty[x <== TY_Immut T].
+  (safe empty[x <== TY_Immut T]) === empty[x <== TY_Immut T].
 Proof.
-  unfold equivalent, safe. intros. destruct (String.string_dec x k); subst;
+  unfold map_equivalence, safe. intros. destruct (String.string_dec x k); subst;
   try (rewrite lookup_update_eq || rewrite lookup_update_neq); trivial.
 Qed.
 
 Local Lemma todo12 : forall Gamma x T,
-  equivalent (safe Gamma)[x <== TY_Immut T] (safe Gamma[x <== TY_Immut T]).
+  (safe Gamma)[x <== TY_Immut T] === (safe Gamma[x <== TY_Immut T]).
 Proof.
-  unfold equivalent, safe. intros. destruct (String.string_dec x k); subst.
+  unfold map_equivalence, safe. intros. destruct (String.string_dec x k); subst.
   - do 2 (rewrite lookup_update_eq). trivial.
   - do 2 (rewrite lookup_update_neq; trivial).
 Qed.
@@ -317,18 +275,16 @@ Proof.
   - simpl. destruct String.string_dec; subst; trivial.
     inversion_type.
     eapply T_Fun.
-    eauto 6 using equivalent_wtt, equivalent_update_permutation.
+    eauto 6 using equivalence_typing, MapEquivalence.update_permutation.
   - simpl. inversion_type. eapply T_Spawn.
     assert (Hx : (safe Gamma)[x <== Tx] |-- t is T0) by
-      eauto using includes_wtt, safe_gamma_includes_update.
+      eauto using inclusion_typing, safe_gamma_includes_update.
     destruct Tx.
     + specialize (IHt T0 (safe Gamma) Hx).
-      eapply equivalent_wtt; eauto using todo12.
+      eapply equivalence_typing; eauto using todo12.
     + specialize (IHt T0).
-      eapply includes_wtt in H3; eauto using todo11.
-
-
-Qed.
+      eapply equivalence_typing in H3; eauto using todo11.
+Abort.
 
 Local Lemma safe_spawns_subst : forall Gamma1 Gamma2 x t v T Tx,
   value v ->
@@ -342,18 +298,37 @@ Proof.
   generalize dependent Gamma1. generalize dependent T. generalize dependent Tx. 
   induction Hsst; intros; inversion_type;
   simpl; try (destruct String.string_dec);
-  eauto using SafeSpawns, equivalent_wtt, equivalent_update_permutation.
+  eauto using SafeSpawns, equivalence_typing, MapEquivalence.update_permutation.
   eapply safe_spawns_spawn.
   eapply nomut_subst; trivial.
   inversion Hvalue; subst; eauto using NoMut.
-  - inversion HtypeV; subst; eauto using NoMut.
+  - inversion HtypeV; subst; eauto using NoMut. admit.
   - inversion Hvalue; subst; inversion HtypeV; subst. admit.
-  - admit.
 Abort.
 
-Local Lemma safe_spawns_alloc : forall m t t' v,
-  SafeSpawns t ->
+Local Lemma mstep_tm_safe_spawns_preservation : forall m m' t t' eff T,
+  empty |-- t is T ->
   memory_property SafeSpawns m ->
+  SafeSpawns t ->
+  m / t ==[eff]==> m' / t' ->
+  SafeSpawns t'.
+Proof.
+  intros. generalize dependent T.
+  inversion_mstep; induction_step; intros;
+  try solve [inversion_type; inversion_safe_spawns; eauto using SafeSpawns].
+  inversion_safe_spawns.
+  inversion_safe_spawns.
+  inversion_type.
+  inversion_type.
+Abort.
+
+(* ------------------------------------------------------------------------- *)
+(* Memory SafeSpawns mstep preservation                                      *)
+(* ------------------------------------------------------------------------- *)
+
+Local Lemma mem_safe_spawns_alloc : forall m t t' v,
+  memory_property SafeSpawns m ->
+  SafeSpawns t ->
   t --[EF_Alloc (length m) v]--> t' ->
   memory_property SafeSpawns (m +++ v).
 Proof.
@@ -362,7 +337,7 @@ Proof.
   unfold memory_property. eauto using property_add, SafeSpawns.
 Qed.
 
-Local Lemma safe_spawns_store : forall m t t' ad v,
+Local Lemma mem_safe_spawns_store : forall m t t' ad v,
   memory_property SafeSpawns m ->
   SafeSpawns t ->
   t --[EF_Write ad v]--> t' ->
@@ -379,24 +354,13 @@ Local Lemma mstep_mem_safe_spawns_preservation : forall (m m' : mem) t t' eff,
   m / t ==[eff]==> m' / t' ->
   memory_property SafeSpawns m'.
 Proof.
-  intros. inversion_mstep; eauto using safe_spawns_alloc, safe_spawns_store.
+  intros. inversion_mstep;
+  eauto using mem_safe_spawns_alloc, mem_safe_spawns_store.
 Qed.
 
-Local Lemma mstep_tm_safe_spawns_preservation : forall m m' t t' eff T,
-  empty |-- t is T ->
-  memory_property SafeSpawns m ->
-  SafeSpawns t ->
-  m / t ==[eff]==> m' / t' ->
-  SafeSpawns t'.
-Proof.
-  intros. generalize dependent T.
-  inversion_mstep; induction_step; intros;
-  try solve [inversion_type; inversion_safe_spawns; eauto using SafeSpawns].
-  inversion_safe_spawns.
-  inversion_safe_spawns.
-  inversion_type.
-  inversion_type.
-Qed.
+(* ------------------------------------------------------------------------- *)
+(* SafeSpawns cstep preservation                                             *)
+(* ------------------------------------------------------------------------- *)
 
 Local Lemma safe_then_safe_spawns : forall t,
   Safe t ->

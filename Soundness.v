@@ -12,7 +12,7 @@ Local Lemma safe_preserves_inclusion : forall Gamma Gamma',
   Gamma includes Gamma' ->
   (safe Gamma) includes (safe Gamma').
 Proof.
-  unfold Map.includes', safe. intros * H *.
+  unfold inclusion, safe. intros * H *.
   destruct (Gamma k) eqn:E1; destruct (Gamma' k) eqn:E2;
   solve [ intros F; inversion F
         | eapply H in E2; rewrite E1 in E2; inversion E2; subst; trivial
@@ -35,7 +35,8 @@ Lemma context_weakening : forall Gamma Gamma' t T,
 Proof.
   intros. generalize dependent Gamma.
   induction_type; intros;
-  eauto using well_typed_term, inclusion_update, safe_preserves_inclusion.
+  eauto using well_typed_term, safe_preserves_inclusion,
+    MapInclusion.update_inclusion.
 Qed.
 
 Lemma context_weakening_empty : forall Gamma t T,
@@ -59,7 +60,7 @@ Proof.
     induction t; intros * Htype ?; 
     try (destruct String.string_dec); try inversion_type;
     eauto using well_typed_term, context_weakening, context_weakening_empty,
-      inclusion_update_overwrite, inclusion_update_permutation,
+      MapInclusion.update_overwrite, MapInclusion.update_permutation,
       update_safe_includes_safe_update.
     - erewrite lookup_update_eq in H2. inversion H2; subst.
       eauto using context_weakening_empty. (* TODO *)

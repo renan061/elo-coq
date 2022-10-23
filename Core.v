@@ -273,7 +273,6 @@ Inductive cstep : mem -> threads -> nat -> effect -> mem -> threads -> Prop :=
 (* ------------------------------------------------------------------------- *)
 
 Definition ctx := map typ.
-Definition getTY := get TY_Unit.
 
 Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
   | T_Unit : forall Gamma,
@@ -396,6 +395,14 @@ Ltac apply_deterministic_typing :=
 (* ------------------------------------------------------------------------- *)
 (* Auxiliary Tactics                                                         *)
 (* ------------------------------------------------------------------------- *)
+
+Ltac inversion_over_term_predicate P :=
+  match goal with
+  | H : P TM_Unit   |- _ => inversion H; subst; clear H
+  | H : P (_ _)     |- _ => inversion H; subst; clear H
+  | H : P (_ _ _)   |- _ => inversion H; subst; clear H
+  | H : P (_ _ _ _) |- _ => inversion H; subst; clear H
+  end.
 
 Ltac induction_step :=
   match goal with
