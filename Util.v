@@ -1,3 +1,5 @@
+From Coq Require Logic.ClassicalFacts.
+
 (* Miscellaneous Utilities *)
 
 Ltac auto_specialize :=
@@ -13,6 +15,8 @@ Qed.
 
 Ltac destruct_and H :=
   eapply destruct_and' in H as [? ?].
+
+Axiom excluded_middle : ClassicalFacts.excluded_middle.
 
 (* Unused
 

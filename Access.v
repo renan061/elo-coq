@@ -1,4 +1,3 @@
-From Coq Require Logic.ClassicalFacts.
 From Coq Require Import Arith.Arith.
 From Coq Require Import Lia.
 
@@ -80,8 +79,6 @@ Ltac inversion_access :=
 (* ------------------------------------------------------------------------- *)
 (* access-dec                                                                *)
 (* ------------------------------------------------------------------------- *)
-
-Local Axiom excluded_middle : ClassicalFacts.excluded_middle.
 
 Lemma access_dec : forall m t ad,
   (access m t ad) \/ (~ access m t ad).

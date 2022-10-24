@@ -1,5 +1,5 @@
+From Coq Require Logic.ClassicalFacts.
 From Coq Require Import Arith.Arith.
-From Coq Require Import Lia.
 
 From Elo Require Import Util.
 From Elo Require Import Array.
@@ -113,6 +113,159 @@ Inductive SafeSpawns : tm -> Prop :=
 Local Ltac inversion_safe_spawns := inversion_over_term_predicate SafeSpawns.
 
 (* ------------------------------------------------------------------------- *)
+(* HasVar                                                                    *)
+(* ------------------------------------------------------------------------- *)
+
+Inductive HasVar (x : id) : tm  -> Prop :=
+  | has_var_new : forall T t,
+      HasVar x t ->
+      HasVar x <{ new T t }>
+
+  | has_var_load : forall t,
+      HasVar x t ->
+      HasVar x <{ *t }>
+
+  | has_var_asg1 : forall t1 t2,
+      HasVar x t1 ->
+      HasVar x <{ t1 = t2 }>
+
+  | has_var_asg2 : forall t1 t2,
+      HasVar x t2 ->
+      HasVar x <{ t1 = t2 }>
+
+  | has_var_id :
+      HasVar x <{ ID x }>
+
+  | has_var_fun : forall x' Tx t,
+      x <> x' ->
+      HasVar x t ->
+      HasVar x <{ fn x' Tx --> t }>
+
+  | has_var_call1 : forall t1 t2,
+      HasVar x t1 ->
+      HasVar x <{ call t1 t2 }>
+
+  | has_var_call2 : forall t1 t2,
+      HasVar x t2 ->
+      HasVar x <{ call t1 t2 }>
+
+  | has_var_seq1 : forall t1 t2,
+      HasVar x t1 ->
+      HasVar x <{ t1; t2 }>
+
+  | has_var_seq2 : forall t1 t2,
+      HasVar x t2 ->
+      HasVar x <{ t1; t2 }>
+
+  | has_var_spawn : forall t,
+      HasVar x t ->
+      HasVar x <{ spawn t }>
+  .
+
+Inductive NotHasVar (x : id) : tm  -> Prop :=
+  | not_has_var_unit :
+      NotHasVar x <{ unit }>
+
+  | not_has_var_num : forall n,
+      NotHasVar x <{ N n }>
+
+  | not_has_var_ref : forall ad T,
+      NotHasVar x <{ &ad :: T }>
+
+  | not_has_var_new : forall T t,
+      ~ (HasVar x t) ->
+      NotHasVar x <{ new T t }>
+
+  | not_has_var_load : forall t,
+      ~ (HasVar x t) ->
+      NotHasVar x <{ *t }>
+
+  | not_has_var_asg : forall t1 t2,
+      ~ (HasVar x t1) ->
+      ~ (HasVar x t2) ->
+      NotHasVar x <{ t1 = t2 }>
+
+  | not_has_var_id : forall x',
+      x <> x' ->
+      NotHasVar x <{ ID x' }>
+
+  | not_has_var_fun1 : forall x' Tx t,
+      x <> x' ->
+      ~ (HasVar x t) ->
+      NotHasVar x <{ fn x' Tx --> t }>
+
+  | not_has_var_fun2 : forall Tx t,
+      NotHasVar x <{ fn x Tx --> t }>
+
+  | not_has_var_call : forall t1 t2,
+      ~ (HasVar x t1) ->
+      ~ (HasVar x t2) ->
+      NotHasVar x <{ call t1 t2 }>
+
+  | not_has_var_seq : forall t1 t2,
+      ~ (HasVar x t1) ->
+      ~ (HasVar x t2) ->
+      NotHasVar x <{ t1; t2 }>
+
+  | not_has_var_spawn : forall t,
+      ~ (HasVar x t) ->
+      NotHasVar x <{ spawn t }>
+  .
+
+Lemma hasvar_dec : forall x t,
+  (HasVar x t) \/ (~ HasVar x t).
+Proof. eauto using excluded_middle. Qed.
+
+Local Ltac inversion_has_var x :=
+  inversion_over_term_predicate (HasVar x).
+
+Local Ltac inversion_not_has_var x :=
+  inversion_over_term_predicate (NotHasVar x).
+
+(* TODO: make it pretty *)
+Local Ltac solve_stuff :=
+  match goal with
+  | |- ~ (HasVar _ ?t) => intros F; induction t; eauto using HasVar
+  end.
+
+(* TODO: make it pretty *)
+Theorem not_hasvar_iff : forall x t,
+  ~ (HasVar x t) <-> NotHasVar x t.
+Proof.
+  intros. split; intros H; destruct t;
+  eauto using HasVar, NotHasVar;
+  try solve [intros F; inversion_clear F;
+             inversion_not_has_var x; contradiction];
+  try (eapply not_has_var_ref
+    || eapply not_has_var_asg
+    || eapply not_has_var_call
+    || eapply not_has_var_seq);
+  eauto using HasVar, NotHasVar.
+  - destruct (String.string_dec x i); subst.
+    + contradict H. eauto using HasVar.
+    + eauto using NotHasVar.
+  - destruct (String.string_dec x i); subst.
+    + eapply not_has_var_fun2.
+    + eapply not_has_var_fun1; eauto. solve_stuff.
+  - intros F. inversion F; subst. inversion H. contradiction.
+Qed.
+
+(* TODO: make it pretty *)
+Local Lemma hasvar_subst : forall x t tx,
+  ~ (HasVar x t) -> ([x := tx] t) = t.
+Proof.
+  intros * H. eapply not_hasvar_iff in H.
+  induction t; simpl; trivial; inversion_not_has_var x;
+  try solve
+    [ rewrite IHt; trivial; eapply not_hasvar_iff; trivial
+    | rewrite IHt1; trivial; try (rewrite IHt2); trivial;
+      do 2 (eapply not_hasvar_iff; trivial)
+    ];
+  destruct String.string_dec; subst; trivial; try contradiction.
+  rewrite IHt; trivial. eapply not_hasvar_iff; trivial.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
 (* Equivalence                                                               *)
 (* ------------------------------------------------------------------------- *)
 
@@ -132,6 +285,17 @@ Proof.
   intros. generalize dependent Gamma2. induction_type; intros;
   eauto using well_typed_term, equivalence_safe,
     MapEquivalence.lookup, MapEquivalence.update_equivalence.
+Qed.
+
+Local Lemma safe_gamma_only_has_immutables : forall Gamma,
+  (Gamma === safe Gamma) <->
+  (forall x T, Gamma x = Some T -> (exists T', T = TY_Immut T')).
+Proof.
+  unfold safe, map_equivalence. split.
+  - intros H1 ? ? H2. specialize (H1 x). rewrite H2 in H1.
+    destruct T; eauto; inversion H1.
+  - intros H1 ?. specialize (H1 k). destruct (Gamma k); trivial.
+    specialize (H1 _ eq_refl) as [? ?]; subst. trivial.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -168,17 +332,16 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* SafeSpawns mstep preservation                                             *)
+(* TODOs                                                                     *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma well_typed_gamma_from_safe_gamma : forall Gamma t T,
+Local Lemma well_typed_gamma_from_safe_gamma : forall Gamma t T,
   safe Gamma |-- t is T ->
   Gamma |-- t is T.
 Proof.
   intros. eauto using inclusion_typing, gamma_includes_safe_gamma.
 Qed.
 
-(* unused *)
 Local Lemma safe_gamma_includes_update : forall Gamma x T,
  (safe Gamma)[x <== T] includes (safe Gamma[x <== T]).
 Proof.
@@ -199,27 +362,22 @@ Proof.
   inversion_nomut; try (destruct String.string_dec); subst; eauto using NoMut.
 Qed.
 
-Local Lemma todo3 : forall k T,
-  empty === (safe empty [k <== <{{ & T }}>]).
+Local Lemma todo11 : forall k T,
+  empty === (safe empty[k <== <{{ & T }}>]).
 Proof.
   unfold map_equivalence, safe. intros ? ? k'.
   destruct (String.string_dec k k'); subst;
   try (rewrite lookup_update_eq || rewrite lookup_update_neq); eauto.
 Qed.
 
-Local Lemma todo4 : forall Gamma k T,
-  (safe Gamma) includes (safe Gamma [k <== <{{ & T }}>]).
+Local Lemma todo12 : forall Gamma k T,
+  (safe Gamma) includes (safe Gamma[k <== <{{ & T }}>]).
 Proof.
   unfold inclusion, safe. intros ? ? ? k' v.
   destruct (String.string_dec k k'); subst.
   - rewrite lookup_update_eq. discriminate.
   - rewrite lookup_update_neq; trivial.
 Qed.
-
-Local Lemma todo11 : forall Gamma k T,
-  (safe Gamma) includes (safe Gamma[k <== <{{ & T }}>]).
-Proof.
-Admitted.
 
 Local Lemma todo13 : forall x T,
   (safe empty[x <== TY_Immut T]) === empty[x <== TY_Immut T].
@@ -228,7 +386,7 @@ Proof.
   try (rewrite lookup_update_eq || rewrite lookup_update_neq); trivial.
 Qed.
 
-Local Lemma todo12 : forall Gamma x T,
+Local Lemma todo14 : forall Gamma x T,
   (safe Gamma)[x <== TY_Immut T] === (safe Gamma[x <== TY_Immut T]).
 Proof.
   unfold map_equivalence, safe. intros. destruct (String.string_dec x k); subst.
@@ -236,31 +394,18 @@ Proof.
   - do 2 (rewrite lookup_update_neq; trivial).
 Qed.
 
-Local Lemma todo2 : forall Gamma2 x t v T Tx,
+Local Lemma todo1 : forall x t v T Tx,
+  (* precisa de algo do tipo (exists T, Tx = TY_Immut T) *)
   value v ->
   SafeSpawns v ->
-  Gamma2 |-- v is Tx ->
-  safe empty[x <== Tx] |-- t is T ->
-  (* precisa de algo do tipo (exists T, Tx = TY_Immut T) *)
-  NoMut t ->
+  SafeSpawns t ->
+  empty |-- v is Tx ->
+  empty[x <== Tx] |-- t is T ->
   NoMut ([x := v] t).
 Proof.
-  intros * Hvalue ? HtypeV ? Hnomut.
-  generalize dependent T. generalize dependent Tx.
-  induction Hnomut; intros; simpl;
-  inversion_type; subst;
-  eauto using NoMut.
-  - destruct String.string_dec; subst; eauto using NoMut.
-    unfold safe in *.
-    rewrite lookup_update_eq in H3. destruct Tx; inversion H3; subst.
-    destruct Hvalue; inversion_type; eauto using NoMut.
-  - destruct String.string_dec; subst; eauto using NoMut.
-    eapply nomut_fun.
-    eapply IHHnomut; clear IHHnomut;
-    eauto.
 Abort.
 
-Local Lemma todododo : forall Gamma t v x T Tx,
+Local Lemma todo2 : forall Gamma t v x T Tx,
   empty |-- v is Tx ->
   Gamma[x <== Tx] |-- t is T ->
   Gamma[x <== Tx] |-- ([x := v] t) is T.
@@ -281,30 +426,40 @@ Proof.
       eauto using inclusion_typing, safe_gamma_includes_update.
     destruct Tx.
     + specialize (IHt T0 (safe Gamma) Hx).
-      eapply equivalence_typing; eauto using todo12.
+      eapply equivalence_typing; eauto using todo14.
     + specialize (IHt T0).
-      eapply equivalence_typing in H3; eauto using todo11.
+      eapply equivalence_typing in H3.
 Abort.
 
-Local Lemma safe_spawns_subst : forall Gamma1 Gamma2 x t v T Tx,
+(* ------------------------------------------------------------------------- *)
+(* SafeSpawns mstep preservation                                             *)
+(* ------------------------------------------------------------------------- *)
+
+Local Lemma safe_spawns_subst : forall Gamma x t v T Tx,
   value v ->
-  Gamma1[x <== Tx] |-- t is T ->
-  Gamma2|-- v is Tx ->
-  SafeSpawns t ->
+  empty |-- v is Tx ->
+  Gamma[x <== Tx] |-- t is T ->
   SafeSpawns v ->
+  SafeSpawns t ->
   SafeSpawns ([x := v] t).
 Proof.
-  intros * Hvalue HtypeT HtypeV Hsst Hssv.
-  generalize dependent Gamma1. generalize dependent T. generalize dependent Tx. 
+  intros * Hvalue HtypeV HtypeT Hssv Hsst.
+  generalize dependent Gamma. generalize dependent T. generalize dependent Tx. 
   induction Hsst; intros; inversion_type;
   simpl; try (destruct String.string_dec);
   eauto using SafeSpawns, equivalence_typing, MapEquivalence.update_permutation.
   eapply safe_spawns_spawn.
-  eapply nomut_subst; trivial.
-  inversion Hvalue; subst; eauto using NoMut.
-  - inversion HtypeV; subst; eauto using NoMut. admit.
-  - inversion Hvalue; subst; inversion HtypeV; subst. admit.
-Abort.
+  destruct (hasvar_dec x t).
+  - eapply nomut_subst; trivial.
+    inversion Hvalue; subst; eauto using NoMut.
+    + inversion HtypeV; subst; eauto using NoMut.
+      (* H2 não vai tipar por conta de H0. contradiction! *)
+      admit.
+    + inversion Hvalue; subst; inversion HtypeV; subst.
+      (* H2 não vai tipar por conta de H0. contradiction! *)
+      admit.
+  - erewrite hasvar_subst; eauto.
+Qed.
 
 Local Lemma mstep_tm_safe_spawns_preservation : forall m m' t t' eff T,
   empty |-- t is T ->
@@ -316,11 +471,9 @@ Proof.
   intros. generalize dependent T.
   inversion_mstep; induction_step; intros;
   try solve [inversion_type; inversion_safe_spawns; eauto using SafeSpawns].
-  inversion_safe_spawns.
-  inversion_safe_spawns.
-  inversion_type.
-  inversion_type.
-Abort.
+  do 2 inversion_safe_spawns. do 2 inversion_type.
+  eauto using safe_spawns_subst.
+Qed.
 
 (* ------------------------------------------------------------------------- *)
 (* Memory SafeSpawns mstep preservation                                      *)
