@@ -15,16 +15,11 @@ Definition safe_memory_sharing m ths := forall tid1 tid2 ad,
   access m ths[tid2] ad ->
   (exists T, empty |-- m[ad] is TY_Immut T).
 
-Definition disjoint_memory m ths := forall tid1 tid2 ad,
-  access m ths[tid1] ad ->
-  tid1 <> tid2 ->
-  ~ access m ths[tid2] ad.
-
-Local Lemma none_disjoint_memory_preservation : forall m m' ths t' tid,
-  disjoint_memory m ths ->
+Local Lemma none_sms_preservation : forall m m' ths t' tid,
+  safe_memory_sharing m ths ->
   tid < length ths ->
   m / ths[tid] ==[EF_None]==> m' / t' ->
-  disjoint_memory m' ths[tid <- t'].
+  safe_memory_sharing m' ths[tid <- t'].
 Proof.
   intros * ? ? Hmstep tid1 tid2 ? ? ?. inversion Hmstep; subst.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; eauto;
@@ -32,11 +27,11 @@ Proof.
   eauto using mstep_none_inherits_access, mstep_none_preserves_not_access.
 Qed.
 
-Local Lemma read_disjoint_memory_preservation : forall m m' ths t' tid ad v,
-  disjoint_memory m ths ->
+Local Lemma read_sms_preservation : forall m m' ths t' tid ad v,
+  safe_memory_sharing m ths ->
   tid < length ths ->
   m / ths[tid] ==[EF_Read ad v]==> m' / t' ->
-  disjoint_memory m' ths[tid <- t'].
+  safe_memory_sharing m' ths[tid <- t'].
 Proof.
   intros * ? ? Hmstep tid1 tid2 ? ? ?. inversion Hmstep; subst.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; eauto;
@@ -44,22 +39,43 @@ Proof.
   eauto using mstep_read_inherits_access, mstep_read_preserves_not_access.
 Qed.
 
-Local Lemma alloc_disjoint_memory_preservation : forall m m' ths t' tid ad v,
+Local Lemma alloc_sms_preservation : forall m m' ths t' tid ad v,
   (forall tid, valid_accesses m ths[tid]) ->
-  disjoint_memory m ths ->
+  safe_memory_sharing m ths ->
   tid < length ths ->
   m / ths[tid] ==[EF_Alloc ad v]==> m' / t' ->
-  disjoint_memory m' ths[tid <- t'].
+  safe_memory_sharing m' ths[tid <- t'].
 Proof.
-  intros * Hwba Hdis ? Hmstep tid1 tid2 ad' ? ?. inversion Hmstep; subst.
-  assert (~ access m (get TM_Unit ths tid1) (length m)).
+  intros * Hwba Hsms ? Hmstep tid1 tid2 ad' ? ? ?. inversion Hmstep; subst.
+  (*
+  assert (~ access m ths[tid1] (length m)).
   { intros F. specialize (Hwba tid1 (length m) F). lia. }
-  assert (~ access m (get TM_Unit ths tid2) (length m)).
+  assert (~ access m ths[tid2] (length m)).
   { intros F. specialize (Hwba tid2 (length m) F). lia. }
-  destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; eauto;
-  do 2 (rewrite_array TM_Unit);
-  eauto using inaccessible_address_add_1, inaccessible_address_add_2;
-  destruct (Nat.eq_dec ad' (length m)); subst;
+  *)
+  destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst;
+  do 2 (rewrite_array TM_Unit).
+  - contradiction.
+  - decompose sum (lt_eq_lt_dec ad' (length m)); subst.
+    + rewrite_array TM_Unit.
+      unfold safe_memory_sharing in Hsms.
+      specialize (Hsms tid1 tid2 ad' H0).
+      rewrite <- e in Hsms.
+      subst.
+    + rewrite get_add_eq; trivial. admit.
+    + rewrite get_add_gt; trivial. eexists. eauto using well_typed_term.
+  - admit.
+  - admit.
+  - contradiction.
+
+    intros. rewrite get_add_eq. admit.
+  - intros. rewrite get_add_neq. admit.
+  - intros. rewrite get_add_eq. admit.
+  - intros. rewrite get_add_eq. admit.
+  - intros. rewrite get_add_eq. admit.
+  - intros. rewrite get_add_eq. admit.
+  - intros. rewrite get_add_eq. admit.
+
   eauto using inaccessible_address_add_1,
               inaccessible_address_add_2,
               mstep_alloc_inherits_access, 

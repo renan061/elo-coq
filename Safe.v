@@ -379,8 +379,6 @@ Proof.
   eauto using SafeSpawns, nomut_then_safe_spawns.
 Qed.
 
-Definition WellTypedThread (t : tm) := exists T, empty |-- t is T.
-
 Theorem safe_spawns_preservation : forall m m' ths ths' tid eff,
   forall_threads WellTypedThread ths ->
   forall_memory SafeSpawns m ->

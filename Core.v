@@ -332,6 +332,10 @@ Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
 
   where "Gamma '|--' t 'is' T" := (well_typed_term Gamma t T).
 
+Definition WellTypedTerm (t : tm) := exists T, empty |-- t is T.
+
+Definition WellTypedThread := WellTypedTerm.
+
 (* ------------------------------------------------------------------------- *)
 (* Decidability                                                              *)
 (* ------------------------------------------------------------------------- *)
