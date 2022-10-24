@@ -270,31 +270,6 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* Inclusion                                                                 *)
-(* ------------------------------------------------------------------------- *)
-
-Local Lemma inclusion_safe : forall Gamma Gamma',
-  Gamma includes Gamma' ->
-  (safe Gamma) includes (safe Gamma').
-Proof.
-  unfold inclusion, safe. intros * H *.
-  destruct (Gamma k) eqn:E1; destruct (Gamma' k) eqn:E2;
-  solve [ intros F; inversion F
-        | eapply H in E2; rewrite E1 in E2; inversion_clear E2; trivial
-        ].
-Qed.
-
-Local Lemma inclusion_typing : forall Gamma Gamma' t T,
-  Gamma includes Gamma' ->
-  Gamma' |-- t is T ->
-  Gamma  |-- t is T.
-Proof.
-  intros. generalize dependent Gamma. induction_type; intros;
-  try inversion_type; eauto using well_typed_term, inclusion_safe,
-    MapInclusion.update_inclusion.
-Qed.
-
-(* ------------------------------------------------------------------------- *)
 (* SafeSpawns mstep preservation                                             *)
 (* ------------------------------------------------------------------------- *)
 
@@ -313,7 +288,7 @@ Proof.
   try solve [unfold safe; intros; rewrite lookup_update_eq; reflexivity].
   (* main proof *)
   intros * Hvalue HtypeV HtypeT Hssv Hsst.
-  generalize dependent Gamma. generalize dependent T. generalize dependent Tx. 
+  generalize dependent Gamma. generalize dependent T. generalize dependent Tx.
   induction Hsst; intros; inversion_type;
   simpl; try (destruct String.string_dec);
   eauto using SafeSpawns, equivalence_typing, MapEquivalence.update_permutation.
@@ -329,7 +304,7 @@ Qed.
 
 Local Lemma mstep_tm_safe_spawns_preservation : forall m m' t t' eff T,
   empty |-- t is T ->
-  memory_property SafeSpawns m ->
+  forall_memory SafeSpawns m ->
   SafeSpawns t ->
   m / t ==[eff]==> m' / t' ->
   SafeSpawns t'.
@@ -337,37 +312,37 @@ Proof.
   intros. generalize dependent T.
   inversion_mstep; induction_step; intros;
   try solve [inversion_type; inversion_safe_spawns; eauto using SafeSpawns].
-  do 2 inversion_safe_spawns. do 2 inversion_type.
+  do 2 (inversion_safe_spawns; inversion_type).
   eauto using safe_spawns_subst.
 Qed.
 
 Local Lemma mem_safe_spawns_alloc : forall m t t' v,
-  memory_property SafeSpawns m ->
+  forall_memory SafeSpawns m ->
   SafeSpawns t ->
   t --[EF_Alloc (length m) v]--> t' ->
-  memory_property SafeSpawns (m +++ v).
+  forall_memory SafeSpawns (m +++ v).
 Proof.
   intros. assert (SafeSpawns v).
   { induction_step; inversion_safe_spawns; eauto. }
-  unfold memory_property. eauto using property_add, SafeSpawns.
+  unfold forall_memory. eauto using property_add, SafeSpawns.
 Qed.
 
 Local Lemma mem_safe_spawns_store : forall m t t' ad v,
-  memory_property SafeSpawns m ->
+  forall_memory SafeSpawns m ->
   SafeSpawns t ->
   t --[EF_Write ad v]--> t' ->
-  memory_property SafeSpawns m[ad <- v].
+  forall_memory SafeSpawns m[ad <- v].
 Proof.
   intros. assert (SafeSpawns v).
   { induction_step; inversion_safe_spawns; eauto. }
-  unfold memory_property. eauto using property_set, SafeSpawns.
+  unfold forall_memory. eauto using property_set, SafeSpawns.
 Qed.
 
 Local Lemma mstep_mem_safe_spawns_preservation : forall (m m' : mem) t t' eff,
-  memory_property SafeSpawns m ->
+  forall_memory SafeSpawns m ->
   SafeSpawns t ->
   m / t ==[eff]==> m' / t' ->
-  memory_property SafeSpawns m'.
+  forall_memory SafeSpawns m'.
 Proof.
   intros. inversion_mstep;
   eauto using mem_safe_spawns_alloc, mem_safe_spawns_store.
@@ -377,15 +352,11 @@ Qed.
 (* SafeSpawns cstep preservation                                             *)
 (* ------------------------------------------------------------------------- *)
 
-Local Lemma safe_then_safe_spawns : forall t,
-  Safe t ->
+Local Lemma nomut_then_safe_spawns : forall t,
+  NoMut t ->
   SafeSpawns t.
 Proof.
-  intros. induction t;
-  match goal with
-  | H : Safe _ |- _ =>
-    induction H; eauto using SafeSpawns
-  end.
+  intros * H. induction t; induction H; eauto using SafeSpawns.
 Qed.
 
 Local Lemma safe_spawns_for_block : forall t t' block,
@@ -394,7 +365,7 @@ Local Lemma safe_spawns_for_block : forall t t' block,
   SafeSpawns block.
 Proof.
   intros. induction_step; inversion_safe_spawns;
-  eauto using SafeSpawns, safe_then_safe_spawns.
+  eauto using SafeSpawns, nomut_then_safe_spawns.
 Qed.
 
 Local Lemma step_safe_spawns_preservation : forall t t' block,
@@ -403,18 +374,21 @@ Local Lemma step_safe_spawns_preservation : forall t t' block,
   SafeSpawns t'.
 Proof.
   intros. induction_step; inversion_safe_spawns;
-  eauto using SafeSpawns, safe_then_safe_spawns.
+  eauto using SafeSpawns, nomut_then_safe_spawns.
 Qed.
 
+Definition WellTypedThread (t : tm) := exists T, empty |-- t is T.
+
 Theorem safe_spawns_preservation : forall m m' ths ths' tid eff,
-  memory_property SafeSpawns m ->
-  threads_property SafeSpawns ths ->
+  forall_threads WellTypedThread ths ->
+  forall_memory SafeSpawns m ->
+  forall_threads SafeSpawns ths ->
   m / ths ~~[tid, eff]~~> m' / ths' ->
-  (memory_property SafeSpawns m' /\ threads_property SafeSpawns ths').
+  (forall_memory SafeSpawns m' /\ forall_threads SafeSpawns ths').
 Proof.
-  intros. split; inversion_cstep;
+  intros * H; intros. split; inversion_cstep;
   eauto using mstep_mem_safe_spawns_preservation.
-  - eapply property_set; eauto using SafeSpawns.
+  - eapply property_set; eauto using SafeSpawns. specialize (H tid) as [? ?].
     eauto using mstep_tm_safe_spawns_preservation. (* performance *)
   - eapply property_add; eauto using SafeSpawns, safe_spawns_for_block.
     eapply property_set; eauto using SafeSpawns, step_safe_spawns_preservation.
@@ -423,18 +397,8 @@ Qed.
 Lemma safe_for_block : forall t t' block,
   SafeSpawns t ->
   t --[EF_Spawn block]--> t' ->
-  Safe block.
+  NoMut block.
 Proof.
   intros. induction_step; inversion_safe_spawns; eauto.
 Qed.
-
-Lemma safe_then_not_access : forall m t ad,
-  Safe t ->
-  ~ access m t ad.
-Proof.
-  intros * Hsafe. induction t; inversion Hsafe; subst;
-  eapply not_access_iff; eauto using not_access.
-  eapply not_access_iff.
-  intros ?; inversion_access.
-Abort.
 

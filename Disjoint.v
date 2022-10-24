@@ -97,8 +97,8 @@ Proof.
 Qed.
 
 Theorem disjoint_memory_preservation : forall m m' ths ths' tid eff,
-  threads_property SafeSpawns ths ->
-  threads_property (valid_accesses m) ths ->
+  forall_threads SafeSpawns ths ->
+  forall_threads (valid_accesses m) ths ->
   disjoint_memory m ths ->
   tid < length ths ->
   m / ths ~~[tid, eff]~~> m' / ths' ->
