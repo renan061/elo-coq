@@ -36,8 +36,8 @@ Inductive NoMut : tm -> Prop :=
     NoMut t2 ->
     NoMut <{ t1 = t2 }>
 
-  | nomut_id : forall x,
-    NoMut <{ ID x }>
+  | nomut_var : forall x,
+    NoMut <{ var x }>
 
   | nomut_fun : forall x Tx t,
     NoMut t ->
@@ -97,8 +97,8 @@ Inductive SafeSpawns : tm -> Prop :=
       SafeSpawns t2 ->
       SafeSpawns <{ t1 = t2 }>
 
-  | safe_spawns_id : forall x,
-      SafeSpawns <{ ID x }>
+  | safe_spawns_var : forall x,
+      SafeSpawns <{ var x }>
 
   | safe_spawns_fun : forall x Tx t,
       SafeSpawns t ->
@@ -142,8 +142,8 @@ Inductive HasVar (x : id) : tm  -> Prop :=
       HasVar x t2 ->
       HasVar x <{ t1 = t2 }>
 
-  | has_var_id :
-      HasVar x <{ ID x }>
+  | has_var_var :
+      HasVar x <{ var x }>
 
   | has_var_fun : forall x' Tx t,
       x <> x' ->
@@ -178,48 +178,50 @@ Proof. eauto using excluded_middle. Qed.
 Local Ltac inversion_hasvar x :=
   inversion_over_term_predicate (HasVar x).
 
-Local Ltac solve_stuff t :=
-  intros; induction t; eauto using HasVar.
+Local Ltac solve_not_hasvar :=
+  intros; match goal with
+  | |- (~ HasVar _ ?t) => induction t; eauto using HasVar
+  end.
 
 Local Lemma not_hv_new : forall x t T,
   ~ HasVar x <{ new T t }> -> ~ HasVar x t.
-Proof. solve_stuff t. Qed.
+Proof. solve_not_hasvar. Qed.
 
 Local Lemma not_hv_load : forall x t,
   ~ HasVar x <{ *t }> -> ~ HasVar x t.
-Proof. solve_stuff t. Qed.
+Proof. solve_not_hasvar. Qed.
 
 Local Lemma not_hv_asg1 : forall x t1 t2,
   ~ HasVar x <{ t1 = t2 }> -> ~ HasVar x t1.
-Proof. solve_stuff t1. Qed.
+Proof. solve_not_hasvar. Qed.
 
 Local Lemma not_hv_asg2 : forall x t1 t2,
   ~ HasVar x <{ t1 = t2 }> -> ~ HasVar x t2.
-Proof. solve_stuff t2. Qed.
+Proof. solve_not_hasvar. Qed.
 
 Local Lemma not_hv_fun : forall x x' t Tx,
   x <> x' -> ~ HasVar x <{ fn x' Tx --> t }> -> ~ HasVar x t.
-Proof. solve_stuff t. Qed.
+Proof. solve_not_hasvar. Qed.
 
 Local Lemma not_hv_call1 : forall x t1 t2,
   ~ HasVar x <{ call t1 t2 }> -> ~ HasVar x t1.
-Proof. solve_stuff t1. Qed.
+Proof. solve_not_hasvar. Qed.
 
 Local Lemma not_hv_call2 : forall x t1 t2,
   ~ HasVar x <{ call t1 t2 }> -> ~ HasVar x t2.
-Proof. solve_stuff t2. Qed.
+Proof. solve_not_hasvar. Qed.
 
 Local Lemma not_hv_seq1 : forall x t1 t2,
   ~ HasVar x <{ t1; t2 }> -> ~ HasVar x t1.
-Proof. solve_stuff t1. Qed.
+Proof. solve_not_hasvar. Qed.
 
 Local Lemma not_hv_seq2 : forall x t1 t2,
   ~ HasVar x <{ t1; t2 }> -> ~ HasVar x t2.
-Proof. solve_stuff t2. Qed.
+Proof. solve_not_hasvar. Qed.
 
 Local Lemma not_hv_spawn : forall x t,
   ~ HasVar x <{ spawn t }> -> ~ HasVar x t.
-Proof. solve_stuff t. Qed.
+Proof. solve_not_hasvar. Qed.
 
 Local Lemma hasvar_subst : forall x t tx,
   ~ (HasVar x t) -> ([x := tx] t) = t.

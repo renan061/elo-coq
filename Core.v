@@ -46,7 +46,7 @@ Inductive tm : Set :=
   | TM_Load  : tm  -> tm
   | TM_Asg   : tm  -> tm  -> tm
   (* functions *)
-  | TM_Id    : id  -> tm
+  | TM_Var   : id  -> tm
   | TM_Fun   : id  -> typ -> tm -> tm
   | TM_Call  : tm  -> tm  -> tm
   (* sequencing *)
@@ -84,7 +84,7 @@ Notation "'new' T t"         := (TM_New T t)     (in custom elo at level 0,
 Notation "'*' t"             := (TM_Load t)     (in custom elo at level 0).
 Notation "t1 '=' t2"         := (TM_Asg t1 t2)  (in custom elo at level 70,
                                                          no associativity).
-Notation "'ID' x"            := (TM_Id x)       (in custom elo at level 0).
+Notation "'var' x"           := (TM_Var x)      (in custom elo at level 0).
 Notation "'fn' x Tx '-->' t" := (TM_Fun x Tx t)  (in custom elo at level 0,
                                                        x constr at level 0,
                                              Tx custom elo_typ at level 0).
@@ -144,7 +144,7 @@ Fixpoint subst (x : id) (tx t : tm) : tm :=
   | <{ new T t' }>        => TM_New T ([x := tx] t')
   | <{ *t' }>             => TM_Load  ([x := tx] t')
   | <{ t1 = t2 }>         => TM_Asg   ([x := tx] t1) ([x := tx] t2)
-  | <{ ID x' }>           => if x =? x' then tx else t
+  | <{ var x' }>          => if x =? x' then tx else t
   | <{ fn x' Tx --> t' }> => if x =? x'
                               then t 
                               else TM_Fun x' Tx ([x := tx] t')
@@ -308,9 +308,9 @@ Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
     Gamma |-- t2 is T ->
     Gamma |-- <{ t1 = t2 }> is <{{ Unit }}>
 
-  | T_Id : forall Gamma x T,
+  | T_Var : forall Gamma x T,
     Gamma x = Some T ->
-    Gamma |-- <{ ID x }> is T
+    Gamma |-- <{ var x }> is T
 
   | T_Fun : forall Gamma x t T Tx,
     Gamma[x <== Tx] |-- t is T ->

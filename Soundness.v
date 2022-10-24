@@ -61,10 +61,13 @@ Proof.
     try (destruct String.string_dec); try inversion_type;
     eauto using well_typed_term, context_weakening, context_weakening_empty,
       MapInclusion.update_overwrite, MapInclusion.update_permutation,
-      update_safe_includes_safe_update.
-    - erewrite lookup_update_eq in H2. inversion H2; subst.
-      eauto using context_weakening_empty. (* TODO *)
-    - erewrite lookup_update_neq in H2; eauto using well_typed_term.
+      update_safe_includes_safe_update;
+    match goal with
+    | H : _[_ <== _] _ = _ |- _ =>
+      try (erewrite lookup_update_eq in H || erewrite lookup_update_neq in H);
+      inversion H; subst;
+      eauto using context_weakening_empty, well_typed_term
+    end.
   }
   intros * ?. inversion_type. intros. eauto.
 Qed.

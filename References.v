@@ -37,8 +37,8 @@ Inductive well_typed_references (m : mem) : tm -> Prop :=
     well_typed_references m t2 ->
     well_typed_references m <{ t1 = t2 }> 
 
-  | wtr_id : forall x,
-    well_typed_references m <{ ID x }>
+  | wtr_var : forall x,
+    well_typed_references m <{ var x }>
 
   | wtr_fun : forall x Tx t,
     well_typed_references m t ->

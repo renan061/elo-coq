@@ -62,6 +62,7 @@ Proof.
 Qed.
 
 Ltac inversion_access :=
+
   match goal with
   | H : access _ TM_Unit        _ |- _ => inversion H; clear H
   | H : access _ (TM_Num _)     _ |- _ => inversion H; clear H
@@ -69,16 +70,12 @@ Ltac inversion_access :=
   | H : access _ (TM_New _ _)   _ |- _ => inversion H; subst; clear H
   | H : access _ (TM_Load _)    _ |- _ => inversion H; subst; clear H
   | H : access _ (TM_Asg _ _)   _ |- _ => inversion H; subst; clear H
-  | H : access _ (TM_Id _)      _ |- _ => inversion H; clear H
+  | H : access _ (TM_Var _)     _ |- _ => inversion H; clear H
   | H : access _ (TM_Fun _ _ _) _ |- _ => inversion H; subst; clear H
   | H : access _ (TM_Call _ _)  _ |- _ => inversion H; subst; clear H
   | H : access _ (TM_Seq _ _)   _ |- _ => inversion H; subst; clear H
   | H : access _ (TM_Spawn _)   _ |- _ => inversion H; clear H
   end.
-
-(* ------------------------------------------------------------------------- *)
-(* access-dec                                                                *)
-(* ------------------------------------------------------------------------- *)
 
 Lemma access_dec : forall m t ad,
   (access m t ad) \/ (~ access m t ad).
@@ -113,8 +110,8 @@ Inductive not_access (m : mem) : tm -> addr -> Prop :=
     ~ access m t2 ad ->
     not_access m <{ t1 = t2 }> ad
 
-  | not_access_id : forall x ad,
-    not_access m <{ ID x }> ad
+  | not_access_var : forall x ad,
+    not_access m <{ var x }> ad
 
   | not_access_fun : forall x Tx t ad,
     ~ access m t ad ->
