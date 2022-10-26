@@ -61,8 +61,8 @@ Proof.
   destruct (Nat.eq_dec ad' ad); subst; eauto using access.
   eapply access_mem. auto_specialize.
   decompose sum (lt_eq_lt_dec ad' (length m)); subst;
-  do 2 (rewrite_array TM_Unit); try contradiction. inversion_access.
-Qed.
+  do 2 (rewrite_array TM_Unit); try contradiction. (* inversion_access. *)
+Abort.
 
 Lemma todo3 : forall m t t' ad v T,
   valid_accesses m t ->
@@ -73,6 +73,25 @@ Proof.
   clear H3; clear H4.
   induction_step; inversion_va; eauto using access.
 Qed.
+
+Lemma todo4 : forall m t ad v,
+  value v ->
+  access (m +++ v) t ad ->
+  access m t ad.
+Proof.
+  intros * Hvalue Hacc. induction Hacc; eauto using access.
+  destruct Hvalue; subst;
+  try solve [
+    decompose sum (lt_eq_lt_dec ad' (length m)); subst;
+    do 2 (rewrite_array TM_Unit);
+    solve 
+      [ inversion_access
+      | destruct (Nat.eq_dec ad' ad); subst; eauto using access
+      ]
+    ].
+  admit.
+  admit.
+Abort.
 
 Local Lemma alloc_sms_preservation : forall m m' ths t' tid ad v,
   forall_threads ths (valid_accesses m) ->
@@ -96,7 +115,8 @@ Proof.
     decompose sum (lt_eq_lt_dec ad (length m)); subst; rewrite_array TM_Unit.
     + eapply Hsms; eauto.
       * eauto using mstep_alloc_inherits_access, Nat.lt_neq.
-      * eapply todo2; eauto. 
+      * assert (Hvalue : value v). shelve.
+        destruct Hvalue.
     + rewrite_array TM_Unit. admit.
     + rewrite_array TM_Unit. eexists. eauto using well_typed_term.
   - admit.

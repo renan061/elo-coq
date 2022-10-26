@@ -16,7 +16,9 @@ Module Mem.
       access m t ad ->
       access (m +++ v) t ad.
     Proof.
-      intros * Hacc. induction Hacc; eauto using access. eapply access_mem.
+      intros * Hacc. induction Hacc; eauto using access.
+      destruct (Nat.eq_dec ad ad'); subst; eauto using access.
+      eapply access_mem; trivial.
       decompose sum (lt_eq_lt_dec ad' (length m)); subst.
       - rewrite_array TM_Unit; trivial.
       - rewrite (get_default TM_Unit) in IHHacc; try lia. inversion_access.
@@ -200,7 +202,8 @@ Lemma mstep_alloc_preserves_access : forall m m' t t' ad ad' v,
 Proof.
   intros. inversion_mstep. induction_step; inversion_access;
   eauto using access, Mem.Add.preserves_access.
-  eapply access_mem. rewrite (get_add_eq TM_Unit).
+  destruct (Nat.eq_dec ad (length m)); subst; eauto using access.
+  eapply access_mem; trivial. rewrite (get_add_eq TM_Unit).
   eauto using Mem.Add.preserves_access.
 Qed.
 
@@ -259,6 +262,7 @@ Lemma mstep_read_inherits_access : forall m m' t t' ad ad' v,
 Proof.
   intros * ? ?. inversion_mstep. induction_step;
   try inversion_access; eauto using access.
+  destruct (Nat.eq_dec ad' ad); subst; eauto using access.
 Qed.
 
 Lemma mstep_read_preserves_access : forall m m' t t' ad ad' v,
@@ -277,9 +281,11 @@ Lemma mstep_read_preserves_not_access : forall m m' t t' ad ad' v,
   m / t ==[EF_Read ad' v]==> m' / t' ->
   ~ access m' t' ad.
 Proof.
-  intros * Hnacc ?. inversion_mstep. induction_step;
-  eauto using access; inversion_not_access Hnacc;
-  eapply not_access_iff; eauto using not_access.
+  intros * Hnacc ?. inversion_mstep. induction_step; inversion_not_access Hnacc;
+  try solve [eapply not_access_iff; eauto using not_access].
+  match goal with
+  | H : ~ access _ _ _ |- _ => inversion_not_access H 
+  end.
 Qed.
 
 (* ------------------------------------------------------------------------- *)

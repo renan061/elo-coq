@@ -22,8 +22,9 @@ Proof.
   intros * Hcompat ad Hacc. unfold compat in *.
   induction Hacc; eauto using access;
   try solve [symmetry; eauto using access].
-  eapply IHHacc. intros ? ?.
-  eapply Hcompat. eapply access_mem.
+  eapply IHHacc. intros ad'' ?. eapply Hcompat.
+  destruct (Nat.eq_dec ad'' ad'); subst; eauto using access.
+  eapply access_mem; trivial.
   rewrite (Hcompat _ (access_ref _ _ _)).
   trivial.
 Qed.
@@ -35,10 +36,10 @@ Lemma compat_access : forall m m' t ad,
 Proof.
   intros * Hcompat Hacc. unfold compat in *.
   induction Hacc; eauto using access.
-  eapply access_mem.
+  eapply access_mem; eauto using not_eq_sym.
   rewrite <- (Hcompat _ (access_ref _ _ _)).
-  eapply IHHacc. intros ? ?.
-  eapply Hcompat. eauto using access.
+  eapply IHHacc. intros ad'' ?.
+  eapply Hcompat. destruct (Nat.eq_dec ad'' ad'); subst; eauto using access.
 Qed.
 
 Lemma compat_access_not : forall m m' t ad,
@@ -62,12 +63,13 @@ Lemma compat_inaccessible_address_set : forall m m' t ad v,
   compat m m'[ad <- v] t.
 Proof.
   intros * Hcompat Hnacc ad Hacc. unfold compat in *.
-  induction Hacc; try solve [inversion_not_access Hnacc].
+  induction Hacc; try solve [inversion_not_access Hnacc];
   match goal with H : ~ access _ _ ?ad' |- _ => 
     destruct (Nat.eq_dec ad ad'); subst
-  end.
-  - exfalso. eauto using access.
-  - rewrite_array TM_Unit. eauto using access.
+  end;
+  try solve [exfalso; eauto using access];
+  rewrite_array TM_Unit; eauto using access;
+  rewrite_array TM_Unit; eauto using access.
 Qed.
 
 Lemma compat_inaccessible_address_add : forall m m' t v,
@@ -77,13 +79,19 @@ Lemma compat_inaccessible_address_add : forall m m' t v,
 Proof.
   intros * Hcompat Hnacc ad Hacc. unfold compat in *.
   induction Hacc; try solve [inversion_not_access Hnacc; eauto using access].
-  destruct (Nat.eq_dec ad (length m')); subst.
-  - exfalso. eauto using access.
-  - destruct (not_eq ad (length m')); trivial.
-    + rewrite_array TM_Unit. eauto using access.
-    + specialize (Hcompat ad (access_ref _ _ _)).
-      rewrite_array TM_Unit. rewrite (get_default TM_Unit m') in Hcompat;
-      trivial; lia.
+  - destruct (Nat.eq_dec ad (length m')); subst.
+    + exfalso. eauto using access.
+    + destruct (not_eq ad (length m')); trivial;
+      do 2 (rewrite_array TM_Unit); eauto using access.
+      assert (Hacc' : access m <{ &ad' :: T}> ad) by eauto using access.
+      specialize (Hcompat ad Hacc').
+      rewrite (get_default TM_Unit m') in Hcompat; trivial; lia.
+  - destruct (Nat.eq_dec ad (length m')); subst.
+    + exfalso. eauto using access.
+    + destruct (not_eq ad (length m')); trivial;
+      rewrite_array TM_Unit; eauto using access.
+      specialize (Hcompat ad (access_ref _ _ _)).
+      rewrite (get_default TM_Unit m') in Hcompat; trivial; lia.
 Qed.
 
 Corollary inaccessible_address_set_1 : forall m t ad ad' v,

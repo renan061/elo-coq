@@ -55,15 +55,16 @@ Inductive access (m : mem) : tm -> addr -> Prop :=
 
 (* strong access_mem *)
 Theorem access_get_trans : forall m t ad ad',
+  ad <> ad' ->
   access m t ad' ->
   access m m[ad'] ad ->
   access m t ad.
 Proof.
-  intros * Hacc ?. induction Hacc; eauto using access.
+  intros * ? Hacc ?. induction Hacc; eauto using access.
+  destruct (Nat.eq_dec ad ad'); subst; eauto using access.
 Qed.
 
 Ltac inversion_access :=
-
   match goal with
   | H : access _ TM_Unit        _ |- _ => inversion H; clear H
   | H : access _ (TM_Num _)     _ |- _ => inversion H; clear H
@@ -144,6 +145,7 @@ Proof.
   intros ?; subst;
   try (inversion_access; inversion_clear H);
   eauto using access.
+  destruct (Nat.eq_dec n ad); subst; eauto using access. (* TODO *)
 Qed.
 
 Ltac inversion_not_access H :=
@@ -251,7 +253,10 @@ Local Ltac solve_inversion_va :=
 Local Lemma inversion_va_ref : forall m ad T,
   valid_accesses m <{ &ad :: T }> ->
   valid_accesses m m[ad].
-Proof. solve_inversion_va. Qed.
+Proof.
+  intros; unfold valid_accesses in *; eauto using access.
+  intros ad'. destruct (Nat.eq_dec ad ad'); subst; eauto using access.
+Qed.
 
 Local Lemma inversion_va_new : forall m t T,
   valid_accesses m <{ new T t }> ->
@@ -400,7 +405,7 @@ Local Lemma va_read_preservation : forall m t t' ad,
 Proof.
   intros. induction_step; inversion_va;
   eauto using va_new, va_load, va_asg, va_call, va_seq.
-  intros ? ?. eauto using access.
+  intros ad' ?. destruct (Nat.eq_dec ad ad'); subst; eauto using access.
 Qed.
 
 Local Lemma va_write_preservation : forall m t t' ad v,
