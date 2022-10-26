@@ -365,10 +365,10 @@ Qed.
 (* Array Properties                                                          *)
 (* ------------------------------------------------------------------------- *)
 
-Definition forall_memory P (m : mem) : Prop :=
+Definition forall_memory (m : mem) P : Prop :=
   property TM_Unit P m.
 
-Definition forall_threads P (ths : threads) : Prop :=
+Definition forall_threads (ths : threads) P : Prop :=
   property TM_Unit P ths.
 
 (* ------------------------------------------------------------------------- *)

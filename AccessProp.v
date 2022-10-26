@@ -79,7 +79,7 @@ Lemma alloc_step_access_t'_ad : forall m t t' ad v,
   access m t' ad.
 Proof.
   intros. induction_step; eauto using access.
-Qed. 
+Qed.
 
 Lemma write_step_access_t_ad : forall m t t' ad ad' v,
   access m v ad ->
@@ -116,7 +116,7 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* MStep                                                                     *)
+(* MStep -- None                                                             *)
 (* ------------------------------------------------------------------------- *)
 
 Lemma mstep_none_inherits_access : forall m m' t t' ad,
@@ -138,6 +138,10 @@ Proof.
   eapply not_access_iff; eauto using not_access.
   eapply not_access_iff. eauto using not_access_subst.
 Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* MStep -- Alloc                                                            *)
+(* ------------------------------------------------------------------------- *)
 
 Local Lemma mstep_alloc_address_access: forall m m' t t' ad v,
   m / t ==[EF_Alloc ad v]==> m' / t' ->
@@ -237,6 +241,10 @@ Proof.
     end.
 Qed.
 
+(* ------------------------------------------------------------------------- *)
+(* MStep -- Read                                                             *)
+(* ------------------------------------------------------------------------- *)
+
 Lemma mstep_read_address_access: forall m m' t t' ad v,
   m / t ==[EF_Read ad v]==> m' / t' ->
   access m t ad.
@@ -273,6 +281,10 @@ Proof.
   eauto using access; inversion_not_access Hnacc;
   eapply not_access_iff; eauto using not_access.
 Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* MStep -- Write                                                            *)
+(* ------------------------------------------------------------------------- *)
 
 Lemma mstep_write_address_access: forall m m' t t' ad v,
   m / t ==[EF_Write ad v]==> m' / t' ->

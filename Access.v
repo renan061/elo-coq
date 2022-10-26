@@ -9,6 +9,7 @@ From Elo Require Import Core.
 indirectly. *)
 Inductive access (m : mem) : tm -> addr -> Prop :=
   | access_mem : forall ad ad' T,
+    ad <> ad' ->
     access m m[ad'] ad ->
     access m <{ &ad' :: T }> ad
 

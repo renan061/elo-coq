@@ -306,7 +306,7 @@ Qed.
 
 Local Lemma mstep_tm_safe_spawns_preservation : forall m m' t t' eff T,
   empty |-- t is T ->
-  forall_memory SafeSpawns m ->
+  forall_memory m SafeSpawns ->
   SafeSpawns t ->
   m / t ==[eff]==> m' / t' ->
   SafeSpawns t'.
@@ -319,10 +319,10 @@ Proof.
 Qed.
 
 Local Lemma mem_safe_spawns_alloc : forall m t t' v,
-  forall_memory SafeSpawns m ->
+  forall_memory m SafeSpawns ->
   SafeSpawns t ->
   t --[EF_Alloc (length m) v]--> t' ->
-  forall_memory SafeSpawns (m +++ v).
+  forall_memory (m +++ v) SafeSpawns.
 Proof.
   intros. assert (SafeSpawns v).
   { induction_step; inversion_safe_spawns; eauto. }
@@ -330,10 +330,10 @@ Proof.
 Qed.
 
 Local Lemma mem_safe_spawns_store : forall m t t' ad v,
-  forall_memory SafeSpawns m ->
+  forall_memory m SafeSpawns ->
   SafeSpawns t ->
   t --[EF_Write ad v]--> t' ->
-  forall_memory SafeSpawns m[ad <- v].
+  forall_memory m[ad <- v] SafeSpawns.
 Proof.
   intros. assert (SafeSpawns v).
   { induction_step; inversion_safe_spawns; eauto. }
@@ -341,10 +341,10 @@ Proof.
 Qed.
 
 Local Lemma mstep_mem_safe_spawns_preservation : forall (m m' : mem) t t' eff,
-  forall_memory SafeSpawns m ->
+  forall_memory m SafeSpawns ->
   SafeSpawns t ->
   m / t ==[eff]==> m' / t' ->
-  forall_memory SafeSpawns m'.
+  forall_memory m' SafeSpawns.
 Proof.
   intros. inversion_mstep;
   eauto using mem_safe_spawns_alloc, mem_safe_spawns_store.
@@ -380,11 +380,11 @@ Proof.
 Qed.
 
 Theorem safe_spawns_preservation : forall m m' ths ths' tid eff,
-  forall_threads WellTypedThread ths ->
-  forall_memory SafeSpawns m ->
-  forall_threads SafeSpawns ths ->
+  forall_threads ths WellTypedThread ->
+  forall_memory m SafeSpawns ->
+  forall_threads ths SafeSpawns ->
   m / ths ~~[tid, eff]~~> m' / ths' ->
-  (forall_memory SafeSpawns m' /\ forall_threads SafeSpawns ths').
+  (forall_memory m' SafeSpawns /\ forall_threads ths' SafeSpawns).
 Proof.
   intros * H; intros. split; inversion_cstep;
   eauto using mstep_mem_safe_spawns_preservation.

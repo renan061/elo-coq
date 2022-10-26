@@ -1,6 +1,7 @@
 From Coq Require Import Arith.Arith.
 From Coq Require Import Lia.
 
+From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Map.
 From Elo Require Import Core.
@@ -39,42 +40,68 @@ Proof.
   eauto using mstep_read_inherits_access, mstep_read_preserves_not_access.
 Qed.
 
+Lemma todo1 : forall m t ad v,
+  ~ access (m +++ v) t (length m) ->
+  access (m +++ v) t ad ->
+  access m t ad.
+Proof.
+  intros * Hnacc Hacc. induction Hacc;
+  inversion_not_access Hnacc; eauto using access.
+  decompose sum (lt_eq_lt_dec ad' (length m)); subst;
+  do 3 (rewrite_array TM_Unit); eauto using access; try contradiction.
+  auto_specialize. inversion_access.
+Qed.
+
+Lemma todo2 : forall m t ad v,
+  ~ access m v ad -> 
+  access (m +++ v) t ad ->
+  access m t ad.
+Proof.
+  intros * ? Hacc. induction Hacc; eauto using access.
+  destruct (Nat.eq_dec ad' ad); subst; eauto using access.
+  eapply access_mem. auto_specialize.
+  decompose sum (lt_eq_lt_dec ad' (length m)); subst;
+  do 2 (rewrite_array TM_Unit); try contradiction. inversion_access.
+Qed.
+
+Lemma todo3 : forall m t t' ad v T,
+  valid_accesses m t ->
+  m / t ==[EF_Alloc (length m) <{ &ad :: T}>]==> (m +++ v) / t' ->
+  ad < length m.
+Proof.
+  intros * Hva Hmstep. inversion_mstep.
+  clear H3; clear H4.
+  induction_step; inversion_va; eauto using access.
+Qed.
+
 Local Lemma alloc_sms_preservation : forall m m' ths t' tid ad v,
-  (forall tid, valid_accesses m ths[tid]) ->
+  forall_threads ths (valid_accesses m) ->
   safe_memory_sharing m ths ->
   tid < length ths ->
   m / ths[tid] ==[EF_Alloc ad v]==> m' / t' ->
   safe_memory_sharing m' ths[tid <- t'].
 Proof.
-  intros * Hwba Hsms ? Hmstep tid1 tid2 ad' ? ? ?. inversion Hmstep; subst.
   (*
   assert (~ access m ths[tid1] (length m)).
   { intros F. specialize (Hwba tid1 (length m) F). lia. }
   assert (~ access m ths[tid2] (length m)).
   { intros F. specialize (Hwba tid2 (length m) F). lia. }
   *)
+  intros * Hva Hsms ? Hmstep. inversion Hmstep; subst.
+  intros tid1 tid2 ad ? Hacc1 Hacc2.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst;
   do 2 (rewrite_array TM_Unit).
   - contradiction.
-  - decompose sum (lt_eq_lt_dec ad' (length m)); subst.
-    + rewrite_array TM_Unit.
-      unfold safe_memory_sharing in Hsms.
-      specialize (Hsms tid1 tid2 ad' H0).
-      rewrite <- e in Hsms.
-      subst.
-    + rewrite get_add_eq; trivial. admit.
-    + rewrite get_add_gt; trivial. eexists. eauto using well_typed_term.
+  - (* tid = tid1, tid <> tid2 *)
+    decompose sum (lt_eq_lt_dec ad (length m)); subst; rewrite_array TM_Unit.
+    + eapply Hsms; eauto.
+      * eauto using mstep_alloc_inherits_access, Nat.lt_neq.
+      * eapply todo2; eauto. 
+    + rewrite_array TM_Unit. admit.
+    + rewrite_array TM_Unit. eexists. eauto using well_typed_term.
   - admit.
   - admit.
   - contradiction.
-
-    intros. rewrite get_add_eq. admit.
-  - intros. rewrite get_add_neq. admit.
-  - intros. rewrite get_add_eq. admit.
-  - intros. rewrite get_add_eq. admit.
-  - intros. rewrite get_add_eq. admit.
-  - intros. rewrite get_add_eq. admit.
-  - intros. rewrite get_add_eq. admit.
 
   eauto using inaccessible_address_add_1,
               inaccessible_address_add_2,
