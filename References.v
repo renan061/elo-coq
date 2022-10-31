@@ -234,7 +234,7 @@ Qed.
 Theorem well_typed_memory_preservation : forall m m' t t' eff T,
   empty |-- t is T ->
   valid_accesses m t ->
-  memory_valid_accesses m ->
+  forall_memory m (valid_accesses m) ->
   well_typed_references m t ->
   well_typed_memory m ->
   m / t ==[eff]==> m' / t' ->

@@ -433,19 +433,16 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* memory-valid-accesses preservation                                        *)
+(* memory valid-accesses preservation                                        *)
 (* ------------------------------------------------------------------------- *)
-
-Definition memory_valid_accesses (m : mem) :=
-  forall ad, valid_accesses m m[ad].
 
 Local Lemma mva_alloc_preservation : forall m t t' v,
   valid_accesses m t ->
-  memory_valid_accesses m ->
+  forall_memory m (valid_accesses m) ->
   t --[EF_Alloc (length m) v]--> t' ->
-  memory_valid_accesses (m +++ v).
+  forall_memory (m +++ v) (valid_accesses (m +++ v)).
 Proof.
-  intros * Hva Hmva ? ad. induction_step; inversion_va; eauto.
+  intros * Hva ? ? ad. induction_step; inversion_va; eauto.
   decompose sum (lt_eq_lt_dec ad (length m)); subst;
   rewrite_array TM_Unit; eauto using va_mem_add.
   intros ? ?. inversion_access.
@@ -453,9 +450,9 @@ Qed.
 
 Local Lemma mva_write_preservation : forall m t t' ad v,
   valid_accesses m t ->
-  memory_valid_accesses m ->
+  forall_memory m (valid_accesses m) ->
   t --[EF_Write ad v]--> t' ->
-  memory_valid_accesses m[ad <- v].
+  forall_memory m[ad <- v] (valid_accesses m[ad <- v]).
 Proof.
   intros * Hva Hmva ? ad'. induction_step; inversion_va; eauto.
   decompose sum (lt_eq_lt_dec ad ad'); subst;
@@ -465,9 +462,9 @@ Qed.
 
 Theorem mva_mstep_preservation : forall m m' t t' eff,
   valid_accesses m t ->
-  memory_valid_accesses m ->
+  forall_memory m (valid_accesses m) ->
   m / t ==[eff]==> m' / t' ->
-  memory_valid_accesses m'.
+  forall_memory m' (valid_accesses m').
 Proof.
   intros. inversion_mstep;
   eauto using mva_alloc_preservation, mva_write_preservation.

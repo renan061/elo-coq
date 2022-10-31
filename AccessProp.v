@@ -10,6 +10,42 @@ From Elo Require Import Compat.
 (* Mem                                                                       *)
 (* ------------------------------------------------------------------------- *)
 
+Local Lemma todo1 : forall m t ad v,
+  ~ access (m +++ v) t (length m) ->
+  access (m +++ v) t ad ->
+  access m t ad.
+Proof.
+  intros * Hnacc Hacc. induction Hacc;
+  inversion_not_access Hnacc; eauto using access.
+  decompose sum (lt_eq_lt_dec ad' (length m)); subst;
+  do 3 (rewrite_array TM_Unit); eauto using access; try contradiction.
+  auto_specialize. inversion_access.
+Qed.
+
+
+Lemma mem_add_not_access_length : forall m t v,
+  ~ access m t (length m) ->
+  ~ access (m +++ v) t (length m).
+Proof.
+  intros * Hnacc F. remember (length m) as ad.
+  induction F; inversion Heqad; subst; inversion_not_access Hnacc.
+  decompose sum (lt_eq_lt_dec ad' (length m)); subst; try lia;
+  do 2 (rewrite_array TM_Unit); eauto. inversion_access.
+Qed.
+
+Lemma mem_add_inherits_access : forall m t ad v,
+  ~ access m t (length m) ->
+  access (m +++ v) t ad ->
+  access m t ad.
+Proof.
+  intros * Hnacc Hacc. remember (m +++ v) as m'.
+  induction Hacc; inversion Heqm'; subst; inversion_not_access Hnacc.
+  eapply access_mem; trivial.
+  decompose sum (lt_eq_lt_dec ad' (length m)); subst;
+  do 2 (rewrite_array TM_Unit); eauto;
+  rewrite (get_default TM_Unit) in *; eauto using access; lia.
+Qed.
+
 Module Mem.
   Module Add.
     Lemma preserves_access : forall m t ad v,

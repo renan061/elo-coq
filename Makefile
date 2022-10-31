@@ -19,7 +19,7 @@ safety: soundness
 	$(COQC) Compat.v
 	$(COQC) AccessProp.v
 	$(COQC) Safe.v
-	$(COQC) Disjoint.v
+	$(COQC) SMS.v
 
 clean:
 	rm -f .lia.cache .*.aux *.vo *.vok *.vos *.glob
