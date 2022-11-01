@@ -1,6 +1,7 @@
 From Coq Require Import Arith.Arith.
 From Coq Require Import Lia.
 
+From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Core.
 From Elo Require Import Access.
@@ -21,7 +22,6 @@ Proof.
   do 3 (rewrite_array TM_Unit); eauto using access; try contradiction.
   auto_specialize. inversion_access.
 Qed.
-
 
 Lemma mem_add_not_access_length : forall m t v,
   ~ access m t (length m) ->
@@ -328,7 +328,7 @@ Qed.
 (* MStep -- Write                                                            *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma mstep_write_address_access: forall m m' t t' ad v,
+Lemma mstep_write_address_access : forall m m' t t' ad v,
   m / t ==[EF_Write ad v]==> m' / t' ->
   access m t ad.
 Proof.

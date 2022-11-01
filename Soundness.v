@@ -2,6 +2,7 @@ From Coq Require Import Arith.Arith.
 From Coq Require Import Lia.
 From Coq Require Strings.String.
 
+From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Map.
 From Elo Require Import Core.
@@ -88,6 +89,33 @@ Proof.
   end;
   eauto using context_weakening_empty.
 Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* Memory Type Preservation                                                  *)
+(* ------------------------------------------------------------------------- *)
+
+(* TODO: clean up *)
+Theorem mstep_memory_preservation : forall m m' t t' eff ad T M,
+  well_typed_references m t ->
+  ad < length m ->
+  empty |-- t is T ->
+  empty |-- m[ad] is M ->
+  m / t ==[eff]==> m' / t' ->
+  empty |-- m'[ad] is M.
+Proof.
+  intros * Hwtr ? HtypeT HtypeM ?. inversion_mstep; eauto;
+  try solve [rewrite_array TM_Unit].
+  decompose sum (lt_eq_lt_dec ad0 ad); subst; rewrite_array TM_Unit.
+  generalize dependent t'. remember empty as Gamma.
+  induction HtypeT; inversion HeqGamma; subst; intros;
+  inversion_clear Hwtr; inversion_step; eauto.
+  do 4 auto_specialize.
+  inversion HtypeT1; subst.
+  inversion H3; subst.
+  apply_deterministic_typing.
+  eauto.
+Qed.
+
 
 (*
 Ltac solve_with_steps :=

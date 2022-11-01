@@ -98,7 +98,7 @@ Proof.
     |- _ =>
         inversion Htype; subst; inversion_clear Hwtr
   end.
-  erewrite deterministic_typing; eauto.
+  apply_deterministic_typing. assumption.
 Qed.
 
 Local Lemma wtr_alloc_value : forall m t t' ad v,

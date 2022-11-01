@@ -123,6 +123,7 @@ Proof.
               compat_inaccessible_address_add.
 Qed.
 
+(* TODO *)
 Corollary inaccessible_address_add_2 : forall m t ad v,
   ~ access m t (length m) ->
   ~ access m t ad ->

@@ -6,6 +6,8 @@ From Elo Require Import Array.
 From Elo Require Import Map.
 From Elo Require Import Core.
 From Elo Require Import Access.
+From Elo Require Import References.
+From Elo Require Import Soundness.
 From Elo Require Import Compat.
 From Elo Require Import AccessProp.
 From Elo Require Import Safe.
@@ -46,8 +48,8 @@ Local Lemma alloc_sms_preservation : forall m m' ths t' tid ad v,
   m / ths[tid] ==[EF_Alloc ad v]==> m' / t' ->
   safe_memory_sharing m' ths[tid <- t'].
 Proof.
-  intros * Hva Hsms ? Hmstep. inversion Hmstep; subst.
-  intros tid1 tid2 ad ? Hacc1 Hacc2.
+  intros * Hva Hsms ? Hmstep tid1 tid2 ad ? Hacc1 Hacc2.
+  inversion Hmstep; subst.
 
   assert (~ access m ths[tid1] (length m)).
   { intros F. specialize (Hva tid1 (length m) F). lia. }
@@ -82,15 +84,63 @@ Proof.
     + specialize (Hva tid1 ad Hacc1'). lia.
 Qed.
 
+Local Lemma tuburibu : forall m t t' ad v T M,
+  well_typed_references m t ->
+  empty |-- m[ad] is TY_Immut M ->
+  empty |-- t is T ->
+  t --[EF_Write ad v]--> t' ->
+  False.
+Proof.
+  intros ? ?. induction t; intros * Hwtr HtypeM HtypeT Hstep;
+  try solve [inversion_step];
+  inversion Hwtr; subst;
+  inversion HtypeT; subst;
+  inversion Hstep; subst;
+  eauto.
+  do 15 auto_specialize.
+  inversion H4; subst.
+  inversion H1; subst.
+  apply_deterministic_typing.
+Abort.
+
 Local Lemma write_sms_preservation : forall m m' ths t' tid ad v,
   safe_memory_sharing m ths ->
   tid < length ths ->
   m / ths[tid] ==[EF_Write ad v]==> m' / t' ->
   safe_memory_sharing m' ths[tid <- t'].
 Proof.
-  intros * ? ? Hmstep tid1 tid2 ? ? ?. inversion Hmstep; subst.
-  destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; eauto;
-  do 2 (rewrite_array TM_Unit);
+  intros * Hsms ? Hmstep tid1 tid2 ad' ? Hacc1 Hacc2.
+  inversion Hmstep; subst.
+  destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst;
+  do 2 (rewrite_array TM_Unit).
+  - contradiction.
+  - destruct (Nat.eq_dec ad' ad); subst.
+    + assert (Hacc1' : access m ths[tid1] ad)
+        by eauto using mstep_write_address_access.
+      assert (access m ths[tid2] ad \/ ~ access m ths[tid2] ad)
+        as [Hacc2' | ?] by eauto using access_dec.
+        * specialize (Hsms tid1 tid2 ad H0 Hacc1' Hacc2') as [? ?].
+          eexists.
+          assert (well_typed_references m ths[tid1]) by admit.
+          assert (ad < length m) by admit.
+          assert (exists TH, empty |-- ths[tid1] is TH) as [? ?] by admit.
+          eapply mstep_memory_preservation; eauto.
+        * contradict Hacc2. eauto using inaccessible_address_set_2.
+    + rewrite_array TM_Unit.
+      assert (Hacc1' : access m ths[tid1] ad')
+        by eauto using mstep_write_inherits_access.
+      eapply (Hsms tid1 tid2 ad' H0 Hacc1').
+      assert (access m ths[tid2] ad \/ ~ access m ths[tid2] ad)
+        as [Hacc2' | Hnacc2'] by eauto using access_dec;
+      eauto using inaccessible_address_set_1.
+      assert (Hacc1'' : access m ths[tid1] ad)
+        by eauto using mstep_write_address_access.
+      specialize (Hsms tid1 tid2 ad H0 Hacc1'' Hacc2') as [? ?].
+
+
+  - admit.
+  - admit.
+
   eauto 8 using mstep_write_address_access,
                 mstep_write_inherits_access,
                 mstep_write_preserves_not_access,
