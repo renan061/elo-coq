@@ -160,11 +160,11 @@ Fixpoint subst (x : id) (tx t : tm) : tm :=
 
 Inductive step : tm -> effect -> tm -> Prop :=
   (* New *)
-  | ST_New1 : forall T t t' eff,
+  | ST_New1 : forall t t' eff T,
     t --[eff]--> t' ->
     <{ new T t }> --[eff]--> <{ new T t' }>
 
-  | ST_New : forall T ad v,
+  | ST_New : forall ad v T,
     value v ->
     <{ new T v }> --[EF_Alloc ad v]--> <{ &ad :: T }>
 
@@ -181,7 +181,7 @@ Inductive step : tm -> effect -> tm -> Prop :=
     t1 --[eff]--> t1' ->
     <{ t1 = t2 }> --[eff]--> <{ t1' = t2 }>
 
-  | ST_Asg2 : forall v t t' eff,
+  | ST_Asg2 : forall t t' v eff,
     value v ->
     t --[eff]--> t' ->
     <{ v = t }> --[eff]--> <{ v = t' }>
@@ -195,7 +195,7 @@ Inductive step : tm -> effect -> tm -> Prop :=
     t1 --[eff]--> t1' ->
     <{ call t1 t2 }> --[eff]--> <{ call t1' t2 }>
 
-  | ST_Call2 : forall v t t' eff,
+  | ST_Call2 : forall t t' v eff,
     value v ->
     t --[eff]--> t' ->
     <{ call v t }> --[eff]--> <{ call v t' }>

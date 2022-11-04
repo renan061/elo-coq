@@ -9,9 +9,12 @@ core:
 	$(COQC) Array.v
 	$(COQC) Map.v
 	$(COQC) Core.v
-	$(COQC) Access.v
 
-soundness: core
+access: core
+	$(COQC) Access.v
+	$(COQC) ValidAccesses.v
+
+soundness: access 
 	$(COQC) References.v
 	$(COQC) Soundness.v
 

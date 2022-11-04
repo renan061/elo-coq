@@ -16,6 +16,12 @@ Definition safe_memory_sharing m ths := forall tid1 tid2 ad,
   tid1 <> tid2 ->
   access m ths[tid1] ad ->
   access m ths[tid2] ad ->
+  SafeAccess.
+
+Definition safe_memory_sharing' m ths := forall tid1 tid2 ad,
+  tid1 <> tid2 ->
+  access m ths[tid1] ad ->
+  access m ths[tid2] ad ->
   (exists T, empty |-- m[ad] is TY_Immut T).
 
 Local Lemma none_sms_preservation : forall m m' ths t' tid,
