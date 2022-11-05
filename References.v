@@ -6,6 +6,7 @@ From Elo Require Import Array.
 From Elo Require Import Map.
 From Elo Require Import Core.
 From Elo Require Import Access.
+From Elo Require Import ValidAccesses.
 
 (* The types of all addresses inside the term correspond with the types in the
 memory. *)
@@ -208,7 +209,7 @@ Local Lemma wtr_preservation_write : forall m t t' ad v T,
   well_typed_references m[ad <- v] t'.
 Proof.
   intros * Hlen HtypeT Hwtr Hwtm ?.
-  assert (exists V, empty |-- v is V) as [V ?] by eauto using wtt_write_value.
+  assert (exists V, empty |-- v is V) as [? ?] by eauto using wtt_write_value.
   generalize dependent T.
   induction_step; intros; inversion_type; inversion_clear Hwtr;
   eauto using well_typed_references, wtr_mem_set, wtt_write_memory_address.

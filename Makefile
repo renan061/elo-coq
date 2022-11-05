@@ -13,9 +13,10 @@ core:
 access: core
 	$(COQC) Access.v
 	$(COQC) ValidAccesses.v
+	$(COQC) References.v
+	$(COQC) SafeAccess.v
 
 soundness: access 
-	$(COQC) References.v
 	$(COQC) Soundness.v
 
 safety: soundness 
