@@ -1,3 +1,5 @@
+From Coq Require Import Logic.Classical_Prop.
+From Coq Require Import Logic.Decidable.
 From Coq Require Import Arith.Arith.
 From Coq Require Import Lia.
 
@@ -143,30 +145,11 @@ Proof.
   intros * H. induction H; eauto using access.
 Qed.
 
-Corollary not_access_then_not_safe_access : forall m t ad,
-  ~ access m t ad ->
-  SafeAccess m t ad ->
-  False.
-Proof.
-  intros. eauto using safe_access_then_access.
-Qed.
-
-Corollary not_access_then_not_unsafe_access : forall m t ad,
-  ~ access m t ad ->
-  UnsafeAccess m t ad ->
-  False.
-Proof.
-  intros. eauto using unsafe_access_then_access.
-Qed.
-
 Theorem safe_then_not_unsafe : forall m t ad,
   SafeAccess m t ad ->
-  UnsafeAccess m t ad ->
-  False.
+  ~ UnsafeAccess m t ad.
 Proof.
-  intros * Hsacc Huacc. induction Hsacc;
-  inversion Huacc; subst; eauto;
-  try solve [eapply not_access_then_not_unsafe_access; eauto].
+  intros * Hsacc Huacc. induction Hsacc; inversion Huacc; subst; eauto.
 Qed.
 
 Corollary unsafe_then_not_safe : forall m t ad,
@@ -182,150 +165,79 @@ Proof.
   intros * [F ?]. contradict F. eauto using safe_then_not_unsafe.
 Qed.
 
-Lemma safe_access_dec : forall m t ad,
-  (SafeAccess m t ad) \/ (~ SafeAccess m t ad).
-Proof. eauto using excluded_middle. Qed.
-
-Lemma unsafe_access_dec : forall m t ad,
-  (UnsafeAccess m t ad) \/ (~ UnsafeAccess m t ad).
-Proof. eauto using excluded_middle. Qed.
-
-From Coq Require Import Logic.Classical_Prop.
-
-Lemma todo : forall m t1 t2 ad,
-  ~ SafeAccess m <{ t1 = t2 }> ad ->
-  ~
-  (~ SafeAccess m t1 ad \/ ~ SafeAccess m t2 ad) /\ 
-  (~ SafeAccess m t1 ad \/ UnsafeAccess m t2 ad) /\
-  (~ SafeAccess m t2 ad \/ UnsafeAccess m t1 ad).
+Local Lemma length_ad' : forall m ad ad',
+  ad <> ad' ->
+  well_typed_memory m ->
+  access m m[ad'] ad ->
+  ad' < length m.
 Proof.
-  intros. split.
-  - intros F. eapply or_not_and in F.
-    eapply H; clear F. eauto using SafeAccess.
-  - split.
-    + intros [? ?]. eapply H; clear H. eauto using SafeAccess.
-    + intros [? ?]. eapply H; clear H. eauto using SafeAccess.
+  intros * ? ? Hacc.
+  decompose sum (lt_eq_lt_dec ad' (length m)); subst; trivial;
+  rewrite (get_default TM_Unit) in Hacc; try lia; inversion Hacc.
 Qed.
 
-Theorem access_then_safe_or_unsafe_access : forall Gamma m t ad T,
+Theorem access_to_unsafe_access : forall Gamma m t ad T,
   Gamma |-- t is T ->
   well_typed_memory m ->
   access m t ad ->
   ~ SafeAccess m t ad ->
   UnsafeAccess m t ad.
 Proof.
-  intros * Htype Hwtm Hacc Hnsacc.
+  intros * ? Hwtm Hacc ?.
   generalize dependent Gamma. generalize dependent T.
   induction Hacc; intros; inversion_type; eauto using UnsafeAccess;
-  try solve [
-    assert (~ SafeAccess m t ad) by shelve;
-    eauto using UnsafeAccess
-  ];
-  try solve [
-    assert (
-      (~ SafeAccess m t1 ad /\ ~ SafeAccess m t2 ad) \/
-      (~ SafeAccess m t1 ad /\ UnsafeAccess m t2 ad) \/
-      (~ SafeAccess m t2 ad /\ UnsafeAccess m t1 ad)
-    ) as [[? ?] | [[? ?] | [? ?]]] by shelve;
-    eauto using UnsafeAccess
-  ].
-  - eapply unsafe_access_mem; trivial.
-    assert (H' : forall ad ad',
-      ad' <> ad ->
-      ~ SafeAccess m <{ & ad :: (& T1) }> ad' ->
-      ~ SafeAccess m m[ad] ad'
-    ). {
-      intros. eauto using SafeAccess.
-    }
-    eapply H' in Hnsacc; trivial; clear H'.
-    auto_specialize; clear Hnsacc.
-    assert (Hlen : ad' < length m) by shelve.
-    specialize (Hwtm _ Hlen) as [[? Htype'] ?].
-    eauto.
-  - eapply unsafe_access_mem; trivial.
-    assert (H' : forall ad ad',
-      ad' <> ad ->
-      ~ SafeAccess m <{ & ad :: (i& T1) }> ad' ->
-      ~ SafeAccess m m[ad] ad'
-    ). {
-      intros. eauto using SafeAccess.
-    }
-    eapply H' in Hnsacc; trivial; clear H'.
-    auto_specialize; clear Hnsacc.
-    assert (Hlen : ad' < length m) by shelve.
-    specialize (Hwtm _ Hlen) as [[? Htype'] ?].
-    eauto.
-  - exfalso. eauto using SafeAccess.
-
-  Unshelve.
-  all: try solve [intros ?; eapply Hnsacc; eauto using SafeAccess].
-  all: try solve [
-    decompose sum (lt_eq_lt_dec ad' (length m)); subst; trivial;
-    rewrite (get_default TM_Unit) in Hacc; try lia; inversion Hacc
-  ].
-  + (* TODO: extrait o não implicito dos "or"s (ou reformular) *)
+  solve 
+    [ exfalso; eauto using SafeAccess
+    | assert (~ SafeAccess m t ad) by shelve; eauto using UnsafeAccess
+    | assert (H1' : ~ (SafeAccess m t1 ad /\ SafeAccess m t2 ad)) by shelve;
+      assert (H2' : ~ (SafeAccess m t1 ad /\ ~ UnsafeAccess m t2 ad)) by shelve;
+      assert (H3' : ~ (SafeAccess m t2 ad /\ ~ UnsafeAccess m t1 ad)) by shelve;
+      eapply not_and_or in H1' as [? | ?];
+      eapply not_and_or in H2' as [? | H1''];
+      eapply not_and_or in H3' as [? | H2''];
+      try (eapply NNPP in H1'');
+      try (eapply NNPP in H2'');
+      eauto using UnsafeAccess
+    | assert (Hlen : ad' < length m) by eauto using length_ad';
+      assert (~ SafeAccess m m[ad'] ad) by eauto using SafeAccess;
+      specialize (Hwtm _ Hlen) as [[? Htype'] ?]; eauto using UnsafeAccess
+    ].
+  Unshelve. all: intros F; destruct F; eauto using SafeAccess.
 Qed.
 
+Theorem access_to_safe_access : forall Gamma m t ad T,
+  Gamma |-- t is T ->
+  well_typed_memory m ->
+  access m t ad ->
+  ~ UnsafeAccess m t ad ->
+  SafeAccess m t ad.
+Proof.
+  intros * ? Hwtm Hacc ?.
+  generalize dependent Gamma. generalize dependent T.
+  induction Hacc; intros; inversion_type; eauto using SafeAccess;
+  solve 
+    [ exfalso; eauto using UnsafeAccess
+    | assert (~ UnsafeAccess m t ad) by shelve; eauto using SafeAccess
+    | assert (~ UnsafeAccess m t1 ad) by shelve;
+      assert (~ UnsafeAccess m t2 ad) by shelve;
+      eauto using SafeAccess
+    | assert (Hlen : ad' < length m) by eauto using length_ad';
+      assert (~ UnsafeAccess m m[ad'] ad) by eauto using UnsafeAccess;
+      specialize (Hwtm _ Hlen) as [[? Htype'] ?]; eauto using SafeAccess
+    ].
+  Unshelve. all: intros F; destruct F; eauto using UnsafeAccess.
+Qed.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Theorem access_then_safe_or_unsafe_access : forall Gamma m t ad T,
+Corollary safe_or_unsafe_access : forall Gamma m t ad T,
   well_typed_memory m ->
   Gamma |-- t is T ->
   access m t ad ->
   (SafeAccess m t ad \/ UnsafeAccess m t ad).
 Proof.
-  intros * Hwtm Htype Hacc.
-  generalize dependent Gamma. generalize dependent T.
-  induction Hacc; intros; inversion Htype; subst;
-  try match goal with
-  | H  : _ |-- _ is _, IH : forall _, _ |- _ =>
-    destruct(IH _ _ H) as [? | ?]
-  end;
-  try solve [left; eauto using SafeAccess | right; eauto using UnsafeAccess].
-  - admit.
-  - admit.
-  - assert (SafeAccess m t2 ad \/ ~ SafeAccess m t2 ad)
-      as [? | ?] by eauto using safe_access_dec.
-    + left. eauto using SafeAccess.
-    + assert (access m t2 ad \/ ~ access m t2 ad)
-      as [? | ?] by eauto using access_dec.
-      * right. eapply unsafe_access_asg2.
-
-  assert (Hlen : ad' < length m) by shelve;
-  specialize (Hwtm _ Hlen) as [[? Htype'] ?];
-  specialize (IHHacc _ empty Htype') as [? | ?];
-  destruct (Nat.eq_dec ad ad'); subst;
-  eauto using SafeAccess, UnsafeAccess.
-  Unshelve. all:
-  decompose sum (lt_eq_lt_dec ad' (length m)); subst; trivial;
-  rewrite (get_default TM_Unit) in Hacc; try lia; inversion Hacc.
-Qed.
-
-Theorem not_safe_and_unsafe : forall m t ad,
-  SafeAccess m t ad ->
-  UnsafeAccess m t ad ->
-  False.
-Proof.
-  intros * Hsacc Huacc. induction Hsacc;
-  inversion Huacc; subst; eauto.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
+  intros.
+  assert (decidable (UnsafeAccess m t ad))
+    as [? | ?]. { unfold decidable. eauto using excluded_middle. } (* TODO *)
+  - right. assumption.
+  - left. eauto using access_to_safe_access.
 Qed.
 

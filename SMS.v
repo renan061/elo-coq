@@ -6,7 +6,9 @@ From Elo Require Import Array.
 From Elo Require Import Map.
 From Elo Require Import Core.
 From Elo Require Import Access.
+From Elo Require Import ValidAccesses.
 From Elo Require Import References.
+From Elo Require Import SafeAccess.
 From Elo Require Import Soundness.
 From Elo Require Import Compat.
 From Elo Require Import AccessProp.
@@ -16,13 +18,9 @@ Definition safe_memory_sharing m ths := forall tid1 tid2 ad,
   tid1 <> tid2 ->
   access m ths[tid1] ad ->
   access m ths[tid2] ad ->
-  SafeAccess.
-
-Definition safe_memory_sharing' m ths := forall tid1 tid2 ad,
-  tid1 <> tid2 ->
-  access m ths[tid1] ad ->
-  access m ths[tid2] ad ->
-  (exists T, empty |-- m[ad] is TY_Immut T).
+  (SafeAccess m ths[tid1] ad /\
+   SafeAccess m ths[tid2] ad /\
+   exists T, empty |-- m[ad] is TY_Immut T).
 
 Local Lemma none_sms_preservation : forall m m' ths t' tid,
   safe_memory_sharing m ths ->
@@ -30,9 +28,16 @@ Local Lemma none_sms_preservation : forall m m' ths t' tid,
   m / ths[tid] ==[EF_None]==> m' / t' ->
   safe_memory_sharing m' ths[tid <- t'].
 Proof.
-  intros * ? ? Hmstep tid1 tid2 ? ? ?. inversion Hmstep; subst.
-  destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; eauto;
-  do 2 (rewrite_array TM_Unit); eauto using mstep_none_inherits_access.
+  intros * Hsms ? Hmstep tid1 tid2 ? ? ? ?. inversion Hmstep; subst.
+  destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia;
+  do 3 (rewrite_array TM_Unit).
+  - assert (access m' ths[tid1] ad) by eauto using mstep_none_inherits_access.
+    specialize (Hsms tid1 tid2 ad). do 3 auto_specialize. decompose record Hsms.
+    split; try split; eauto; try rewrite_array TM_Unit.
+    (* TODO: fazer a preservação de SafeAccess. Isso é verdade? *)
+    admit.
+  - admit.
+  - admit.
 Qed.
 
 Local Lemma read_sms_preservation : forall m m' ths t' tid ad v,
