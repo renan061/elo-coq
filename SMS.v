@@ -14,6 +14,8 @@ From Elo Require Import Compat.
 From Elo Require Import AccessProp.
 From Elo Require Import Safe.
 
+Hint Unfold decidable : core.
+
 Definition safe_memory_sharing m ths := forall tid1 tid2 ad,
   tid1 <> tid2 ->
   access m ths[tid1] ad ->
@@ -22,18 +24,133 @@ Definition safe_memory_sharing m ths := forall tid1 tid2 ad,
    SafeAccess m ths[tid2] ad /\
    exists T, empty |-- m[ad] is TY_Immut T).
 
+Local Lemma uacc_subst : forall m t tx ad x,
+  UnsafeAccess m t ad ->
+  UnsafeAccess m ([x := tx] t) ad.
+Proof.
+  intros * Huacc. induction Huacc; eauto using UnsafeAccess.
+  simpl. destruct String.string_dec; subst; eauto using UnsafeAccess.
+Qed.
+
+Local Lemma uacc_subst2 : forall m t tx ad x,
+  UnsafeAccess m ([x := tx] t) ad ->
+  UnsafeAccess m t ad.
+Proof.
+  intros * Huacc.
+  assert (decidable (HasVar x t)) as [? | ?] by eauto using hasvar_dec.
+  - induction t; simpl in *; eauto using UnsafeAccess;
+    try solve [
+      inversion Huacc; subst; inversion_hasvar x; eauto using UnsafeAccess
+    ].
+    + inversion Huacc; subst.
+      * inversion_hasvar x; eauto using UnsafeAccess.
+        auto_specialize.
+        assert (decidable (HasVar x t1))
+         as [? | ?] by eauto using hasvar_dec;
+        eauto using UnsafeAccess.   
+        rewrite hasvar_subst in H3; trivial. eauto using UnsafeAccess.
+      * inversion_hasvar x; eauto using UnsafeAccess.
+        auto_specialize.
+        assert (decidable (HasVar x t2))
+         as [? | ?] by eauto using hasvar_dec;
+        eauto using UnsafeAccess.   
+        rewrite hasvar_subst in H3; trivial. eauto using UnsafeAccess.
+    + destruct String.string_dec; subst; eauto. admit.
+Abort.
+
+Local Lemma todo1 : forall m t t' ad T,
+  empty |-- t is T ->
+  well_typed_memory m ->
+  access m t ad ->
+  UnsafeAccess m t ad ->
+  t --[EF_None]--> t' ->
+  UnsafeAccess m t' ad.
+Proof.
+  intros * Htype Hwtm Hacc Huacc ?.
+  generalize dependent T.
+  induction_step; intros;
+  inversion_type; inversion_access; inversion Huacc; subst; clear Huacc;
+  eauto using UnsafeAccess, unsafe_access_then_access.
+  - inversion H6; subst. eauto using SafeAccess, uacc_subst.
+  - inversion H4; subst; clear H4. 
+    inversion_type.
+Abort.
+
+Local Lemma todo : forall m t t' ad T,
+  empty |-- t is T ->
+  well_typed_memory m ->
+  access m t ad ->
+  SafeAccess m t ad ->
+  t --[EF_None]--> t' ->
+  SafeAccess m t' ad.
+Proof.
+  intros * Htype Hwtm Hacc Hsacc ?.
+  generalize dependent T.
+  induction_step; intros;
+  inversion_type; inversion_access; inversion Hsacc; subst;
+  eauto using SafeAccess, safe_access_then_access, access_to_safe_access.
+  - eapply safe_access_asg2; trivial. 
+    eapply safe_then_not_unsafe.
+    eapply IHstep; eauto. 
+Abort.
+
+Lemma uacc_call : forall m x Tx t t' ad,
+  UnsafeAccess m ([x := t'] t) ad ->
+  UnsafeAccess m <{ call <{ fn x Tx --> t }> t' }> ad.
+Proof.
+  intros * Huacc. induction t; eauto using UnsafeAccess; simpl in *;
+  try (destruct String.string_dec; eauto using UnsafeAccess);
+  try solve [
+    inversion_uacc; auto_specialize; inversion_subst_clear IHt;
+    inversion_uacc; eauto using UnsafeAccess
+  ].
+  - inversion_uacc; auto_specialize.
+    + inversion_subst_clear IHt1;
+      inversion_uacc; eauto using UnsafeAccess.
+    + inversion_subst_clear IHt2;
+      inversion_uacc; eauto using UnsafeAccess.
+  - inversion_uacc; auto_specialize.
+    + inversion_subst_clear IHt1;
+      inversion_uacc; eauto using UnsafeAccess.
+    + inversion_subst_clear IHt2;
+      inversion_uacc; eauto using UnsafeAccess.
+  - inversion_uacc; auto_specialize.
+    + inversion_subst_clear IHt1;
+      inversion_uacc; eauto using UnsafeAccess.
+    + inversion_subst_clear IHt2;
+      inversion_uacc; eauto using UnsafeAccess.
+  (* TODO: fix inversion_uacc *)
+Qed.
+
+Lemma mstep_none_inherits_uacc : forall m m' t t' ad,
+  UnsafeAccess m' t' ad ->
+  m / t ==[EF_None]==> m' / t' ->
+  UnsafeAccess m  t  ad.
+Proof.
+  intros * Huacc ?. inversion_mstep. induction_step;
+  try solve [inversion Huacc; subst; eauto using UnsafeAccess].
+  eapply unsafe_access_call1. eapply unsafe_access_fun.
+Qed.
+
 Local Lemma none_sms_preservation : forall m m' ths t' tid,
   safe_memory_sharing m ths ->
   tid < length ths ->
   m / ths[tid] ==[EF_None]==> m' / t' ->
   safe_memory_sharing m' ths[tid <- t'].
 Proof.
-  intros * Hsms ? Hmstep tid1 tid2 ? ? ? ?. inversion Hmstep; subst.
+  intros * Hsms ? Hmstep tid1 tid2 ? ? ? ?.
+  inversion Hmstep; subst.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia;
-  do 3 (rewrite_array TM_Unit).
+  do 4 (rewrite_array TM_Unit).
   - assert (access m' ths[tid1] ad) by eauto using mstep_none_inherits_access.
     specialize (Hsms tid1 tid2 ad). do 3 auto_specialize. decompose record Hsms.
-    split; try split; eauto; try rewrite_array TM_Unit.
+    split; try split; eauto.
+    assert (well_typed_memory m') by admit.
+    assert (exists Gamma T', Gamma |-- t' is T') as [? [? ?]] by admit.
+    assert (SafeAccess m' t' ad \/ UnsafeAccess m' t' ad) as [? | ?]
+      by eauto using safe_unsafe_dec;
+    trivial.
+
     (* TODO: fazer a preservação de SafeAccess. Isso é verdade? *)
     admit.
   - admit.

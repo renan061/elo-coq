@@ -171,11 +171,11 @@ Inductive HasVar (x : id) : tm  -> Prop :=
       HasVar x <{ spawn t }>
   .
 
-Local Lemma hasvar_dec : forall x t,
+Lemma hasvar_dec : forall x t,
   (HasVar x t) \/ (~ HasVar x t).
 Proof. eauto using excluded_middle. Qed.
 
-Local Ltac inversion_hasvar x :=
+Ltac inversion_hasvar x :=
   inversion_over_term_predicate (HasVar x).
 
 Local Ltac solve_not_hasvar :=
@@ -183,47 +183,47 @@ Local Ltac solve_not_hasvar :=
   | |- (~ HasVar _ ?t) => induction t; eauto using HasVar
   end.
 
-Local Lemma not_hv_new : forall x t T,
+Lemma not_hv_new : forall x t T,
   ~ HasVar x <{ new T t }> -> ~ HasVar x t.
 Proof. solve_not_hasvar. Qed.
 
-Local Lemma not_hv_load : forall x t,
+Lemma not_hv_load : forall x t,
   ~ HasVar x <{ *t }> -> ~ HasVar x t.
 Proof. solve_not_hasvar. Qed.
 
-Local Lemma not_hv_asg1 : forall x t1 t2,
+Lemma not_hv_asg1 : forall x t1 t2,
   ~ HasVar x <{ t1 = t2 }> -> ~ HasVar x t1.
 Proof. solve_not_hasvar. Qed.
 
-Local Lemma not_hv_asg2 : forall x t1 t2,
+Lemma not_hv_asg2 : forall x t1 t2,
   ~ HasVar x <{ t1 = t2 }> -> ~ HasVar x t2.
 Proof. solve_not_hasvar. Qed.
 
-Local Lemma not_hv_fun : forall x x' t Tx,
+Lemma not_hv_fun : forall x x' t Tx,
   x <> x' -> ~ HasVar x <{ fn x' Tx --> t }> -> ~ HasVar x t.
 Proof. solve_not_hasvar. Qed.
 
-Local Lemma not_hv_call1 : forall x t1 t2,
+Lemma not_hv_call1 : forall x t1 t2,
   ~ HasVar x <{ call t1 t2 }> -> ~ HasVar x t1.
 Proof. solve_not_hasvar. Qed.
 
-Local Lemma not_hv_call2 : forall x t1 t2,
+Lemma not_hv_call2 : forall x t1 t2,
   ~ HasVar x <{ call t1 t2 }> -> ~ HasVar x t2.
 Proof. solve_not_hasvar. Qed.
 
-Local Lemma not_hv_seq1 : forall x t1 t2,
+Lemma not_hv_seq1 : forall x t1 t2,
   ~ HasVar x <{ t1; t2 }> -> ~ HasVar x t1.
 Proof. solve_not_hasvar. Qed.
 
-Local Lemma not_hv_seq2 : forall x t1 t2,
+Lemma not_hv_seq2 : forall x t1 t2,
   ~ HasVar x <{ t1; t2 }> -> ~ HasVar x t2.
 Proof. solve_not_hasvar. Qed.
 
-Local Lemma not_hv_spawn : forall x t,
+Lemma not_hv_spawn : forall x t,
   ~ HasVar x <{ spawn t }> -> ~ HasVar x t.
 Proof. solve_not_hasvar. Qed.
 
-Local Lemma hasvar_subst : forall x t tx,
+Lemma hasvar_subst : forall x t tx,
   ~ (HasVar x t) -> ([x := tx] t) = t.
 Proof.
   intros * H. induction t; simpl; trivial;
@@ -236,7 +236,7 @@ Proof.
   exfalso. eauto using HasVar.
 Qed.
 
-Local Lemma hasvar_typing : forall Gamma x t T,
+Lemma hasvar_typing : forall Gamma x t T,
   HasVar x t ->
   Gamma x = None ->
   ~ (Gamma |-- t is T).

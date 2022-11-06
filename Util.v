@@ -1,5 +1,5 @@
 From Coq Require Logic.ClassicalFacts.
-From Coq Require Import Logic.Decidable.
+From Coq Require Export Logic.Decidable.
 
 (* Miscellaneous Utilities *)
 
@@ -8,12 +8,16 @@ Ltac auto_specialize :=
   | P : ?x, H : ?x -> _ |- _ => specialize (H P)
   end.
 
+Ltac inversion_subst_clear H :=
+  inversion H; subst; clear H.
+
 Local Lemma destruct_and' : forall a x y,
   (a -> x /\ y) -> ((a -> x) /\ (a -> y)). 
 Proof.
   intros * H. split; intros a'; specialize (H a') as [? ?]; trivial.
 Qed.
 
+(* TODO: decompose record ? *)
 Ltac destruct_and H :=
   eapply destruct_and' in H as [? ?].
 

@@ -1,5 +1,4 @@
 From Coq Require Import Logic.Classical_Prop.
-From Coq Require Import Logic.Decidable.
 From Coq Require Import Arith.Arith.
 From Coq Require Import Lia.
 
@@ -127,6 +126,22 @@ Inductive SafeAccess (m : mem) : tm -> addr -> Prop :=
     SafeAccess m <{ t1; t2 }> ad
   .
 
+Ltac inversion_sacc :=
+  match goal with
+  | H : SafeAccess _ <{ unit }> _ |- _ => inversion_subst_clear H
+  | H : SafeAccess _ (_ _)      _ |- _ => inversion_subst_clear H
+  | H : SafeAccess _ (_ _ _)    _ |- _ => inversion_subst_clear H
+  | H : SafeAccess _ (_ _ _ _)  _ |- _ => inversion_subst_clear H
+  end.
+
+Ltac inversion_uacc :=
+  match goal with
+  | H : UnsafeAccess _ <{ unit }> _ |- _ => inversion_subst_clear H
+  | H : UnsafeAccess _ (_ _)      _ |- _ => inversion_subst_clear H
+  | H : UnsafeAccess _ (_ _ _)    _ |- _ => inversion_subst_clear H
+  | H : UnsafeAccess _ (_ _ _ _)  _ |- _ => inversion_subst_clear H
+  end.
+
 (* ------------------------------------------------------------------------- *)
 (* Properties                                                                *)
 (* ------------------------------------------------------------------------- *)
@@ -228,7 +243,7 @@ Proof.
   Unshelve. all: intros F; destruct F; eauto using UnsafeAccess.
 Qed.
 
-Corollary safe_or_unsafe_access : forall Gamma m t ad T,
+Corollary safe_unsafe_dec : forall Gamma m t ad T,
   well_typed_memory m ->
   Gamma |-- t is T ->
   access m t ad ->
