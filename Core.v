@@ -393,7 +393,8 @@ Qed.
 Ltac apply_deterministic_typing :=
   match goal with
   | H1 : _ |-- ?t is ?T1, H2 : _ |-- ?t is ?T2 |- _ =>
-    assert (T1 = T2) by eauto using deterministic_typing; subst
+    assert (Heq : T1 = T2) by eauto using deterministic_typing; subst;
+    try (inversion Heq; subst; clear Heq)
   end.
 
 (* ------------------------------------------------------------------------- *)

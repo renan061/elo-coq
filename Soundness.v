@@ -47,7 +47,7 @@ Proof.
   intros. eapply (context_weakening _ empty); trivial. discriminate.
 Qed.
 
-Local Lemma preservation_subst : forall t tx T Tx Tx' Gamma x,
+Local Lemma type_preservation_subst : forall t tx T Tx Tx' Gamma x,
   Gamma |-- (TM_Fun x Tx t) is (TY_Fun Tx' T) ->
   empty |-- tx is Tx' ->
   Gamma |-- [x := tx] t is T.
@@ -73,7 +73,25 @@ Proof.
   intros * ?. inversion_type. intros. eauto.
 Qed.
 
-Theorem mstep_preservation : forall m m' t t' eff T,
+(* TODO step_type_preservation *)
+Theorem step_read_type_preservation : forall m t t' ad T,
+  well_typed_references m t ->
+  empty |-- t is T ->
+  t --[EF_Read ad m[ad]]--> t' ->
+  empty |-- t' is T.
+Proof.
+  intros * Hwtr ? ?.
+  remember empty as Gamma. generalize dependent t'.
+  induction_type; intros; inversion_subst_clear Hwtr; inversion_step;
+  eauto using well_typed_term, type_preservation_subst;
+  match goal with
+  | Hwtr : well_typed_references _ _ |- _ =>
+    inversion_type; inversion_subst_clear Hwtr; trivial
+  end;
+  eauto using context_weakening_empty.
+Qed.
+
+Theorem mstep_type_preservation : forall m m' t t' eff T,
   well_typed_references m t ->
   empty |-- t is T ->
   m / t ==[eff]==> m' / t' ->
@@ -82,7 +100,7 @@ Proof.
   intros * Hwtr ? ?. inversion_mstep; generalize dependent t';
   remember empty as Gamma;
   induction_type; intros; inversion_step; inversion_clear Hwtr;
-  eauto using well_typed_term, preservation_subst;
+  eauto using well_typed_term, type_preservation_subst;
   inversion_type;
   match goal with
   | H : well_typed_references _ _ |- _ => inversion_clear H

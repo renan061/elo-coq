@@ -23,6 +23,12 @@ Ltac destruct_and H :=
 
 Axiom excluded_middle : ClassicalFacts.excluded_middle.
 
+Corollary classic_decidable : forall (P : Prop),
+  decidable P.
+Proof.
+  intros. unfold decidable. eauto using excluded_middle.
+Qed.
+
 (* Unused
 
 Definition memory_has_values (m : mem) :=
