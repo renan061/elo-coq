@@ -453,3 +453,5 @@ Ltac inversion_type :=
   | H : _ |-- (_ _ _ _) is _  |- _ => inversion H; subst; clear H
   end.
 
+Ltac rewrite_term_array := rewrite_array <{ unit }>.
+
