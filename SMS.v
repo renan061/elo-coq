@@ -14,91 +14,59 @@ From Elo Require Import Compat.
 From Elo Require Import AccessProp.
 From Elo Require Import Safe.
 
-Definition safe_memory_sharing m ths := forall tid1 tid2 ad,
-  tid1 <> tid2 ->
-  access m ths[tid1] ad ->
-  access m ths[tid2] ad ->
-  (SafeAccess m ths[tid1] ad /\
-   SafeAccess m ths[tid2] ad /\
-   exists T, empty |-- m[ad] is TY_Immut T).
-
 Local Definition sms1 m ths := forall tid1 tid2 ad,
   tid1 <> tid2 ->
   access m ths[tid1] ad ->
   access m ths[tid2] ad ->
   SafeAccess m ths[tid1] ad.
 
-Local Definition sms2 m ths := forall tid1 tid2 ad,
-  tid1 <> tid2 ->
-  access m ths[tid1] ad ->
-  access m ths[tid2] ad ->
-  (exists T, empty |-- m[ad] is TY_Immut T).
-
 (* ------------------------------------------------------------------------- *)
 (* TODO                                                                      *)
 (* ------------------------------------------------------------------------- *)
 
-Definition no_loops m :=
-  forall ad, access m m[ad] ad -> False.
+Require Import Coq.Program.Equality.
 
-Lemma todo : forall m ad T,
-  empty |-- m[ad] is <{{ &T }}> ->
-  well_typed_references m m[ad] ->
+Lemma refM_loop : forall T,
+  T = <{{ &T }}> -> False.
+Proof.
+  intros T F. dependent induction T; inversion F; eauto.
+Qed.
+
+Lemma refI_loop : forall T,
+  T = TY_RefI T -> False.
+Proof.
+  intros T F. dependent induction T; inversion F; eauto.
+Qed.
+
+Lemma the_one : forall m ad,
+  well_typed_memory m ->
   access m m[ad] ad ->
-  T = <{{ &T }}>.
+  False.
 Proof.
-  intros * Htype Hwtr Hacc.
-  generalize dependent T.
-  induction Hacc; intros.
-  - admit.
-  - admit.
-  - inversion Htype; subst; inversion Hwtr; subst.
-    eapply IHHacc; eauto.
-Abort.
-
-Lemma todo : forall m t t' v T,
-  forall_memory m (valid_accesses m) ->
-  empty |-- t is T ->
-  well_typed_references m t ->
-  t --[EF_Alloc (length m) v]--> t' ->
-  ~ access m v (length m).
-Proof.
-  intros * Hva Htype Hwtr Hstep.
-  generalize dependent T.
-  induction_step; intros;
-  try solve [inversion_subst_clear Hwtr; inversion_type; eauto].
-  inversion_subst_clear Hwtr.
-  inversion_type. 2: admit.
-
-  + destruct H.
-    * intros F. inversion F.
-    * intros F. inversion F.
-    * intros F. inversion F; subst.
-      ** decompose sum (lt_eq_lt_dec (length m) ad); subst; try lia;
-         specialize (Hva ad (length m) H4); lia.
-      ** specialize (Hva (length m) (length m)).
-         assert (H' : length m < length m = False) by admit.
-         rewrite H' in Hva.
-         eapply Hva.
-Abort.
-
-Lemma mstep_noloops_preservation : forall m m' t t' eff T,
-  forall_memory m (valid_accesses m) ->
-  empty |-- t is T ->
-  no_loops m ->
-  m / t ==[eff]==> m' / t' ->
-  no_loops m'.
-Proof.
-  intros * Hva Htype Hnl Hmstep. inversion_mstep; trivial.
-  - intros ad. specialize (Hnl ad).
-    decompose sum (lt_eq_lt_dec ad (length m)); subst; rewrite_term_array.
-    + intros ?. eapply Hnl.
-      eapply mem_add_inherits_access; eauto.
-      intros F. specialize (Hva ad (length m) F). lia.
-    + eapply mem_add_not_access_length; eauto.
-      intros F.
-      admit.
-    + intros ?. inversion_access.
+  intros * Hwtm Hacc.
+  destruct (Hwtm ad) as [[T Htype] Hwtr]; eauto using access_length.
+  clear Hwtr. assert (Hwtr : strong_well_typed_references m m[ad]) by admit.
+  remember empty as Gamma; clear HeqGamma.
+  generalize dependent Gamma. generalize dependent T.
+  induction Hwtr; intros;
+  inversion_subst_clear Htype;
+  try solve [
+    inversion_subst_clear Hacc;
+    eauto
+  ];
+  inversion_access;
+  try solve [
+    auto_specialize;
+    destruct (Hwtm ad0) as [[? ?] ?]; eauto using access_length
+  ].
+  - assert (Heq : m[ad] = <{ & ad :: (& T) }>) by admit.
+    rewrite Heq in H.
+    inversion H; subst.
+    eauto using refM_loop.
+  - assert (Heq : m[ad] = <{ & ad :: (i& T) }>) by admit.
+    rewrite Heq in H.
+    inversion H; subst.
+    eauto using refI_loop.
 Abort.
 
 (* ------------------------------------------------------------------------- *)
@@ -156,6 +124,19 @@ Proof.
     eapply IHHuacc.
 Abort.
 
+Lemma mstep_read_inherits_access' : forall m m' t t' ad ad' v,
+  access m' t' ad ->
+  m / t ==[EF_Read ad' v]==> m' / t' ->
+  access m t ad.
+Proof.
+  intros * ? ?. inversion_mstep. induction_step;
+  try inversion_access; eauto using access.
+  eapply access_load. 
+  destruct (Nat.eq_dec ad' ad); subst.
+  - eapply access_ref.
+  - eapply access_mem. eauto. eauto.
+Qed.
+
 Lemma mstep_read_inherits_uacc : forall m m' t t' ad ad' v,
   UnsafeAccess m' t' ad' ->
   m / t ==[EF_Read ad v]==> m' / t' ->
@@ -168,7 +149,7 @@ Proof.
   assert (exists T', empty |-- <{ & ad :: T }> is T') as [T' Htype] by admit.
   inversion Htype; subst.
   + eapply uacc_ref.
-  + admit.
+  + eapply uacc_mem. admit.
 Abort.
 
 (* ------------------------------------------------------------------------- *)

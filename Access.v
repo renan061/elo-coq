@@ -1,6 +1,8 @@
 From Coq Require Import Arith.Arith.
+From Coq Require Import Lia.
 
 From Elo Require Import Util.
+From Elo Require Import Array.
 From Elo Require Import Core.
 
 (* A term accesses an address if it refers to the address directly or 
@@ -76,6 +78,16 @@ Ltac inversion_access :=
   | H : access _ (TM_Seq _ _)   _ |- _ => inversion H; subst; clear H
   | H : access _ (TM_Spawn _)   _ |- _ => inversion H; clear H
   end.
+
+Lemma access_length : forall m ad ad',
+  access m m[ad'] ad ->
+  ad' < length m.
+Proof.
+  intros * Hacc.
+  decompose sum (lt_eq_lt_dec ad' (length m)); subst; trivial;
+  rewrite (get_default TM_Unit) in Hacc; try lia; inversion Hacc.
+Qed.
+
 
 Lemma access_dec : forall m t ad,
   (access m t ad) \/ (~ access m t ad).
