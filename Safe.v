@@ -126,47 +126,47 @@ Local Ltac inversion_safe_spawns := inversion_over_term_predicate SafeSpawns.
 (* ------------------------------------------------------------------------- *)
 
 Inductive HasVar (x : id) : tm  -> Prop :=
-  | has_var_new : forall T t,
+  | hasvar_new : forall T t,
       HasVar x t ->
       HasVar x <{ new T t }>
 
-  | has_var_load : forall t,
+  | hasvar_load : forall t,
       HasVar x t ->
       HasVar x <{ *t }>
 
-  | has_var_asg1 : forall t1 t2,
+  | hasvar_asg1 : forall t1 t2,
       HasVar x t1 ->
       HasVar x <{ t1 = t2 }>
 
-  | has_var_asg2 : forall t1 t2,
+  | hasvar_asg2 : forall t1 t2,
       HasVar x t2 ->
       HasVar x <{ t1 = t2 }>
 
-  | has_var_var :
+  | hasvar_var :
       HasVar x <{ var x }>
 
-  | has_var_fun : forall x' Tx t,
+  | hasvar_fun : forall x' Tx t,
       x <> x' ->
       HasVar x t ->
       HasVar x <{ fn x' Tx --> t }>
 
-  | has_var_call1 : forall t1 t2,
+  | hasvar_call1 : forall t1 t2,
       HasVar x t1 ->
       HasVar x <{ call t1 t2 }>
 
-  | has_var_call2 : forall t1 t2,
+  | hasvar_call2 : forall t1 t2,
       HasVar x t2 ->
       HasVar x <{ call t1 t2 }>
 
-  | has_var_seq1 : forall t1 t2,
+  | hasvar_seq1 : forall t1 t2,
       HasVar x t1 ->
       HasVar x <{ t1; t2 }>
 
-  | has_var_seq2 : forall t1 t2,
+  | hasvar_seq2 : forall t1 t2,
       HasVar x t2 ->
       HasVar x <{ t1; t2 }>
 
-  | has_var_spawn : forall t,
+  | hasvar_spawn : forall t,
       HasVar x t ->
       HasVar x <{ spawn t }>
   .

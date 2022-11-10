@@ -155,6 +155,30 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
+(* Step -- None                                                              *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma step_none_inherits_access : forall m t t' ad,
+  access m t' ad ->
+  t --[EF_None]--> t' ->
+  access m t ad.
+Proof.
+  intros. induction_step;
+  try inversion_access; eauto using access, access_subst.
+Qed.
+
+Lemma step_none_preserves_not_access : forall m t t' ad,
+  ~ access m t ad ->
+  t --[EF_None]--> t' ->
+  ~ access m t' ad.
+Proof.
+  intros * Hnacc ?.
+  induction_step; inversion_not_access Hnacc;
+  eapply not_access_iff; eauto using not_access.
+  eapply not_access_iff. eauto using not_access_subst_fun.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
 (* MStep -- None                                                             *)
 (* ------------------------------------------------------------------------- *)
 
@@ -175,7 +199,7 @@ Proof.
   intros * Hnacc ?. inversion_mstep.
   induction_step; inversion_not_access Hnacc;
   eapply not_access_iff; eauto using not_access.
-  eapply not_access_iff. eauto using not_access_subst.
+  eapply not_access_iff. eauto using not_access_subst_fun.
 Qed.
 
 (* ------------------------------------------------------------------------- *)

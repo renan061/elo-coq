@@ -14,7 +14,7 @@ From Elo Require Import Compat.
 From Elo Require Import AccessProp.
 From Elo Require Import Safe.
 
-Local Definition sms1 m ths := forall tid1 tid2 ad,
+Local Definition safe_memory_sharing m ths := forall tid1 tid2 ad,
   tid1 <> tid2 ->
   access m ths[tid1] ad ->
   access m ths[tid2] ad ->
@@ -24,136 +24,302 @@ Local Definition sms1 m ths := forall tid1 tid2 ad,
 (* TODO                                                                      *)
 (* ------------------------------------------------------------------------- *)
 
-Require Import Coq.Program.Equality.
+Hint Unfold decidable.
 
-Lemma refM_loop : forall T,
-  T = <{{ &T }}> -> False.
+Lemma sacc_subst1 : forall m t tx ad x,
+  ~ access m tx ad ->
+  SafeAccess m t ad ->
+  SafeAccess m ([x := tx] t) ad.
 Proof.
-  intros T F. dependent induction T; inversion F; eauto.
+  intros * ? Hsacc. induction Hsacc; simpl;
+  eauto using SafeAccess, not_access_subst.
+  destruct String.string_dec; subst; eauto  using SafeAccess.
 Qed.
 
-Lemma refI_loop : forall T,
-  T = TY_RefI T -> False.
+Lemma sacc_subst2 : forall m t tx ad x,
+  access m ([x := tx] t) ad ->
+  ~ access m t ad ->
+  HasVar x t ->
+  SafeAccess m tx ad ->
+  SafeAccess m ([x := tx] t) ad.
 Proof.
-  intros T F. dependent induction T; inversion F; eauto.
+  intros * Hacc Hnacc Hhv Hsacc. induction t; simpl in *;
+  inversion_not_access Hnacc; inversion Hhv; subst;
+  try solve [inversion_access; eauto using SafeAccess];
+  eauto using SafeAccess.
+
+  - inversion Hacc; subst.
+    + assert (decidable (access m ([x := tx] t2) ad)) as [? | ?];
+      assert (decidable (HasVar x t2)) as [? | ?]; 
+      eauto using SafeAccess, access_dec, hasvar_dec.
+      match goal with
+      | H : ~ HasVar _ ?t |- _ =>
+        replace ([x := tx] t) with t in *;
+        eauto using SafeAccess, hasvar_subst, eq_sym
+      end.
+    + assert (decidable (access m ([x := tx] t1) ad)) as [? | ?];
+      assert (decidable (HasVar x t2)) as [? | ?];
+      eauto using SafeAccess, access_dec, hasvar_dec;
+      do 2 auto_specialize.
+      * match goal with
+        | H : ~ HasVar _ ?t |- _ =>
+          replace ([x := tx] t) with t in *;
+          eauto using SafeAccess, hasvar_subst, eq_sym
+        end.
+      * match goal with
+        | H : ~ HasVar _ ?t |- _ =>
+          replace ([x := tx] t) with t in *;
+          eauto using SafeAccess, hasvar_subst, eq_sym
+        end.
+        exfalso. eauto.
+
+  - inversion Hacc; subst.
+    + assert (decidable (access m ([x := tx] t2) ad)) as [? | ?];
+      assert (decidable (HasVar x t1)) as [? | ?]; 
+      eauto using SafeAccess, access_dec, hasvar_dec;
+      do 2 auto_specialize.
+      * match goal with
+        | H : ~ HasVar _ ?t |- _ =>
+          replace ([x := tx] t) with t in *;
+          eauto using SafeAccess, hasvar_subst, eq_sym
+        end.
+      * match goal with
+        | H : ~ HasVar _ ?t |- _ =>
+          replace ([x := tx] t) with t in *;
+          eauto using SafeAccess, hasvar_subst, eq_sym
+        end.
+        exfalso. eauto.
+    + assert (decidable (access m ([x := tx] t1) ad)) as [? | ?];
+      assert (decidable (HasVar x t1)) as [? | ?];
+      eauto using SafeAccess, access_dec, hasvar_dec;
+      do 2 auto_specialize.
+      match goal with
+      | H : ~ HasVar _ ?t |- _ =>
+        replace ([x := tx] t) with t in *;
+        eauto using SafeAccess, hasvar_subst, eq_sym
+      end.
+
+  - destruct String.string_dec; eauto. contradiction.
+
+  - destruct String.string_dec; eauto; try contradiction.
+    inversion Hacc; subst;
+    eauto using SafeAccess.
+
+  - inversion Hacc; subst.
+    + assert (decidable (access m ([x := tx] t2) ad)) as [? | ?];
+      assert (decidable (HasVar x t2)) as [? | ?]; 
+      eauto using SafeAccess, access_dec, hasvar_dec.
+      match goal with
+      | H : ~ HasVar _ ?t |- _ =>
+        replace ([x := tx] t) with t in *;
+        eauto using SafeAccess, hasvar_subst, eq_sym
+      end.
+    + assert (decidable (access m ([x := tx] t1) ad)) as [? | ?];
+      assert (decidable (HasVar x t2)) as [? | ?];
+      eauto using SafeAccess, access_dec, hasvar_dec;
+      do 2 auto_specialize.
+      * match goal with
+        | H : ~ HasVar _ ?t |- _ =>
+          replace ([x := tx] t) with t in *;
+          eauto using SafeAccess, hasvar_subst, eq_sym
+        end.
+      * match goal with
+        | H : ~ HasVar _ ?t |- _ =>
+          replace ([x := tx] t) with t in *;
+          eauto using SafeAccess, hasvar_subst, eq_sym
+        end.
+        exfalso. eauto.
+
+  - inversion Hacc; subst.
+    + assert (decidable (access m ([x := tx] t2) ad)) as [? | ?];
+      assert (decidable (HasVar x t1)) as [? | ?]; 
+      eauto using SafeAccess, access_dec, hasvar_dec;
+      do 2 auto_specialize.
+      * match goal with
+        | H : ~ HasVar _ ?t |- _ =>
+          replace ([x := tx] t) with t in *;
+          eauto using SafeAccess, hasvar_subst, eq_sym
+        end.
+      * match goal with
+        | H : ~ HasVar _ ?t |- _ =>
+          replace ([x := tx] t) with t in *;
+          eauto using SafeAccess, hasvar_subst, eq_sym
+        end.
+        exfalso. eauto.
+    + assert (decidable (access m ([x := tx] t1) ad)) as [? | ?];
+      assert (decidable (HasVar x t1)) as [? | ?];
+      eauto using SafeAccess, access_dec, hasvar_dec;
+      do 2 auto_specialize.
+      match goal with
+      | H : ~ HasVar _ ?t |- _ =>
+        replace ([x := tx] t) with t in *;
+        eauto using SafeAccess, hasvar_subst, eq_sym
+      end.
+
+  - inversion Hacc; subst.
+    + assert (decidable (access m ([x := tx] t2) ad)) as [? | ?];
+      assert (decidable (HasVar x t2)) as [? | ?]; 
+      eauto using SafeAccess, access_dec, hasvar_dec.
+      match goal with
+      | H : ~ HasVar _ ?t |- _ =>
+        replace ([x := tx] t) with t in *;
+        eauto using SafeAccess, hasvar_subst, eq_sym
+      end.
+    + assert (decidable (access m ([x := tx] t1) ad)) as [? | ?];
+      assert (decidable (HasVar x t2)) as [? | ?];
+      eauto using SafeAccess, access_dec, hasvar_dec;
+      do 2 auto_specialize.
+      * match goal with
+        | H : ~ HasVar _ ?t |- _ =>
+          replace ([x := tx] t) with t in *;
+          eauto using SafeAccess, hasvar_subst, eq_sym
+        end.
+      * match goal with
+        | H : ~ HasVar _ ?t |- _ =>
+          replace ([x := tx] t) with t in *;
+          eauto using SafeAccess, hasvar_subst, eq_sym
+        end.
+        exfalso. eauto.
+
+  - inversion Hacc; subst.
+    + assert (decidable (access m ([x := tx] t2) ad)) as [? | ?];
+      assert (decidable (HasVar x t1)) as [? | ?]; 
+      eauto using SafeAccess, access_dec, hasvar_dec;
+      do 2 auto_specialize.
+      * match goal with
+        | H : ~ HasVar _ ?t |- _ =>
+          replace ([x := tx] t) with t in *;
+          eauto using SafeAccess, hasvar_subst, eq_sym
+        end.
+      * match goal with
+        | H : ~ HasVar _ ?t |- _ =>
+          replace ([x := tx] t) with t in *;
+          eauto using SafeAccess, hasvar_subst, eq_sym
+        end.
+        exfalso. eauto.
+    + assert (decidable (access m ([x := tx] t1) ad)) as [? | ?];
+      assert (decidable (HasVar x t1)) as [? | ?];
+      eauto using SafeAccess, access_dec, hasvar_dec;
+      do 2 auto_specialize.
+      match goal with
+      | H : ~ HasVar _ ?t |- _ =>
+        replace ([x := tx] t) with t in *;
+        eauto using SafeAccess, hasvar_subst, eq_sym
+      end.
 Qed.
 
-Lemma the_one : forall m ad,
-  well_typed_memory m ->
-  access m m[ad] ad ->
-  False.
+Lemma sacc_subst3 : forall m t tx ad x,
+  SafeAccess m t ad ->
+  SafeAccess m tx ad ->
+  SafeAccess m ([x := tx] t) ad.
 Proof.
-  intros * Hwtm Hacc.
-  destruct (Hwtm ad) as [[T Htype] Hwtr]; eauto using access_length.
-  clear Hwtr. assert (Hwtr : strong_well_typed_references m m[ad]) by admit.
-  remember empty as Gamma; clear HeqGamma.
-  generalize dependent Gamma. generalize dependent T.
-  induction Hwtr; intros;
-  inversion_subst_clear Htype;
-  try solve [
-    inversion_subst_clear Hacc;
-    eauto
-  ];
-  inversion_access;
-  try solve [
-    auto_specialize;
-    destruct (Hwtm ad0) as [[? ?] ?]; eauto using access_length
-  ].
-  - assert (Heq : m[ad] = <{ & ad :: (& T) }>) by admit.
-    rewrite Heq in H.
-    inversion H; subst.
-    eauto using refM_loop.
-  - assert (Heq : m[ad] = <{ & ad :: (i& T) }>) by admit.
-    rewrite Heq in H.
-    inversion H; subst.
-    eauto using refI_loop.
+  intros * Hsacc ?.
+  induction Hsacc; simpl; eauto using SafeAccess.
+  - assert (decidable (SafeAccess m ([x := tx] t2) ad)) as [? | ?];
+    eauto using classic_decidable, SafeAccess.
+    assert (decidable (access m ([x := tx] t2) ad)) as [? | ?];
+    eauto using access_dec, SafeAccess.
+    assert (decidable (HasVar x t2)) as [? | ?];
+    eauto using hasvar_dec.
+    + eauto using SafeAccess, sacc_subst2.
+    + rewrite (hasvar_subst _ t2) in *; eauto. contradiction.
+  - assert (decidable (SafeAccess m ([x := tx] t1) ad)) as [? | ?];
+    eauto using classic_decidable, SafeAccess.
+    assert (decidable (access m ([x := tx] t1) ad)) as [? | ?];
+    eauto using access_dec, SafeAccess.
+    assert (decidable (HasVar x t1)) as [? | ?];
+    eauto using hasvar_dec.
+    + eauto using SafeAccess, sacc_subst2.
+    + rewrite (hasvar_subst _ t1) in *; eauto. contradiction.
+  - destruct String.string_dec; eauto using SafeAccess.
+  - assert (decidable (SafeAccess m ([x := tx] t2) ad)) as [? | ?];
+    eauto using classic_decidable, SafeAccess.
+    assert (decidable (access m ([x := tx] t2) ad)) as [? | ?];
+    eauto using access_dec, SafeAccess.
+    assert (decidable (HasVar x t2)) as [? | ?];
+    eauto using hasvar_dec.
+    + eauto using SafeAccess, sacc_subst2.
+    + rewrite (hasvar_subst _ t2) in *; eauto. contradiction.
+  - assert (decidable (SafeAccess m ([x := tx] t1) ad)) as [? | ?];
+    eauto using classic_decidable, SafeAccess.
+    assert (decidable (access m ([x := tx] t1) ad)) as [? | ?];
+    eauto using access_dec, SafeAccess.
+    assert (decidable (HasVar x t1)) as [? | ?];
+    eauto using hasvar_dec.
+    + eauto using SafeAccess, sacc_subst2.
+    + rewrite (hasvar_subst _ t1) in *; eauto. contradiction.
+  - assert (decidable (SafeAccess m ([x := tx] t2) ad)) as [? | ?];
+    eauto using classic_decidable, SafeAccess.
+    assert (decidable (access m ([x := tx] t2) ad)) as [? | ?];
+    eauto using access_dec, SafeAccess.
+    assert (decidable (HasVar x t2)) as [? | ?];
+    eauto using hasvar_dec.
+    + eauto using SafeAccess, sacc_subst2.
+    + rewrite (hasvar_subst _ t2) in *; eauto. contradiction.
+  - assert (decidable (SafeAccess m ([x := tx] t1) ad)) as [? | ?];
+    eauto using classic_decidable, SafeAccess.
+    assert (decidable (access m ([x := tx] t1) ad)) as [? | ?];
+    eauto using access_dec, SafeAccess.
+    assert (decidable (HasVar x t1)) as [? | ?];
+    eauto using hasvar_dec.
+    + eauto using SafeAccess, sacc_subst2.
+    + rewrite (hasvar_subst _ t1) in *; eauto. contradiction.
+Qed.
+
+Lemma sacc_subst_call : forall m x Tx t t' ad,
+  SafeAccess m ([x := t'] t) ad ->
+  SafeAccess m <{ call <{ fn x Tx --> t }> t' }> ad.
+Proof.
+  (*
+  intros * Hsacc. induction t;
+  try solve [inversion Hsacc].
+  - inversion Hsacc; subst.
+
+
+  eauto using SafeAccess; simpl in *.
+  try (destruct String.string_dec; eauto using SafeAccess).
+  inversion_sacc; auto_specialize; inversion_sacc;
+  try inversion_sacc; eauto using SafeAccess.
+  *)
 Abort.
 
-(* ------------------------------------------------------------------------- *)
-(* TODO                                                                      *)
-(* ------------------------------------------------------------------------- *)
 
-Lemma uacc_subst : forall m t tx ad x,
-  UnsafeAccess m t ad ->
-  UnsafeAccess m ([x := tx] t) ad.
-Proof.
-  intros * Huacc. induction Huacc; eauto using UnsafeAccess.
-  simpl. destruct String.string_dec; subst; eauto using UnsafeAccess.
-Qed.
-
-Lemma uacc_subst_call : forall m x Tx t t' ad,
-  UnsafeAccess m ([x := t'] t) ad ->
-  UnsafeAccess m <{ call <{ fn x Tx --> t }> t' }> ad.
-Proof.
-  intros. induction t; eauto using UnsafeAccess; simpl in *;
-  try (destruct String.string_dec; eauto using UnsafeAccess);
-  inversion_uacc; auto_specialize; inversion_uacc;
-  try inversion_uacc; eauto using UnsafeAccess.
-Qed.
-
-Lemma mstep_none_inherits_uacc : forall m m' t t' ad,
-  UnsafeAccess m' t' ad ->
+Lemma mstep_none_preserves_sacc : forall m m' t t' ad,
+  SafeAccess m t ad ->
   m / t ==[EF_None]==> m' / t' ->
-  UnsafeAccess m  t  ad.
-Proof.
-  intros. inversion_mstep. induction_step; try inversion_uacc;
-  eauto using UnsafeAccess, uacc_subst_call.
-Qed.
-
-Lemma todo : forall m t ad T,
-  well_typed_memory m ->
-  well_typed_references m t ->
-  UnsafeAccess m t ad ->
-  empty |-- t is (TY_Immut T) ->
-  False.
-Proof.
-  intros * Hwtm Hwtr Huacc Htype.
-  generalize dependent T.
-  induction Huacc; intros;
-  try solve [inversion_type; eauto];
-  try solve [inversion_subst_clear Hwtr; inversion_type; eauto].
-  - inversion Hwtr; subst.
-    inversion Htype; subst.
-    assert (ad' < length m) by admit.
-    specialize (Hwtm ad').
-    do 1 auto_specialize.
-    decompose record Hwtm.
-    eauto.
-  - inversion_subst_clear Hwtr. auto_specialize.
-    inversion_subst_clear Htype; eauto.
-    eapply IHHuacc.
-Abort.
-
-Lemma mstep_read_inherits_access' : forall m m' t t' ad ad' v,
   access m' t' ad ->
-  m / t ==[EF_Read ad' v]==> m' / t' ->
-  access m t ad.
+  SafeAccess m' t' ad.
 Proof.
-  intros * ? ?. inversion_mstep. induction_step;
-  try inversion_access; eauto using access.
-  eapply access_load. 
-  destruct (Nat.eq_dec ad' ad); subst.
-  - eapply access_ref.
-  - eapply access_mem. eauto. eauto.
+  intros * Hsacc ? Hacc. inversion_mstep.
+  remember m' as m; clear Heqm. (* TODO *)
+  induction_step; inversion_sacc; eauto;
+  try solve [inversion_access; eauto using SafeAccess];
+  try solve [
+    inversion_access;
+    eauto using SafeAccess, step_none_preserves_not_access;
+    try solve [
+      match goal with
+      | IH : _ -> access _ ?t _ -> _ -> _ |- _ =>
+        assert (decidable (access m t ad)) as [? | ?];
+        eauto using SafeAccess, access_dec
+      end
+    ];
+    try solve [
+      exfalso; eauto using not_access_then_not_sacc
+    ]
+  ].
+  - inversion_sacc. eauto using sacc_subst3.
+  - inversion_sacc. eauto using sacc_subst1.
+  - inversion_not_access H4; clear H4.
+    assert (decidable (HasVar x t)) as [? | ?] by eauto using hasvar_dec.
+    + eauto using sacc_subst2.
+    + replace ([x := v] t) with t in *; eauto using hasvar_subst, eq_sym.
+      exfalso. eauto.
+  - exfalso. eauto.
 Qed.
-
-Lemma mstep_read_inherits_uacc : forall m m' t t' ad ad' v,
-  UnsafeAccess m' t' ad' ->
-  m / t ==[EF_Read ad v]==> m' / t' ->
-  UnsafeAccess m  t  ad'.
-Proof.
-  intros * ? ?. inversion_mstep. induction_step;
-  try inversion_uacc; try (destruct (Nat.eq_dec ad' ad); subst);
-  eauto using UnsafeAccess.
-  eapply uacc_load.
-  assert (exists T', empty |-- <{ & ad :: T }> is T') as [T' Htype] by admit.
-  inversion Htype; subst.
-  + eapply uacc_ref.
-  + eapply uacc_mem. admit.
-Abort.
 
 (* ------------------------------------------------------------------------- *)
-(* sms1 preservation                                                         *)
+(* safe_memory_sharing preservation                                          *)
 (* ------------------------------------------------------------------------- *)
 
 Local Lemma length_tid : forall m m' t' ths tid eff,
@@ -166,40 +332,39 @@ Proof.
   inversion_mstep; inversion_step.
 Qed.
 
-Local Lemma none_sms1_preservation : forall m m' ths t' tid,
+Local Lemma none_sms_preservation : forall m m' ths t' tid,
   forall_threads ths (fun t => exists T, empty |-- t is T) ->
   forall_threads ths (well_typed_references m) ->
   well_typed_memory m ->
-  sms1 m ths ->
+  safe_memory_sharing m ths ->
   m / ths[tid] ==[EF_None]==> m' / t' ->
-  sms1 m' ths[tid <- t'].
+  safe_memory_sharing m' ths[tid <- t'].
 Proof.
-  intros * Htype ? ? Hsms1 Hmstep tid1 tid2 ad Hneq ? ?.
+  intros * Htype ? ? Hsms Hmstep tid1 tid2 ad Hneq ? ?.
   destruct (Htype tid1).
-  specialize (Hsms1 _ _ ad Hneq) as ?.
-  specialize (Hsms1 _ _ ad (not_eq_sym Hneq)) as ?.
+  specialize (Hsms _ _ ad Hneq) as ?.
+  specialize (Hsms _ _ ad (not_eq_sym Hneq)) as ?.
   assert (tid < length ths) by eauto using length_tid.
   inversion Hmstep; subst.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst;
   try lia; do 3 rewrite_term_array;
   eauto using mstep_none_inherits_access.
   assert (access m' ths[tid1] ad) by eauto using mstep_none_inherits_access.
-  eapply access_to_sacc; eauto using mstep_type_preservation, not_uacc_sacc,
-    mstep_none_inherits_uacc.
+  eauto using mstep_none_preserves_sacc.
 Qed.
 
-Local Lemma read_sms1_preservation : forall m m' ths t' tid ad v,
+Local Lemma read_sms_preservation : forall m m' ths t' tid ad v,
   forall_threads ths (fun t => exists T, empty |-- t is T) ->
   forall_threads ths (well_typed_references m) ->
   well_typed_memory m ->
-  sms1 m ths ->
+  sms m ths ->
   m / ths[tid] ==[EF_Read ad v]==> m' / t' ->
-  sms1 m' ths[tid <- t'].
+  sms m' ths[tid <- t'].
 Proof.
-  intros * Htype ? ? Hsms1 Hmstep tid1 tid2 ad Hneq ? ?.
+  intros * Htype ? ? Hsms Hmstep tid1 tid2 ad Hneq ? ?.
   destruct (Htype tid1).
-  specialize (Hsms1 _ _ ad Hneq) as ?.
-  specialize (Hsms1 _ _ ad (not_eq_sym Hneq)) as ?.
+  specialize (Hsms _ _ ad Hneq) as ?.
+  specialize (Hsms _ _ ad (not_eq_sym Hneq)) as ?.
   assert (tid < length ths) by eauto using length_tid.
   inversion Hmstep; subst.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst;

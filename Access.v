@@ -179,7 +179,7 @@ Proof.
   ].
 Qed.
 
-Local Lemma not_access_subst' : forall m t tx ad x,
+Lemma not_access_subst : forall m t tx ad x,
   ~ access m t ad ->
   ~ access m tx ad ->
   ~ access m ([x := tx] t) ad.
@@ -195,11 +195,11 @@ Proof.
   inversion_not_access Hnacc. eapply not_access_iff. eauto using not_access.
 Qed.
 
-Lemma not_access_subst : forall m t tx ad x Tx,
+Lemma not_access_subst_fun : forall m t tx ad x Tx,
   ~ access m <{ fn x Tx --> t }> ad ->
   ~ access m tx ad ->
   ~ access m ([x := tx] t) ad.
 Proof.
-  intros * Hnacc ?. inversion_not_access Hnacc; eauto using not_access_subst'.
+  intros * Hnacc ?. inversion_not_access Hnacc; eauto using not_access_subst.
 Qed.
 
