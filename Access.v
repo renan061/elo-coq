@@ -88,7 +88,6 @@ Proof.
   rewrite (get_default TM_Unit) in Hacc; try lia; inversion Hacc.
 Qed.
 
-
 Lemma access_dec : forall m t ad,
   (access m t ad) \/ (~ access m t ad).
 Proof. eauto using excluded_middle. Qed.

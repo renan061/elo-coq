@@ -306,6 +306,22 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
+(* Step -- Read                                                              *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma step_read_preserves_not_access : forall m t t' ad ad',
+  ~ access m t ad ->
+  t --[EF_Read ad' m[ad']]--> t' ->
+  ~ access m t' ad.
+Proof.
+  intros * Hnacc ?. induction_step; inversion_not_access Hnacc;
+  solve
+    [ eapply not_access_iff; eauto using not_access
+    | match goal with | H : ~ access _ _ _ |- _ => inversion_not_access H end
+    ].
+Qed.
+
+(* ------------------------------------------------------------------------- *)
 (* MStep -- Read                                                             *)
 (* ------------------------------------------------------------------------- *)
 
@@ -342,11 +358,7 @@ Lemma mstep_read_preserves_not_access : forall m m' t t' ad ad' v,
   m / t ==[EF_Read ad' v]==> m' / t' ->
   ~ access m' t' ad.
 Proof.
-  intros * Hnacc ?. inversion_mstep. induction_step; inversion_not_access Hnacc;
-  try solve [eapply not_access_iff; eauto using not_access].
-  match goal with
-  | H : ~ access _ _ _ |- _ => inversion_not_access H 
-  end.
+  intros. inversion_mstep. eauto using step_read_preserves_not_access.
 Qed.
 
 (* ------------------------------------------------------------------------- *)

@@ -283,7 +283,6 @@ Proof.
   *)
 Abort.
 
-
 Lemma mstep_none_preserves_sacc : forall m m' t t' ad,
   SafeAccess m t ad ->
   m / t ==[EF_None]==> m' / t' ->
@@ -317,6 +316,49 @@ Proof.
       exfalso. eauto.
   - exfalso. eauto.
 Qed.
+
+Local Lemma todo : forall m ad v T,
+  value v ->
+  access m v ad ->
+  empty |-- v is (TY_Immut T) ->
+  SafeAccess m v ad.
+Proof.
+  intros * Hval Hacc Htype.
+  destruct Hval; inversion Hacc; subst; inversion Htype; subst;
+  eauto using SafeAccess.
+Abort.
+
+Lemma mstep_read_preserves_sacc : forall m m' t t' ad ad' v,
+  SafeAccess m t ad ->
+  m / t ==[EF_Read ad' v]==> m' / t' ->
+  access m' t' ad ->
+  SafeAccess m' t' ad.
+Proof.
+  intros * Hsacc ? Hacc. inversion_mstep.
+  remember m' as m; clear Heqm. (* TODO *)
+  induction_step; 
+  try solve [
+    inversion_sacc; eauto;
+    try solve [inversion_access; eauto using SafeAccess];
+    try solve [
+      inversion_access;
+      eauto using SafeAccess, step_read_preserves_not_access;
+      try solve [
+        match goal with
+        | IH : _ -> access _ ?t _ -> _ -> _ |- _ =>
+          assert (decidable (access m t ad)) as [? | ?];
+          eauto using SafeAccess, access_dec
+        end
+      ];
+      exfalso; eauto using not_access_then_not_sacc
+    ]
+  ].
+  inversion Hsacc; subst.
+  inversion H0; subst; trivial.
+  assert (empty |-- m[ad] is (TY_Immut T0)) by admit.
+
+  do 2 inversion_sacc; trivial.
+Abort.
 
 (* ------------------------------------------------------------------------- *)
 (* safe_memory_sharing preservation                                          *)
@@ -357,9 +399,9 @@ Local Lemma read_sms_preservation : forall m m' ths t' tid ad v,
   forall_threads ths (fun t => exists T, empty |-- t is T) ->
   forall_threads ths (well_typed_references m) ->
   well_typed_memory m ->
-  sms m ths ->
+  safe_memory_sharing m ths ->
   m / ths[tid] ==[EF_Read ad v]==> m' / t' ->
-  sms m' ths[tid <- t'].
+  safe_memory_sharing m' ths[tid <- t'].
 Proof.
   intros * Htype ? ? Hsms Hmstep tid1 tid2 ad Hneq ? ?.
   destruct (Htype tid1).

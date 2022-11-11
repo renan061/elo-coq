@@ -1,5 +1,6 @@
 From Coq Require Import Logic.Classical_Prop.
 From Coq Require Import Arith.Arith.
+From Coq Require Import Lia.
 
 From Elo Require Import Util.
 From Elo Require Import Array.
@@ -104,14 +105,31 @@ Proof.
   intros * H F. induction F; eauto using access.
 Qed.
 
-(*
+Lemma sacc_correctness : forall m m' t t' ad' eff T,
+  ad' < length m ->
+  empty |-- t is T ->
+  SafeAccess m t ad' ->
+  m / t ==[eff]==> m' / t' ->
+  m[ad'] = m'[ad'].
+Proof.
+  assert (forall m t t' ad v,
+    ~ access m t ad ->
+    ~ t --[EF_Write ad v]--> t').
+  { intros * Hnacc ?. induction_step; inversion_not_access Hnacc. }
 
-SafeAccess m t ad ->
-t --> t'
-m[ad] = m'[ad]
+  intros * ? ? Hsacc ?. inversion_mstep; trivial.
+  - decompose sum (lt_eq_lt_dec ad' (length m)); subst; rewrite_term_array. lia.
+  - decompose sum (lt_eq_lt_dec ad ad'); subst; rewrite_term_array.
+    generalize dependent t'. generalize dependent T.
+    induction Hsacc; intros; inversion_type; inversion_step; eauto;
+    solve
+      [ inversion_type; inversion_sacc; lia
+      | exfalso; unfold not in *; eauto
+      | inversion_type;
+        match goal with
+        | F : ~ access _ _ _ |- _ =>
+          inversion_not_access F; lia
+        end
+      ].
+Qed.
 
-m[ad] <> m'[ad]
-t --> t'
-UnsafeAccess m t ad
-
-*)
