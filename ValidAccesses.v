@@ -9,6 +9,18 @@ Definition valid_accesses (m : mem) (t : tm) :=
   forall ad, access m t ad -> ad < length m.
 
 (* ------------------------------------------------------------------------- *)
+(* auxiliary                                                                 *)
+(* ------------------------------------------------------------------------- *)
+
+(* TODO : necessary? *)
+Lemma va_nacc_length : forall m t,
+  valid_accesses m t ->
+  ~ access m t (length m).
+Proof.
+  intros * Hva F. specialize (Hva (length m) F). lia.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
 (* va constructors                                                           *)
 (* ------------------------------------------------------------------------- *)
 

@@ -266,11 +266,15 @@ Proof.
     + rewrite (hasvar_subst _ t1) in *; eauto. contradiction.
 Qed.
 
-Lemma sacc_subst_call : forall m x Tx t t' ad,
-  SafeAccess m ([x := t'] t) ad ->
-  SafeAccess m <{ call <{ fn x Tx --> t }> t' }> ad.
+Corollary sacc_subst_call : forall m x Tx t tx ad,
+  access m ([x := tx] t) ad ->
+  ~ access m <{ fn x Tx --> t }> ad ->
+  HasVar x t ->
+  SafeAccess m tx ad ->
+  SafeAccess m ([x := tx] t) ad.
 Proof.
-Abort.
+  intros * ? Hnacc ? ?. inversion_not_access Hnacc. eauto using sacc_subst2.
+Qed.
 
 Lemma mstep_none_preserves_sacc : forall m m' t t' ad,
   SafeAccess m t ad ->
@@ -280,30 +284,115 @@ Lemma mstep_none_preserves_sacc : forall m m' t t' ad,
 Proof.
   intros * Hsacc ? Hacc. inversion_mstep.
   remember m' as m; clear Heqm. (* TODO *)
-  induction_step; inversion_sacc; eauto;
-  try solve [inversion_access; eauto using SafeAccess];
-  try solve [
-    inversion_access;
-    eauto using SafeAccess, step_none_preserves_not_access;
-    try solve [
-      match goal with
+  induction_step; inversion_sacc; try inversion_access;
+  eauto using SafeAccess, step_none_preserves_not_access;
+  try solve
+    [ match goal with
       | IH : _ -> access _ ?t _ -> _ -> _ |- _ =>
         assert (decidable (access m t ad)) as [? | ?];
         eauto using SafeAccess, access_dec
       end
-    ];
-    try solve [
-      exfalso; eauto using not_access_then_not_sacc
-    ]
+    | exfalso; eauto using not_access_then_not_sacc
+    | inversion_sacc; eauto using sacc_subst1, sacc_subst3
+    ].
+  assert (decidable (HasVar x t)) as [? | ?];
+  eauto using hasvar_dec, sacc_subst_call.
+  replace ([x := v] t) with t in *; eauto using hasvar_subst, eq_sym.
+  match goal with H : ~ access _ _ _ |- _ => inversion_not_access H end.
+  contradiction.
+Qed.
+
+Local Lemma mem_add_preserves_sacc : forall Gamma m t ad v T,
+  well_typed_memory m ->
+  Gamma |-- t is T ->
+  ~ access m t (length m) ->
+  SafeAccess m t ad ->
+  SafeAccess (m +++ v) t ad.
+Proof.
+  intros * Hwtm Htype Hnacc Hsacc.
+  generalize dependent Gamma. generalize dependent T.
+  induction Hsacc; intros;
+  inversion_type; inversion_not_access Hnacc; eauto using SafeAccess;
+  eauto using SafeAccess, mem_add_nacc_lt.
+  - eapply sacc_memI; trivial.
+    decompose sum (lt_eq_lt_dec ad' (length m)); subst; try lia;
+    rewrite_term_array.
+    + eauto using Mem.Add.preserves_access.
+    + exfalso. rewrite get_default in H0; try lia. inversion H0.
+  - eapply sacc_memR; trivial.
+    decompose sum (lt_eq_lt_dec ad' (length m)); subst; try lia;
+    rewrite_term_array.
+    + destruct (Hwtm ad') as [[? ?] _]; eauto.
+    + exfalso. rewrite get_default in Hsacc. 2: lia. inversion Hsacc.
+Qed.
+
+Lemma mstep_alloc_preserves_sacc : forall m m' t t' ad ad' v T,
+  empty |-- t is T ->
+  well_typed_references m t ->
+  SafeAccess m t ad ->
+  m / t ==[EF_Alloc ad' v]==> m' / t' ->
+  access m' t' ad ->
+  SafeAccess m' t' ad.
+Proof.
+  intros. inversion_mstep. generalize dependent T.
+  induction_step; intros;
+  try solve [
+    inversion_type; inversion_wtr m; inversion_sacc; inversion_access;
+    eauto using SafeAccess
   ].
-  - inversion_sacc. eauto using sacc_subst3.
-  - inversion_sacc. eauto using sacc_subst1.
-  - inversion_not_access H4; clear H4.
-    assert (decidable (HasVar x t)) as [? | ?] by eauto using hasvar_dec.
-    + eauto using sacc_subst2.
-    + replace ([x := v] t) with t in *; eauto using hasvar_subst, eq_sym.
-      exfalso. eauto.
-  - exfalso. eauto.
+  - clear Heqeff.
+    inversion_clear_wtr m.
+    inversion_sacc.
+    inversion_type; inversion_access; eauto using SafeAccess.
+    + rewrite_term_array.
+      eapply sacc_memR; trivial.
+      rewrite_term_array.
+      eapply mem_add_preserves_sacc; eauto.
+      admit. admit.
+    + (*
+        TODO:
+        1. assert at the beginning:
+            ~ access m v (length m)
+        2. usar not_access_then_not_sacc
+      *)
+
+  - inversion_type. inversion_wtr m. auto_specialize.
+    inversion_sacc.
+    * auto_specialize.
+      assert (access (m +++ v) t1' ad)
+        by eauto using step_alloc_preserves_access, sacc_then_access.
+      eauto using SafeAccess.
+      auto_specialize.
+      
+      clear H.
+
+      eapply sacc_asg; eauto.
+
+      clear IHstep.
+
+
+      inversion_access.
+      * do 3 auto_specialize. eapply sacc_asg1; eauto.
+      * admit.
+      * admit.
+      * admit.
+      * admit.
+      * admit.
+    +
+  
+
+
+
+  eauto using SafeAccess, step_read_preserves_not_access;
+  solve
+    [ match goal with
+      | IH : _ -> _ -> access _ ?t _ -> _ -> _ |- _ =>
+        assert (decidable (access m t ad)) as [? | ?];
+        eauto using access_dec, SafeAccess
+      end
+    | exfalso; eauto using not_access_then_not_sacc
+    | inversion_wtr m; inversion_sacc; eauto using sacc_strong_transitivity 
+    ].
 Qed.
 
 Lemma mstep_read_preserves_sacc : forall m m' t t' ad ad' v,
@@ -329,7 +418,7 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* safe_memory_sharing preservation                                          *)
+(* safe-memory-sharing preservation                                          *)
 (* ------------------------------------------------------------------------- *)
 
 Local Lemma length_tid : forall m m' t' ths tid eff,
@@ -342,7 +431,7 @@ Proof.
   inversion_mstep; inversion_step.
 Qed.
 
-Local Lemma none_sms_preservation : forall m m' ths t' tid,
+Local Lemma mstep_none_sms_preservation : forall m m' ths t' tid,
   forall_threads ths (fun t => exists T, empty |-- t is T) ->
   forall_threads ths (well_typed_references m) ->
   well_typed_memory m ->
@@ -363,7 +452,8 @@ Proof.
   eauto using mstep_none_preserves_sacc.
 Qed.
 
-Local Lemma read_sms_preservation : forall m m' ths t' tid ad v,
+Local Lemma mstep_read_sms_preservation : forall m m' ths t' tid ad v,
+  forall_memory m value ->
   forall_threads ths (fun t => exists T, empty |-- t is T) ->
   forall_threads ths (well_typed_references m) ->
   well_typed_memory m ->
@@ -371,7 +461,7 @@ Local Lemma read_sms_preservation : forall m m' ths t' tid ad v,
   m / ths[tid] ==[EF_Read ad v]==> m' / t' ->
   safe_memory_sharing m' ths[tid <- t'].
 Proof.
-  intros * Htype ? ? Hsms Hmstep tid1 tid2 ad Hneq ? ?.
+  intros * ? Htype ? ? Hsms Hmstep tid1 tid2 ad Hneq ? ?.
   destruct (Htype tid1).
   specialize (Hsms _ _ ad Hneq) as ?.
   specialize (Hsms _ _ ad (not_eq_sym Hneq)) as ?.
@@ -381,24 +471,29 @@ Proof.
   try lia; do 3 rewrite_term_array;
   eauto using mstep_read_inherits_access.
   assert (access m' ths[tid1] ad) by eauto using mstep_read_inherits_access.
-
-  do 4 auto_specialize.
-
-  eapply access_to_sacc; eauto using mstep_type_preservation.
-  intros F.
-  eapply not_uacc_sacc; try (exact F).
-    mstep_read_inherits_uacc.
+  eauto using mstep_read_preserves_sacc.
 Qed.
 
-(* TODO *)
-Local Lemma alloc_sms_preservation : forall m m' ths t' tid ad v,
+Local Lemma mstep_alloc_sms_preservation : forall m m' ths t' tid ad v,
   forall_threads ths (valid_accesses m) ->
   safe_memory_sharing m ths ->
-  tid < length ths ->
   m / ths[tid] ==[EF_Alloc ad v]==> m' / t' ->
   safe_memory_sharing m' ths[tid <- t'].
 Proof.
-  intros * Hva Hsms ? Hmstep tid1 tid2 ad ? Hacc1 Hacc2.
+  intros * ? Hsms Hmstep tid1 tid2 ad Hneq ? ?.
+  specialize (Hsms _ _ ad Hneq) as ?.
+  specialize (Hsms _ _ ad (not_eq_sym Hneq)) as ?.
+  assert (tid < length ths) by eauto using length_tid.
+  inversion Hmstep; subst.
+  destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst;
+  try lia; do 3 rewrite_term_array;
+  eauto using mstep_alloc_preserves_sacc.
+
+  assert (access m' ths[tid1] ad) by eauto using mstep_read_inherits_access.
+  eauto using mstep_read_preserves_sacc.
+
+
+
   inversion Hmstep; subst.
 
   assert (~ access m ths[tid1] (length m)).

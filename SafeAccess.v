@@ -81,6 +81,7 @@ Inductive SafeAccess (m : mem) : tm -> addr -> Prop :=
     SafeAccess m <{ t1; t2 }> ad
   .
 
+(* TODO: standardize *)
 Ltac inversion_sacc :=
   match goal with
   | H : SafeAccess _ <{ unit         }> _ |- _ => inversion_subst_clear H

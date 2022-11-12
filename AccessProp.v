@@ -34,6 +34,18 @@ Proof.
   do 2 (rewrite_array TM_Unit); eauto. inversion_access.
 Qed.
 
+Lemma mem_add_nacc_lt : forall m t ad v,
+  ~ access m t (length m) ->
+  ~ access m t ad ->
+  ~ access (m +++ v) t ad.
+Proof.
+  intros * Hnacc1 Hnacc2 F. induction F; inversion_not_access Hnacc2.
+  decompose sum (lt_eq_lt_dec ad' (length m)); subst;
+  do 2 rewrite_term_array;
+  inversion_not_access Hnacc1.
+  eapply IHF; eapply not_access_iff; eauto using not_access.
+Qed.
+
 Lemma mem_add_inherits_access : forall m t ad v,
   ~ access m t (length m) ->
   access (m +++ v) t ad ->
@@ -203,6 +215,22 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
+(* Step -- Alloc                                                             *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma step_alloc_preserves_access : forall m t t' ad v,
+  access m t ad ->
+  t --[EF_Alloc (length m) v]--> t' ->
+  access (m +++ v) t' ad.
+Proof.
+  intros. induction_step; inversion_access;
+  eauto using access, Mem.Add.preserves_access.
+  destruct (Nat.eq_dec ad (length m)); subst; eauto using access.
+  eapply access_mem; trivial. rewrite_term_array.
+  eauto using Mem.Add.preserves_access.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
 (* MStep -- Alloc                                                            *)
 (* ------------------------------------------------------------------------- *)
 
@@ -256,16 +284,12 @@ Proof.
     end.
 Qed.
 
-Lemma mstep_alloc_preserves_access : forall m m' t t' ad ad' v,
+Corollary mstep_alloc_preserves_access : forall m m' t t' ad ad' v,
   access m t ad ->
   m / t ==[EF_Alloc ad' v]==> m' / t' ->
   access m' t' ad.
 Proof.
-  intros. inversion_mstep. induction_step; inversion_access;
-  eauto using access, Mem.Add.preserves_access.
-  destruct (Nat.eq_dec ad (length m)); subst; eauto using access.
-  eapply access_mem; trivial. rewrite (get_add_eq TM_Unit).
-  eauto using Mem.Add.preserves_access.
+  intros. inversion_mstep. eauto using step_alloc_preserves_access.
 Qed.
 
 Lemma mstep_alloc_preserves_not_access : forall m m' t t' ad ad' v,
@@ -353,7 +377,7 @@ Proof.
   inversion_access; subst; trivial. exfalso. eauto.
 Qed.
 
-Lemma mstep_read_preserves_not_access : forall m m' t t' ad ad' v,
+Corollary mstep_read_preserves_not_access : forall m m' t t' ad ad' v,
   ~ access m t ad ->
   m / t ==[EF_Read ad' v]==> m' / t' ->
   ~ access m' t' ad.
