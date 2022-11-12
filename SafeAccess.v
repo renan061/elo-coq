@@ -10,10 +10,15 @@ From Elo Require Import Access.
 From Elo Require Import References.
 
 Inductive SafeAccess (m : mem) : tm -> addr -> Prop :=
-  | sacc_mem : forall ad ad' T,
+  | sacc_memI : forall ad ad' T,
+    ad <> ad' ->
+    access m m[ad'] ad ->
+    SafeAccess m <{ &ad' :: i&T }> ad
+
+  | sacc_memR : forall ad ad' T,
     ad <> ad' ->
     SafeAccess m m[ad'] ad ->
-    SafeAccess m <{ &ad' :: T }> ad
+    SafeAccess m <{ &ad' :: &T }> ad
 
   | sacc_ref : forall ad T,
     SafeAccess m <{ &ad :: i&T }> ad
@@ -90,6 +95,16 @@ Ltac inversion_sacc :=
   | H : SafeAccess _ <{ _ ; _        }> _ |- _ => inversion_subst_clear H
   | H : SafeAccess _ <{ spawn _      }> _ |- _ => inversion_subst_clear H
   end.
+
+Theorem sacc_strong_transitivity : forall m ad v T,
+  value v ->
+  access m v ad ->
+  empty |-- v is (TY_Immut T) ->
+  SafeAccess m v ad.
+Proof.
+  intros * Hval ? ?. destruct Hval;
+  inversion_access; inversion_type; eauto using SafeAccess.
+Qed.
 
 Lemma sacc_then_access : forall m t ad,
   SafeAccess m t ad ->

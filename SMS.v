@@ -270,17 +270,6 @@ Lemma sacc_subst_call : forall m x Tx t t' ad,
   SafeAccess m ([x := t'] t) ad ->
   SafeAccess m <{ call <{ fn x Tx --> t }> t' }> ad.
 Proof.
-  (*
-  intros * Hsacc. induction t;
-  try solve [inversion Hsacc].
-  - inversion Hsacc; subst.
-
-
-  eauto using SafeAccess; simpl in *.
-  try (destruct String.string_dec; eauto using SafeAccess).
-  inversion_sacc; auto_specialize; inversion_sacc;
-  try inversion_sacc; eauto using SafeAccess.
-  *)
 Abort.
 
 Lemma mstep_none_preserves_sacc : forall m m' t t' ad,
@@ -317,48 +306,27 @@ Proof.
   - exfalso. eauto.
 Qed.
 
-Local Lemma todo : forall m ad v T,
-  value v ->
-  access m v ad ->
-  empty |-- v is (TY_Immut T) ->
-  SafeAccess m v ad.
-Proof.
-  intros * Hval Hacc Htype.
-  destruct Hval; inversion Hacc; subst; inversion Htype; subst;
-  eauto using SafeAccess.
-Abort.
-
 Lemma mstep_read_preserves_sacc : forall m m' t t' ad ad' v,
+  forall_memory m value ->
+  well_typed_references m t ->
   SafeAccess m t ad ->
   m / t ==[EF_Read ad' v]==> m' / t' ->
   access m' t' ad ->
   SafeAccess m' t' ad.
 Proof.
-  intros * Hsacc ? Hacc. inversion_mstep.
-  remember m' as m; clear Heqm. (* TODO *)
-  induction_step; 
-  try solve [
-    inversion_sacc; eauto;
-    try solve [inversion_access; eauto using SafeAccess];
-    try solve [
-      inversion_access;
-      eauto using SafeAccess, step_read_preserves_not_access;
-      try solve [
-        match goal with
-        | IH : _ -> access _ ?t _ -> _ -> _ |- _ =>
-          assert (decidable (access m t ad)) as [? | ?];
-          eauto using SafeAccess, access_dec
-        end
-      ];
-      exfalso; eauto using not_access_then_not_sacc
-    ]
-  ].
-  inversion Hsacc; subst.
-  inversion H0; subst; trivial.
-  assert (empty |-- m[ad] is (TY_Immut T0)) by admit.
-
-  do 2 inversion_sacc; trivial.
-Abort.
+  intros. inversion_mstep. rename m' into m.
+  induction_step; inversion_wtr m; inversion_sacc; try inversion_access;
+  eauto using SafeAccess, step_read_preserves_not_access;
+  solve
+    [ match goal with
+      | IH : _ -> _ -> access _ ?t _ -> _ -> _ |- _ =>
+        assert (decidable (access m t ad)) as [? | ?];
+        eauto using access_dec, SafeAccess
+      end
+    | exfalso; eauto using not_access_then_not_sacc
+    | inversion_wtr m; inversion_sacc; eauto using sacc_strong_transitivity 
+    ].
+Qed.
 
 (* ------------------------------------------------------------------------- *)
 (* safe_memory_sharing preservation                                          *)

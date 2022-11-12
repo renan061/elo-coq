@@ -1,4 +1,3 @@
-From Coq Require Logic.ClassicalFacts.
 From Coq Require Import Arith.Arith.
 
 From Elo Require Import Util.
@@ -58,15 +57,20 @@ Inductive NoMut : tm -> Prop :=
     NoMut <{ spawn t }>
   .
 
-Local Ltac inversion_nomut := inversion_over_term_predicate NoMut.
+Ltac inversion_nomut :=
+  inversion_term_predicate NoMut.
+
+Ltac inversion_clear_nomut :=
+  inversion_clear_term_predicate NoMut.
 
 Local Lemma nomut_subst : forall x t t',
   NoMut t ->
   NoMut t' ->
   NoMut ([x := t'] t).
 Proof.
-  intros * ? ?. induction t; intros; simpl;
-  inversion_nomut; try (destruct String.string_dec); subst; eauto using NoMut.
+  intros. induction t; intros;
+  inversion_nomut; eauto using NoMut;
+  simpl; destruct String.string_dec; subst; eauto using NoMut. 
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -119,7 +123,11 @@ Inductive SafeSpawns : tm -> Prop :=
       SafeSpawns <{ spawn t }>
   .
 
-Local Ltac inversion_safe_spawns := inversion_over_term_predicate SafeSpawns.
+Ltac inversion_safe_spawns :=
+  inversion_term_predicate SafeSpawns.
+
+Ltac inversion_clear_safe_spawns :=
+  inversion_clear_term_predicate SafeSpawns.
 
 (* ------------------------------------------------------------------------- *)
 (* HasVar                                                                    *)
@@ -171,12 +179,26 @@ Inductive HasVar (x : id) : tm  -> Prop :=
       HasVar x <{ spawn t }>
   .
 
-Lemma hasvar_dec : forall x t,
-  (HasVar x t) \/ (~ HasVar x t).
-Proof. eauto using excluded_middle. Qed.
-
 Ltac inversion_hasvar x :=
-  inversion_over_term_predicate (HasVar x).
+  inversion_term_predicate (HasVar x).
+
+Ltac inversion_clear_hasvar x :=
+  inversion_clear_term_predicate (HasVar x).
+
+Lemma hasvar_dec : forall x t,
+  decidable (HasVar x t).
+Proof.
+  unfold decidable. intros. induction t;
+  try (destruct IHt); try (destruct IHt1); try (destruct IHt2);
+  try match goal with
+    | x : id, x' : id |- _ =>
+      destruct (String.string_dec x x'); subst
+  end;
+  solve
+    [ left; eauto using HasVar
+    | right; intros F; inversion_subst_clear F; eauto; contradiction
+    ].
+Qed.
 
 Local Ltac solve_not_hasvar :=
   intros; match goal with
@@ -226,7 +248,7 @@ Proof. solve_not_hasvar. Qed.
 Lemma hasvar_subst : forall x t tx,
   ~ (HasVar x t) -> ([x := tx] t) = t.
 Proof.
-  intros * H. induction t; simpl; trivial;
+  intros. induction t; simpl; trivial;
   try (destruct String.string_dec; subst; trivial);
   try solve
     [ rewrite IHt; eauto using not_hv_new, not_hv_load, not_hv_spawn, not_hv_fun
@@ -244,8 +266,7 @@ Proof.
   assert (forall Gamma x, Gamma x = None -> (safe Gamma) x = None).
   { unfold safe. intros * H. rewrite H. reflexivity. }
   intros * ? HGamma F. induction_type; inversion_hasvar x; eauto.
-  - rewrite HGamma in *.
-    match goal with H : None = Some _ |- _ => inversion H end.
+  - rewrite HGamma in *. discriminate.
   - rewrite lookup_update_neq in IHF; eauto.
 Qed.
 

@@ -11,6 +11,7 @@ Ltac auto_specialize :=
 Ltac inversion_subst_clear H :=
   inversion H; subst; clear H.
 
+(* TODO: classic *)
 Local Lemma destruct_and' : forall a x y,
   (a -> x /\ y) -> ((a -> x) /\ (a -> y)). 
 Proof.

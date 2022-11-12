@@ -401,12 +401,34 @@ Ltac apply_deterministic_typing :=
 (* Auxiliary Tactics                                                         *)
 (* ------------------------------------------------------------------------- *)
 
-Ltac inversion_over_term_predicate P :=
+Ltac inversion_term_predicate P :=
   match goal with
-  | H : P TM_Unit   |- _ => inversion H; subst; clear H
-  | H : P (_ _)     |- _ => inversion H; subst; clear H
-  | H : P (_ _ _)   |- _ => inversion H; subst; clear H
-  | H : P (_ _ _ _) |- _ => inversion H; subst; clear H
+  | H : P <{ unit         }> |- _ => inversion H; subst
+  | H : P <{ N _          }> |- _ => inversion H; subst
+  | H : P <{ & _ :: _     }> |- _ => inversion H; subst
+  | H : P <{ new _ _      }> |- _ => inversion H; subst
+  | H : P <{ * _          }> |- _ => inversion H; subst
+  | H : P <{ _ = _        }> |- _ => inversion H; subst
+  | H : P <{ var _        }> |- _ => inversion H; subst
+  | H : P <{ fn _ _ --> _ }> |- _ => inversion H; subst
+  | H : P <{ call _ _     }> |- _ => inversion H; subst
+  | H : P <{ _ ; _        }> |- _ => inversion H; subst
+  | H : P <{ spawn _      }> |- _ => inversion H; subst
+  end.
+
+Ltac inversion_clear_term_predicate P :=
+  match goal with
+  | H : P <{ unit         }> |- _ => inversion_subst_clear H
+  | H : P <{ N _          }> |- _ => inversion_subst_clear H
+  | H : P <{ & _ :: _     }> |- _ => inversion_subst_clear H
+  | H : P <{ new _ _      }> |- _ => inversion_subst_clear H
+  | H : P <{ * _          }> |- _ => inversion_subst_clear H
+  | H : P <{ _ = _        }> |- _ => inversion_subst_clear H
+  | H : P <{ var _        }> |- _ => inversion_subst_clear H
+  | H : P <{ fn _ _ --> _ }> |- _ => inversion_subst_clear H
+  | H : P <{ call _ _     }> |- _ => inversion_subst_clear H
+  | H : P <{ _ ; _        }> |- _ => inversion_subst_clear H
+  | H : P <{ spawn _      }> |- _ => inversion_subst_clear H
   end.
 
 Ltac induction_step :=
@@ -430,13 +452,13 @@ Ltac inversion_mstep_noclear :=
 Ltac inversion_mstep :=
   match goal with
   | H : _ / _ ==[_]==> _ / _ |- _ =>
-    inversion H; subst; clear H
+    inversion_subst_clear H
   end.
 
 Ltac inversion_cstep :=
   match goal with
   | H : _ / _ ~~[_, _]~~> _ / _ |- _ =>
-    inversion H; subst; clear H
+    inversion_subst_clear H
   end.
 
 Ltac induction_type :=
