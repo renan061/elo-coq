@@ -125,6 +125,15 @@ End Mem.
 (* Step                                                                      *)
 (* ------------------------------------------------------------------------- *)
 
+Lemma alloc_step_nacc_v : forall m t t' v,
+  valid_accesses m t ->
+  t --[EF_Alloc (length m) v]--> t' ->
+  ~ access m v (length m).
+Proof.
+  intros * Hva ?. induction_step; inversion_va; eauto using access.
+  intros F. specialize (Hva (length m) F). lia.
+Qed.
+
 Lemma alloc_step_access_t'_ad : forall m t t' ad v,
   t --[EF_Alloc ad v]--> t' ->
   access m t' ad.
