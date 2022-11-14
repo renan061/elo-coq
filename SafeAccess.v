@@ -15,7 +15,7 @@ Inductive SafeAccess (m : mem) : tm -> addr -> Prop :=
     access m m[ad'] ad ->
     SafeAccess m <{ &ad' :: i&T }> ad
 
-  | sacc_memR : forall ad ad' T,
+  | sacc_memM : forall ad ad' T,
     ad <> ad' ->
     SafeAccess m m[ad'] ad ->
     SafeAccess m <{ &ad' :: &T }> ad

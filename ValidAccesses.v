@@ -12,7 +12,6 @@ Definition valid_accesses (m : mem) (t : tm) :=
 (* auxiliary                                                                 *)
 (* ------------------------------------------------------------------------- *)
 
-(* TODO : necessary? *)
 Lemma va_nacc_length : forall m t,
   valid_accesses m t ->
   ~ access m t (length m).

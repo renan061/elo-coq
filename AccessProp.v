@@ -59,22 +59,20 @@ Proof.
   rewrite (get_default TM_Unit) in *; eauto using access; lia.
 Qed.
 
-Module Mem.
-  Module Add.
-    Lemma preserves_access : forall m t ad v,
-      access m t ad ->
-      access (m +++ v) t ad.
-    Proof.
-      intros * Hacc. induction Hacc; eauto using access.
-      destruct (Nat.eq_dec ad ad'); subst; eauto using access.
-      eapply access_mem; trivial.
-      decompose sum (lt_eq_lt_dec ad' (length m)); subst.
-      - rewrite_array TM_Unit; trivial.
-      - rewrite (get_default TM_Unit) in IHHacc; try lia. inversion_access.
-      - rewrite (get_default TM_Unit) in IHHacc; try lia. inversion_access.
-    Qed.
-  End Add.
+Lemma mem_add_preserves_access : forall m t ad v,
+  access m t ad ->
+  access (m +++ v) t ad.
+Proof.
+  intros * Hacc. induction Hacc; eauto using access.
+  destruct (Nat.eq_dec ad ad'); subst; eauto using access.
+  eapply access_mem; trivial.
+  decompose sum (lt_eq_lt_dec ad' (length m)); subst.
+  - rewrite_array TM_Unit; trivial.
+  - rewrite (get_default TM_Unit) in IHHacc; try lia. inversion_access.
+  - rewrite (get_default TM_Unit) in IHHacc; try lia. inversion_access.
+Qed.
 
+Module Mem.
   Module Set_.
     Lemma preserves_access : forall m t ad ad' v,
       ~ access m v ad ->
@@ -224,119 +222,97 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* Step -- Alloc                                                             *)
+(* Alloc                                                                     *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma step_alloc_preserves_access : forall m t t' ad v,
+Lemma step_alloc_preserves_acc : forall m t t' ad v,
   access m t ad ->
   t --[EF_Alloc (length m) v]--> t' ->
   access (m +++ v) t' ad.
 Proof.
   intros. induction_step; inversion_access;
-  eauto using access, Mem.Add.preserves_access.
+  eauto using access, mem_add_preserves_access.
   destruct (Nat.eq_dec ad (length m)); subst; eauto using access.
   eapply access_mem; trivial. rewrite_term_array.
-  eauto using Mem.Add.preserves_access.
+  eauto using mem_add_preserves_access.
 Qed.
 
-(* ------------------------------------------------------------------------- *)
-(* MStep -- Alloc                                                            *)
-(* ------------------------------------------------------------------------- *)
-
-Local Lemma mstep_alloc_address_access: forall m m' t t' ad v,
-  m / t ==[EF_Alloc ad v]==> m' / t' ->
-  access m' t' ad.
-Proof.
-  intros. inversion_mstep. eauto using alloc_step_access_t'_ad.
-Qed.
-
-Lemma mstep_alloc_grants_access : forall m m' t t' ad v,
+Lemma step_alloc_preserves_nacc : forall m t t' ad v,
   valid_accesses m t ->
-  m / t ==[EF_Alloc ad v]==> m' / t' ->
-  ~ access m t ad /\ access m' t' ad.
+  ad <> length m ->
+  ~ access m t ad ->
+  t --[EF_Alloc (length m) v]--> t' ->
+  ~ access (m +++ v) t' ad.
 Proof.
-  intros * Hva ?. split; eauto using mstep_alloc_address_access.
-  inversion_mstep. intros F. eapply Hva in F. lia.
+  intros * Hva ? Hnacc ?.
+  induction_step; inversion_va; inversion_not_access Hnacc;
+  intros F; inversion_access;
+  try solve [unfold not in *; eauto]; try rewrite_term_array;
+  match goal with F : access (_ +++ _) _ _ |- _ => contradict F end;
+  eauto using mem_add_nacc_lt, va_nacc_length.
 Qed.
 
-Lemma mstep_alloc_inherits_access : forall m m' t t' ad ad' v,
+Lemma step_alloc_inherits_acc : forall m t t' ad v,
+  valid_accesses m t ->
+  ad <> length m ->
+  access (m +++ v) t' ad ->
+  t --[EF_Alloc (length m) v]--> t' ->
+  access m t ad.
+Proof.
+  intros. induction_step;
+  inversion_va; inversion_access; eauto using access;
+  try lia; try rewrite_term_array;
+  eauto using mem_add_inherits_access, va_nacc_length, access.
+Qed.
+
+Lemma step_alloc_creates_acc : forall ad v m t t',
+  valid_accesses m t ->
+  ~ access m t ad ->
+  t --[EF_Alloc (length m) v]--> t' ->
+  access (m +++ v) t' ad ->
+  ad = length m.
+Proof.
+  intros * ? Hnacc ? ?.
+  induction_step; inversion_va; inversion_not_access Hnacc; inversion_access;
+  eauto; try rewrite_term_array;
+  match goal with F : access (_ +++ _) _ _ |- _ => contradict F end;
+  eauto using mem_add_nacc_lt, va_nacc_length.
+Qed.
+
+(* mstep corollaries *)
+
+Ltac solve_mstep_by H :=
+  intros; inversion_mstep; eauto using H.
+
+Corollary mstep_alloc_preserves_acc : forall m m' t t' ad ad' v,
+  access m t ad ->
+  m / t ==[EF_Alloc ad' v]==> m' / t' ->
+  access m' t' ad.
+Proof. solve_mstep_by step_alloc_preserves_acc. Qed.
+
+Corollary mstep_alloc_preserves_nacc : forall m m' t t' ad ad' v,
+  valid_accesses m t ->
+  ad <> length m ->
+  ~ access m t ad ->
+  m / t ==[EF_Alloc ad' v]==> m' / t' ->
+  ~ access m' t' ad.
+Proof. solve_mstep_by step_alloc_preserves_nacc. Qed.
+
+Corollary mstep_alloc_inherits_acc : forall m m' t t' ad ad' v,
   valid_accesses m t ->
   ad <> ad' ->
   access m' t' ad ->
   m / t ==[EF_Alloc ad' v]==> m' / t' ->
   access m t ad.
-Proof.
-  intros * Hva ? ? Hmstep. inversion_mstep. induction_step;
-  inversion_va; try inversion_access; eauto using access; try lia.
-  - rewrite (get_add_eq TM_Unit) in *.
-    eapply access_new; eapply inaccessible_address_add_1; eauto. intros F.
-    specialize (Hva (length m) F). lia.
-  - eapply access_asg2; eapply inaccessible_address_add_1; eauto. intros F.
-    match goal with Hva : valid_accesses m ?t |- _ =>
-      specialize (Hva (length m) F); lia
-    end.
-  - eapply access_asg1; eapply inaccessible_address_add_1; eauto. intros F.
-    match goal with Hva : valid_accesses m ?t |- _ =>
-      specialize (Hva (length m) F); lia
-    end.
-  - eapply access_call2; eapply inaccessible_address_add_1; eauto. intros F.
-    match goal with Hva : valid_accesses m ?t |- _ =>
-      specialize (Hva (length m) F); lia
-    end.
-  - eapply access_call1; eapply inaccessible_address_add_1; eauto. intros F.
-    match goal with Hva : valid_accesses m ?t |- _ =>
-      specialize (Hva (length m) F); lia
-    end.
-  - eapply access_seq2; eapply inaccessible_address_add_1; eauto. intros F.
-    match goal with Hva : valid_accesses m ?t |- _ =>
-      specialize (Hva (length m) F); lia
-    end.
-Qed.
+Proof. solve_mstep_by step_alloc_inherits_acc. Qed.
 
-Corollary mstep_alloc_preserves_access : forall m m' t t' ad ad' v,
-  access m t ad ->
-  m / t ==[EF_Alloc ad' v]==> m' / t' ->
-  access m' t' ad.
-Proof.
-  intros. inversion_mstep. eauto using step_alloc_preserves_access.
-Qed.
-
-Lemma mstep_alloc_preserves_not_access : forall m m' t t' ad ad' v,
+Corollary mstep_alloc_creates_acc : forall m m' t t' ad ad' v,
   valid_accesses m t ->
-  ad <> ad' ->
   ~ access m t ad ->
   m / t ==[EF_Alloc ad' v]==> m' / t' ->
-  ~ access m' t' ad.
-Proof.
-  intros * Hva ? Hnacc ?. inversion_mstep.
-  induction_step; inversion_va;
-  eapply not_access_iff; inversion_not_access Hnacc;
-  eauto using access, not_access. 
-  - eapply not_access_ref; eauto.
-    rewrite_array TM_Unit.
-    eapply inaccessible_address_add_2; eauto. intros F.
-    specialize (Hva (length m) F). lia.
-  - eapply not_access_asg; eauto. eapply inaccessible_address_add_2; eauto.
-    intros F. match goal with Hva : valid_accesses m ?t |- _ =>
-      specialize (Hva (length m) F); lia
-    end.
-  - eapply not_access_asg; eauto. eapply inaccessible_address_add_2; eauto.
-    intros F. match goal with Hva : valid_accesses m ?t |- _ =>
-      specialize (Hva (length m) F); lia
-    end.
-  - eapply not_access_call; eauto. eapply inaccessible_address_add_2; eauto.
-    intros F. match goal with Hva : valid_accesses m ?t |- _ =>
-      specialize (Hva (length m) F); lia
-    end.
-  - eapply not_access_call; eauto. eapply inaccessible_address_add_2; eauto.
-    intros F. match goal with Hva : valid_accesses m ?t |- _ =>
-      specialize (Hva (length m) F); lia
-    end.
-  - eapply not_access_seq; eauto; eapply inaccessible_address_add_2; eauto.
-    intros F. match goal with Hva : valid_accesses m ?t |- _ =>
-      specialize (Hva (length m) F); lia
-    end.
-Qed.
+  access (m +++ v) t' ad ->
+  ad = length m.
+Proof. solve_mstep_by step_alloc_creates_acc. Qed.
 
 (* ------------------------------------------------------------------------- *)
 (* Step -- Read                                                              *)
