@@ -299,51 +299,36 @@ Proof.
   specialize (Hsms _ _ ad (not_eq_sym Hneq)) as ?.
   assert (tid < length ths) by eauto using length_tid.
   inversion Hmstep; subst.
-  destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst;
-  try lia; do 3 rewrite_term_array.
-  
-  - destruct (Htype tid1).
-    destruct (Nat.eq_dec ad (length m)); subst.
-    + eapply mem_add_inherits_access in Hacc2; eauto using va_nacc_length.
-      contradict Hacc2. eauto using va_nacc_length. 
-    + assert (access m ths[tid1] ad); 
-      assert (access m ths[tid2] ad);
-      eauto using mstep_alloc_inherits_acc,
-        va_nacc_length, mem_add_inherits_access.
-      eauto using mstep_alloc_preserves_sacc.
-  - destruct (Htype tid1).
-    destruct (Nat.eq_dec ad (length m)); subst.
-    + eapply mem_add_inherits_access in Hacc1; eauto using va_nacc_length.
-      contradict Hacc1. eauto using va_nacc_length. 
-    + assert (access m ths[tid1] ad); 
-      assert (access m ths[tid2] ad);
-      eauto using mstep_alloc_inherits_acc,
-        va_nacc_length, mem_add_inherits_access.
-      eauto using va_nacc_length, mem_add_preserves_sacc.
-  - destruct (Htype tid1).
-    destruct (Nat.eq_dec ad (length m)); subst.
-    + eapply mem_add_inherits_access in Hacc1; eauto using va_nacc_length.
-      contradict Hacc1. eauto using va_nacc_length. 
-    + assert (access m ths[tid1] ad); 
-      assert (access m ths[tid2] ad);
-      eauto using mstep_alloc_inherits_acc,
-        va_nacc_length, mem_add_inherits_access.
-      eauto using va_nacc_length, mem_add_preserves_sacc.
+  destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia;
+  do 3 rewrite_term_array;
+  destruct (Htype tid1); destruct (Nat.eq_dec ad (length m)); subst;
+  try solve
+    [ contradict Hacc1; eauto using va_nacc_length, mem_add_nacc_length
+    | contradict Hacc2; eauto using va_nacc_length, mem_add_nacc_lt
+    ];
+  assert (access m ths[tid1] ad); 
+  assert (access m ths[tid2] ad);
+  eauto using va_nacc_length, mem_add_inherits_access, mstep_alloc_inherits_acc;
+  eauto using mstep_alloc_preserves_sacc;
+  eauto using va_nacc_length, mem_add_preserves_sacc.
 Qed.
 
 Local Lemma mstep_write_sms_preservation : forall m m' ths t' tid ad v,
   safe_memory_sharing m ths ->
-  tid < length ths ->
   m / ths[tid] ==[EF_Write ad v]==> m' / t' ->
   safe_memory_sharing m' ths[tid <- t'].
 Proof.
-  intros * Hsms ? Hmstep tid1 tid2 ad' ? Hacc1 Hacc2.
+  intros * Hsms Hmstep tid1 tid2 ad' Hneq Hacc1 Hacc2.
+  specialize (Hsms _ _ ad Hneq) as ?.
+  specialize (Hsms _ _ ad (not_eq_sym Hneq)) as ?.
+  assert (tid < length ths) by eauto using length_tid.
   inversion Hmstep; subst.
-  destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst;
-  do 2 rewrite_term_array.
-  - contradiction.
+  destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia;
+  do 3 rewrite_term_array.
   - destruct (Nat.eq_dec ad' ad); subst.
     + assert (Hacc1' : access m ths[tid1] ad)
+        by eauto using mstep_write_inherits_acc.
+      assert (Hacc1' : access m ths[tid1] ad)
         by eauto using mstep_write_address_access.
       assert (access m ths[tid2] ad \/ ~ access m ths[tid2] ad)
         as [Hacc2' | ?] by eauto using access_dec.

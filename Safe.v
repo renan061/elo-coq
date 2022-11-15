@@ -250,12 +250,12 @@ Lemma hasvar_subst : forall x t tx,
 Proof.
   intros. induction t; simpl; trivial;
   try (destruct String.string_dec; subst; trivial);
-  try solve
+  solve
     [ rewrite IHt; eauto using not_hv_new, not_hv_load, not_hv_spawn, not_hv_fun
     | rewrite IHt1; eauto using not_hv_asg1, not_hv_call1, not_hv_seq1;
       rewrite IHt2; eauto using not_hv_asg2, not_hv_call2, not_hv_seq2
+    | exfalso; eauto using HasVar
     ].
-  exfalso. eauto using HasVar.
 Qed.
 
 Lemma hasvar_typing : forall Gamma x t T,
@@ -293,7 +293,7 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* SafeSpawns mstep preservation                                             *)
+(* SafeSpawns mstep term preservation                                        *)
 (* ------------------------------------------------------------------------- *)
 
 Local Lemma safe_spawns_subst : forall Gamma x t v T Tx,
@@ -339,6 +339,10 @@ Proof.
   eauto using safe_spawns_subst.
 Qed.
 
+(* ------------------------------------------------------------------------- *)
+(* SafeSpawns mstep memory preservation                                      *)
+(* ------------------------------------------------------------------------- *)
+
 Local Lemma mem_safe_spawns_alloc : forall m t t' v,
   forall_memory m SafeSpawns ->
   SafeSpawns t ->
@@ -361,7 +365,7 @@ Proof.
   unfold forall_memory. eauto using property_set, SafeSpawns.
 Qed.
 
-Local Lemma mstep_mem_safe_spawns_preservation : forall (m m' : mem) t t' eff,
+Local Lemma mstep_mem_safe_spawns_preservation : forall m m' t t' eff,
   forall_memory m SafeSpawns ->
   SafeSpawns t ->
   m / t ==[eff]==> m' / t' ->
@@ -415,6 +419,7 @@ Proof.
     eapply property_set; eauto using SafeSpawns, step_safe_spawns_preservation.
 Qed.
 
+(* TODO : nomut_block *)
 Lemma safe_for_block : forall t t' block,
   SafeSpawns t ->
   t --[EF_Spawn block]--> t' ->
