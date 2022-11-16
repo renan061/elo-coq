@@ -186,9 +186,9 @@ Ltac inversion_clear_hasvar x :=
   inversion_clear_term_predicate (HasVar x).
 
 Lemma hasvar_dec : forall x t,
-  decidable (HasVar x t).
+  Decidable.decidable (HasVar x t).
 Proof.
-  unfold decidable. intros. induction t;
+  unfold Decidable.decidable. intros. induction t;
   try (destruct IHt); try (destruct IHt1); try (destruct IHt2);
   try match goal with
     | x : id, x' : id |- _ =>

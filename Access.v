@@ -89,8 +89,8 @@ Proof.
 Qed.
 
 Lemma access_dec : forall m t ad,
-  (access m t ad) \/ (~ access m t ad).
-Proof. eauto using excluded_middle. Qed.
+  Decidable.decidable (access m t ad).
+Proof. eauto using classic_decidable. Qed.
 
 (* ------------------------------------------------------------------------- *)
 (* not-access                                                                *)

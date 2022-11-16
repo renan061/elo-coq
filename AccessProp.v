@@ -321,7 +321,7 @@ Proof. solve_mstep_by step_alloc_creates_acc. Qed.
 (* Write                                                                     *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma mem_set_preserves_acc : forall m t ad ad' v,
+Lemma mem_set_preserves_acc1 : forall m t ad ad' v,
   ~ access m v ad ->
   access m[ad' <- v] t ad ->
   access m t ad.
@@ -337,6 +337,26 @@ Proof.
   eapply not_le. intros ?. rewrite (get_default TM_Unit) in Hacc.
   - inversion_access.
   - rewrite set_preserves_length. trivial.
+Qed.
+
+Lemma mem_set_preserves_acc2 : forall m t ad ad' v,
+  ~ access m t ad' ->
+  access m[ad' <- v] t ad ->
+  access m t ad.
+Proof.
+  intros * Hnacc Hacc.  remember (m[ad' <- v]) as m'.
+  induction Hacc; inversion_subst_clear Heqm'; inversion_not_access Hnacc;
+  try (do 2 rewrite_term_array);
+  eauto using access.
+Qed.
+
+Corollary mem_set_preserves_acc : forall m t ad ad' v,
+  (~ access m v ad \/ ~ access m t ad') ->
+  access m[ad' <- v] t ad ->
+  access m t ad.
+Proof.
+  intros * [? | ?] ?;
+  eauto using mem_set_preserves_acc1, mem_set_preserves_acc2.
 Qed.
 
 Local Lemma mem_set_preserves_nacc : forall m t ad ad' v,
@@ -378,6 +398,13 @@ Proof.
   intros. induction_step; eauto using access.
 Qed.
 
+Lemma step_write_requires_acc : forall m t t' ad v,
+  t --[EF_Write ad v]--> t' ->
+  access m t ad.
+Proof.
+  intros. induction_step; eauto using access.
+Qed.
+
 Lemma step_write_inherits_acc : forall m t t' ad ad' v,
   access m[ad' <- v] t' ad ->
   t --[EF_Write ad' v]--> t' ->
@@ -385,7 +412,7 @@ Lemma step_write_inherits_acc : forall m t t' ad ad' v,
 Proof.
   intros. induction_step; inversion_access; eauto using access;
   destruct (access_dec m v ad);
-  eauto using step_write_value_acc, mem_set_preserves_acc, access.
+  eauto using step_write_value_acc, mem_set_preserves_acc1, access.
 Qed.
 
 Lemma step_write_preserves_nacc : forall m t t' ad ad' v,
@@ -399,6 +426,11 @@ Proof.
 Qed.
 
 (* corollaries *)
+
+Corollary mstep_write_requires_acc : forall m m' t t' ad v,
+  m / t ==[EF_Write ad v]==> m' / t' ->
+  access m t ad.
+Proof. solve_mstep_by step_write_requires_acc. Qed.
 
 Corollary mstep_write_inherits_acc : forall m m' t t' ad ad' v,
   access m' t' ad ->

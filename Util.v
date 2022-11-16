@@ -1,5 +1,5 @@
 From Coq Require Logic.ClassicalFacts.
-From Coq Require Export Logic.Decidable.
+From Coq Require Import Logic.Decidable.
 
 (* Miscellaneous Utilities *)
 

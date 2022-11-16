@@ -97,6 +97,10 @@ Ltac inversion_sacc :=
   | H : SafeAccess _ <{ spawn _      }> _ |- _ => inversion_subst_clear H
   end.
 
+Lemma sacc_dec : forall m t ad,
+  Decidable.decidable (SafeAccess m t ad).
+Proof. eauto using classic_decidable. Qed.
+
 Theorem sacc_strong_transitivity : forall m ad v T,
   value v ->
   access m v ad ->
@@ -148,6 +152,30 @@ Proof.
         end
       ].
 Qed.
+
+Lemma nacc_then_not_write : forall m t t' ad v,
+  ~ access m t ad ->
+  t --[EF_Write ad v]--> t' ->
+  False.
+Proof.
+  intros * Hnacc ?. induction_step;
+  inversion_not_access Hnacc; clear Hnacc.
+Qed.
+
+Lemma write_then_nsacc : forall m t t' ad v T,
+  empty |-- t is T ->
+  t --[EF_Write ad v]--> t' ->
+  ~ SafeAccess m t ad.
+Proof.
+  intros * ? ?. generalize dependent T.
+  induction_step; intros * ? ?; unfold not in *;
+  inversion_type; inversion_sacc; eauto using nacc_then_not_write, access;
+  inversion_type; inversion_sacc; lia.
+Qed.
+
+(* TODO *)
+Definition UnsafeAccess m t ad :=
+  access m t ad /\ ~ SafeAccess m t ad.
 
 (* TODO: session for examples! *)
 
