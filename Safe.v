@@ -351,7 +351,7 @@ Local Lemma mem_safe_spawns_alloc : forall m t t' v,
 Proof.
   intros. assert (SafeSpawns v).
   { induction_step; inversion_safe_spawns; eauto. }
-  unfold forall_memory. eauto using property_add, SafeSpawns.
+  unfold forall_memory. eauto using forall_array_add, SafeSpawns.
 Qed.
 
 Local Lemma mem_safe_spawns_store : forall m t t' ad v,
@@ -362,7 +362,7 @@ Local Lemma mem_safe_spawns_store : forall m t t' ad v,
 Proof.
   intros. assert (SafeSpawns v).
   { induction_step; inversion_safe_spawns; eauto. }
-  unfold forall_memory. eauto using property_set, SafeSpawns.
+  unfold forall_memory. eauto using forall_array_set, SafeSpawns.
 Qed.
 
 Local Lemma mstep_mem_safe_spawns_preservation : forall m m' t t' eff,
@@ -413,10 +413,12 @@ Theorem safe_spawns_preservation : forall m m' ths ths' tid eff,
 Proof.
   intros * H; intros. split; inversion_cstep;
   eauto using mstep_mem_safe_spawns_preservation.
-  - eapply property_set; eauto using SafeSpawns. specialize (H tid) as [? ?].
+  - eapply forall_array_set;
+    eauto using SafeSpawns. specialize (H tid) as [? ?].
     eauto using mstep_tm_safe_spawns_preservation. (* performance *)
-  - eapply property_add; eauto using SafeSpawns, safe_spawns_for_block.
-    eapply property_set; eauto using SafeSpawns, step_safe_spawns_preservation.
+  - eapply forall_array_add; eauto using SafeSpawns, safe_spawns_for_block.
+    eapply forall_array_set;
+    eauto using SafeSpawns, step_safe_spawns_preservation.
 Qed.
 
 (* TODO : nomut_block *)

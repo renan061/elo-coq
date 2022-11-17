@@ -366,10 +366,10 @@ Qed.
 (* ------------------------------------------------------------------------- *)
 
 Definition forall_memory (m : mem) P : Prop :=
-  property TM_Unit P m.
+  forall_array TM_Unit P m.
 
 Definition forall_threads (ths : threads) P : Prop :=
-  property TM_Unit P ths.
+  forall_array TM_Unit P ths.
 
 (* ------------------------------------------------------------------------- *)
 (* Determinism                                                               *)
@@ -474,6 +474,4 @@ Ltac inversion_type :=
   | H : _ |-- (_ _ _) is _    |- _ => inversion H; subst; clear H
   | H : _ |-- (_ _ _ _) is _  |- _ => inversion H; subst; clear H
   end.
-
-Ltac rewrite_term_array := rewrite_array <{ unit }>.
 

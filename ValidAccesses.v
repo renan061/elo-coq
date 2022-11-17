@@ -155,7 +155,7 @@ Proof.
   remember (add m v) as m'.
   remember (TM_Ref T (length m)) as t'.
   induction Hacc; inversion Heqt'; subst.
-  - do 2 (rewrite_array TM_Unit). eauto using access.
+  - do 2 simpl_array. eauto using access.
   - rewrite add_increments_length. lia.
 Qed.
 
@@ -166,7 +166,7 @@ Proof.
   intros * Hva ? Hacc. induction Hacc; subst; inversion_va; eauto.
   - eapply IHHacc. intros ? ?.
     destruct (lt_eq_lt_dec ad' (length m)) as [[? | ?] | ?]; subst;
-    do 3 (rewrite_array TM_Unit); eauto; try solve [inversion_access].
+    do 3 simpl_array; eauto; try solve [inversion_access].
     specialize (Hva (length m) (access_ref m (length m) _)). lia.
   - rewrite add_increments_length. eauto using access, Nat.lt_lt_succ_r.
 Qed.
@@ -181,7 +181,7 @@ Proof.
   induction Hacc; inversion_va; eauto using access.
   destruct (Nat.eq_dec ad ad'); subst;
   assert (ad' < length m) by eauto using access;
-  do 2 (rewrite_array TM_Unit); eauto using access.
+  do 2 simpl_array; eauto using access.
 Qed.
 
 Local Lemma va_subst : forall m t tx x,
@@ -265,7 +265,7 @@ Local Lemma mva_alloc_preservation : forall m t t' v,
 Proof.
   intros * Hva ? ? ad. induction_step; inversion_va; eauto.
   decompose sum (lt_eq_lt_dec ad (length m)); subst;
-  rewrite_array TM_Unit; eauto using va_mem_add.
+  simpl_array; eauto using va_mem_add.
   intros ? ?. inversion_access.
 Qed.
 
@@ -278,7 +278,7 @@ Proof.
   intros * Hva Hmva ? ad'. induction_step; inversion_va; eauto.
   decompose sum (lt_eq_lt_dec ad ad'); subst;
   try (assert (ad' < length m) by eauto using access);
-  rewrite_array TM_Unit; eauto using va_mem_set.
+  simpl_array; eauto using va_mem_set.
 Qed.
 
 Theorem mva_mstep_preservation : forall m m' t t' eff,

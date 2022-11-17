@@ -7,7 +7,9 @@ From Elo Require Import Array.
 From Elo Require Import Map.
 From Elo Require Import Core.
 From Elo Require Import Access.
+From Elo Require Import ValidAccesses.
 From Elo Require Import References.
+From Elo Require Import AccessProp.
 
 Inductive SafeAccess (m : mem) : tm -> addr -> Prop :=
   | sacc_memI : forall ad ad' T,
@@ -138,8 +140,9 @@ Proof.
   { intros * Hnacc ?. induction_step; inversion_not_access Hnacc. }
 
   intros * ? ? Hsacc ?. inversion_mstep; trivial.
-  - decompose sum (lt_eq_lt_dec ad' (length m)); subst; rewrite_term_array. lia.
-  - decompose sum (lt_eq_lt_dec ad ad'); subst; rewrite_term_array.
+  - decompose sum (lt_eq_lt_dec ad' (length m)); subst;
+    simpl_array; trivial. lia.
+  - decompose sum (lt_eq_lt_dec ad ad'); subst; simpl_array; trivial.
     generalize dependent t'. generalize dependent T.
     induction Hsacc; intros; inversion_type; inversion_step; eauto;
     solve
@@ -173,7 +176,186 @@ Proof.
   inversion_type; inversion_sacc; lia.
 Qed.
 
-(* TODO *)
+(* ------------------------------------------------------------------------- *)
+(* properties -- subst                                                       *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma sacc_subst1 : forall m t tx ad x,
+  ~ access m tx ad ->
+  SafeAccess m t ad ->
+  SafeAccess m ([x := tx] t) ad.
+Proof.
+  intros * ? Hsacc. induction Hsacc; simpl;
+  eauto using SafeAccess, not_access_subst.
+  destruct String.string_dec; subst; eauto using SafeAccess.
+Qed.
+
+Lemma sacc_subst2 : forall m t tx ad x,
+  ~ access m t ad ->
+  access m ([x := tx] t) ad ->
+  SafeAccess m tx ad ->
+  SafeAccess m ([x := tx] t) ad.
+Proof.
+  intros * Hnacc ? ?. induction t; simpl in *;
+  try (destruct String.string_dec);
+  try inversion_access; inversion_not_access Hnacc;
+  eauto using SafeAccess; try contradiction;
+  match goal with
+  | _ : not_access m (_ ?t1 ?t2) _, _ : access m ([_ := _] ?t1) _ |- _ =>
+    destruct (access_dec m ([x := tx] t2) ad) as [? | ?]
+  | _ : not_access m (_ ?t1 ?t2) _, _ : access m ([_ := _] ?t2) _ |- _ =>
+    destruct (access_dec m ([x := tx] t1) ad) as [? | ?]
+  end;
+  eauto using SafeAccess.
+Qed.
+
+Lemma sacc_subst3 : forall m t tx ad x,
+  SafeAccess m t ad ->
+  SafeAccess m tx ad ->
+  SafeAccess m ([x := tx] t) ad.
+Proof.
+  intros * Hsacc ?.
+  induction Hsacc; simpl; try (destruct String.string_dec);
+  eauto using SafeAccess;
+  match goal with
+  | _ : SafeAccess _ ?t1 _, _ : ~ access _ ?t2 _ |- _ =>
+    destruct (sacc_dec m ([x := tx] t2) ad) as [? | ?];
+    destruct (access_dec m ([x := tx] t2) ad) as [? | ?]
+  end;
+  eauto using sacc_subst2, SafeAccess.
+Qed.
+
+Corollary sacc_subst_call : forall m x Tx t tx ad,
+  access m ([x := tx] t) ad ->
+  ~ access m <{ fn x Tx --> t }> ad ->
+  SafeAccess m tx ad ->
+  SafeAccess m ([x := tx] t) ad.
+Proof.
+  intros * ? Hnacc ?. inversion_not_access Hnacc. eauto using sacc_subst2.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* properties -- memory -- add                                               *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma mem_add_preserves_sacc : forall Gamma m t ad v T,
+  well_typed_memory m ->
+  Gamma |-- t is T ->
+  ~ access m t (length m) ->
+  SafeAccess m t ad ->
+  SafeAccess (m +++ v) t ad.
+Proof.
+  intros * Hwtm Htype Hnacc Hsacc.
+  generalize dependent Gamma. generalize dependent T.
+  induction Hsacc; intros;
+  inversion_type; inversion_not_access Hnacc;
+  eauto using SafeAccess, mem_add_nacc_lt;
+  (eapply sacc_memI || eapply sacc_memM); trivial;
+  decompose sum (lt_eq_lt_dec ad' (length m)); subst; try lia;
+  simpl_array.
+  + eauto using mem_add_preserves_access.
+  + exfalso. do 2 simpl_array. inversion_access.
+  + destruct (Hwtm ad') as [[? ?] _]; eauto.
+  + exfalso. do 3 simpl_array. inversion_sacc.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* properties -- mstep sacc preservation                                     *)
+(* ------------------------------------------------------------------------- *)
+
+Local Lemma mstep_none_preserves_sacc : forall m m' t t' ad,
+  SafeAccess m t ad ->
+  m / t ==[EF_None]==> m' / t' ->
+  access m' t' ad ->
+  SafeAccess m' t' ad.
+Proof.
+  intros * Hsacc ? Hacc. inversion_mstep. rename m' into m.
+  induction_step; inversion_sacc; try inversion_access;
+  eauto using sacc_subst_call, step_none_preserves_not_access, SafeAccess;
+  solve
+    [ match goal with
+      | IH : _ -> access _ ?t _ -> _ -> _ |- _ =>
+        destruct (access_dec m t ad) as [? | ?]; eauto using SafeAccess
+      end
+    | exfalso; eauto
+    | inversion_sacc; eauto using sacc_subst1, sacc_subst3
+    ].
+Qed.
+
+Local Lemma mstep_alloc_preserves_sacc : forall m t t' ad v T,
+  well_typed_memory m ->
+  valid_accesses m t ->
+  empty |-- t is T ->
+  SafeAccess m t ad ->
+  t --[EF_Alloc (length m) v]--> t' ->
+  SafeAccess (m +++ v) t' ad.
+Proof.
+  intros. generalize dependent T.
+  induction_step; intros; inversion_va; inversion_type; inversion_sacc;
+  eauto using mem_add_preserves_sacc, va_nacc_length, SafeAccess;
+  destruct (Nat.eq_dec ad (length m)); subst;
+  eauto using mem_add_preserves_sacc, step_alloc_preserves_nacc,
+    mem_add_nacc_lt, va_nacc_length, SafeAccess;
+  try solve [ match goal with
+  | _ : SafeAccess _ ?t _ |- _ =>
+    exfalso; eapply (va_nacc_length _ t); eauto using sacc_then_access
+  end ];
+  (eapply sacc_memI || eapply sacc_memM); trivial; simpl_array;
+  eauto using mem_add_preserves_sacc, mem_add_preserves_access,
+    va_nacc_length, mem_add_preserves_access, sacc_then_access.
+Qed.
+
+Local Lemma mstep_read_preserves_sacc : forall m m' t t' ad ad' v,
+  forall_memory m value ->
+  well_typed_references m t ->
+  SafeAccess m t ad ->
+  m / t ==[EF_Read ad' v]==> m' / t' ->
+  access m' t' ad ->
+  SafeAccess m' t' ad.
+Proof.
+  intros. inversion_mstep. rename m' into m.
+  induction_step; inversion_wtr m; inversion_sacc; try inversion_access;
+  eauto using SafeAccess, step_read_preserves_not_access;
+  solve
+    [ match goal with
+      | IH : _ -> _ -> access _ ?t _ -> _ -> _ |- _ =>
+        destruct (access_dec m t ad) as [? | ?]; eauto using SafeAccess
+      end
+    | exfalso; eauto
+    | inversion_wtr m; inversion_sacc; eauto using sacc_strong_transitivity 
+    ].
+Qed.
+
+Local Lemma mstep_write_preserves_sacc : forall m m' t t' ad ad' v,
+  SafeAccess m t ad ->
+  m / t ==[EF_Write ad' v]==> m' / t' ->
+  access m' t' ad ->
+  SafeAccess m' t' ad.
+Proof.
+  intros * Hsacc ? Hacc. inversion_mstep.
+  induction_step; inversion_sacc; try inversion_access; eauto using SafeAccess.
+  - do 3 auto_specialize. clear H6.
+    assert (access m t2 ad) by eauto using sacc_then_access.
+    eapply sacc_asg; trivial.
+    (* TODO
+      Se  SafeAccess m t1 ad        e
+          t1 --[Write ad' v]--> t1' então
+
+      (1) ~ access   m v ad  ou
+      (2) SafeAccess m v ad
+
+      Se (2):
+        SafeAccess m v ad ->
+        SafeAccess m t ad ->
+        SafeAccess m[ad' <- v] t ad
+
+    *)
+Abort.
+
+(* ------------------------------------------------------------------------- *)
+(* TODO                                                                      *)
+(* ------------------------------------------------------------------------- *)
+
 Definition UnsafeAccess m t ad :=
   access m t ad /\ ~ SafeAccess m t ad.
 

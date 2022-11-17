@@ -156,7 +156,7 @@ Proof.
   induction Hwtr; eauto using well_typed_references;
   (eapply wtr_refM || eapply wtr_refI);
   decompose sum (lt_eq_lt_dec ad' ad); subst;
-  rewrite_term_array; apply_deterministic_typing; trivial.
+  simpl_array; trivial; apply_deterministic_typing; trivial.
 Qed.
 
 Local Lemma wtr_preservation_none : forall m t t',
@@ -179,7 +179,7 @@ Proof.
   induction_step; intros; inversion_va; inversion_type; inversion_wtr m;
   eauto using well_typed_references, wtr_mem_add;
   (eapply wtr_refM || eapply wtr_refI);
-  rewrite_term_array.
+  simpl_array; trivial.
 Qed.
 
 Local Lemma wtr_preservation_read : forall m t t' ad,
@@ -241,11 +241,11 @@ Proof.
     by eauto using wtt_alloc_value, wtt_write_value.
   - rewrite add_increments_length in Hlen.
     split; decompose sum (lt_eq_lt_dec ad' (length m)); subst;
-    rewrite_term_array; eauto using well_typed_references;
+    simpl_array; eauto using well_typed_references;
     eauto using well_typed_term, wtr_mem_add, wtr_alloc_value.
   - rewrite set_preserves_length in Hlen.
     split; decompose sum (lt_eq_lt_dec ad' ad); subst;
-    rewrite_term_array;
+    simpl_array;
     eauto using wtr_mem_set, wtr_write_value, wtt_write_memory_address.
 Qed.
 

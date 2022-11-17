@@ -121,9 +121,9 @@ Theorem mstep_memory_preservation : forall m m' t t' eff ad T M,
   m / t ==[eff]==> m' / t' ->
   empty |-- m'[ad] is M.
 Proof.
-  intros * Hwtr ? HtypeT HtypeM ?. inversion_mstep; eauto;
-  try solve [rewrite_array TM_Unit].
-  decompose sum (lt_eq_lt_dec ad0 ad); subst; rewrite_array TM_Unit.
+  intros * Hwtr ? HtypeT HtypeM ?. inversion_mstep; eauto.
+  try solve [simpl_array; trivial].
+  decompose sum (lt_eq_lt_dec ad0 ad); subst; simpl_array; trivial.
   generalize dependent t'. remember empty as Gamma.
   induction HtypeT; inversion HeqGamma; subst; intros;
   inversion_clear Hwtr; inversion_step; eauto.

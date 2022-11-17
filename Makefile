@@ -14,7 +14,6 @@ access: core
 	$(COQC) Access.v
 	$(COQC) ValidAccesses.v
 	$(COQC) References.v
-	$(COQC) SafeAccess.v
 
 soundness: access 
 	$(COQC) Soundness.v
@@ -22,6 +21,7 @@ soundness: access
 safety: soundness 
 	$(COQC) Compat.v
 	$(COQC) AccessProp.v
+	$(COQC) SafeAccess.v
 	$(COQC) Safe.v
 	$(COQC) SMS.v
 

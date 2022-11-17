@@ -68,8 +68,7 @@ Proof.
     destruct (Nat.eq_dec ad ad'); subst
   end;
   try solve [exfalso; eauto using access];
-  rewrite_array TM_Unit; eauto using access;
-  rewrite_array TM_Unit; eauto using access.
+  do 2 (simpl_array; eauto using access).
 Qed.
 
 Lemma compat_inaccessible_address_add : forall m m' t v,
@@ -82,14 +81,14 @@ Proof.
   - destruct (Nat.eq_dec ad (length m')); subst.
     + exfalso. eauto using access.
     + destruct (not_eq ad (length m')); trivial;
-      do 2 (rewrite_array TM_Unit); eauto using access.
+      do 2 simpl_array; eauto using access.
       assert (Hacc' : access m <{ &ad' :: T}> ad) by eauto using access.
       specialize (Hcompat ad Hacc').
       rewrite (get_default TM_Unit m') in Hcompat; trivial; lia.
   - destruct (Nat.eq_dec ad (length m')); subst.
     + exfalso. eauto using access.
     + destruct (not_eq ad (length m')); trivial;
-      rewrite_array TM_Unit; eauto using access.
+      simpl_array; eauto using access.
       specialize (Hcompat ad (access_ref _ _ _)).
       rewrite (get_default TM_Unit m') in Hcompat; trivial; lia.
 Qed.
