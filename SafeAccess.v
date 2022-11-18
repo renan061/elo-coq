@@ -83,7 +83,6 @@ Inductive SafeAccess (m : mem) : tm -> addr -> Prop :=
     SafeAccess m <{ t1; t2 }> ad
   .
 
-(* TODO: standardize *)
 Ltac inversion_sacc :=
   match goal with
   | H : SafeAccess _ <{ unit         }> _ |- _ => inversion_subst_clear H
@@ -102,6 +101,60 @@ Ltac inversion_sacc :=
 Lemma sacc_dec : forall m t ad,
   Decidable.decidable (SafeAccess m t ad).
 Proof. eauto using classic_decidable. Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* Negation                                                                  *)
+(* ------------------------------------------------------------------------- *)
+
+Local Ltac solve_nsacc m ad t1 t2 :=
+  intros; destruct (sacc_dec m t1 ad), (sacc_dec m t2 ad);
+  solve [ exfalso; eauto using SafeAccess
+        | right; right; split; trivial
+        | right; left; split; trivial
+        | left; split; trivial
+        ].
+
+Lemma nsacc_new : forall m t ad T,
+  ~ SafeAccess m <{ new T t }> ad ->
+  ~ SafeAccess m t ad.
+Proof.
+  intros. eauto using SafeAccess.
+Qed.
+
+Lemma nsacc_load : forall m t ad,
+  ~ SafeAccess m <{ *t }> ad ->
+  ~ SafeAccess m t ad.
+Proof.
+  intros. eauto using SafeAccess.
+Qed.
+
+Lemma nsacc_asg : forall m t1 t2 ad,
+  ~ SafeAccess m <{ t1 = t2 }> ad ->
+  (  (~ SafeAccess m t1 ad /\ ~ SafeAccess m t2 ad)
+  \/ (~ SafeAccess m t1 ad /\   SafeAccess m t2 ad)
+  \/ (  SafeAccess m t1 ad /\ ~ SafeAccess m t2 ad)
+  ).
+Proof. solve_nsacc m ad t1 t2. Qed.
+
+Lemma nsacc_call : forall m t1 t2 ad,
+  ~ SafeAccess m <{ call t1 t2 }> ad ->
+  (  (~ SafeAccess m t1 ad /\ ~ SafeAccess m t2 ad)
+  \/ (~ SafeAccess m t1 ad /\   SafeAccess m t2 ad)
+  \/ (  SafeAccess m t1 ad /\ ~ SafeAccess m t2 ad)
+  ).
+Proof. solve_nsacc m ad t1 t2. Qed.
+
+Lemma nsacc_seq : forall m t1 t2 ad,
+  ~ SafeAccess m <{ t1; t2 }> ad ->
+  (  (~ SafeAccess m t1 ad /\ ~ SafeAccess m t2 ad)
+  \/ (~ SafeAccess m t1 ad /\   SafeAccess m t2 ad)
+  \/ (  SafeAccess m t1 ad /\ ~ SafeAccess m t2 ad)
+  ).
+Proof. solve_nsacc m ad t1 t2. Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* TODO                                                                      *)
+(* ------------------------------------------------------------------------- *)
 
 Theorem sacc_strong_transitivity : forall m ad v T,
   value v ->
@@ -156,6 +209,7 @@ Proof.
       ].
 Qed.
 
+(* TODO *)
 Lemma nacc_then_not_write : forall m t t' ad v,
   ~ access m t ad ->
   t --[EF_Write ad v]--> t' ->
@@ -252,18 +306,21 @@ Proof.
   eauto using SafeAccess, mem_add_nacc_lt;
   (eapply sacc_memI || eapply sacc_memM); trivial;
   decompose sum (lt_eq_lt_dec ad' (length m)); subst; try lia;
-  simpl_array.
-  + eauto using mem_add_preserves_access.
-  + exfalso. do 2 simpl_array. inversion_access.
-  + destruct (Hwtm ad') as [[? ?] _]; eauto.
-  + exfalso. do 3 simpl_array. inversion_sacc.
+  simpl_array; eauto using mem_add_preserves_access.
+  - exfalso. do 2 simpl_array. inversion_access.
+  - destruct (Hwtm ad') as [[? ?] _]; eauto.
+  - exfalso. do 3 simpl_array. inversion_sacc.
 Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* properties -- memory -- set                                               *)
+(* ------------------------------------------------------------------------- *)
 
 (* ------------------------------------------------------------------------- *)
 (* properties -- mstep sacc preservation                                     *)
 (* ------------------------------------------------------------------------- *)
 
-Local Lemma mstep_none_preserves_sacc : forall m m' t t' ad,
+Lemma mstep_none_preserves_sacc : forall m m' t t' ad,
   SafeAccess m t ad ->
   m / t ==[EF_None]==> m' / t' ->
   access m' t' ad ->
@@ -282,7 +339,7 @@ Proof.
     ].
 Qed.
 
-Local Lemma mstep_alloc_preserves_sacc : forall m t t' ad v T,
+Lemma mstep_alloc_preserves_sacc : forall m t t' ad v T,
   well_typed_memory m ->
   valid_accesses m t ->
   empty |-- t is T ->
@@ -305,7 +362,7 @@ Proof.
     va_nacc_length, mem_add_preserves_access, sacc_then_access.
 Qed.
 
-Local Lemma mstep_read_preserves_sacc : forall m m' t t' ad ad' v,
+Lemma mstep_read_preserves_sacc : forall m m' t t' ad ad' v,
   forall_memory m value ->
   well_typed_references m t ->
   SafeAccess m t ad ->
@@ -326,17 +383,133 @@ Proof.
     ].
 Qed.
 
-Local Lemma mstep_write_preserves_sacc : forall m m' t t' ad ad' v,
+Lemma mem_set_preserves_acc1 : forall m t ad ad' v,
+  ~ access m t ad' ->
+  access m t ad ->
+  access m[ad' <- v] t ad.
+Proof.
+  intros * Hnacc Hacc. induction Hacc; inversion_not_access Hnacc.
+  match goal with H : ~ access _ _ ?ad' |- _ => 
+    destruct (Nat.eq_dec ad ad'); subst
+  end.
+  - contradiction.
+  - eapply access_mem; trivial. simpl_array. eauto.
+Qed.
+
+Lemma mem_set_preserves_acc2 : forall m t ad ad' v,
+  ~ access m m[ad'] ad ->
+  access m t ad ->
+  access m[ad' <- v] t ad.
+Proof.
+  intros * ? Hacc.
+  destruct (access_dec m t ad'); eauto using mem_set_preserves_acc1.
+  induction Hacc; inversion_access; eauto using mem_set_preserves_acc1, access;
+  solve
+    [ eapply access_mem; trivial; simpl_array; eauto
+    | destruct (access_dec m t1 ad'); eauto using mem_set_preserves_acc1, access
+    | destruct (access_dec m t2 ad'); eauto using mem_set_preserves_acc1, access
+    ].
+Qed.
+
+Lemma mem_set_preserves_nacc2 : forall m t ad ad' v,
+  ~ access m t ad' ->
+  ~ access m t ad ->
+  ~ access m[ad' <- v] t ad.
+Proof.
+  intros * Hnacc' Hnacc F. remember (m[ad' <- v]) as m'.
+  induction F; inversion_not_access Hnacc'; inversion_not_access Hnacc.
+  do 2 simpl_array. eauto.
+Qed.
+
+Local Lemma mem_set_preserves_sacc1 : forall m t ad ad' v,
+  ~ access m t ad' ->
+  SafeAccess m t ad ->
+  SafeAccess m[ad' <- v] t ad.
+Proof.
+  intros * Hnacc Hsacc. induction Hsacc;
+  inversion_not_access Hnacc; eauto using mem_set_preserves_nacc2, SafeAccess;
+  (eapply sacc_memI || eapply sacc_memM); trivial;
+  simpl_array; eauto using mem_set_preserves_acc1.
+Qed.
+
+Local Lemma mem_set_preserves_sacc2 : forall m t ad ad' v,
+  ~ access m m[ad'] ad ->
+  ~ access m v ad ->
+  SafeAccess m t ad ->
+  SafeAccess m[ad' <- v] t ad.
+Proof.
+  intros * Hnacc1 Hnacc2 Hsacc.
+  destruct (access_dec m t ad'); eauto using mem_set_preserves_sacc1.
+  induction Hsacc; eauto using SafeAccess.
+  - eapply sacc_memI; trivial.
+    match goal with _ : access _ _[?ad] _ |- _ => rename ad into ad'' end.
+    assert (ad'' < length m) by admit.
+    inversion_access. 
+    + simpl_array.
+Abort.
+
+Local Lemma todo : forall m t t' ad ad' v,
+  SafeAccess m t ad ->
+  t --[EF_Write ad' v]--> t' ->
+  (SafeAccess m v ad \/ ~ access m v ad).
+Proof.
+Abort.
+
+Local Lemma todo2 : forall m t ad ad',
+  forall_memory m value ->
+  well_typed_references m t ->
+  SafeAccess m t ad ->
+  access m t ad' ->
+  (SafeAccess m m[ad'] ad \/ ~ access m m[ad'] ad).
+Proof.
+  intros * Hval Hwtr Hsacc Hacc. induction Hsacc.
+  - inversion_subst_clear Hwtr. inversion Hacc; subst.
+    + left. rename ad'0 into ad''.
+      inversion Hacc; subst.
+      *
+
+        destruct (Hval ad'').
+        ** inversion H0.
+        ** inversion H0.
+        ** inversion H2; subst.
+           admit.
+        ** inversion H2.
+
+
+
+      assert (Haux : empty |-- <{ &ad'' :: i&T }> is <{{ i&T }}>)
+        by eauto using well_typed_term.
+      eapply sacc_strong_transitivity in Haux; eauto using value.
+      inversion_sacc.
+Qed.
+
+Lemma mstep_write_preserves_sacc : forall m m' t t' ad ad' v,
   SafeAccess m t ad ->
   m / t ==[EF_Write ad' v]==> m' / t' ->
   access m' t' ad ->
   SafeAccess m' t' ad.
 Proof.
-  intros * Hsacc ? Hacc. inversion_mstep.
-  induction_step; inversion_sacc; try inversion_access; eauto using SafeAccess.
-  - do 3 auto_specialize. clear H6.
-    assert (access m t2 ad) by eauto using sacc_then_access.
-    eapply sacc_asg; trivial.
+  intros.
+  inversion_mstep. induction_step;
+  try solve [inversion_sacc; inversion_access; eauto using SafeAccess].
+  - inversion_sacc.
+    + inversion_access.
+      * do 3 auto_specialize.
+        eapply sacc_asg; eauto.
+        destruct (access_dec m t2 ad'); eauto using mem_set_preserves_sacc1.
+        destruct (sacc_dec m m[ad'] ad).
+
+        assert (SafeAccess m v ad \/ ~ access m v ad) as [? | ?]
+          by eauto using todo.
+        ** admit.
+        ** admit.
+      * admit.
+    + admit.
+    + admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
     (* TODO
       Se  SafeAccess m t1 ad        e
           t1 --[Write ad' v]--> t1' então

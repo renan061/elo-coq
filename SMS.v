@@ -21,11 +21,6 @@ Local Definition safe_memory_sharing m ths := forall tid1 tid2 ad,
   SafeAccess m ths[tid1] ad.
 
 (* ------------------------------------------------------------------------- *)
-(* SafeAccess Lemmas                                                         *)
-(* ------------------------------------------------------------------------- *)
-
-
-(* ------------------------------------------------------------------------- *)
 (* safe-memory-sharing preservation                                          *)
 (* ------------------------------------------------------------------------- *)
 
@@ -54,7 +49,7 @@ Proof.
   assert (tid < length ths) by eauto using length_tid.
   inversion Hmstep; subst.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst;
-  try lia; do 3 rewrite_term_array;
+  try lia; do 3 simpl_array;
   eauto using mstep_none_inherits_access.
   assert (access m' ths[tid1] ad) by eauto using mstep_none_inherits_access.
   eauto using mstep_none_preserves_sacc.
@@ -76,7 +71,7 @@ Proof.
   assert (tid < length ths) by eauto using length_tid.
   inversion Hmstep; subst.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst;
-  try lia; do 3 rewrite_term_array;
+  try lia; do 3 simpl_array;
   eauto using mstep_read_inherits_access.
   assert (access m' ths[tid1] ad) by eauto using mstep_read_inherits_access.
   eauto using mstep_read_preserves_sacc.
@@ -96,7 +91,7 @@ Proof.
   assert (tid < length ths) by eauto using length_tid.
   inversion Hmstep; subst.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia;
-  do 3 rewrite_term_array;
+  do 3 simpl_array;
   destruct (Htype tid1); destruct (Nat.eq_dec ad (length m)); subst;
   try solve
     [ contradict Hacc1; eauto using va_nacc_length, mem_add_nacc_length
@@ -138,9 +133,8 @@ Proof.
   assert (Hlen : tid < length ths) by eauto using length_tid.
   inversion Hmstep; subst.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia;
-  do 3 rewrite_term_array.
+  do 3 simpl_array.
   - sms_infer Htype tid1.
-
 Qed.
 
 Local Lemma mstep_sms_preservation : forall m m' ths t' tid eff,

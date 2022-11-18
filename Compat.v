@@ -57,10 +57,10 @@ Proof.
   intros * ?. split; eauto using compat_symmetry, compat_access.
 Qed.
 
-Lemma compat_inaccessible_address_set : forall m m' t ad v,
-  compat m m' t ->
-  ~ access m t ad ->
-  compat m m'[ad <- v] t.
+Lemma compat_nacc_set : forall m m' t ad v,
+  compat m' m t ->
+  ~ access m' t ad ->
+  compat m' m[ad <- v] t.
 Proof.
   intros * Hcompat Hnacc ad Hacc. unfold compat in *.
   induction Hacc; try solve [inversion_not_access Hnacc];
@@ -99,8 +99,7 @@ Corollary inaccessible_address_set_1 : forall m t ad ad' v,
   access m t ad.
 Proof.
   intros.
-  eauto using compat_refl, compat_symmetry, compat_access,
-              compat_inaccessible_address_set.
+  eauto using compat_refl, compat_symmetry, compat_access, compat_nacc_set.
 Qed.
 
 Corollary inaccessible_address_set_2  : forall m t ad ad' v,
@@ -109,7 +108,7 @@ Corollary inaccessible_address_set_2  : forall m t ad ad' v,
   ~ access m[ad' <- v] t ad.
 Proof.
   intros.
-  eauto using compat_refl, compat_access_not, compat_inaccessible_address_set.
+  eauto using compat_refl, compat_access_not, compat_nacc_set.
 Qed.
 
 Corollary inaccessible_address_add_1 : forall m t ad v,

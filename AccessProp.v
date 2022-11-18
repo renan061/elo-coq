@@ -9,7 +9,7 @@ From Elo Require Import ValidAccesses.
 From Elo Require Import Compat.
 
 (* ------------------------------------------------------------------------- *)
-(* Mem                                                                       *)
+(* Mem -- Add                                                                *)
 (* ------------------------------------------------------------------------- *)
 
 Local Lemma todo1 : forall m t ad v,
@@ -70,6 +70,62 @@ Proof.
   decompose sum (lt_eq_lt_dec ad' (length m)); subst;
   simpl_array; trivial;
   do 2 simpl_array; inversion_access.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* Mem -- Set                                                                *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma mem_set_inherits_acc1 : forall m t ad ad' v,
+  ~ access m v ad ->
+  access m[ad' <- v] t ad ->
+  access m t ad.
+Proof.
+  intros * Hnacc Hacc. remember (m[ad' <- v]) as m'.
+  induction Hacc; try rename IHHacc into IH;
+  inversion_subst_clear Heqm'; eauto using access.
+  match goal with |- access _ <{ & ?ad :: _ }> _ => rename ad into ad'' end.
+  destruct (Nat.eq_dec ad' ad''); subst;
+  try solve [do 2 simpl_array; eauto using access];
+  destruct (Nat.eq_dec ad'' ad); subst; eauto using access.
+  auto_specialize. rewrite (get_set_eq TM_Unit) in IH. 1: contradiction.
+  eapply not_le. intros Hlen. do 3 simpl_array. 
+  eapply le_lt_or_eq in Hlen as [? | ?]; subst;
+  do 2 simpl_array; inversion_access.
+Qed.
+
+Lemma mem_set_inherits_acc2 : forall m t ad ad' v,
+  ~ access m t ad' ->
+  access m[ad' <- v] t ad ->
+  access m t ad.
+Proof.
+  intros * Hnacc Hacc.  remember (m[ad' <- v]) as m'.
+  induction Hacc; inversion_subst_clear Heqm'; inversion_not_access Hnacc;
+  try (do 2 simpl_array);
+  eauto using access.
+Qed.
+
+Local Lemma mem_set_preserves_nacc : forall m t ad ad' v,
+  ~ access m v ad ->
+  ~ access m t ad ->
+  ~ access m[ad' <- v] t ad.
+Proof.
+  assert (ge_iff_le : forall m n, m >= n <-> n <= m)
+    by (intros; split; destruct n; eauto).
+  assert (forall m ad ad' v,
+    access m[ad' <- v] m[ad' <- v][ad'] ad ->
+    ad' < length m). {
+    intros * H. eapply not_ge. rewrite ge_iff_le. intros ?.
+    rewrite (get_set_invalid TM_Unit) in H; trivial. inversion H.
+  }
+
+  intros * HnaccT HnaccV F. remember (m[ad' <- v]) as m'.
+  induction F; inversion_subst_clear Heqm'; eauto using access.
+  match goal with _ : ~ access _ <{ & ?ad :: _ }> _ |- _ => 
+    destruct (Nat.eq_dec ad' ad) as [? | Hneq]; subst;
+    try (assert (ad < length m) by eauto)
+  end;
+  do 2 simpl_array; eauto using access.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -316,67 +372,6 @@ Proof. solve_mstep_by step_alloc_creates_acc. Qed.
 (* Write                                                                     *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma mem_set_preserves_acc1 : forall m t ad ad' v,
-  ~ access m v ad ->
-  access m[ad' <- v] t ad ->
-  access m t ad.
-Proof.
-  intros * Hnacc Hacc. remember (m[ad' <- v]) as m'.
-  induction Hacc; try rename IHHacc into IH;
-  inversion_subst_clear Heqm'; eauto using access.
-  match goal with |- access _ <{ & ?ad :: _ }> _ => rename ad into ad'' end.
-  destruct (Nat.eq_dec ad' ad''); subst;
-  try solve [rewrite (get_set_neq TM_Unit) in IH; eauto using access];
-  destruct (Nat.eq_dec ad'' ad); subst; eauto using access.
-  auto_specialize. rewrite (get_set_eq TM_Unit) in IH. 1: contradiction.
-  eapply not_le. intros ?. rewrite (get_default TM_Unit) in Hacc.
-  - inversion_access.
-  - rewrite set_preserves_length. trivial.
-Qed.
-
-Lemma mem_set_preserves_acc2 : forall m t ad ad' v,
-  ~ access m t ad' ->
-  access m[ad' <- v] t ad ->
-  access m t ad.
-Proof.
-  intros * Hnacc Hacc.  remember (m[ad' <- v]) as m'.
-  induction Hacc; inversion_subst_clear Heqm'; inversion_not_access Hnacc;
-  try (do 2 simpl_array);
-  eauto using access.
-Qed.
-
-Corollary mem_set_preserves_acc : forall m t ad ad' v,
-  (~ access m v ad \/ ~ access m t ad') ->
-  access m[ad' <- v] t ad ->
-  access m t ad.
-Proof.
-  intros * [? | ?] ?;
-  eauto using mem_set_preserves_acc1, mem_set_preserves_acc2.
-Qed.
-
-Local Lemma mem_set_preserves_nacc : forall m t ad ad' v,
-  ~ access m v ad ->
-  ~ access m t ad ->
-  ~ access m[ad' <- v] t ad.
-Proof.
-  assert (ge_iff_le : forall m n, m >= n <-> n <= m)
-    by (intros; split; destruct n; eauto).
-  assert (forall m ad ad' v,
-    access m[ad' <- v] m[ad' <- v][ad'] ad ->
-    ad' < length m). {
-    intros * H. eapply not_ge. rewrite ge_iff_le. intros ?.
-    rewrite (get_set_invalid TM_Unit) in H; trivial. inversion H.
-  }
-
-  intros * HnaccT HnaccV F. remember (m[ad' <- v]) as m'.
-  induction F; inversion_subst_clear Heqm'; eauto using access.
-  match goal with _ : ~ access _ <{ & ?ad :: _ }> _ |- _ => 
-    destruct (Nat.eq_dec ad' ad) as [? | Hneq]; subst;
-    try (assert (ad < length m) by eauto)
-  end;
-  do 2 simpl_array; eauto using access.
-Qed.
-
 Local Lemma step_write_value_acc : forall m t t' ad ad' v,
   access m v ad ->
   t --[EF_Write ad' v]--> t' ->
@@ -407,7 +402,7 @@ Lemma step_write_inherits_acc : forall m t t' ad ad' v,
 Proof.
   intros. induction_step; inversion_access; eauto using access;
   destruct (access_dec m v ad);
-  eauto using step_write_value_acc, mem_set_preserves_acc1, access.
+  eauto using step_write_value_acc, mem_set_inherits_acc1, access.
 Qed.
 
 Lemma step_write_preserves_nacc : forall m t t' ad ad' v,
