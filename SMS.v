@@ -97,7 +97,7 @@ Proof.
     [ contradict Hacc1; eauto using va_nacc_length, mem_add_nacc_length
     | contradict Hacc2; eauto using va_nacc_length, mem_add_nacc_lt
     ];
-  assert (access m ths[tid1] ad); 
+  assert (access m ths[tid1] ad);
   assert (access m ths[tid2] ad);
   eauto using va_nacc_length, mem_add_inherits_access, mstep_alloc_inherits_acc;
   eauto using mstep_alloc_preserves_sacc;

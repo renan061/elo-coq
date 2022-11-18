@@ -11,6 +11,7 @@ core:
 	$(COQC) Core.v
 
 access: core
+	$(COQC) Contains.v
 	$(COQC) Access.v
 	$(COQC) ValidAccesses.v
 	$(COQC) References.v

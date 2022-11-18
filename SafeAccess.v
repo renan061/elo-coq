@@ -6,6 +6,7 @@ From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Map.
 From Elo Require Import Core.
+From Elo Require Import Contains.
 From Elo Require Import Access.
 From Elo Require Import ValidAccesses.
 From Elo Require Import References.
@@ -101,56 +102,6 @@ Ltac inversion_sacc :=
 Lemma sacc_dec : forall m t ad,
   Decidable.decidable (SafeAccess m t ad).
 Proof. eauto using classic_decidable. Qed.
-
-(* ------------------------------------------------------------------------- *)
-(* Negation                                                                  *)
-(* ------------------------------------------------------------------------- *)
-
-Local Ltac solve_nsacc m ad t1 t2 :=
-  intros; destruct (sacc_dec m t1 ad), (sacc_dec m t2 ad);
-  solve [ exfalso; eauto using SafeAccess
-        | right; right; split; trivial
-        | right; left; split; trivial
-        | left; split; trivial
-        ].
-
-Lemma nsacc_new : forall m t ad T,
-  ~ SafeAccess m <{ new T t }> ad ->
-  ~ SafeAccess m t ad.
-Proof.
-  intros. eauto using SafeAccess.
-Qed.
-
-Lemma nsacc_load : forall m t ad,
-  ~ SafeAccess m <{ *t }> ad ->
-  ~ SafeAccess m t ad.
-Proof.
-  intros. eauto using SafeAccess.
-Qed.
-
-Lemma nsacc_asg : forall m t1 t2 ad,
-  ~ SafeAccess m <{ t1 = t2 }> ad ->
-  (  (~ SafeAccess m t1 ad /\ ~ SafeAccess m t2 ad)
-  \/ (~ SafeAccess m t1 ad /\   SafeAccess m t2 ad)
-  \/ (  SafeAccess m t1 ad /\ ~ SafeAccess m t2 ad)
-  ).
-Proof. solve_nsacc m ad t1 t2. Qed.
-
-Lemma nsacc_call : forall m t1 t2 ad,
-  ~ SafeAccess m <{ call t1 t2 }> ad ->
-  (  (~ SafeAccess m t1 ad /\ ~ SafeAccess m t2 ad)
-  \/ (~ SafeAccess m t1 ad /\   SafeAccess m t2 ad)
-  \/ (  SafeAccess m t1 ad /\ ~ SafeAccess m t2 ad)
-  ).
-Proof. solve_nsacc m ad t1 t2. Qed.
-
-Lemma nsacc_seq : forall m t1 t2 ad,
-  ~ SafeAccess m <{ t1; t2 }> ad ->
-  (  (~ SafeAccess m t1 ad /\ ~ SafeAccess m t2 ad)
-  \/ (~ SafeAccess m t1 ad /\   SafeAccess m t2 ad)
-  \/ (  SafeAccess m t1 ad /\ ~ SafeAccess m t2 ad)
-  ).
-Proof. solve_nsacc m ad t1 t2. Qed.
 
 (* ------------------------------------------------------------------------- *)
 (* TODO                                                                      *)
@@ -316,6 +267,55 @@ Qed.
 (* properties -- memory -- set                                               *)
 (* ------------------------------------------------------------------------- *)
 
+Lemma mem_set_preserves_acc1 : forall m t ad ad' v,
+  ~ access m t ad' ->
+  access m t ad ->
+  access m[ad' <- v] t ad.
+Proof.
+  intros * Hnacc Hacc. induction Hacc; inversion_not_access Hnacc.
+  match goal with H : ~ access _ _ ?ad' |- _ => 
+    destruct (Nat.eq_dec ad ad'); subst
+  end.
+  - contradiction.
+  - eapply access_mem; trivial. simpl_array. eauto.
+Qed.
+
+Lemma mem_set_preserves_acc2 : forall m t ad ad' v,
+  ~ access m m[ad'] ad ->
+  access m t ad ->
+  access m[ad' <- v] t ad.
+Proof.
+  intros * ? Hacc.
+  destruct (access_dec m t ad'); eauto using mem_set_preserves_acc1.
+  induction Hacc; inversion_access; eauto using mem_set_preserves_acc1, access;
+  solve
+    [ eapply access_mem; trivial; simpl_array; eauto
+    | destruct (access_dec m t1 ad'); eauto using mem_set_preserves_acc1, access
+    | destruct (access_dec m t2 ad'); eauto using mem_set_preserves_acc1, access
+    ].
+Qed.
+
+Lemma mem_set_preserves_nacc2 : forall m t ad ad' v,
+  ~ access m t ad' ->
+  ~ access m t ad ->
+  ~ access m[ad' <- v] t ad.
+Proof.
+  intros * Hnacc' Hnacc F. remember (m[ad' <- v]) as m'.
+  induction F; inversion_not_access Hnacc'; inversion_not_access Hnacc.
+  do 2 simpl_array. eauto.
+Qed.
+
+Lemma mem_set_preserves_sacc1 : forall m t ad ad' v,
+  ~ access m t ad' ->
+  SafeAccess m t ad ->
+  SafeAccess m[ad' <- v] t ad.
+Proof.
+  intros * Hnacc Hsacc. induction Hsacc;
+  inversion_not_access Hnacc; eauto using mem_set_preserves_nacc2, SafeAccess;
+  (eapply sacc_memI || eapply sacc_memM); trivial;
+  simpl_array; eauto using mem_set_preserves_acc1.
+Qed.
+
 (* ------------------------------------------------------------------------- *)
 (* properties -- mstep sacc preservation                                     *)
 (* ------------------------------------------------------------------------- *)
@@ -383,76 +383,59 @@ Proof.
     ].
 Qed.
 
-Lemma mem_set_preserves_acc1 : forall m t ad ad' v,
-  ~ access m t ad' ->
-  access m t ad ->
-  access m[ad' <- v] t ad.
+Lemma contains_acc : forall m t t' ad,
+  access m t' ad ->
+  t contains t' ->
+  access m t ad.
 Proof.
-  intros * Hnacc Hacc. induction Hacc; inversion_not_access Hnacc.
-  match goal with H : ~ access _ _ ?ad' |- _ => 
-    destruct (Nat.eq_dec ad ad'); subst
-  end.
-  - contradiction.
-  - eapply access_mem; trivial. simpl_array. eauto.
+  intros * ? Hcon. induction Hcon; subst; eauto using access.
 Qed.
 
-Lemma mem_set_preserves_acc2 : forall m t ad ad' v,
-  ~ access m m[ad'] ad ->
-  access m t ad ->
-  access m[ad' <- v] t ad.
+Lemma contains_sacc : forall m t t' ad,
+  SafeAccess m t' ad ->
+  t contains t' ->
+  access m t ad.
 Proof.
-  intros * ? Hacc.
-  destruct (access_dec m t ad'); eauto using mem_set_preserves_acc1.
-  induction Hacc; inversion_access; eauto using mem_set_preserves_acc1, access;
-  solve
-    [ eapply access_mem; trivial; simpl_array; eauto
-    | destruct (access_dec m t1 ad'); eauto using mem_set_preserves_acc1, access
-    | destruct (access_dec m t2 ad'); eauto using mem_set_preserves_acc1, access
-    ].
+  intros * ? Hcon. induction Hcon; subst; eauto using sacc_then_access, access.
 Qed.
 
-Lemma mem_set_preserves_nacc2 : forall m t ad ad' v,
-  ~ access m t ad' ->
-  ~ access m t ad ->
-  ~ access m[ad' <- v] t ad.
-Proof.
-  intros * Hnacc' Hnacc F. remember (m[ad' <- v]) as m'.
-  induction F; inversion_not_access Hnacc'; inversion_not_access Hnacc.
-  do 2 simpl_array. eauto.
-Qed.
-
-Local Lemma mem_set_preserves_sacc1 : forall m t ad ad' v,
-  ~ access m t ad' ->
+Lemma contains_sacc2 : forall m t t' ad,
   SafeAccess m t ad ->
-  SafeAccess m[ad' <- v] t ad.
+  access m t' ad ->
+  t contains t' ->
+  SafeAccess m t' ad.
 Proof.
-  intros * Hnacc Hsacc. induction Hsacc;
-  inversion_not_access Hnacc; eauto using mem_set_preserves_nacc2, SafeAccess;
-  (eapply sacc_memI || eapply sacc_memM); trivial;
-  simpl_array; eauto using mem_set_preserves_acc1.
+  intros * ? ? Hcon. induction Hcon; subst; trivial;
+  inversion_sacc; eauto; exfalso; eauto using contains_acc.
 Qed.
 
-Local Lemma mem_set_preserves_sacc2 : forall m t ad ad' v,
-  ~ access m m[ad'] ad ->
-  ~ access m v ad ->
-  SafeAccess m t ad ->
-  SafeAccess m[ad' <- v] t ad.
-Proof.
-  intros * Hnacc1 Hnacc2 Hsacc.
-  destruct (access_dec m t ad'); eauto using mem_set_preserves_sacc1.
-  induction Hsacc; eauto using SafeAccess.
-  - eapply sacc_memI; trivial.
-    match goal with _ : access _ _[?ad] _ |- _ => rename ad into ad'' end.
-    assert (ad'' < length m) by admit.
-    inversion_access. 
-    + simpl_array.
-Abort.
-
-Local Lemma todo : forall m t t' ad ad' v,
+Local Lemma step_write_value_sacc : forall m t t' ad ad' v,
   SafeAccess m t ad ->
   t --[EF_Write ad' v]--> t' ->
-  (SafeAccess m v ad \/ ~ access m v ad).
+  access m v ad ->
+  SafeAccess m v ad.
 Proof.
+  intros * Hsacc Hstep Hacc. induction_step.
+  - inversion_sacc. eauto.
+  - inversion_sacc. eauto.
+  - inversion Hsacc; subst; eauto.
+    assert (t1 contains v) by eauto using step_write_contains_val.
+    exfalso. eauto using contains_acc.
+  - inversion Hsacc; subst; eauto.
+    assert (t contains v) by eauto using step_write_contains_val.
+    exfalso. eauto using contains_acc.
+  - inversion_sacc.
+    + inversion_sacc.
+      *
+  - inversion Hsacc; subst; eauto.
+    assert (t1 contains v) by eauto using step_write_contains_val.
+    exfalso. eauto using contains_acc.
+  - inversion Hsacc; subst; eauto.
+    assert (t contains v) by eauto using step_write_contains_val.
+    exfalso. eauto using contains_acc.
+  - inversion Hsacc; subst; eauto.
+    assert (t1 contains v) by eauto using step_write_contains_val.
+    exfalso. eauto using contains_acc.
 Abort.
 
 Local Lemma todo2 : forall m t ad ad',
