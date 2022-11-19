@@ -316,6 +316,59 @@ Proof.
   simpl_array; eauto using mem_set_preserves_acc1.
 Qed.
 
+Lemma todo : forall m t ad ad' v,
+  ~ access m t ad ->
+  access m t ad' ->
+  SafeAccess m v ad ->
+  SafeAccess m[ad' <- v] t ad.
+Proof.
+  intros * Hnacc Hacc Hsacc. induction t.
+  - inversion_access.
+  - inversion_access.
+  - inversion_not_access Hnacc. inversion_access.
+    + destruct t.
+      * destruct i.
+        ** admit.
+        ** admit.
+        ** eapply sacc_memI; eauto. simpl_array.
+           admit.
+      * admit.
+      * admit.
+    + admit.
+Abort.
+
+Lemma mem_set_sacc1 : forall m t ad ad' v,
+  access m t ad' ->
+  SafeAccess m t ad ->
+  SafeAccess m v ad ->
+  SafeAccess m[ad' <- v] t ad.
+Proof.
+  intros * Hacc Hsacc ?. induction Hsacc; eauto using SafeAccess.
+  - inversion_access.
+    + eapply sacc_memI; trivial.
+      simpl_array.
+      admit.
+    + eapply sacc_memI; trivial.
+      assert (ad' < length m) by admit.
+      simpl_array.
+      admit.
+  - admit.
+  - inversion_access. eauto using SafeAccess.
+  - inversion_access. eauto using SafeAccess.
+  - inversion_access.
+    + do 2 auto_specialize.
+      destruct (access_dec m t2 ad');
+      eauto using mem_set_preserves_sacc1, SafeAccess.
+    + do 2 auto_specialize.
+      destruct (access_dec m t1 ad');
+      eauto using mem_set_preserves_sacc1, SafeAccess.
+  - inversion_access.
+    + do 2 auto_specialize.
+      destruct (access_dec m t2 ad').
+      * admit.
+      * eauto using mem_set_preserves_nacc2, SafeAccess.
+Abort.
+
 (* ------------------------------------------------------------------------- *)
 (* properties -- mstep sacc preservation                                     *)
 (* ------------------------------------------------------------------------- *)
@@ -392,78 +445,86 @@ Proof.
 Qed.
 
 Lemma contains_sacc : forall m t t' ad,
-  SafeAccess m t' ad ->
-  t contains t' ->
-  access m t ad.
-Proof.
-  intros * ? Hcon. induction Hcon; subst; eauto using sacc_then_access, access.
-Qed.
-
-Lemma contains_sacc2 : forall m t t' ad,
   SafeAccess m t ad ->
-  access m t' ad ->
   t contains t' ->
+  access m t' ad ->
   SafeAccess m t' ad.
 Proof.
-  intros * ? ? Hcon. induction Hcon; subst; trivial;
+  intros * ? Hcon ?. induction Hcon; subst; trivial;
   inversion_sacc; eauto; exfalso; eauto using contains_acc.
 Qed.
 
-Local Lemma step_write_value_sacc : forall m t t' ad ad' v,
-  SafeAccess m t ad ->
-  t --[EF_Write ad' v]--> t' ->
+Lemma mem_set_acc : forall m t ad ad' v,
+  access m t ad ->
   access m v ad ->
-  SafeAccess m v ad.
+  access m[ad' <- v] t ad.
 Proof.
-  intros * Hsacc Hstep Hacc. induction_step.
-  - inversion_sacc. eauto.
-  - inversion_sacc. eauto.
-  - inversion Hsacc; subst; eauto.
-    assert (t1 contains v) by eauto using step_write_contains_val.
-    exfalso. eauto using contains_acc.
-  - inversion Hsacc; subst; eauto.
-    assert (t contains v) by eauto using step_write_contains_val.
-    exfalso. eauto using contains_acc.
-  - inversion_sacc.
-    + inversion_sacc.
-      *
-  - inversion Hsacc; subst; eauto.
-    assert (t1 contains v) by eauto using step_write_contains_val.
-    exfalso. eauto using contains_acc.
-  - inversion Hsacc; subst; eauto.
-    assert (t contains v) by eauto using step_write_contains_val.
-    exfalso. eauto using contains_acc.
-  - inversion Hsacc; subst; eauto.
-    assert (t1 contains v) by eauto using step_write_contains_val.
-    exfalso. eauto using contains_acc.
+  intros * Hacc ?. induction Hacc; eauto using access.
+  auto_specialize.
+  rename ad'0 into ad''.
+  eapply access_mem; trivial.
+  assert (ad'' < length m) by admit.
+  destruct (Nat.eq_dec ad' ad''); subst; simpl_array.
 Abort.
 
-Local Lemma todo2 : forall m t ad ad',
-  forall_memory m value ->
-  well_typed_references m t ->
+Lemma mem_set_sacc : forall m t ad ad' v,
   SafeAccess m t ad ->
-  access m t ad' ->
-  (SafeAccess m m[ad'] ad \/ ~ access m m[ad'] ad).
+  SafeAccess m v ad ->
+  SafeAccess m[ad' <- v] t ad.
 Proof.
-  intros * Hval Hwtr Hsacc Hacc. induction Hsacc.
-  - inversion_subst_clear Hwtr. inversion Hacc; subst.
-    + left. rename ad'0 into ad''.
-      inversion Hacc; subst.
-      *
+  intros * Hsacc ?. induction Hsacc; eauto using SafeAccess.
+  - rename ad'0 into ad''.
+    eapply sacc_memI; trivial.
+    assert (ad'' < length m) by admit.
+    destruct (Nat.eq_dec ad' ad''); subst; simpl_array.
+    + admit.
+    + admit.
+  - admit.
+  - auto_specialize.
+    destruct (access_dec m t2 ad').
+    + admit.
+    + eauto using mem_set_preserves_nacc2, SafeAccess.
+Abort.
 
-        destruct (Hval ad'').
-        ** inversion H0.
-        ** inversion H0.
-        ** inversion H2; subst.
-           admit.
-        ** inversion H2.
+Lemma one_more_time : forall m t ad ad' v,
+  ~ SafeAccess m[ad' <- v] t ad ->
+  (~ SafeAccess m t ad \/ ~ SafeAccess m v ad).
+Proof.
+  intros. eapply not_and_or. intros [? ?].
+Abort.
 
-
-
-      assert (Haux : empty |-- <{ &ad'' :: i&T }> is <{{ i&T }}>)
-        by eauto using well_typed_term.
-      eapply sacc_strong_transitivity in Haux; eauto using value.
-      inversion_sacc.
+Lemma again : forall m ad ad' v T,
+  value v ->
+  value m[ad'] ->
+  empty |-- m[ad'] is T ->
+  empty |-- v is T ->
+  SafeAccess m m[ad'] ad ->
+  SafeAccess m v ad ->
+  SafeAccess m[ad' <- v] v ad.
+Proof.
+  intros * Hval1 Hval2 Htype1 Htype2 ? ?.
+  destruct Hval1; try solve [inversion_sacc].
+  - inversion Htype2; subst.
+    + destruct Hval2; try solve [inversion_sacc].
+      * inversion Htype1; subst.
+        inversion_sacc.
+        inversion_sacc.
+        eapply sacc_memM; trivial.
+        assert (ad0 < length m) by admit.
+        destruct (Nat.eq_dec ad' ad0); subst; simpl_array.
+        ** eapply sacc_memM; trivial.
+           simpl_array.
+           eapply sacc_memM; trivial.
+           simpl_array.
+           eapply sacc_memM; trivial.
+           simpl_array.
+           eapply sacc_memM; trivial.
+           simpl_array.
+           eapply sacc_memM; trivial.
+           simpl_array.
+           eapply sacc_memM; trivial.
+           simpl_array.
+        .
 Qed.
 
 Lemma mstep_write_preserves_sacc : forall m m' t t' ad ad' v,
@@ -473,13 +534,23 @@ Lemma mstep_write_preserves_sacc : forall m m' t t' ad ad' v,
   SafeAccess m' t' ad.
 Proof.
   intros.
-  inversion_mstep. induction_step;
+  inversion_mstep.
+
+
+
+  induction_step;
   try solve [inversion_sacc; inversion_access; eauto using SafeAccess].
   - inversion_sacc.
     + inversion_access.
       * do 3 auto_specialize.
         eapply sacc_asg; eauto.
         destruct (access_dec m t2 ad'); eauto using mem_set_preserves_sacc1.
+        destruct (access_dec m v ad).
+        ** assert (SafeAccess m v ad)
+              by eauto using step_write_contains_val, contains_sacc.
+           admit.
+        ** admit.
+
         destruct (sacc_dec m m[ad'] ad).
 
         assert (SafeAccess m v ad \/ ~ access m v ad) as [? | ?]
