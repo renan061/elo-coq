@@ -202,3 +202,29 @@ Proof.
   intros * Hnacc ?. inversion_not_access Hnacc; eauto using not_access_subst.
 Qed.
 
+(* ------------------------------------------------------------------------- *)
+(* TODO                                                                      *)
+(* ------------------------------------------------------------------------- *)
+
+Local Lemma todo1 : forall m t t' ad ad' v,
+  ad' < length m ->
+  ~ access m m[ad] ad ->
+  t --[EF_Write ad' v]--> t' ->
+  ~ access m[ad' <- v] m[ad' <- v][ad] ad.
+Proof.
+  intros * ? Hnacc ?. 
+  destruct (Nat.eq_dec ad' ad); subst; simpl_array.
+   admit.
+  - admit.
+Abort.
+
+Theorem todo : forall m m' t t' ad eff,
+  ~ access m m[ad] ad ->
+  m / t ==[eff]==> m' / t' ->
+  ~ access m' m'[ad] ad.
+Proof.
+  intros. inversion_mstep; trivial.
+  - admit.
+  - admit.
+Abort.
+

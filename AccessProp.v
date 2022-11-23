@@ -105,7 +105,45 @@ Proof.
   eauto using access.
 Qed.
 
-Local Lemma mem_set_preserves_nacc : forall m t ad ad' v,
+Lemma mem_set_preserves_acc1 : forall m t ad ad' v,
+  ~ access m t ad' ->
+  access m t ad ->
+  access m[ad' <- v] t ad.
+Proof.
+  intros * Hnacc Hacc. induction Hacc; inversion_not_access Hnacc.
+  match goal with H : ~ access _ _ ?ad' |- _ => 
+    destruct (Nat.eq_dec ad ad'); subst
+  end.
+  - contradiction.
+  - eapply access_mem; trivial. simpl_array. eauto.
+Qed.
+
+Lemma mem_set_preserves_acc2 : forall m t ad ad' v,
+  ~ access m m[ad'] ad ->
+  access m t ad ->
+  access m[ad' <- v] t ad.
+Proof.
+  intros * ? Hacc.
+  destruct (access_dec m t ad'); eauto using mem_set_preserves_acc1.
+  induction Hacc; inversion_access; eauto using mem_set_preserves_acc1, access;
+  solve
+    [ eapply access_mem; trivial; simpl_array; eauto
+    | destruct (access_dec m t1 ad'); eauto using mem_set_preserves_acc1, access
+    | destruct (access_dec m t2 ad'); eauto using mem_set_preserves_acc1, access
+    ].
+Qed.
+
+Lemma mem_set_preserves_nacc2 : forall m t ad ad' v,
+  ~ access m t ad' ->
+  ~ access m t ad ->
+  ~ access m[ad' <- v] t ad.
+Proof.
+  intros * Hnacc' Hnacc F. remember (m[ad' <- v]) as m'.
+  induction F; inversion_not_access Hnacc'; inversion_not_access Hnacc.
+  do 2 simpl_array. eauto.
+Qed.
+
+Lemma mem_set_preserves_nacc : forall m t ad ad' v,
   ~ access m v ad ->
   ~ access m t ad ->
   ~ access m[ad' <- v] t ad.
@@ -127,6 +165,7 @@ Proof.
   end;
   do 2 simpl_array; eauto using access.
 Qed.
+
 
 (* ------------------------------------------------------------------------- *)
 (* Step                                                                      *)

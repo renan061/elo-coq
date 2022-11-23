@@ -12,6 +12,91 @@ From Elo Require Import ValidAccesses.
 From Elo Require Import References.
 From Elo Require Import AccessProp.
 
+(* Safe access means all references to the address inside the term are
+immutable. *)
+
+Inductive UnsafeAccess (m : mem) : tm -> addr -> Prop :=
+  | uacc_ref : forall ad T,
+    UnsafeAccess m <{ &ad :: &T }> ad
+
+  | uacc_memI: forall ad T,
+    ad <> ad' ->
+    UnsafeAccess m m[ad'] ad ->
+    UnsafeAccess m <{ &ad' :: i&T }> ad
+
+  | uacc_memM: forall ad T,
+    ad <> ad' ->
+    UnsafeAccess m m[ad'] ad ->
+    UnsafeAccess m <{ &ad' :: &T }> ad
+
+  | uacc_asg1 : forall t1 t2 ad,
+    UnsafeAccess m t1 ad ->
+    UnsafeAccess m <{ t1 = t2 }> ad
+
+  | uacc_asg2 : forall t1 t2 ad,
+    UnsafeAccess m t2 ad ->
+    UnsafeAccess m <{ t1 = t2 }> ad
+
+  (* etc *)
+  .
+
+  | sacc_memM : forall ad ad' T,
+    ad <> ad' ->
+    SafeAccess m m[ad'] ad ->
+    SafeAccess m <{ &ad' :: &T }> ad
+
+  | sacc_ref : forall ad T,
+    SafeAccess m <{ &ad :: i&T }> ad
+
+  | sacc_new : forall t ad T,
+    SafeAccess m t ad ->
+    SafeAccess m <{ new T t }> ad
+
+  | sacc_load : forall t ad,
+    SafeAccess m t ad ->
+    SafeAccess m <{ *t }> ad
+
+  | sacc_asg : forall t1 t2 ad,
+    SafeAccess m t1 ad ->
+    SafeAccess m t2 ad ->
+    SafeAccess m <{ t1 = t2 }> ad
+
+  | sacc_fun : forall x Tx t ad,
+    SafeAccess m t ad ->
+    SafeAccess m <{ fn x Tx --> t }> ad
+
+  | sacc_call : forall t1 t2 ad,
+    SafeAccess m t1 ad ->
+    SafeAccess m t2 ad ->
+    SafeAccess m <{ call t1 t2 }> ad
+
+  | sacc_call1 : forall t1 t2 ad,
+    SafeAccess m t1 ad ->
+    ~ access m t2 ad ->
+    SafeAccess m <{ call t1 t2 }> ad
+
+  | sacc_call2 : forall t1 t2 ad,
+    SafeAccess m t2 ad ->
+    ~ access m t1 ad ->
+    SafeAccess m <{ call t1 t2 }> ad
+
+  | sacc_seq : forall t1 t2 ad,
+    SafeAccess m t1 ad ->
+    SafeAccess m t2 ad ->
+    SafeAccess m <{ t1; t2 }> ad
+
+  | sacc_seq1 : forall t1 t2 ad,
+    SafeAccess m t1 ad ->
+    ~ access m t2 ad ->
+    SafeAccess m <{ t1; t2 }> ad
+
+  | sacc_seq2 : forall t1 t2 ad,
+    SafeAccess m t2 ad ->
+    ~ access m t1 ad ->
+    SafeAccess m <{ t1; t2 }> ad
+  .
+(* Safe access means all references to the address inside the term are
+immutable. *)
 Inductive SafeAccess (m : mem) : tm -> addr -> Prop :=
   | sacc_memI : forall ad ad' T,
     ad <> ad' ->
@@ -37,16 +122,6 @@ Inductive SafeAccess (m : mem) : tm -> addr -> Prop :=
   | sacc_asg : forall t1 t2 ad,
     SafeAccess m t1 ad ->
     SafeAccess m t2 ad ->
-    SafeAccess m <{ t1 = t2 }> ad
-
-  | sacc_asg1 : forall t1 t2 ad,
-    SafeAccess m t1 ad ->
-    ~ access m t2 ad ->
-    SafeAccess m <{ t1 = t2 }> ad
-
-  | sacc_asg2 : forall t1 t2 ad,
-    SafeAccess m t2 ad ->
-    ~ access m t1 ad ->
     SafeAccess m <{ t1 = t2 }> ad
 
   | sacc_fun : forall x Tx t ad,
@@ -267,44 +342,6 @@ Qed.
 (* properties -- memory -- set                                               *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma mem_set_preserves_acc1 : forall m t ad ad' v,
-  ~ access m t ad' ->
-  access m t ad ->
-  access m[ad' <- v] t ad.
-Proof.
-  intros * Hnacc Hacc. induction Hacc; inversion_not_access Hnacc.
-  match goal with H : ~ access _ _ ?ad' |- _ => 
-    destruct (Nat.eq_dec ad ad'); subst
-  end.
-  - contradiction.
-  - eapply access_mem; trivial. simpl_array. eauto.
-Qed.
-
-Lemma mem_set_preserves_acc2 : forall m t ad ad' v,
-  ~ access m m[ad'] ad ->
-  access m t ad ->
-  access m[ad' <- v] t ad.
-Proof.
-  intros * ? Hacc.
-  destruct (access_dec m t ad'); eauto using mem_set_preserves_acc1.
-  induction Hacc; inversion_access; eauto using mem_set_preserves_acc1, access;
-  solve
-    [ eapply access_mem; trivial; simpl_array; eauto
-    | destruct (access_dec m t1 ad'); eauto using mem_set_preserves_acc1, access
-    | destruct (access_dec m t2 ad'); eauto using mem_set_preserves_acc1, access
-    ].
-Qed.
-
-Lemma mem_set_preserves_nacc2 : forall m t ad ad' v,
-  ~ access m t ad' ->
-  ~ access m t ad ->
-  ~ access m[ad' <- v] t ad.
-Proof.
-  intros * Hnacc' Hnacc F. remember (m[ad' <- v]) as m'.
-  induction F; inversion_not_access Hnacc'; inversion_not_access Hnacc.
-  do 2 simpl_array. eauto.
-Qed.
-
 Lemma mem_set_preserves_sacc1 : forall m t ad ad' v,
   ~ access m t ad' ->
   SafeAccess m t ad ->
@@ -454,33 +491,48 @@ Proof.
   inversion_sacc; eauto; exfalso; eauto using contains_acc.
 Qed.
 
+Lemma nope : forall m ad ad' v,
+  ad <> ad' ->
+  access m v ad ->
+  access m[ad' <- v] v ad.
+Proof.
+  intros * Hneq H. induction H; eauto using access; auto_specialize.
+  - admit.
+  - eapply access_new.
+Abort.
+
 Lemma mem_set_acc : forall m t ad ad' v,
+  ad <> ad' ->
   access m t ad ->
   access m v ad ->
   access m[ad' <- v] t ad.
 Proof.
-  intros * Hacc ?. induction Hacc; eauto using access.
-  auto_specialize.
+  intros * ? Hacc ?. induction Hacc; eauto using access.
+  do 2 auto_specialize.
   rename ad'0 into ad''.
   eapply access_mem; trivial.
   assert (ad'' < length m) by admit.
-  destruct (Nat.eq_dec ad' ad''); subst; simpl_array.
+  destruct (Nat.eq_dec ad' ad''); subst; simpl_array; trivial.
+  destruct (access_dec m v ad''); eauto using mem_set_preserves_acc1.
+  (* TODO : (~ access m m[ad] ad)  levaria à contradiction *)
+  
 Abort.
 
 Lemma mem_set_sacc : forall m t ad ad' v,
+  ad <> ad' ->
   SafeAccess m t ad ->
   SafeAccess m v ad ->
   SafeAccess m[ad' <- v] t ad.
 Proof.
-  intros * Hsacc ?. induction Hsacc; eauto using SafeAccess.
+  intros * Hneq Hsacc ?. induction Hsacc; eauto using SafeAccess.
   - rename ad'0 into ad''.
     eapply sacc_memI; trivial.
     assert (ad'' < length m) by admit.
-    destruct (Nat.eq_dec ad' ad''); subst; simpl_array.
+    destruct (Nat.eq_dec ad'' ad'); subst; simpl_array.
     + admit.
     + admit.
   - admit.
-  - auto_specialize.
+  - do 2 auto_specialize.
     destruct (access_dec m t2 ad').
     + admit.
     + eauto using mem_set_preserves_nacc2, SafeAccess.
@@ -524,8 +576,15 @@ Proof.
            simpl_array.
            eapply sacc_memM; trivial.
            simpl_array.
-        .
-Qed.
+Abort.
+
+
+Local Lemma todo : forall m t ad ad' v,
+  SafeAccess m t ad ->
+  access m[ad' <- v] t ad ->
+  SafeAccess m[ad' <- v] t ad.
+Proof.
+Abort.
 
 Lemma mstep_write_preserves_sacc : forall m m' t t' ad ad' v,
   SafeAccess m t ad ->
@@ -533,16 +592,15 @@ Lemma mstep_write_preserves_sacc : forall m m' t t' ad ad' v,
   access m' t' ad ->
   SafeAccess m' t' ad.
 Proof.
-  intros.
-  inversion_mstep.
-
-
-
-  induction_step;
+  intros. inversion_mstep. induction_step;
   try solve [inversion_sacc; inversion_access; eauto using SafeAccess].
   - inversion_sacc.
     + inversion_access.
       * do 3 auto_specialize.
+        destruct (access_dec m[ad' <- v] t2 ad); eauto using SafeAccess.
+        
+
+
         eapply sacc_asg; eauto.
         destruct (access_dec m t2 ad'); eauto using mem_set_preserves_sacc1.
         destruct (access_dec m v ad).
@@ -550,33 +608,6 @@ Proof.
               by eauto using step_write_contains_val, contains_sacc.
            admit.
         ** admit.
-
-        destruct (sacc_dec m m[ad'] ad).
-
-        assert (SafeAccess m v ad \/ ~ access m v ad) as [? | ?]
-          by eauto using todo.
-        ** admit.
-        ** admit.
-      * admit.
-    + admit.
-    + admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-    (* TODO
-      Se  SafeAccess m t1 ad        e
-          t1 --[Write ad' v]--> t1' então
-
-      (1) ~ access   m v ad  ou
-      (2) SafeAccess m v ad
-
-      Se (2):
-        SafeAccess m v ad ->
-        SafeAccess m t ad ->
-        SafeAccess m[ad' <- v] t ad
-
-    *)
 Abort.
 
 (* ------------------------------------------------------------------------- *)

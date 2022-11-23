@@ -117,7 +117,7 @@ Local Ltac sms_infer Htype tid1 :=
     destruct (access_dec m t2 ad) as [? | Hnacc2];
     try solve [exfalso; eauto];
     assert (Hacc1' : access m t1 ad') by eauto using mstep_write_inherits_acc;
-    assert (Hacc2' : access m t2 ad') by eauto using mem_set_preserves_acc2;
+    assert (Hacc2' : access m t2 ad') by eauto using mem_set_inherits_acc2;
     do 4 auto_specialize
   end.
 
