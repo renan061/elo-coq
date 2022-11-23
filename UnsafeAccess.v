@@ -170,6 +170,58 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
+(* mem -- set                                                                *)
+(* ------------------------------------------------------------------------- *)
+
+Local Lemma simpl_uacc : forall m ad ad' v,
+  UnsafeAccess m[ad' <- v] m[ad' <- v][ad'] ad ->
+  ad' < length m.
+Proof.
+  assert (ge_iff_le : forall m n, m >= n <-> n <= m)
+    by (intros; split; destruct n; eauto).
+  intros * H. eapply not_ge. rewrite ge_iff_le. intros ?.
+  rewrite (get_set_invalid TM_Unit) in H; trivial. inversion H.
+Qed.
+
+Lemma mem_set_preserves_nuacc : forall m t ad ad' v,
+  ~ UnsafeAccess m v ad ->
+  ~ UnsafeAccess m t ad ->
+  ~ UnsafeAccess m[ad' <- v] t ad.
+Proof.
+  intros * ? ? Huacc. remember (m[ad' <- v]) as m'.
+  induction Huacc; inversion_subst_clear Heqm'; eauto using UnsafeAccess.
+  match goal with _ : _ <> ?ad |- _ => rename ad into ad'' end. 
+  destruct (Nat.eq_dec ad' ad'') as [? | Hneq]; subst;
+  try (assert (ad'' < length m) by eauto using simpl_uacc);
+  do 2 simpl_array; eauto using UnsafeAccess.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* other properties                                                          *)
+(* ------------------------------------------------------------------------- *)
+
+Local Lemma contains_nuacc : forall m t t' ad,
+  ~ UnsafeAccess m t ad ->
+  t contains t' ->
+  ~ UnsafeAccess m t' ad.
+Proof.
+  intros * ? Hcon ?. induction Hcon; subst; eauto;
+  inversion_nuacc; eauto.
+Qed.
+
+Lemma mstep_write_preserves_nuacc : forall m m' t t' ad ad' v,
+  ~ UnsafeAccess m t ad ->
+  m / t ==[EF_Write ad' v]==> m' / t' ->
+  ~ UnsafeAccess m' t' ad.
+Proof.
+  intros * ? ? ?. inversion_mstep. induction_step;
+  inversion_nuacc; inversion_clear_uacc; eauto using UnsafeAccess;
+  match goal with H : UnsafeAccess _ ?t _ |- _ => rename t into tx end;
+  eapply (mem_set_preserves_nuacc _ tx _ _ v);
+  eauto using step_write_contains_val, contains_nuacc.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
 (* safe memory sharing                                                       *)
 (* ------------------------------------------------------------------------- *)
 
@@ -200,36 +252,115 @@ Proof.
   inversion_type. eauto using UnsafeAccess.
 Qed.
 
+Local Lemma todo1 : forall m m' t ad ad' v ths tid1 tid2 T,
+  tid1 <> tid2 ->
+  safe_memory_sharing m ths ->
+  empty |-- ths[tid1] is T ->
+  m / ths[tid1] ==[EF_Write ad v]==> m' / t ->
+  access m' t ad' ->
+  access m' ths[tid2] ad' ->
+  UnsafeAccess m' t ad' ->
+  False.
+Proof.
+  intros * Hneq Hsms ? Hmstep ? ? Huacc. inversion Hmstep; subst.
+  destruct (access_dec m ths[tid2] ad) as [Hacc2 | ?].
+  - assert (Hacc1 : access m ths[tid1] ad)
+      by eauto using mstep_write_requires_acc.
+    specialize (Hsms _ _ _ Hneq Hacc1 Hacc2) as ?.
+    eauto using write_then_uacc.
+  - contradict Huacc.
+    eauto using mstep_write_preserves_nuacc,
+      mstep_write_inherits_acc,
+      mem_set_inherits_acc2.
+Qed.
+
+Lemma mem_set_inherits_uacc1 : forall m t ad ad' v,
+  ~ access m t ad' ->
+  UnsafeAccess m[ad' <- v] t ad ->
+  UnsafeAccess m t ad.
+Proof.
+  intros * Hnacc Huacc. remember (m[ad' <- v]) as m'.
+  induction Huacc; inversion_subst_clear Heqm'; inversion_not_access Hnacc;
+  eauto using UnsafeAccess.
+  do 2 simpl_array. eauto using UnsafeAccess.
+Qed.
+
+Local Lemma todo2 : forall m m' t ad ad' v ths tid1 tid2 T,
+  tid1 <> tid2 ->
+  safe_memory_sharing m ths ->
+  empty |-- ths[tid1] is T ->
+  m / ths[tid1] ==[EF_Write ad v]==> m' / t ->
+  access m' t ad' ->
+  access m' ths[tid2] ad' ->
+  UnsafeAccess m' ths[tid2] ad' ->
+  False.
+Proof.
+  intros * Hneq Hsms ? Hmstep ? ? Huacc. inversion Hmstep; subst.
+  destruct (access_dec m ths[tid2] ad) as [Hacc2 | ?].
+  - assert (Hacc1 : access m ths[tid1] ad)
+      by eauto using mstep_write_requires_acc.
+    specialize (Hsms _ _ _ Hneq Hacc1 Hacc2) as ?.
+    eauto using write_then_uacc.
+  - assert (~ UnsafeAccess m ths[tid1] ad'); (* TODO *)
+    assert (~ UnsafeAccess m ths[tid2] ad');
+    eauto using mem_set_inherits_uacc1,
+      mstep_write_inherits_acc,
+      mem_set_inherits_acc2.
+Qed.
+
+Local Lemma todo3 : forall m m' t ad ad' v ths tid tid1 tid2 T,
+  tid1 <> tid2 ->
+  safe_memory_sharing m ths ->
+  empty |-- ths[tid1] is T ->
+  m / ths[tid] ==[EF_Write ad v]==> m' / t ->
+  access m' t ad' ->
+  access m' ths[tid2] ad' ->
+  UnsafeAccess m' ths[tid2] ad' ->
+  False.
+Proof.
+  intros * Hneq Hsms ? Hmstep ? ? Huacc. inversion Hmstep; subst.
+Abort.
+
+Lemma not_sharing : forall m t ad v ths tid tid',
+  tid <> tid' ->
+  forall_threads ths (fun t => exists T, empty |-- t is T) ->
+  safe_memory_sharing m ths ->
+  ths[tid] --[EF_Write ad v]--> t ->
+  ~ access m ths[tid'] ad.
+Proof.
+  intros * Hneq Htype Hsms ? F.
+  assert (Hacc : access m ths[tid] ad) by eauto using step_write_requires_acc.
+  destruct (Htype tid).
+  specialize (Hsms _ _ _ Hneq Hacc F) as ?.
+  eauto using write_then_uacc.
+Qed.
+
 Local Lemma mstep_write_sms_preservation : forall m m' ths t' tid ad v,
   forall_threads ths (fun t => exists T, empty |-- t is T) ->
   safe_memory_sharing m ths ->
   m / ths[tid] ==[EF_Write ad v]==> m' / t' ->
   safe_memory_sharing m' ths[tid <- t'].
 Proof.
-  intros * Htype Hsms Hmstep tid1 tid2 ad' Hneq Hacc1W Hacc2W.
-  specialize (Hsms _ _ ad' Hneq) as Hsms1.
-  specialize (Hsms _ _ ad' (not_eq_sym Hneq)) as Hsms2.
+  intros * Htype Hsms Hmstep tid1 tid2 ad' Hneq ? ? Huacc.
   assert (Hlen : tid < length ths) by eauto using length_tid.
-  inversion Hmstep; subst.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia;
   do 3 simpl_array.
-  - intros Huacc.
-    destruct (access_dec m ths[tid2] ad) as [Hacc2 | Hnacc2].
-    + assert (Hacc1 : access m ths[tid1] ad)
-        by eauto using mstep_write_requires_acc.
-      destruct (Htype tid1) as [T1 Htype1].
-      specialize (Hsms _ _ _ Hneq Hacc1 Hacc2) as ?.
-      eauto using write_then_uacc.
-    + assert (Hacc1' : access m ths[tid1] ad')
-        by eauto using mstep_write_inherits_acc.
-      assert (Hacc2' : access m ths[tid2] ad')
-        by eauto using mem_set_inherits_acc2.
-      do 4 auto_specialize.
-      eapply Hsms1.
-Abort.
+  - destruct (Htype tid1). eauto using todo1.
+  - destruct (Htype tid2). eauto using todo2.
+  - inversion Hmstep; subst.
+    assert (~ access m ths[tid1] ad) by eauto using not_sharing.
+    assert (~ access m ths[tid2] ad) by eauto using not_sharing.
+    assert (access m ths[tid1] ad') by eauto using mem_set_inherits_acc2.
+    assert (access m ths[tid2] ad') by eauto using mem_set_inherits_acc2.
+    assert (~ UnsafeAccess m ths[tid1] ad');
+    assert (~ UnsafeAccess m ths[tid2] ad');
+    eauto using mem_set_inherits_uacc1,
+      mstep_write_inherits_acc,
+      mem_set_inherits_acc2.
+Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* other properties                                                          *)
+(* to remove & unused                                                        *)
 (* ------------------------------------------------------------------------- *)
 
 Lemma todo1 : forall m t t' ad v,
@@ -269,29 +400,6 @@ Proof.
   do 2 simpl_array; inversion_uacc.
 Qed.
 
-Local Lemma simpl_uacc : forall m ad ad' v,
-  UnsafeAccess m[ad' <- v] m[ad' <- v][ad'] ad ->
-  ad' < length m.
-Proof.
-  assert (ge_iff_le : forall m n, m >= n <-> n <= m)
-    by (intros; split; destruct n; eauto).
-  intros * H. eapply not_ge. rewrite ge_iff_le. intros ?.
-  rewrite (get_set_invalid TM_Unit) in H; trivial. inversion H.
-Qed.
-
-Lemma mem_set_preserves_nuacc : forall m t ad ad' v,
-  ~ UnsafeAccess m v ad ->
-  ~ UnsafeAccess m t ad ->
-  ~ UnsafeAccess m[ad' <- v] t ad.
-Proof.
-  intros * ? ? Huacc. remember (m[ad' <- v]) as m'.
-  induction Huacc; inversion_subst_clear Heqm'; eauto using UnsafeAccess.
-  match goal with _ : _ <> ?ad |- _ => rename ad into ad'' end. 
-  destruct (Nat.eq_dec ad' ad'') as [? | Hneq]; subst;
-  try (assert (ad'' < length m) by eauto using simpl_uacc);
-  do 2 simpl_array; eauto using UnsafeAccess.
-Qed.
-
 Local Lemma todo : forall m t t' ad ad' v,
   ~ UnsafeAccess m[ad' <- v] t' ad ->
   t --[EF_Write ad' v]--> t' ->
@@ -323,44 +431,4 @@ Proof.
   - admit.
   - admit.
 Abort.
-
-Lemma contains_nuacc : forall m t t' ad,
-  ~ UnsafeAccess m t ad ->
-  t contains t' ->
-  ~ UnsafeAccess m t' ad.
-Proof.
-  intros * ? Hcon ?. induction Hcon; subst; eauto;
-  inversion_nuacc; eauto.
-Qed.
-
-Lemma mstep_write_preserves_nuacc : forall m m' t t' ad ad' v,
-  ~ UnsafeAccess m t ad ->
-  m / t ==[EF_Write ad' v]==> m' / t' ->
-  ~ UnsafeAccess m' t' ad.
-Proof.
-  intros * ? ? ?. inversion_mstep. induction_step;
-  inversion_nuacc; inversion_clear_uacc; eauto using UnsafeAccess;
-  match goal with H : UnsafeAccess _ ?t _ |- _ => rename t into tx end;
-  eapply (mem_set_preserves_nuacc _ tx _ _ v);
-  eauto using step_write_contains_val, contains_nuacc.
-Qed.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
