@@ -12,6 +12,7 @@ From Elo Require Import ValidAccesses.
 From Elo Require Import References.
 From Elo Require Import AccessProp.
 
+(*
 (* Safe access means all references to the address inside the term are
 immutable. *)
 
@@ -95,8 +96,8 @@ Inductive UnsafeAccess (m : mem) : tm -> addr -> Prop :=
     ~ access m t1 ad ->
     SafeAccess m <{ t1; t2 }> ad
   .
-(* Safe access means all references to the address inside the term are
-immutable. *)
+*)
+
 Inductive SafeAccess (m : mem) : tm -> addr -> Prop :=
   | sacc_memI : forall ad ad' T,
     ad <> ad' ->
@@ -122,6 +123,16 @@ Inductive SafeAccess (m : mem) : tm -> addr -> Prop :=
   | sacc_asg : forall t1 t2 ad,
     SafeAccess m t1 ad ->
     SafeAccess m t2 ad ->
+    SafeAccess m <{ t1 = t2 }> ad
+
+  | sacc_asg1 : forall t1 t2 ad,
+    SafeAccess m t1 ad ->
+    ~ access m t2 ad ->
+    SafeAccess m <{ t1 = t2 }> ad
+
+  | sacc_asg2 : forall t1 t2 ad,
+    SafeAccess m t2 ad ->
+    ~ access m t1 ad ->
     SafeAccess m <{ t1 = t2 }> ad
 
   | sacc_fun : forall x Tx t ad,
