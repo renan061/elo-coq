@@ -12,92 +12,6 @@ From Elo Require Import ValidAccesses.
 From Elo Require Import References.
 From Elo Require Import AccessProp.
 
-(*
-(* Safe access means all references to the address inside the term are
-immutable. *)
-
-Inductive UnsafeAccess (m : mem) : tm -> addr -> Prop :=
-  | uacc_ref : forall ad T,
-    UnsafeAccess m <{ &ad :: &T }> ad
-
-  | uacc_memI: forall ad T,
-    ad <> ad' ->
-    UnsafeAccess m m[ad'] ad ->
-    UnsafeAccess m <{ &ad' :: i&T }> ad
-
-  | uacc_memM: forall ad T,
-    ad <> ad' ->
-    UnsafeAccess m m[ad'] ad ->
-    UnsafeAccess m <{ &ad' :: &T }> ad
-
-  | uacc_asg1 : forall t1 t2 ad,
-    UnsafeAccess m t1 ad ->
-    UnsafeAccess m <{ t1 = t2 }> ad
-
-  | uacc_asg2 : forall t1 t2 ad,
-    UnsafeAccess m t2 ad ->
-    UnsafeAccess m <{ t1 = t2 }> ad
-
-  (* etc *)
-  .
-
-  | sacc_memM : forall ad ad' T,
-    ad <> ad' ->
-    SafeAccess m m[ad'] ad ->
-    SafeAccess m <{ &ad' :: &T }> ad
-
-  | sacc_ref : forall ad T,
-    SafeAccess m <{ &ad :: i&T }> ad
-
-  | sacc_new : forall t ad T,
-    SafeAccess m t ad ->
-    SafeAccess m <{ new T t }> ad
-
-  | sacc_load : forall t ad,
-    SafeAccess m t ad ->
-    SafeAccess m <{ *t }> ad
-
-  | sacc_asg : forall t1 t2 ad,
-    SafeAccess m t1 ad ->
-    SafeAccess m t2 ad ->
-    SafeAccess m <{ t1 = t2 }> ad
-
-  | sacc_fun : forall x Tx t ad,
-    SafeAccess m t ad ->
-    SafeAccess m <{ fn x Tx --> t }> ad
-
-  | sacc_call : forall t1 t2 ad,
-    SafeAccess m t1 ad ->
-    SafeAccess m t2 ad ->
-    SafeAccess m <{ call t1 t2 }> ad
-
-  | sacc_call1 : forall t1 t2 ad,
-    SafeAccess m t1 ad ->
-    ~ access m t2 ad ->
-    SafeAccess m <{ call t1 t2 }> ad
-
-  | sacc_call2 : forall t1 t2 ad,
-    SafeAccess m t2 ad ->
-    ~ access m t1 ad ->
-    SafeAccess m <{ call t1 t2 }> ad
-
-  | sacc_seq : forall t1 t2 ad,
-    SafeAccess m t1 ad ->
-    SafeAccess m t2 ad ->
-    SafeAccess m <{ t1; t2 }> ad
-
-  | sacc_seq1 : forall t1 t2 ad,
-    SafeAccess m t1 ad ->
-    ~ access m t2 ad ->
-    SafeAccess m <{ t1; t2 }> ad
-
-  | sacc_seq2 : forall t1 t2 ad,
-    SafeAccess m t2 ad ->
-    ~ access m t1 ad ->
-    SafeAccess m <{ t1; t2 }> ad
-  .
-*)
-
 Inductive SafeAccess (m : mem) : tm -> addr -> Prop :=
   | sacc_memI : forall ad ad' T,
     ad <> ad' ->
@@ -210,7 +124,7 @@ Proof.
   intros * H. induction H; eauto using access.
 Qed.
 
-Lemma not_access_then_not_sacc : forall m t ad,
+Lemma nac_then_nsacc : forall m t ad,
   ~ access m t ad ->
   ~ SafeAccess m t ad.
 Proof.
@@ -609,10 +523,8 @@ Proof.
     + inversion_access.
       * do 3 auto_specialize.
         destruct (access_dec m[ad' <- v] t2 ad); eauto using SafeAccess.
-        
-
-
         eapply sacc_asg; eauto.
+
         destruct (access_dec m t2 ad'); eauto using mem_set_preserves_sacc1.
         destruct (access_dec m v ad).
         ** assert (SafeAccess m v ad)
