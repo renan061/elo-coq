@@ -216,6 +216,19 @@ Qed.
 (* mem -- add                                                                *)
 (* ------------------------------------------------------------------------- *)
 
+Lemma mem_add_inherits_uacc : forall m t ad v,
+  ~ access m t (length m) ->
+  UnsafeAccess (m +++ v) t ad ->
+  UnsafeAccess m t ad.
+Proof.
+  intros * Hnacc Huacc. remember (m +++ v) as m'.
+  induction Huacc; inversion Heqm'; subst; inversion_not_access Hnacc;
+  eauto using UnsafeAccess.
+  eapply uacc_mem; trivial.
+  decompose sum (lt_eq_lt_dec ad' (length m)); subst;
+  do 2 simpl_array; eauto; do 2 simpl_array; eauto; lia.
+Qed.
+
 Lemma mem_add_preserves_nuacc : forall m t ad v,
   ~ UnsafeAccess m t (length m) ->
   ~ UnsafeAccess m t ad ->
@@ -394,9 +407,21 @@ Proof.
     assert (ad <> length m) by eauto using Nat.lt_neq, va_length.
     contradict Huacc.
     eauto using step_alloc_preserves_nuacc, step_alloc_inherits_acc.
-  - admit.
-  - admit.
+  - eapply mem_add_inherits_uacc in Huacc; eauto using va_nacc_length.
+    assert (ad <> length m) by eauto using uacc_then_acc, Nat.lt_neq, va_length.
+    eapply step_alloc_inherits_acc in Hacc2; eauto.
+    eapply uacc_then_acc in Huacc as ?.
+    contradict Huacc. eauto.
+  - eapply mem_add_inherits_uacc in Huacc; eauto using va_nacc_length.
+    assert (ad <> length m) by eauto using uacc_then_acc, Nat.lt_neq, va_length.
+    eapply uacc_then_acc in Huacc as ?.
+    eapply mem_add_inherits_access in Hacc2; eauto using va_nacc_length.
+    contradict Huacc. eauto.
 Qed.
+
+(* TODO: Last One!
+Local Lemma mstep_read_sms_preservation : forall,
+*)
 
 Local Lemma mstep_write_sms_preservation : forall m m' ths t' tid ad v,
   forall_threads ths well_typed_thread ->
