@@ -124,7 +124,7 @@ Proof.
   intros * H. induction H; eauto using access.
 Qed.
 
-Lemma nac_then_nsacc : forall m t ad,
+Lemma nacc_then_nsacc : forall m t ad,
   ~ access m t ad ->
   ~ SafeAccess m t ad.
 Proof.

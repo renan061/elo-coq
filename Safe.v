@@ -405,7 +405,7 @@ Proof.
 Qed.
 
 Theorem safe_spawns_preservation : forall m m' ths ths' tid eff,
-  forall_threads ths WellTypedThread ->
+  forall_threads ths well_typed_thread ->
   forall_memory m SafeSpawns ->
   forall_threads ths SafeSpawns ->
   m / ths ~~[tid, eff]~~> m' / ths' ->

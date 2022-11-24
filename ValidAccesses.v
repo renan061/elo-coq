@@ -12,11 +12,21 @@ Definition valid_accesses (m : mem) (t : tm) :=
 (* auxiliary                                                                 *)
 (* ------------------------------------------------------------------------- *)
 
+Lemma va_length : forall m t ad,
+  valid_accesses m t ->
+  access m t ad ->
+  ad < length m.
+Proof.
+  intros * Hva Hacc. decompose sum (lt_eq_lt_dec ad (length m)); subst; trivial.
+  - specialize (Hva (length m) Hacc). lia.
+  - specialize (Hva ad Hacc). lia.
+Qed.
+
 Lemma va_nacc_length : forall m t,
   valid_accesses m t ->
   ~ access m t (length m).
 Proof.
-  intros * Hva F. specialize (Hva (length m) F). lia.
+  intros * ? F. eapply va_length in F; eauto. lia.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
