@@ -40,7 +40,7 @@ Lemma set_preserves_length : forall {A} (l : list A) i a,
   length l[i <- a] = length l.
 Proof.
   intros ?. induction l; trivial.
-  destruct i; simpl; eauto using Lt.lt_S_n.
+  destruct i; simpl; eauto.
 Qed.
 
 Lemma add_increments_length : forall {A} (l : list A) a,
@@ -65,10 +65,9 @@ Lemma get_set_eq : forall {A} default (l : list A) i a,
   i < length l ->
   l[i <- a][i] or default = a.
 Proof.
-  intros ? ? l.
-  induction l as [| ? ? IH]; intros * H; try solve [inversion H].
-  destruct i; unfold get; trivial.
-  eapply IH. eauto using Lt.lt_S_n.
+  intros ? ? l. induction l as [| ? ? IH]; intros * Hlen;
+  try solve [inversion Hlen]. destruct i; unfold get; trivial.
+  simpl in Hlen. rewrite <- Nat.succ_lt_mono in Hlen. eapply IH. assumption.
 Qed.
 
 Lemma get_set_neq : forall {A} default (l : list A) i j a,

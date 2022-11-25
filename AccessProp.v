@@ -90,7 +90,7 @@ Proof.
   destruct (Nat.eq_dec ad'' ad); subst; eauto using access.
   auto_specialize. rewrite (get_set_eq TM_Unit) in IH. 1: contradiction.
   eapply not_le. intros Hlen. do 3 simpl_array. 
-  eapply le_lt_or_eq in Hlen as [? | ?]; subst;
+  eapply Nat.lt_eq_cases in Hlen as [? | ?]; subst;
   do 2 simpl_array; inversion_access.
 Qed.
 
