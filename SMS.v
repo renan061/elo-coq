@@ -5,160 +5,153 @@ From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Map.
 From Elo Require Import Core.
+From Elo Require Import Contains.
 From Elo Require Import Access.
 From Elo Require Import ValidAccesses.
 From Elo Require Import References.
-From Elo Require Import SafeAccess.
-From Elo Require Import Soundness.
-From Elo Require Import Compat.
 From Elo Require Import AccessProp.
-From Elo Require Import Safe.
+From Elo Require Import UnsafeAccess.
+From Elo Require Import SafeSpawns.
 
 Local Definition safe_memory_sharing m ths := forall tid1 tid2 ad,
   tid1 <> tid2 ->
   access m ths[tid1] ad ->
   access m ths[tid2] ad ->
-  SafeAccess m ths[tid1] ad.
+  ~ UnsafeAccess m ths[tid1] ad.
 
 (* ------------------------------------------------------------------------- *)
-(* safe-memory-sharing preservation                                          *)
+(* mstep preservation                                                        *)
 (* ------------------------------------------------------------------------- *)
 
-Local Lemma length_tid : forall m m' t' ths tid eff,
-  m / ths[tid] ==[eff]==> m' / t' ->
+Local Lemma length_tid : forall t ths tid eff,
+  ths[tid] --[eff]--> t ->
   tid < length ths.
 Proof.
-  intros * Hmstep.
+  intros * Hstep.
   decompose sum (lt_eq_lt_dec tid (length ths)); subst; trivial;
-  rewrite (get_default TM_Unit) in Hmstep; try lia;
-  inversion_mstep; inversion_step.
+  simpl_array; try lia; inversion_step.
 Qed.
 
-Local Lemma mstep_none_sms_preservation : forall m m' ths t' tid,
-  forall_threads ths (fun t => exists T, empty |-- t is T) ->
-  forall_threads ths (well_typed_references m) ->
-  well_typed_memory m ->
-  safe_memory_sharing m ths ->
-  m / ths[tid] ==[EF_None]==> m' / t' ->
-  safe_memory_sharing m' ths[tid <- t'].
+Local Lemma step_write_requires_uacc : forall m t t' ad v T,
+  empty |-- t is T ->
+  t --[EF_Write ad v]--> t' ->
+  UnsafeAccess m t ad.
 Proof.
-  intros * Htype ? ? Hsms Hmstep tid1 tid2 ad Hneq ? ?.
-  destruct (Htype tid1).
-  specialize (Hsms _ _ ad Hneq) as ?.
-  specialize (Hsms _ _ ad (not_eq_sym Hneq)) as ?.
-  assert (tid < length ths) by eauto using length_tid.
-  inversion Hmstep; subst.
-  destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst;
-  try lia; do 3 simpl_array;
-  eauto using mstep_none_inherits_access.
-  assert (access m' ths[tid1] ad) by eauto using mstep_none_inherits_access.
-  eauto using mstep_none_preserves_sacc.
+  intros. generalize dependent T.
+  induction_step; intros * ?; inversion_type; eauto using UnsafeAccess.
+  inversion_type. eauto using UnsafeAccess.
 Qed.
 
-Local Lemma mstep_read_sms_preservation : forall m m' ths t' tid ad v,
-  forall_memory m value ->
-  forall_threads ths (fun t => exists T, empty |-- t is T) ->
-  forall_threads ths (well_typed_references m) ->
-  well_typed_memory m ->
+Local Lemma step_write_sms_helper : forall m t ad v ths tid tid',
+  tid <> tid' ->
+  forall_threads ths well_typed_thread ->
   safe_memory_sharing m ths ->
-  m / ths[tid] ==[EF_Read ad v]==> m' / t' ->
-  safe_memory_sharing m' ths[tid <- t'].
+  ths[tid] --[EF_Write ad v]--> t ->
+  ~ access m ths[tid'] ad.
 Proof.
-  intros * ? Htype ? ? Hsms Hmstep tid1 tid2 ad Hneq ? ?.
-  destruct (Htype tid1).
-  specialize (Hsms _ _ ad Hneq) as ?.
-  specialize (Hsms _ _ ad (not_eq_sym Hneq)) as ?.
-  assert (tid < length ths) by eauto using length_tid.
-  inversion Hmstep; subst.
-  destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst;
-  try lia; do 3 simpl_array;
-  eauto using mstep_read_inherits_access.
-  assert (access m' ths[tid1] ad) by eauto using mstep_read_inherits_access.
-  eauto using mstep_read_preserves_sacc.
+  intros * Hneq Htype Hsms ? F.
+  assert (Hacc : access m ths[tid] ad) by eauto using step_write_requires_acc.
+  destruct (Htype tid). specialize (Hsms _ _ _ Hneq Hacc F).
+  eauto using step_write_requires_uacc.
 Qed.
 
-Local Lemma mstep_alloc_sms_preservation : forall m m' ths t' tid ad v,
-  well_typed_memory m ->
-  forall_threads ths (valid_accesses m) ->
-  forall_threads ths (fun t => exists T, empty |-- t is T) ->
+Local Lemma step_none_sms_preservation : forall m t ths tid,
   safe_memory_sharing m ths ->
-  m / ths[tid] ==[EF_Alloc ad v]==> m' / t' ->
-  safe_memory_sharing m' ths[tid <- t'].
+  ths[tid] --[EF_None]--> t ->
+  safe_memory_sharing m ths[tid <- t].
 Proof.
-  intros * ? ? Htype Hsms Hmstep tid1 tid2 ad Hneq Hacc1 Hacc2.
-  specialize (Hsms _ _ ad Hneq) as ?.
-  specialize (Hsms _ _ ad (not_eq_sym Hneq)) as ?.
+  intros * ? ? tid1 tid2 ? ? ? ?.
   assert (tid < length ths) by eauto using length_tid.
-  inversion Hmstep; subst.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia;
   do 3 simpl_array;
-  destruct (Htype tid1); destruct (Nat.eq_dec ad (length m)); subst;
-  try solve
-    [ contradict Hacc1; eauto using va_nacc_length, mem_add_nacc_length
-    | contradict Hacc2; eauto using va_nacc_length, mem_add_nacc_lt
-    ];
-  assert (access m ths[tid1] ad);
-  assert (access m ths[tid2] ad);
-  eauto using va_nacc_length, mem_add_inherits_access, mstep_alloc_inherits_acc;
-  eauto using mstep_alloc_preserves_sacc;
-  eauto using va_nacc_length, mem_add_preserves_sacc.
+  eauto using step_none_preserves_nuacc, step_none_inherits_access.
 Qed.
 
-Local Ltac sms_infer Htype tid1 :=
-  match goal with
-  | _ : safe_memory_sharing ?m ?ths
-  , _ : access ?m[?ad <- ?v] ?t' ?ad'
-  , _ : access ?m[?ad <- ?v] ?t2 ?ad'
-  , _ : ?t1 --[EF_Write ?ad _]--> ?t'
-  |- _ =>
-    destruct (Htype tid1) as [T1 Htype1];
-    assert (Hnsacc1 : ~ SafeAccess m t1 ad) by eauto using write_then_nsacc;
-    assert (Hacc1 : access m t1 ad) by eauto using mstep_write_requires_acc;
-    destruct (access_dec m t2 ad) as [? | Hnacc2];
-    try solve [exfalso; eauto];
-    assert (Hacc1' : access m t1 ad') by eauto using mstep_write_inherits_acc;
-    assert (Hacc2' : access m t2 ad') by eauto using mem_set_inherits_acc2;
-    do 4 auto_specialize
-  end.
-
-Local Lemma mstep_write_sms_preservation : forall m m' ths t' tid ad v,
-  forall_threads ths (fun t => exists T, empty |-- t is T) ->
+Local Lemma step_alloc_sms_preservation : forall m t v ths tid,
+  forall_threads ths (valid_accesses m) ->
   safe_memory_sharing m ths ->
-  m / ths[tid] ==[EF_Write ad v]==> m' / t' ->
-  safe_memory_sharing m' ths[tid <- t'].
+  ths[tid] --[EF_Alloc (length m) v]--> t ->
+  safe_memory_sharing (m +++ v) ths[tid <- t].
 Proof.
-  intros * Htype Hsms Hmstep tid1 tid2 ad' Hneq Hacc1W Hacc2W.
-  specialize (Hsms _ _ ad' Hneq) as Hsms1.
-  specialize (Hsms _ _ ad' (not_eq_sym Hneq)) as Hsms2.
-  assert (Hlen : tid < length ths) by eauto using length_tid.
-  inversion Hmstep; subst.
+  intros * Hva ? ? tid1 tid2 ad Hneq Hacc1 Hacc2.
+  assert (tid < length ths) by eauto using length_tid.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia;
-  do 3 simpl_array.
-  - sms_infer Htype tid1.
+  do 3 simpl_array;
+  assert (ad <> length m)
+    by eauto 6 using mem_add_acc, mem_add_uacc, uacc_then_acc,
+      va_length, va_nacc_length, Nat.lt_neq;
+  eauto 6 using step_alloc_inherits_acc, step_alloc_preserves_nuacc,
+    mem_add_acc, va_nacc_length;
+  intros Huacc; eapply mem_add_uacc in Huacc; eauto using va_nacc_length;
+  specialize Huacc as ?; contradict Huacc;
+  eauto using step_alloc_inherits_acc, mem_add_acc,
+    uacc_then_acc, va_nacc_length.
 Qed.
 
-Local Lemma mstep_sms_preservation : forall m m' ths t' tid eff,
+Local Lemma step_read_sms_preservation : forall m t ad ths tid,
+  forall_memory m value ->
+  forall_threads ths well_typed_thread ->
+  forall_threads ths (well_typed_references m) ->
   safe_memory_sharing m ths ->
-  m / ths[tid] ==[eff]==> m' / t' ->
-  safe_memory_sharing m' ths[tid <- t'].
+  ths[tid] --[EF_Read ad m[ad]]--> t ->
+  safe_memory_sharing m ths[tid <- t].
 Proof.
-  intros * ? ? ? Hmstep. inversion Hmstep; subst;
-  eauto using none_disjoint_memory_preservation,
-              alloc_disjoint_memory_preservation,
-              read_disjoint_memory_preservation,
-              write_disjoint_memory_preservation.
+  intros * ? Htype ? ? ? tid1 tid2 ? ? ? ?.
+  destruct (Htype tid1).
+  assert (tid < length ths) by eauto using length_tid.
+  destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia;
+  do 3 simpl_array;
+  eauto using step_read_preserves_nuacc, step_read_inherits_acc.
 Qed.
+
+Local Lemma step_write_sms_preservation : forall m ths t tid ad v,
+  forall_threads ths well_typed_thread ->
+  safe_memory_sharing m ths ->
+  ths[tid] --[EF_Write ad v]--> t ->
+  safe_memory_sharing m[ad <- v] ths[tid <- t].
+Proof.
+  intros * ? ? ? tid1 tid2 ad' ? ? ?.
+  assert (tid < length ths) by eauto using length_tid.
+  destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia;
+  do 3 simpl_array;
+  assert (~ UnsafeAccess m ths[tid1] ad');
+  assert (~ UnsafeAccess m ths[tid2] ad');
+  eauto 8 using mem_set_acc, mem_set_uacc, step_write_sms_helper,
+    step_write_preserves_nuacc, step_write_inherits_acc.
+Qed.
+
+Local Corollary mstep_sms_preservation : forall m m' t eff ths tid,
+  forall_memory m value ->
+  forall_threads ths (valid_accesses m) ->
+  forall_threads ths well_typed_thread ->
+  forall_threads ths (well_typed_references m) ->
+  safe_memory_sharing m ths ->
+  m / ths[tid] ==[eff]==> m' / t ->
+  safe_memory_sharing m' ths[tid <- t].
+Proof.
+  intros. inversion_mstep;
+  eauto using step_none_sms_preservation,
+    step_alloc_sms_preservation,
+    step_read_sms_preservation,
+    step_write_sms_preservation.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* sms preservation                                                          *)
+(* ------------------------------------------------------------------------- *)
 
 Theorem safe_memory_sharing_preservation : forall m m' ths ths' tid eff,
-  forall_threads SafeSpawns ths ->
-  forall_threads (valid_accesses m) ths ->
+  forall_memory m value ->
+  forall_threads ths (valid_accesses m) ->
+  forall_threads ths well_typed_thread ->
+  forall_threads ths (well_typed_references m) ->
+  forall_threads ths SafeSpawns ->
   safe_memory_sharing m ths ->
   tid < length ths ->
   m / ths ~~[tid, eff]~~> m' / ths' ->
   safe_memory_sharing m' ths'.
 Proof.
-  intros. inversion_cstep;
-  eauto using mstep_disjoint_memory_preservation.
+  intros. inversion_cstep; eauto using mstep_sms_preservation.
   intros tid1 tid2 ad Hacc Hneq.
   decompose sum (lt_eq_lt_dec (length ths) tid2); subst.
   - rewrite (get_add_gt TM_Unit);

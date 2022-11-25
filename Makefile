@@ -22,8 +22,8 @@ soundness: access
 safety: soundness 
 	$(COQC) Compat.v
 	$(COQC) AccessProp.v
-	$(COQC) SafeAccess.v
-	$(COQC) Safe.v
+	$(COQC) UnsafeAccess.v
+	$(COQC) SafeSpawns.v
 	$(COQC) SMS.v
 
 clean:
