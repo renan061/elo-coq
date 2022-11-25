@@ -325,6 +325,21 @@ Proof.
   eauto using mem_add_preserves_nuacc, va_nacc_length, nacc_then_nuacc.
 Qed.
 
+Lemma step_read_preserves_nuacc : forall m t t' ad ad' T,
+  forall_memory m value ->
+  empty |-- t is T ->
+  well_typed_references m t ->
+  ~ UnsafeAccess m t ad ->
+  t --[EF_Read ad' m[ad']]--> t' ->
+  ~ UnsafeAccess m t' ad.
+Proof.
+  intros * Hval ? Hwtr ? ? ?. generalize dependent T. induction_step; intros;
+  inversion_wtr m; inversion_type; inversion_nuacc; try inversion_clear_uacc;
+  eauto; inversion_type; destruct (Nat.eq_dec ad' ad); subst;
+  eauto using UnsafeAccess;
+  inversion_wtr m; contradict H2; eauto using nuacc_refI. (* TODO *)
+Qed.
+
 Lemma step_write_preserves_nuacc : forall m t t' ad ad' v,
   ~ UnsafeAccess m t ad ->
   t --[EF_Write ad' v]--> t' ->
@@ -419,9 +434,21 @@ Proof.
     contradict Huacc. eauto.
 Qed.
 
-(* TODO: Last One!
-Local Lemma mstep_read_sms_preservation : forall,
-*)
+Local Lemma mstep_read_sms_preservation : forall m m' t' ad v ths tid,
+  forall_memory m value ->
+  forall_threads ths well_typed_thread ->
+  forall_threads ths (well_typed_references m) ->
+  safe_memory_sharing m ths ->
+  m / ths[tid] ==[EF_Read ad v]==> m' / t' ->
+  safe_memory_sharing m' ths[tid <- t'].
+Proof.
+  intros * ? Htype ? ? ? tid1 tid2 ad Hneq ? ?.
+  destruct (Htype tid1).
+  assert (Hlen : tid < length ths) by eauto using length_tid.
+  destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia;
+  do 3 simpl_array; inversion_mstep;
+  eauto using step_read_preserves_nuacc, step_read_inherits_acc.
+Qed.
 
 Local Lemma mstep_write_sms_preservation : forall m m' ths t' tid ad v,
   forall_threads ths well_typed_thread ->
@@ -452,6 +479,22 @@ Proof.
       mem_set_inherits_acc2.
 Qed.
 
+Theorem mstep_sms_preservation : forall m m' t eff ths tid,
+  forall_memory m value ->
+  forall_threads ths (valid_accesses m) ->
+  forall_threads ths well_typed_thread ->
+  forall_threads ths (well_typed_references m) ->
+  safe_memory_sharing m ths ->
+  m / ths[tid] ==[eff]==> m' / t ->
+  safe_memory_sharing m' ths[tid <- t].
+Proof.
+  intros. inversion_mstep_noclear;
+  eauto using mstep_none_sms_preservation,
+    mstep_alloc_sms_preservation,
+    mstep_read_sms_preservation,
+    mstep_write_sms_preservation.
+Qed.
+
 (* ------------------------------------------------------------------------- *)
 (* to remove & unused                                                        *)
 (* ------------------------------------------------------------------------- *)
@@ -461,17 +504,6 @@ Lemma todo1 : forall m t t' ad v,
   access m[ad <- v] t ad.
 Proof.
   intros. induction_step; eauto using access.
-Qed.
-
-Lemma mem_set_inherits_uacc : forall m t ad ad' v,
-  ~ access m t ad' ->
-  UnsafeAccess m[ad' <- v] t ad ->
-  UnsafeAccess m t ad.
-Proof.
-  intros * Hnacc Huacc. remember (m[ad' <- v]) as m'.
-  induction Huacc; inversion_subst_clear Heqm'; inversion_not_access Hnacc;
-  eauto using UnsafeAccess.
-  do 2 simpl_array. eauto using UnsafeAccess.
 Qed.
 
 Lemma mem_set_inherits_uacc2 : forall m t ad ad' v,
@@ -492,36 +524,4 @@ Proof.
   eapply le_lt_or_eq in Hlen as [? | ?]; subst;
   do 2 simpl_array; inversion_uacc.
 Qed.
-
-Local Lemma todo : forall m t t' ad ad' v,
-  ~ UnsafeAccess m[ad' <- v] t' ad ->
-  t --[EF_Write ad' v]--> t' ->
-  ~ UnsafeAccess m t ad.
-Proof.
-  intros * Hnuacc Hstep Huacc. induction_step;
-  try solve [inversion_nuacc; inversion_uacc; eauto].
-  - inversion_nuacc. inversion_uacc; eauto using UnsafeAccess.
-Abort.
-
-Lemma mstep_write_inherits_uacc : forall m m' t t' ad ad' v,
-  UnsafeAccess m' t' ad ->
-  m / t ==[EF_Write ad' v]==> m' / t' ->
-  UnsafeAccess m t ad.
-Proof.
-  intros * Huacc ?. inversion_mstep. induction_step;
-  try solve [inversion_uacc; eauto using UnsafeAccess].
-  - inversion_uacc; eauto using UnsafeAccess.
-    destruct (uacc_dec m[ad' <- v] t1' ad); eauto using UnsafeAccess.
-    clear IHstep.
-    eapply uacc_asg2.
-    destruct (uacc_dec m v ad). 
-    + destruct (access_dec m t2 ad'); eauto using mem_set_inherits_uacc1.
-      admit.
-    + destruct (uacc_dec m t2 ad); trivial; exfalso.
-      contradict H3. eauto using (mem_set_preserves_nuacc _ t2).
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-Abort.
 

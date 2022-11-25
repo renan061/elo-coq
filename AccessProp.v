@@ -257,6 +257,16 @@ Qed.
 (* Read                                                                      *)
 (* ------------------------------------------------------------------------- *)
 
+Lemma step_read_inherits_acc : forall m t t' ad ad',
+  access m t' ad ->
+  t --[EF_Read ad' m[ad']]--> t' ->
+  access m t ad.
+Proof.
+  intros * ? ?. induction_step;
+  try inversion_access; eauto using access.
+  destruct (Nat.eq_dec ad' ad); subst; eauto using access.
+Qed.
+
 Lemma step_read_preserves_not_access : forall m t t' ad ad',
   ~ access m t ad ->
   t --[EF_Read ad' m[ad']]--> t' ->
