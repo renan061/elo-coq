@@ -24,6 +24,7 @@ safety: soundness
 	$(COQC) AccessProp.v
 	$(COQC) UnsafeAccess.v
 	$(COQC) SafeSpawns.v
+	$(COQC) SafeBlocks.v
 	$(COQC) SMS.v
 
 clean:

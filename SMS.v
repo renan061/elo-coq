@@ -12,6 +12,7 @@ From Elo Require Import References.
 From Elo Require Import AccessProp.
 From Elo Require Import UnsafeAccess.
 From Elo Require Import SafeSpawns.
+From Elo Require Import SafeBlocks.
 
 Local Definition safe_memory_sharing m ths := forall tid1 tid2 ad,
   tid1 <> tid2 ->
@@ -146,39 +147,29 @@ Theorem safe_memory_sharing_preservation : forall m m' ths ths' tid eff,
   forall_threads ths well_typed_thread ->
   forall_threads ths (well_typed_references m) ->
   forall_threads ths SafeSpawns ->
+  forall_threads ths (SafeBlocks m) ->
   safe_memory_sharing m ths ->
   tid < length ths ->
   m / ths ~~[tid, eff]~~> m' / ths' ->
   safe_memory_sharing m' ths'.
 Proof.
-  intros. inversion_cstep; eauto using mstep_sms_preservation.
-  intros tid1 tid2 ad Hacc Hneq.
-  decompose sum (lt_eq_lt_dec (length ths) tid2); subst.
-  - rewrite (get_add_gt TM_Unit);
-    try solve [rewrite set_preserves_length; trivial].
-    intros ?. inversion_access.
-  - erewrite <- set_preserves_length.
-    rewrite (get_add_eq TM_Unit).
-    eauto using safe_for_block. (* safe_then_not_access *)
-    admit.
-  - rewrite (get_add_lt TM_Unit);
-    try solve [rewrite set_preserves_length; trivial].
-    decompose sum (lt_eq_lt_dec (length ths) tid1); subst.
-    + rewrite (get_add_gt TM_Unit) in Hacc;
-      try solve [rewrite set_preserves_length; trivial].
-      inversion_access.
-    + erewrite <- set_preserves_length in Hacc.
-      rewrite (get_add_eq TM_Unit) in Hacc.
-      (*
-      assert (~ access m' block ad) by 
-        eauto using safe_for_block, safe_then_not_access.
-      *)
-      eauto.
-      admit.
-    + rewrite (get_add_lt TM_Unit) in Hacc;
-      try solve [rewrite set_preserves_length; trivial].
-      destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; eauto;
-      do 2 rewrite_term_array;
-      eauto using step_spawn_inherits_access, step_spawn_preserves_not_access.
+  intros * ? ? ? ? ? Hsb. intros.
+  inversion_cstep; eauto using mstep_sms_preservation.
+  assert (NoMut block) by eauto using nomut_thread.
+  intros tid1 tid2 ad Hneq Hacc1 Hacc2.
+  destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia.
+  - destruct (lt_eq_lt_dec tid1 (length ths)) as [[Hlen1 | ?] | ?]; subst.
+    + rewrite <- (set_preserves_length _ tid1 t') in Hlen1. do 4 simpl_array.
+      assert (access m' ths[tid1] ad) by eauto using step_spawn_inherits_acc.
+      destruct (lt_eq_lt_dec tid2 (length ths)) as [[Hlen2 | ?] | Hlen2]; subst.
+      * rewrite <- (set_preserves_length _ tid1 t') in Hlen2. do 2 simpl_array.
+        eauto using step_spawn_preserves_nuacc.
+      * rewrite <- (set_preserves_length _ tid1 t') in Hacc2. simpl_array.
+        specialize (Hsb tid1).
+        eauto using step_spawn_preserves_nuacc, step_spawn_contains_block.
+      * rewrite <- (set_preserves_length _ tid1 t') in Hlen2. simpl_array.
+        inversion_access.
+    + do 6 simpl_array. inversion_step.
+    + do 8 simpl_array. inversion_step.
 Abort.
 

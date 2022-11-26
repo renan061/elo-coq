@@ -212,7 +212,7 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* mem -- add                                                                *)
+(* mem                                                                       *)
 (* ------------------------------------------------------------------------- *)
 
 Lemma mem_add_uacc : forall m t ad v,
@@ -241,10 +241,6 @@ Proof.
   assert (length m <> ad') by eauto using Nat.lt_neq, Nat.neq_sym.
   inversion_nuacc. eauto.
 Qed.
-
-(* ------------------------------------------------------------------------- *)
-(* mem -- set                                                                *)
-(* ------------------------------------------------------------------------- *)
 
 Lemma mem_set_uacc : forall m t ad ad' v,
   ~ access m t ad' ->
@@ -279,7 +275,7 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* not-unsafe-access preservation                                            *)
+(* step-preserves-nuacc                                                      *)
 (* ------------------------------------------------------------------------- *)
 
 Local Lemma step_alloc_value_nacc : forall m t t' v,
@@ -349,5 +345,25 @@ Proof.
   match goal with H : UnsafeAccess _ ?t _ |- _ => rename t into tx end;
   eapply (mem_set_nuacc _ tx _ _ v);
   eauto using step_write_contains_val, contains_nuacc.
+Qed.
+
+Lemma step_spawn_preserves_nuacc : forall m t t' ad block,
+  ~ UnsafeAccess m t ad ->
+  t --[EF_Spawn block]--> t' ->
+  ~ UnsafeAccess m t' ad.
+Proof.
+  intros. intros ?. induction_step; try inversion_nuacc; inversion_uacc; eauto.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* step-inherits-uacc                                                        *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma step_spawn_inherits_uacc : forall m t t' ad block,
+  UnsafeAccess m t' ad ->
+  t --[EF_Spawn block]--> t' ->
+  UnsafeAccess m t ad.
+Proof.
+  intros. induction_step; inversion_uacc; eauto using UnsafeAccess.
 Qed.
 

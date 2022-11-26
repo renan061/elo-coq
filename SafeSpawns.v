@@ -421,8 +421,7 @@ Proof.
     eauto using SafeSpawns, step_safe_spawns_preservation.
 Qed.
 
-(* TODO : nomut_block *)
-Lemma safe_for_block : forall t t' block,
+Lemma nomut_thread : forall t t' block,
   SafeSpawns t ->
   t --[EF_Spawn block]--> t' ->
   NoMut block.

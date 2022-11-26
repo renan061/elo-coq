@@ -56,7 +56,7 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* step -- write                                                             *)
+(* step-inherits-acc                                                         *)
 (* ------------------------------------------------------------------------- *)
 
 Lemma step_write_inherits_acc : forall m t t' ad ad' v,
@@ -70,6 +70,14 @@ Proof.
   assert (forall t t', t --[EF_Write ad' v]--> t' -> access m t ad)
     by (intros; induction_step; eauto using access);
   eauto using access.
+Qed.
+
+Lemma step_spawn_inherits_acc : forall m t t' block ad,
+  access m t' ad ->
+  t --[EF_Spawn block]--> t' ->
+  access m t ad.
+Proof.
+  intros. induction_step; inversion_access; eauto using access.
 Qed.
 
 
@@ -219,14 +227,6 @@ Lemma alloc_step_access_t'_ad : forall m t t' ad v,
   access m t' ad.
 Proof.
   intros. induction_step; eauto using access.
-Qed.
-
-Lemma step_spawn_inherits_access : forall m t t' ad block,
-  access m t' ad ->
-  t --[EF_Spawn block]--> t' ->
-  access m t ad.
-Proof.
-  intros. induction_step; try inversion_access; eauto using access.
 Qed.
 
 Lemma step_spawn_preserves_not_access : forall m t t' ad block,

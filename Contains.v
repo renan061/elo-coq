@@ -5,7 +5,7 @@ Reserved Notation " t 'contains' t' " (at level 30, no associativity).
 Inductive Contains (t' : tm) : tm -> Prop :=
   | contains_eq : forall t,
     t = t' ->
-    Contains t' t
+    t contains t'
 
   | contains_new : forall t T,
     t contains t' ->
@@ -23,7 +23,9 @@ Inductive Contains (t' : tm) : tm -> Prop :=
     t2 contains t' ->
     <{ t1 = t2 }> contains t'
 
-  (* fn ? *)
+  | contains_fun : forall t x Tx,
+    t contains t' ->
+    <{ fn x Tx --> t }> contains t'
 
   | contains_call1 : forall t1 t2,
     t1 contains t' ->
@@ -40,8 +42,6 @@ Inductive Contains (t' : tm) : tm -> Prop :=
   | contains_seq2 : forall t1 t2,
     t2 contains t' ->
     <{ t1; t2 }> contains t'
-
-  (* spawn ? *)
 
   where "t 'contains' t'" := (Contains t' t).
 
