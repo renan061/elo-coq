@@ -12,7 +12,6 @@ From Elo Require Import References.
 From Elo Require Import AccessProp.
 From Elo Require Import UnsafeAccess.
 From Elo Require Import SafeSpawns.
-From Elo Require Import SafeBlocks.
 
 Local Definition safe_memory_sharing m ths := forall tid1 tid2 ad,
   tid1 <> tid2 ->
@@ -147,7 +146,6 @@ Theorem safe_memory_sharing_preservation : forall m m' ths ths' tid eff,
   forall_threads ths well_typed_thread ->
   forall_threads ths (well_typed_references m) ->
   forall_threads ths SafeSpawns ->
-  forall_threads ths (SafeBlocks m) ->
   safe_memory_sharing m ths ->
   tid < length ths ->
   m / ths ~~[tid, eff]~~> m' / ths' ->
@@ -166,7 +164,8 @@ Proof.
         eauto using step_spawn_preserves_nuacc.
       * rewrite <- (set_preserves_length _ tid1 t') in Hacc2. simpl_array.
         specialize (Hsb tid1).
-        eauto using step_spawn_preserves_nuacc, step_spawn_contains_block.
+        eauto using step_spawn_preserves_nuacc.
+        admit.
       * rewrite <- (set_preserves_length _ tid1 t') in Hlen2. simpl_array.
         inversion_access.
     + do 6 simpl_array. inversion_step.

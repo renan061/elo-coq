@@ -7,88 +7,6 @@ From Elo Require Import Access.
 From Elo Require Import UnsafeAccess.
 
 (* -------------------------------------------------------------------------- *)
-(* TODO                                                                       *)
-(* -------------------------------------------------------------------------- *)
-
-Inductive AllMutRefs (ad : addr) : tm -> Prop :=
-  | amr_unit :
-    AllMutRefs ad <{ unit }>
-
-  | amr_num : forall n,
-    AllMutRefs ad <{ N n }>
-
-  | amr_ref : forall T,
-    AllMutRefs ad <{ &ad :: &T }>
-
-  | amr_new : forall t T,
-    AllMutRefs ad t ->
-    AllMutRefs ad <{ new T t }>
-
-  | amr_load : forall t,
-    AllMutRefs ad t ->
-    AllMutRefs ad <{ *t }>
-
-  | amr_asg : forall t1 t2,
-    AllMutRefs ad t1 ->
-    AllMutRefs ad t2 ->
-    AllMutRefs ad <{ t1 = t2 }>
-
-  | amr_var : forall x,
-    AllMutRefs ad <{ var x }>
-
-  | amr_fun : forall t x Tx,
-    AllMutRefs ad t ->
-    AllMutRefs ad <{ fn x Tx --> t }>
-
-  | amr_call : forall t1 t2,
-    AllMutRefs ad t1 ->
-    AllMutRefs ad t2 ->
-    AllMutRefs ad <{ call t1 t2 }>
-    
-  | amr_seq : forall t1 t2,
-    AllMutRefs ad t1 ->
-    AllMutRefs ad t2 ->
-    AllMutRefs ad <{ t1; t2 }>
-
-  | amr_spawn : forall t,
-    AllMutRefs ad t ->
-    AllMutRefs ad <{ spawn t }>
-  .
-
-Inductive AllMutRefsMem (ad : addr) : mem -> Prop :=
-  | amrm_nil :
-    AllMutRefsMem ad nil
-
-  | amrm_cons_unit : forall m,
-    AllMutRefsMem ad m ->
-    AllMutRefsMem ad (cons <{ unit }> m)
-
-  | amrm_cons_num : forall m n,
-    AllMutRefsMem ad m ->
-    AllMutRefsMem ad (cons <{ N n }> m)
-
-  | amrm_cons_refI : forall m ad' T,
-    AllMutRefsMem ad m ->
-    ad <> ad' ->
-    AllMutRefsMem ad (cons <{ &ad' :: i&T }> m)
-
-  | amrm_cons_refM1 : forall m T ad',
-    AllMutRefsMem ad m ->
-    ad <> ad' ->
-    AllMutRefsMem ad (cons <{ &ad' :: &T }> m)
-
-  | amrm_cons_refM2 : forall m T,
-    AllMutRefsMem ad m ->
-    AllMutRefsMem ad (cons <{ &ad :: &T }> m)
-
-  | amrm_cons_fun : forall m t x Tx,
-    AllMutRefs ad t ->
-    AllMutRefsMem ad m ->
-    AllMutRefsMem ad (cons <{ fn x Tx --> t }> m)
-  .
-
-
-(* -------------------------------------------------------------------------- *)
 (* contains-block                                                             *)
 (* -------------------------------------------------------------------------- *)
 
@@ -310,7 +228,7 @@ Proof.
   - admit.
   - admit.
   - admit.
-Qed.
+Abort.
 
 
 
