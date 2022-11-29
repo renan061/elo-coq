@@ -83,7 +83,7 @@ Proof.
   eauto 6 using step_alloc_inherits_acc, step_alloc_preserves_nuacc,
     mem_add_acc, va_nacc_length;
   intros Huacc; eapply mem_add_uacc in Huacc; eauto using va_nacc_length;
-  specialize Huacc as ?; contradict Huacc;
+  specialize Huacc as Huacc'; contradict Huacc';
   eauto using step_alloc_inherits_acc, mem_add_acc,
     uacc_then_acc, va_nacc_length.
 Qed.
@@ -140,6 +140,11 @@ Qed.
 (* sms preservation                                                          *)
 (* ------------------------------------------------------------------------- *)
 
+UnsafeAccess m t1 ad
+access m t2 ad
+-------------
+UnsafeAccess m t2 ad
+
 Theorem safe_memory_sharing_preservation : forall m m' ths ths' tid eff,
   forall_memory m value ->
   forall_threads ths (valid_accesses m) ->
@@ -163,6 +168,10 @@ Proof.
       * rewrite <- (set_preserves_length _ tid1 t') in Hlen2. do 2 simpl_array.
         eauto using step_spawn_preserves_nuacc.
       * rewrite <- (set_preserves_length _ tid1 t') in Hacc2. simpl_array.
+        intros F.
+        rename block into newthread.
+        assert (UnsafeAccess m' ths[tid1] ad) by admit.
+        assert (~ UnsafeAccess m' newthread ad) by admit.
         specialize (Hsb tid1).
         eauto using step_spawn_preserves_nuacc.
         admit.

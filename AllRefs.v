@@ -130,6 +130,11 @@ Local Ltac inversion_nha :=
 (* terms                                                                      *)
 (* -------------------------------------------------------------------------- *)
 
+(*
+  | forall_refs_refI : forall T,
+    ForallRefs ad T <{ &ad :: T }>
+*)
+
 Inductive ForallRefs (ad : addr) : RefType -> tm -> Prop :=
   | forall_refs_unit : forall rt,
     ForallRefs ad rt <{ unit }>

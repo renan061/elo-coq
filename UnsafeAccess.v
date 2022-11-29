@@ -11,6 +11,7 @@ From Elo Require Import ValidAccesses.
 From Elo Require Import References.
 From Elo Require Import AccessProp.
 
+(* There is a mutable pointer to ad in the term. *)
 Inductive UnsafeAccess (m : mem) : tm -> addr -> Prop :=
   | uacc_mem : forall ad ad' T,
     ad <> ad' ->
