@@ -55,7 +55,7 @@ Inductive HasAddress (ad : addr) : tm -> Prop :=
     HasAddress ad <{ spawn t }>
   .
 
-Local Lemma hasad_dec : forall ad t,
+Lemma hasad_dec : forall ad t,
   Decidable.decidable (HasAddress ad t).
 Proof. intros. eauto using classic_decidable. Qed.
 
