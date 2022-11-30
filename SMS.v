@@ -15,7 +15,7 @@ From Elo Require Import SafeSpawns.
 
 Local Definition safe_memory_sharing m ths := forall tid1 tid2 ad,
   tid1 <> tid2 ->
-  access m ths[tid1] ad ->
+  access m ths[tid1] ad -> (* TODO: remove *)
   access m ths[tid2] ad ->
   ~ UnsafeAccess m ths[tid1] ad.
 
@@ -140,10 +140,45 @@ Qed.
 (* sms preservation                                                          *)
 (* ------------------------------------------------------------------------- *)
 
-UnsafeAccess m t1 ad
-access m t2 ad
--------------
-UnsafeAccess m t2 ad
+Local Lemma todo2 : forall m t ad,
+  UnsafeAccess m t ad ->
+  UnsafeAccess m m[ad] ad.
+Proof.
+  intros. induction H; eauto using UnsafeAccess.
+Abort.
+
+t1 = &ad ::  &(Immut Num)
+t2 = &ad :: i&(Immut Num)
+
+Local Lemma todo : forall m t1 t2 ad T1 T2,
+  forall_memory m value ->
+  well_typed_memory m ->
+  empty |-- t1 is T1 ->
+  empty |-- t2 is T2 ->
+  well_typed_references m t1 ->
+  well_typed_references m t2 ->
+  UnsafeAccess m t1 ad ->
+  access m t2 ad ->
+  UnsafeAccess m t2 ad.
+Proof.
+  intros * Hval Hwtm Htype1 Htype2 Hwtr1 Hwtr2 Huacc Hacc.
+  generalize dependent T1. generalize dependent T2.
+  induction Hacc; intros;
+  inversion Htype2; subst; inversion Hwtr2; subst;
+  eauto using UnsafeAccess.
+  - destruct (Hwtm ad') as [[? ?] ?]; eauto using UnsafeAccess.
+    admit.
+  - destruct (Hwtm ad') as [[? ?] ?]. 
+    1: admit.
+    do 2 auto_specialize.
+    exfalso.
+
+    eauto using UnsafeAccess.
+    admit.
+  - exfalso.
+    eapply (nuacc_refI m ad) in H0; eauto.
+    contradict H0.
+Qed.
 
 Theorem safe_memory_sharing_preservation : forall m m' ths ths' tid eff,
   forall_memory m value ->
