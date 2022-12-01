@@ -20,7 +20,6 @@ soundness: access
 	$(COQC) Soundness.v
 
 safety: soundness 
-	$(COQC) Compat.v
 	$(COQC) AccessProp.v
 	$(COQC) UnsafeAccess.v
 	$(COQC) SafeSpawns.v

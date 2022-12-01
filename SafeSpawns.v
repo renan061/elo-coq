@@ -327,7 +327,7 @@ Qed.
 
 Local Lemma mstep_tm_safe_spawns_preservation : forall m m' t t' eff T,
   empty |-- t is T ->
-  forall_memory m SafeSpawns ->
+  forall_memory_terms m SafeSpawns ->
   SafeSpawns t ->
   m / t ==[eff]==> m' / t' ->
   SafeSpawns t'.
@@ -343,33 +343,33 @@ Qed.
 (* SafeSpawns mstep memory preservation                                      *)
 (* ------------------------------------------------------------------------- *)
 
-Local Lemma mem_safe_spawns_alloc : forall m t t' v,
-  forall_memory m SafeSpawns ->
+Local Lemma mem_safe_spawns_alloc : forall m t t' v V,
+  forall_memory_terms m SafeSpawns ->
   SafeSpawns t ->
-  t --[EF_Alloc (length m) v]--> t' ->
-  forall_memory (m +++ v) SafeSpawns.
+  t --[EF_Alloc (length m) v V]--> t' ->
+  forall_memory_terms (m +++ (v, V)) SafeSpawns.
 Proof.
   intros. assert (SafeSpawns v).
   { induction_step; inversion_safe_spawns; eauto. }
-  unfold forall_memory. eauto using forall_array_add, SafeSpawns.
+  unfold forall_memory_terms. eauto using forall_array_add, SafeSpawns.
 Qed.
 
-Local Lemma mem_safe_spawns_store : forall m t t' ad v,
-  forall_memory m SafeSpawns ->
+Local Lemma mem_safe_spawns_store : forall m t t' ad v V,
+  forall_memory_terms m SafeSpawns ->
   SafeSpawns t ->
-  t --[EF_Write ad v]--> t' ->
-  forall_memory m[ad <- v] SafeSpawns.
+  t --[EF_Write ad v V]--> t' ->
+  forall_memory_terms m[ad <- (v, V)] SafeSpawns.
 Proof.
   intros. assert (SafeSpawns v).
   { induction_step; inversion_safe_spawns; eauto. }
-  unfold forall_memory. eauto using forall_array_set, SafeSpawns.
+  unfold forall_memory_terms. eauto using forall_array_set, SafeSpawns.
 Qed.
 
 Local Lemma mstep_mem_safe_spawns_preservation : forall m m' t t' eff,
-  forall_memory m SafeSpawns ->
+  forall_memory_terms m SafeSpawns ->
   SafeSpawns t ->
   m / t ==[eff]==> m' / t' ->
-  forall_memory m' SafeSpawns.
+  forall_memory_terms m' SafeSpawns.
 Proof.
   intros. inversion_mstep;
   eauto using mem_safe_spawns_alloc, mem_safe_spawns_store.
@@ -406,10 +406,10 @@ Qed.
 
 Theorem safe_spawns_preservation : forall m m' ths ths' tid eff,
   forall_threads ths well_typed_thread ->
-  forall_memory m SafeSpawns ->
+  forall_memory_terms m SafeSpawns ->
   forall_threads ths SafeSpawns ->
   m / ths ~~[tid, eff]~~> m' / ths' ->
-  (forall_memory m' SafeSpawns /\ forall_threads ths' SafeSpawns).
+  (forall_memory_terms m' SafeSpawns /\ forall_threads ths' SafeSpawns).
 Proof.
   intros * H; intros. split; inversion_cstep;
   eauto using mstep_mem_safe_spawns_preservation.

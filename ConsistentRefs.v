@@ -23,6 +23,10 @@ Inductive RefType : Prop :=
     ConsistentRefs ad T <{ &ad :: T }>
 *)
 
+(* Quando vc da alloc o tipo da ref não muda nunca mais. *)
+
+(* All references to ad inside the term have the same type regarding
+mutability. *)
 Inductive ConsistentRefs (ad : addr) : RefType -> tm -> Prop :=
   | conrefs_unit : forall rt,
     ConsistentRefs ad rt <{ unit }>
@@ -284,8 +288,7 @@ Proof.
     destruct (hasad_dec ad t1); eauto using nha_then_conrefs, ConsistentRefs
   end;
   exfalso.
-  (* TODO *)
-Qed.
+Abort.
 
 Local Lemma mstep_vr_preservation : forall rt m m' t t' eff,
   valid_references rt m t ->

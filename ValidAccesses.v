@@ -83,7 +83,7 @@ Local Ltac solve_inversion_va :=
 
 Local Lemma inversion_va_ref : forall m ad T,
   valid_accesses m <{ &ad :: T }> ->
-  valid_accesses m m[ad].
+  valid_accesses m m[ad].tm.
 Proof.
   intros; unfold valid_accesses in *; eauto using access.
   intros ad'. destruct (Nat.eq_dec ad ad'); subst; eauto using access.
@@ -141,50 +141,50 @@ Ltac inversion_va :=
 (* va -- value, mem & subst                                                  *)
 (* ------------------------------------------------------------------------- *)
 
-Local Lemma va_alloc_value : forall m t t' ad v,
+Local Lemma va_alloc_value : forall m t t' ad v V,
   valid_accesses m t ->
-  t --[EF_Alloc ad v]--> t' ->
+  t --[EF_Alloc ad v V]--> t' ->
   valid_accesses m v.
 Proof.
   intros. induction_step; inversion_va; eauto using access.
 Qed.
 
-Local Lemma va_write_value : forall m t t' ad v,
+Local Lemma va_write_value : forall m t t' ad v V,
   valid_accesses m t ->
-  t --[EF_Write ad v]--> t' ->
+  t --[EF_Write ad v V]--> t' ->
   valid_accesses m v.
 Proof.
   intros. induction_step; inversion_va; eauto using access.
 Qed.
 
-Local Lemma va_added_value : forall m v T,
-  valid_accesses (m +++ v) v ->
-  valid_accesses (m +++ v) <{ &(length m) :: T }>.
+Local Lemma va_added_value : forall m v V T,
+  valid_accesses (m +++ (v, V)) v ->
+  valid_accesses (m +++ (v, V)) <{ &(length m) :: T }>.
 Proof.
   intros * ? ? Hacc.
-  remember (add m v) as m'.
-  remember (TM_Ref T (length m)) as t'.
+  remember (m +++ (v, V)) as m'.
+  remember (<{ &(length m) :: T }>) as t'.
   induction Hacc; inversion Heqt'; subst.
   - do 2 simpl_array. eauto using access.
   - rewrite add_increments_length. lia.
 Qed.
 
-Local Lemma va_mem_add : forall m t v,
+Local Lemma va_mem_add : forall m t v V,
   valid_accesses m t ->
-  valid_accesses (m +++ v) t.
+  valid_accesses (m +++ (v, V)) t.
 Proof.
   intros * Hva ? Hacc. induction Hacc; subst; inversion_va; eauto.
   - eapply IHHacc. intros ? ?.
     destruct (lt_eq_lt_dec ad' (length m)) as [[? | ?] | ?]; subst;
-    do 3 simpl_array; eauto; try solve [inversion_access].
+    do 3 simpl_array; eauto; simpl in *; try solve [inversion_access].
     specialize (Hva (length m) (access_ref m (length m) _)). lia.
   - rewrite add_increments_length. eauto using access, Nat.lt_lt_succ_r.
 Qed.
 
-Local Lemma va_mem_set : forall m t ad v,
+Local Lemma va_mem_set : forall m t ad v V,
   valid_accesses m v ->
   valid_accesses m t ->
-  valid_accesses m[ad <- v] t.
+  valid_accesses m[ad <- (v, V)] t.
 Proof.
   intros * ? ? ? Hacc.
   rewrite set_preserves_length.
@@ -219,10 +219,10 @@ Proof.
   inversion_va. eauto using va_subst.
 Qed.
 
-Local Lemma va_alloc_preservation : forall m t t' v,
+Local Lemma va_alloc_preservation : forall m t t' v V,
   valid_accesses m t ->
-  t --[EF_Alloc (length m) v]--> t' ->
-  valid_accesses (m +++ v) t'.
+  t --[EF_Alloc (length m) v V]--> t' ->
+  valid_accesses (m +++ (v, V)) t'.
 Proof.
   intros. induction_step; inversion_va;
   eauto using va_new, va_load, va_asg, va_call, va_seq, va_mem_add,
@@ -231,7 +231,7 @@ Qed.
 
 Local Lemma va_read_preservation : forall m t t' ad,
   valid_accesses m t ->
-  t --[EF_Read ad m[ad]]--> t' ->
+  t --[EF_Read ad m[ad].tm]--> t' ->
   valid_accesses m t'.
 Proof.
   intros. induction_step; inversion_va;
@@ -239,13 +239,12 @@ Proof.
   intros ad' ?. destruct (Nat.eq_dec ad ad'); subst; eauto using access.
 Qed.
 
-Local Lemma va_write_preservation : forall m t t' ad v,
+Local Lemma va_write_preservation : forall m t t' ad v V,
   valid_accesses m t ->
-  t --[EF_Write ad v]--> t' ->
-  valid_accesses m[ad <- v] t'.
+  t --[EF_Write ad v V]--> t' ->
+  valid_accesses m[ad <- (v, V)] t'.
 Proof.
-  intros.
-  assert (valid_accesses m v); eauto using va_write_value.
+  intros. assert (valid_accesses m v); eauto using va_write_value.
   induction_step; inversion_va;
   eauto using va_new, va_load, va_asg, va_call, va_seq, va_mem_set.
   intros ? ?. inversion_access.
@@ -267,23 +266,23 @@ Qed.
 (* memory valid-accesses preservation                                        *)
 (* ------------------------------------------------------------------------- *)
 
-Local Lemma mva_alloc_preservation : forall m t t' v,
+Local Lemma mva_alloc_preservation : forall m t t' v V,
   valid_accesses m t ->
-  forall_memory m (valid_accesses m) ->
-  t --[EF_Alloc (length m) v]--> t' ->
-  forall_memory (m +++ v) (valid_accesses (m +++ v)).
+  forall_memory_terms m (valid_accesses m) ->
+  t --[EF_Alloc (length m) v V]--> t' ->
+  forall_memory_terms (m +++ (v, V)) (valid_accesses (m +++ (v, V))).
 Proof.
   intros * Hva ? ? ad. induction_step; inversion_va; eauto.
   decompose sum (lt_eq_lt_dec ad (length m)); subst;
   simpl_array; eauto using va_mem_add.
-  intros ? ?. inversion_access.
+  intros ? ?. simpl in *. inversion_access.
 Qed.
 
-Local Lemma mva_write_preservation : forall m t t' ad v,
+Local Lemma mva_write_preservation : forall m t t' ad v V,
   valid_accesses m t ->
-  forall_memory m (valid_accesses m) ->
-  t --[EF_Write ad v]--> t' ->
-  forall_memory m[ad <- v] (valid_accesses m[ad <- v]).
+  forall_memory_terms m (valid_accesses m) ->
+  t --[EF_Write ad v V]--> t' ->
+  forall_memory_terms m[ad <- (v, V)] (valid_accesses m[ad <- (v, V)]).
 Proof.
   intros * Hva Hmva ? ad'. induction_step; inversion_va; eauto.
   decompose sum (lt_eq_lt_dec ad ad'); subst;
@@ -293,9 +292,9 @@ Qed.
 
 Theorem mva_mstep_preservation : forall m m' t t' eff,
   valid_accesses m t ->
-  forall_memory m (valid_accesses m) ->
+  forall_memory_terms m (valid_accesses m) ->
   m / t ==[eff]==> m' / t' ->
-  forall_memory m' (valid_accesses m').
+  forall_memory_terms m' (valid_accesses m').
 Proof.
   intros. inversion_mstep;
   eauto using mva_alloc_preservation, mva_write_preservation.

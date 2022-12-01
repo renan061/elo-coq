@@ -32,9 +32,9 @@ Proof.
   simpl_array; try lia; inversion_step.
 Qed.
 
-Local Lemma step_write_requires_uacc : forall m t t' ad v T,
+Local Lemma step_write_requires_uacc : forall m t t' ad v V T,
   empty |-- t is T ->
-  t --[EF_Write ad v]--> t' ->
+  t --[EF_Write ad v V]--> t' ->
   UnsafeAccess m t ad.
 Proof.
   intros. generalize dependent T.
@@ -42,11 +42,11 @@ Proof.
   inversion_type. eauto using UnsafeAccess.
 Qed.
 
-Local Lemma step_write_sms_helper : forall m t ad v ths tid tid',
+Local Lemma step_write_sms_helper : forall m t ad v ths tid tid' V,
   tid <> tid' ->
   forall_threads ths well_typed_thread ->
   safe_memory_sharing m ths ->
-  ths[tid] --[EF_Write ad v]--> t ->
+  ths[tid] --[EF_Write ad v V]--> t ->
   ~ access m ths[tid'] ad.
 Proof.
   intros * Hneq Htype Hsms ? F.
@@ -67,11 +67,11 @@ Proof.
   eauto using step_none_preserves_nuacc, step_none_inherits_access.
 Qed.
 
-Local Lemma step_alloc_sms_preservation : forall m t v ths tid,
+Local Lemma step_alloc_sms_preservation : forall m t v ths tid V,
   forall_threads ths (valid_accesses m) ->
   safe_memory_sharing m ths ->
-  ths[tid] --[EF_Alloc (length m) v]--> t ->
-  safe_memory_sharing (m +++ v) ths[tid <- t].
+  ths[tid] --[EF_Alloc (length m) v V]--> t ->
+  safe_memory_sharing (m +++ (v, V)) ths[tid <- t].
 Proof.
   intros * Hva ? ? tid1 tid2 ad Hneq Hacc1 Hacc2.
   assert (tid < length ths) by eauto using length_tid.
@@ -89,11 +89,11 @@ Proof.
 Qed.
 
 Local Lemma step_read_sms_preservation : forall m t ad ths tid,
-  forall_memory m value ->
+  forall_memory_terms m value ->
   forall_threads ths well_typed_thread ->
   forall_threads ths (well_typed_references m) ->
   safe_memory_sharing m ths ->
-  ths[tid] --[EF_Read ad m[ad]]--> t ->
+  ths[tid] --[EF_Read ad m[ad].tm]--> t ->
   safe_memory_sharing m ths[tid <- t].
 Proof.
   intros * ? Htype ? ? ? tid1 tid2 ? ? ? ?.
@@ -104,11 +104,11 @@ Proof.
   eauto using step_read_preserves_nuacc, step_read_inherits_acc.
 Qed.
 
-Local Lemma step_write_sms_preservation : forall m ths t tid ad v,
+Local Lemma step_write_sms_preservation : forall m ths t tid ad v V,
   forall_threads ths well_typed_thread ->
   safe_memory_sharing m ths ->
-  ths[tid] --[EF_Write ad v]--> t ->
-  safe_memory_sharing m[ad <- v] ths[tid <- t].
+  ths[tid] --[EF_Write ad v V]--> t ->
+  safe_memory_sharing m[ad <- (v, V)] ths[tid <- t].
 Proof.
   intros * ? ? ? tid1 tid2 ad' ? ? ?.
   assert (tid < length ths) by eauto using length_tid.
@@ -121,7 +121,7 @@ Proof.
 Qed.
 
 Local Corollary mstep_sms_preservation : forall m m' t eff ths tid,
-  forall_memory m value ->
+  forall_memory_terms m value ->
   forall_threads ths (valid_accesses m) ->
   forall_threads ths well_typed_thread ->
   forall_threads ths (well_typed_references m) ->
@@ -140,15 +140,8 @@ Qed.
 (* sms preservation                                                          *)
 (* ------------------------------------------------------------------------- *)
 
-Local Lemma todo : forall m t1 t2 ad T1 T2,
-  UnsafeAccess m t1 ad ->
-  access m t2 ad ->
-  UnsafeAccess m t2 ad.
-Proof.
-Abort.
-
 Theorem safe_memory_sharing_preservation : forall m m' ths ths' tid eff,
-  forall_memory m value ->
+  forall_memory_terms m value ->
   forall_threads ths (valid_accesses m) ->
   forall_threads ths well_typed_thread ->
   forall_threads ths (well_typed_references m) ->
@@ -170,6 +163,7 @@ Proof.
       * rewrite <- (set_preserves_length _ tid1 t') in Hlen2. do 2 simpl_array.
         eauto using step_spawn_preserves_nuacc.
       * rewrite <- (set_preserves_length _ tid1 t') in Hacc2. simpl_array.
+        unfold safe_memory_sharing in Hsb.
         intros F.
         rename block into newthread.
         assert (UnsafeAccess m' ths[tid1] ad) by admit.
@@ -177,8 +171,8 @@ Proof.
         specialize (Hsb tid1).
         eauto using step_spawn_preserves_nuacc.
         admit.
-      * rewrite <- (set_preserves_length _ tid1 t') in Hlen2. simpl_array.
-        inversion_access.
+      * rewrite <- (set_preserves_length _ tid1 t') in Hlen2.
+        simpl_array. unfold thread_default in *. inversion_access.
     + do 6 simpl_array. inversion_step.
     + do 8 simpl_array. inversion_step.
 Abort.

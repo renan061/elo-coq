@@ -77,7 +77,7 @@ Qed.
 Theorem step_read_type_preservation : forall m t t' ad T,
   well_typed_references m t ->
   empty |-- t is T ->
-  t --[EF_Read ad m[ad]]--> t' ->
+  t --[EF_Read ad m[ad].tm]--> t' ->
   empty |-- t' is T.
 Proof.
   intros * Hwtr ? ?.
@@ -117,9 +117,9 @@ Theorem mstep_memory_preservation : forall m m' t t' eff ad T M,
   well_typed_references m t ->
   ad < length m ->
   empty |-- t is T ->
-  empty |-- m[ad] is M ->
+  empty |-- m[ad].tm is M ->
   m / t ==[eff]==> m' / t' ->
-  empty |-- m'[ad] is M.
+  empty |-- m'[ad].tm is M.
 Proof.
   intros * Hwtr ? HtypeT HtypeM ?. inversion_mstep; eauto.
   try solve [simpl_array; trivial].

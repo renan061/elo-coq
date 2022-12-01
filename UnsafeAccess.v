@@ -15,7 +15,7 @@ From Elo Require Import AccessProp.
 Inductive UnsafeAccess (m : mem) : tm -> addr -> Prop :=
   | uacc_mem : forall ad ad' T,
     ad <> ad' ->
-    UnsafeAccess m m[ad'] ad ->
+    UnsafeAccess m m[ad'].tm ad ->
     UnsafeAccess m <{ &ad' :: &T }> ad
 
   | uacc_ref : forall ad T,
@@ -102,7 +102,7 @@ Local Ltac solve_nuacc :=
 Lemma nuacc_mem : forall m ad ad' T,
   ad <> ad' ->
   ~ UnsafeAccess m <{ &ad' :: &T }> ad ->
-  ~ UnsafeAccess m m[ad'] ad.
+  ~ UnsafeAccess m m[ad'].tm ad.
 Proof. solve_nuacc. Qed.
 
 Lemma nuacc_new : forall m t ad T,
@@ -165,7 +165,7 @@ Theorem uacc_soundness : forall m m' t t' ad eff T,
   empty |-- t is T ->
   ~ UnsafeAccess m t ad ->
   m / t ==[eff]==> m' / t' ->
-  m[ad] = m'[ad].
+  m[ad].tm = m'[ad].tm.
 Proof.
   intros * ? ? Hnuacc ?. rename ad into ad'. inversion_mstep; trivial.
   - decompose sum (lt_eq_lt_dec ad' (length m)); subst;
@@ -238,7 +238,7 @@ Proof.
   induction Huacc; eauto using UnsafeAccess; inversion_nuacc;
   try solve [inversion_nuacc; eauto using UnsafeAccess].
   decompose sum (lt_eq_lt_dec ad' (length m)); subst; do 2 simpl_array;
-  try inversion_uacc; eauto using UnsafeAccess.
+  simpl in *; try inversion_uacc; eauto using UnsafeAccess.
   assert (length m <> ad') by eauto using Nat.lt_neq, Nat.neq_sym.
   inversion_nuacc. eauto.
 Qed.
@@ -253,21 +253,21 @@ Proof.
   eauto using UnsafeAccess. do 2 simpl_array. eauto using UnsafeAccess.
 Qed.
 
-Lemma mem_set_nuacc : forall m t ad ad' v,
+Lemma mem_set_nuacc : forall m t ad ad' v V,
   ~ UnsafeAccess m v ad ->
   ~ UnsafeAccess m t ad ->
-  ~ UnsafeAccess m[ad' <- v] t ad.
+  ~ UnsafeAccess m[ad' <- (v, V)] t ad.
 Proof.
   assert (ge_iff_le : forall m n, m >= n <-> n <= m)
     by (intros; split; destruct n; eauto).
-  assert (Hlen : forall m ad ad' v,
-    UnsafeAccess m[ad' <- v] m[ad' <- v][ad'] ad ->
+  assert (Hlen : forall m ad ad' v V,
+    UnsafeAccess m[ad' <- (v, V)] m[ad' <- (v, V)][ad'].tm ad ->
     ad' < length m). {
     intros * H. eapply not_ge. rewrite ge_iff_le. intros ?.
-    rewrite (get_set_invalid TM_Unit) in H; trivial. inversion H.
+    rewrite (get_set_invalid memory_default) in H; trivial. inversion H.
   }
   (* main proof *)
-  intros * ? ? Huacc. remember (m[ad' <- v]) as m'.
+  intros * ? ? Huacc. remember (m[ad' <- (v, V)]) as m'.
   induction Huacc; inversion_subst_clear Heqm'; eauto using UnsafeAccess.
   match goal with _ : _ <> ?ad |- _ => rename ad into ad'' end. 
   destruct (Nat.eq_dec ad' ad'') as [? | Hneq]; subst;
@@ -279,9 +279,9 @@ Qed.
 (* step-preserves-nuacc                                                      *)
 (* ------------------------------------------------------------------------- *)
 
-Local Lemma step_alloc_value_nacc : forall m t t' v,
+Local Lemma step_alloc_value_nacc : forall m t t' v V,
   valid_accesses m t ->
-  t --[EF_Alloc (length m) v]--> t' ->
+  t --[EF_Alloc (length m) v V]--> t' ->
   ~ access m v (length m).
 Proof.
   intros * Hva ?. induction_step; inversion_va; eauto using access.
@@ -307,12 +307,12 @@ Proof.
   contradict F. eauto using nuacc_subst_call.
 Qed.
 
-Lemma step_alloc_preserves_nuacc : forall m t t' ad v,
+Lemma step_alloc_preserves_nuacc : forall m t t' ad v V,
   ad <> length m ->
   valid_accesses m t ->
   ~ UnsafeAccess m t ad ->
-  t --[EF_Alloc (length m) v]--> t' ->
-  ~ UnsafeAccess (m +++ v) t' ad.
+  t --[EF_Alloc (length m) v V]--> t' ->
+  ~ UnsafeAccess (m +++ (v, V)) t' ad.
 Proof.
   intros. intros ?. induction_step;
   inversion_va; inversion_nuacc; inversion_uacc;
@@ -322,11 +322,11 @@ Proof.
 Qed.
 
 Lemma step_read_preserves_nuacc : forall m t t' ad ad' T,
-  forall_memory m value ->
+  forall_memory_terms m value ->
   empty |-- t is T ->
   well_typed_references m t ->
   ~ UnsafeAccess m t ad ->
-  t --[EF_Read ad' m[ad']]--> t' ->
+  t --[EF_Read ad' m[ad'].tm]--> t' ->
   ~ UnsafeAccess m t' ad.
 Proof.
   intros * Hval ? Hwtr ? ? ?. generalize dependent T. induction_step; intros;
@@ -336,10 +336,10 @@ Proof.
   inversion_wtr m; contradict H2; eauto using nuacc_refI. (* TODO *)
 Qed.
 
-Lemma step_write_preserves_nuacc : forall m t t' ad ad' v,
+Lemma step_write_preserves_nuacc : forall m t t' ad ad' v V,
   ~ UnsafeAccess m t ad ->
-  t --[EF_Write ad' v]--> t' ->
-  ~ UnsafeAccess m[ad' <- v] t' ad.
+  t --[EF_Write ad' v V]--> t' ->
+  ~ UnsafeAccess m[ad' <- (v, V)] t' ad.
 Proof.
   intros. intros ?. induction_step;
   inversion_nuacc; inversion_clear_uacc; eauto using UnsafeAccess;

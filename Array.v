@@ -20,8 +20,10 @@ Fixpoint set {A} (l : list A) (i : nat) (a : A) : list A :=
 (* Notations *)
 
 Notation " l +++ a " := (add l a) (at level 50).
-Notation " l '[' i ']' 'or' default " := (get default l i) (at level 9).
-Notation " l '[' i <- a ']' " := (set l i a) (at level 9).
+Notation " l '[' i ']' 'or' default " := (get default l i)
+  (at level 9, i at next level).
+Notation " l '[' i <- a ']' " := (set l i a)
+  (at level 9, i at next level, a at next level).
 
 (* Proofs *)
 

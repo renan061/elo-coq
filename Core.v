@@ -124,9 +124,9 @@ Definition addr := nat.
 
 Inductive effect : Set :=
   | EF_None
-  | EF_Alloc (ad : addr) (t : tm)
-  | EF_Read  (ad : addr) (t : tm)
-  | EF_Write (ad : addr) (t : tm)
+  | EF_Alloc (ad : addr) (v : tm) (V : typ)
+  | EF_Read  (ad : addr) (v : tm)
+  | EF_Write (ad : addr) (v : tm) (V : typ)
   | EF_Spawn (t : tm)
   .
 
@@ -164,9 +164,9 @@ Inductive step : tm -> effect -> tm -> Prop :=
     t --[eff]--> t' ->
     <{ new T t }> --[eff]--> <{ new T t' }>
 
-  | ST_New : forall ad v T,
+  | ST_New : forall ad v V,
     value v ->
-    <{ new T v }> --[EF_Alloc ad v]--> <{ &ad :: T }>
+    <{ new V v }> --[EF_Alloc ad v V]--> <{ &ad :: V }>
 
   (* Load *)
   | ST_Load1 : forall t t' eff,
@@ -186,9 +186,9 @@ Inductive step : tm -> effect -> tm -> Prop :=
     t --[eff]--> t' ->
     <{ v = t }> --[eff]--> <{ v = t' }>
 
-  | ST_Asg : forall ad v T,
+  | ST_Asg : forall ad v V,
     value v ->
-    <{ &ad :: T = v }> --[EF_Write ad v]--> <{ unit }>
+    <{ &ad :: V = v }> --[EF_Write ad v V]--> <{ unit }>
 
   (* Call *)
   | ST_Call1 : forall t1 t1' t2 eff,
@@ -223,28 +223,33 @@ Inductive step : tm -> effect -> tm -> Prop :=
 (* Operational Semantics -- Memory Step                                      *)
 (* ------------------------------------------------------------------------- *)
 
-Definition mem := list tm.
-Notation " l '[' i ']' " := (get TM_Unit l i) (at level 9).
+Definition mem := list (tm * typ).
+Definition memory_default := (<{ unit }>, <{{ Unit }}>).
+
+Notation " l '[' i '].tm' " := (fst (get memory_default l i))
+  (at level 9, i at next level).
+Notation " l '[' i '].typ' " := (snd (get memory_default l i))
+  (at level 9, i at next level).
 
 Inductive mstep : mem -> tm -> effect -> mem -> tm -> Prop :=
   | MST_None : forall m t t',
     t --[EF_None]--> t' ->
     m / t ==[EF_None]==> m / t'
 
-  | MST_Alloc : forall m t t' ad v,
+  | MST_Alloc : forall m t t' ad v V,
     ad = length m ->
-    t --[EF_Alloc ad v]--> t' ->
-    m / t ==[EF_Alloc ad v]==> (m +++ v) / t'
+    t --[EF_Alloc ad v V]--> t' ->
+    m / t ==[EF_Alloc ad v V]==> (m +++ (v, V)) / t'
 
   | MST_Read : forall m t t' ad,
     ad < length m ->
-    t --[EF_Read ad m[ad]]--> t' ->
-    m / t ==[EF_Read ad m[ad]]==> m / t'
+    t --[EF_Read ad m[ad].tm]--> t' ->
+    m / t ==[EF_Read ad m[ad].tm]==> m / t'
 
-  | MST_Write : forall m t t' ad v,
+  | MST_Write : forall m t t' ad v V,
     ad < length m ->
-    t --[EF_Write ad v]--> t' ->
-    m / t ==[EF_Write ad v]==> m[ad <- v] / t'
+    t --[EF_Write ad v V]--> t' ->
+    m / t ==[EF_Write ad v V]==> m[ad <- (v, V)] / t'
 
   where "m / t '==[' eff ']==>' m' / t'" := (mstep m t eff m' t').
 
@@ -253,6 +258,10 @@ Inductive mstep : mem -> tm -> effect -> mem -> tm -> Prop :=
 (* ------------------------------------------------------------------------- *)
 
 Definition threads := list tm.
+Definition thread_default := <{ unit }>.
+
+Notation " l '[' i ']' " := (get thread_default l i)
+  (at level 9, i at next level).
 
 Inductive cstep : mem -> threads -> nat -> effect -> mem -> threads -> Prop :=
   | CST_Mem : forall m m' t' ths tid eff,
@@ -316,7 +325,7 @@ Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
     Gamma[x <== Tx] |-- t is T ->
     Gamma |-- <{ fn x Tx --> t }> is <{{ Tx --> T }}>
 
-  | T_Call : forall Gamma t1 t2 T Tx,
+  | T_Call : forall Gamma t1 t2 Tx T,
     Gamma |-- t1 is <{{ Tx --> T }}> ->
     Gamma |-- t2 is Tx ->
     Gamma |-- <{ call t1 t2 }> is T
@@ -354,18 +363,19 @@ Qed.
 Theorem effect_eq_dec : forall (e1 e2 : effect),
   {e1 = e2} + {e1 <> e2}.
 Proof.
-  intros. decide equality; eauto using PeanoNat.Nat.eq_dec, tm_eq_dec.
+  intros. decide equality;
+  eauto using PeanoNat.Nat.eq_dec, tm_eq_dec, typ_eq_dec.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
 (* Array Properties                                                          *)
 (* ------------------------------------------------------------------------- *)
 
-Definition forall_memory (m : mem) P : Prop :=
-  forall_array TM_Unit P m.
+Definition forall_memory_terms (m : mem) P : Prop :=
+  forall_array memory_default (fun tT => P (fst tT)) m.
 
 Definition forall_threads (ths : threads) P : Prop :=
-  forall_array TM_Unit P ths.
+  forall_array thread_default P ths.
 
 Definition well_typed_thread := fun t => exists T, empty |-- t is T.
 

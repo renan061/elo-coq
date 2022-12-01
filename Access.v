@@ -10,7 +10,7 @@ indirectly. *)
 Inductive access (m : mem) : tm -> addr -> Prop :=
   | access_mem : forall ad ad' T,
     ad <> ad' ->
-    access m m[ad'] ad ->
+    access m m[ad'].tm ad ->
     access m <{ &ad' :: T }> ad
 
   | access_ref : forall ad T,
@@ -57,7 +57,7 @@ Inductive access (m : mem) : tm -> addr -> Prop :=
 Theorem access_get_trans : forall m t ad ad',
   ad <> ad' ->
   access m t ad' ->
-  access m m[ad'] ad ->
+  access m m[ad'].tm ad ->
   access m t ad.
 Proof.
   intros * ? Hacc ?. induction Hacc; eauto using access.
@@ -80,12 +80,12 @@ Ltac inversion_access :=
   end.
 
 Lemma access_length : forall m ad ad',
-  access m m[ad'] ad ->
+  access m m[ad'].tm ad ->
   ad' < length m.
 Proof.
   intros * Hacc.
   decompose sum (lt_eq_lt_dec ad' (length m)); subst; trivial;
-  rewrite (get_default TM_Unit) in Hacc; try lia; inversion Hacc.
+  simpl_array; try lia; inversion Hacc.
 Qed.
 
 Lemma access_dec : forall m t ad,
@@ -105,7 +105,7 @@ Inductive not_access (m : mem) : tm -> addr -> Prop :=
 
   | not_access_ref : forall T ad ad',
     ad <> ad' ->
-    ~ access m m[ad] ad' ->
+    ~ access m m[ad].tm ad' ->
     not_access m <{ &ad :: T }> ad'
 
   | not_access_new : forall T t ad,
@@ -201,30 +201,4 @@ Lemma not_access_subst_fun : forall m t tx ad x Tx,
 Proof.
   intros * Hnacc ?. inversion_not_access Hnacc; eauto using not_access_subst.
 Qed.
-
-(* ------------------------------------------------------------------------- *)
-(* TODO                                                                      *)
-(* ------------------------------------------------------------------------- *)
-
-Local Lemma todo1 : forall m t t' ad ad' v,
-  ad' < length m ->
-  ~ access m m[ad] ad ->
-  t --[EF_Write ad' v]--> t' ->
-  ~ access m[ad' <- v] m[ad' <- v][ad] ad.
-Proof.
-  intros * ? Hnacc ?. 
-  destruct (Nat.eq_dec ad' ad); subst; simpl_array.
-   admit.
-  - admit.
-Abort.
-
-Theorem todo : forall m m' t t' ad eff,
-  ~ access m m[ad] ad ->
-  m / t ==[eff]==> m' / t' ->
-  ~ access m' m'[ad] ad.
-Proof.
-  intros. inversion_mstep; trivial.
-  - admit.
-  - admit.
-Abort.
 
