@@ -5,59 +5,6 @@ From Elo Require Import Access.
 From Elo Require Import UnsafeAccess.
 
 (* ------------------------------------------------------------------------- *)
-(* contains                                                                  *)
-(* ------------------------------------------------------------------------- *)
-
-Reserved Notation " t 'contains' t' " (at level 30, no associativity).
-
-Inductive Contains (t' : tm) : tm -> Prop :=
-  | contains_eq : forall t,
-    t = t' ->
-    t contains t'
-
-  | contains_new : forall t T,
-    t contains t' ->
-    <{ new T t }> contains t'
-
-  | contains_load : forall t,
-    t contains t' ->
-    <{ *t }> contains t'
-
-  | contains_asg1 : forall t1 t2,
-    t1 contains t' ->
-    <{ t1 = t2 }> contains t'
-
-  | contains_asg2 : forall t1 t2,
-    t2 contains t' ->
-    <{ t1 = t2 }> contains t'
-
-  | contains_fun : forall t x Tx,
-    t contains t' ->
-    <{ fn x Tx --> t }> contains t'
-
-  | contains_call1 : forall t1 t2,
-    t1 contains t' ->
-    <{ call t1 t2 }> contains t'
-
-  | contains_call2 : forall t1 t2,
-    t2 contains t' ->
-    <{ call t1 t2 }> contains t'
-
-  | contains_seq1 : forall t1 t2,
-    t1 contains t' ->
-    <{ t1; t2 }> contains t'
-
-  | contains_seq2 : forall t1 t2,
-    t2 contains t' ->
-    <{ t1; t2 }> contains t'
-
-  | contains_spawn : forall t,
-    t contains t' ->
-    <{ spawn t }> contains t'
-
-  where "t 'contains' t'" := (Contains t' t).
-
-(* ------------------------------------------------------------------------- *)
 (* well-typed-references                                                     *)
 (* ------------------------------------------------------------------------- *)
 
@@ -128,14 +75,57 @@ Ltac inversion_wtr :=
   | H : WellTypedReferences _ <{ spawn _      }> |- _ => inversion H; subst
   end.
 
+Ltac inversion_clear_wtr :=
+  match goal with
+  | H : WellTypedReferences _ <{ unit         }> |- _ => inversion H
+  | H : WellTypedReferences _ <{ N _          }> |- _ => inversion H
+  | H : WellTypedReferences _ <{ & _ :: _     }> |- _ => inversion_subst_clear H
+  | H : WellTypedReferences _ <{ new _ _      }> |- _ => inversion_subst_clear H
+  | H : WellTypedReferences _ <{ * _          }> |- _ => inversion_subst_clear H
+  | H : WellTypedReferences _ <{ _ = _        }> |- _ => inversion_subst_clear H
+  | H : WellTypedReferences _ <{ var _        }> |- _ => inversion H
+  | H : WellTypedReferences _ <{ fn _ _ --> _ }> |- _ => inversion_subst_clear H
+  | H : WellTypedReferences _ <{ call _ _     }> |- _ => inversion_subst_clear H
+  | H : WellTypedReferences _ <{ _ ; _        }> |- _ => inversion_subst_clear H
+  | H : WellTypedReferences _ <{ spawn _      }> |- _ => inversion_subst_clear H
+  end.
+
 (* ------------------------------------------------------------------------- *)
-(* well-typed-references                                                     *)
+(* preservation                                                              *)
+(* ------------------------------------------------------------------------- *)
+
+(* ------------------------------------------------------------------------- *)
+(* consistency                                                               *)
 (* ------------------------------------------------------------------------- *)
 
 Definition memory_consistency (m m' : mem) :=
   forall ad, ad < length m -> m[ad].typ = m'[ad].typ.
 
-Lemma unsafe_access_ref_type : forall m t ad,
+Local Lemma uacc_then_mut : forall m ad v T,
+  value v ->
+  UnsafeAccess m v ad ->
+  empty |-- v is <{{ Immut T }}> ->
+  False.
+Proof.
+  intros * Hval Huacc ?. generalize dependent T.
+  induction Huacc; intros; inversion Hval; subst; inversion_type; eauto.
+Qed.
+
+Local Lemma consistent_memtyp : forall m t ad T,
+  forall_memory_terms m value ->
+  forall_memory_terms m (WellTypedReferences m) ->
+  WellTypedReferences m t ->
+  m[ad].typ = <{{ &T }}> ->
+  access m t ad ->
+  UnsafeAccess m t ad.
+Proof.
+  intros * ? ? ? Heq Hacc. induction Hacc;
+  inversion_wtr; eauto using UnsafeAccess;
+  exfalso; eauto using uacc_then_mut.
+  rewrite Heq in *. discriminate.
+Qed.
+
+Local Lemma wtr_uacc_memtyp : forall m t ad,
   forall_memory_terms m (WellTypedReferences m) ->
   WellTypedReferences m t ->
   UnsafeAccess m t ad ->
@@ -144,7 +134,8 @@ Proof.
   intros * ? ? Huacc. induction Huacc; inversion_wtr; eauto.
 Qed.
 
-Lemma consistent_unsafe_access : forall m t t' ad,
+Lemma consistent_uacc : forall m t t' ad,
+  forall_memory_terms m value ->
   forall_memory_terms m (WellTypedReferences m) ->
   WellTypedReferences m t ->
   WellTypedReferences m t' ->
@@ -152,23 +143,9 @@ Lemma consistent_unsafe_access : forall m t t' ad,
   access m t' ad ->
   UnsafeAccess m t' ad.
 Proof.
-  intros * HwtrM ? ? Huacc Hacc. induction Hacc. 
-  - inversion_wtr.
-    + eapply uacc_mem; eauto.
-    + exfalso.
-      assert (WellTypedReferences m m [ad'].tm) by eauto; do 2 auto_specialize.
-      assert (exists T, m[ad].typ = <{{ &T }}>) as [T ?]
-        by eauto using unsafe_access_ref_type.
-      assert (exists v, m[ad'].tm = v) as [v Hv] by admit.
-      rewrite Hv in *; clear Hv.
-
-      empty |-- t is <{{ Immut T }}> ->
-
-  ; inversion_wtr; inversion_uacc; eauto.
-  - destruct (uacc_dec m t1 ad); eauto; clear IHstep. 
-  - admit. 
-  - admit. 
-  - admit. 
-  - admit. 
-Abort.
+  intros.
+  assert (exists T, m[ad].typ = <{{ &T }}>) as [? ?]
+    by eauto using wtr_uacc_memtyp.
+  eauto using consistent_memtyp.
+Qed.
 
