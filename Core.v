@@ -66,6 +66,7 @@ Notation "x"         := x (in custom elo_typ at level 0, x constr at level 0).
 
 Notation "'Unit'"      := (TY_Immut TY_Unit)     (in custom elo_typ at level 0).
 Notation "'Num'"       := (TY_Immut TY_Num)      (in custom elo_typ at level 0).
+Notation "'Immut' T"   := (TY_Immut T)           (in custom elo_typ at level 5).
 Notation "'&' T"       := (TY_RefM T)            (in custom elo_typ at level 5).
 Notation "'i&' T"      := (TY_Immut (TY_RefI T)) (in custom elo_typ at level 5).
 Notation "T1 '-->' T2" := (TY_Fun T1 T2)         (in custom elo_typ at level 50,

@@ -280,10 +280,10 @@ Proof.
   rewrite add_increments_length. lia.
 Qed.
 
-Local Lemma mem_set_va : forall m t ad v,
+Local Lemma mem_set_va : forall m t ad v V,
   valid_addresses m v ->
   valid_addresses m t ->
-  valid_addresses m[ad <- v] t.
+  valid_addresses m[ad <- (v, V)] t.
 Proof.
   intros * ? ? ? Hha. rewrite set_preserves_length.
   induction Hha; inversion_va; eauto.
@@ -303,10 +303,10 @@ Proof.
   inversion_va. eauto using va_subst.
 Qed.
 
-Local Lemma step_alloc_va_preservation : forall m t t' v,
+Local Lemma step_alloc_va_preservation : forall m t t' v V,
   valid_addresses m t ->
-  t --[EF_Alloc (length m) v]--> t' ->
-  valid_addresses (m +++ v) t'.
+  t --[EF_Alloc (length m) v V]--> t' ->
+  valid_addresses (m +++ (v, V)) t'.
 Proof.
   intros. induction_step; inversion_va;
   eauto using va_new, va_load, va_asg, va_call, va_seq, mem_add_va.
@@ -323,10 +323,10 @@ Proof.
   eauto using va_new, va_load, va_asg, va_call, va_seq.
 Qed.
 
-Local Lemma step_write_va_preservation : forall m t t' ad v,
+Local Lemma step_write_va_preservation : forall m t t' ad v V,
   valid_addresses m t ->
-  t --[EF_Write ad v]--> t' ->
-  valid_addresses m[ad <- v] t'.
+  t --[EF_Write ad v V]--> t' ->
+  valid_addresses m[ad <- (v, V)] t'.
 Proof.
   intros. assert (valid_addresses m v) by shelve.
   induction_step; inversion_va;
@@ -335,7 +335,7 @@ Proof.
 Qed.
 
 Local Corollary mstep_va_preservation : forall m m' t t' eff,
-  forall_memory m (valid_addresses m) ->
+  forall_memory_terms m (valid_addresses m) ->
   valid_addresses m t ->
   m / t ==[eff]==> m' / t' ->
   valid_addresses m' t'.
@@ -360,40 +360,40 @@ Qed.
 (* mem-va-preservation                                                        *)
 (* -------------------------------------------------------------------------- *)
 
-Local Lemma hasad_alloc_term : forall t t' ad ad' v,
+Local Lemma hasad_alloc_term : forall t t' ad ad' v V,
   HasAddress ad v ->
-  t --[EF_Alloc ad' v]--> t' ->
+  t --[EF_Alloc ad' v V]--> t' ->
   HasAddress ad t.
 Proof. intros. induction_step; eauto using HasAddress. Qed.
 
-Local Lemma hasad_write_term1 : forall t t' ad v,
-  t --[EF_Write ad v]--> t' ->
+Local Lemma hasad_write_term1 : forall t t' ad v V,
+  t --[EF_Write ad v V]--> t' ->
   HasAddress ad t.
 Proof. intros. induction_step; eauto using HasAddress. Qed.
 
-Local Lemma hasad_write_term2 : forall t t' ad ad' v,
+Local Lemma hasad_write_term2 : forall t t' ad ad' v V,
   HasAddress ad v ->
-  t --[EF_Write ad' v]--> t' ->
+  t --[EF_Write ad' v V]--> t' ->
   HasAddress ad t.
 Proof. intros. induction_step; eauto using HasAddress. Qed.
 
-Local Lemma step_alloc_mem_va_preservation : forall m t t' v,
+Local Lemma step_alloc_mem_va_preservation : forall m t t' v V,
   valid_addresses m t ->
-  forall_memory m (valid_addresses m) ->
-  t --[EF_Alloc (length m) v]--> t' ->
-  forall_memory (m +++ v) (valid_addresses (m +++ v)).
+  forall_memory_terms m (valid_addresses m) ->
+  t --[EF_Alloc (length m) v V]--> t' ->
+  forall_memory_terms  (m +++ (v, V)) (valid_addresses (m +++ (v, V))).
 Proof.
   intros. intros ad. decompose sum (lt_eq_lt_dec ad (length m)); subst;
   simpl_array; intros ? ?; rewrite add_increments_length;
   unfold valid_addresses in *; eauto using hasad_alloc_term, Nat.lt_lt_succ_r.
-  inversion_ha.
+  simpl in *. inversion_ha.
 Qed.
 
-Local Lemma step_write_mem_va_preservation : forall m t t' ad v,
+Local Lemma step_write_mem_va_preservation : forall m t t' ad v V,
   valid_addresses m t ->
-  forall_memory m (valid_addresses m) ->
-  t --[EF_Write ad v]--> t' ->
-  forall_memory m[ad <- v] (valid_addresses m[ad <- v]).
+  forall_memory_terms m (valid_addresses m) ->
+  t --[EF_Write ad v V]--> t' ->
+  forall_memory_terms m[ad <- (v, V)] (valid_addresses m[ad <- (v, V)]).
 Proof.
   intros. intros ad'. 
   assert (HasAddress ad t); assert (ad < length m);
@@ -406,9 +406,9 @@ Qed.
 
 Local Corollary mstep_mem_va_preservation : forall m m' t t' eff,
   valid_addresses m t ->
-  forall_memory m (valid_addresses m) ->
+  forall_memory_terms m (valid_addresses m) ->
   m / t ==[eff]==> m' / t' ->
-  forall_memory m' (valid_addresses m').
+  forall_memory_terms m' (valid_addresses m').
 Proof.
   intros. inversion_mstep; trivial;
   eauto using step_alloc_mem_va_preservation, step_write_mem_va_preservation.
@@ -427,7 +427,7 @@ Proof.
 Qed.
 
 Theorem valid_addresses_preservation1 : forall m m' ths ths' tid eff,
-  forall_memory m (valid_addresses m) ->
+  forall_memory_terms m (valid_addresses m) ->
   forall_threads ths (valid_addresses m) ->
   m / ths ~~[tid, eff]~~> m' / ths' ->
   forall_threads ths' (valid_addresses m').
@@ -446,9 +446,9 @@ Qed.
 
 Theorem valid_addresses_preservation2 : forall m m' ths ths' tid eff,
   forall_threads ths (valid_addresses m) ->
-  forall_memory m (valid_addresses m) ->
+  forall_memory_terms m (valid_addresses m) ->
   m / ths ~~[tid, eff]~~> m' / ths' ->
-  forall_memory m' (valid_addresses m').
+  forall_memory_terms m' (valid_addresses m').
 Proof.
   intros. inversion_cstep; eauto using mstep_mem_va_preservation.
 Qed.
