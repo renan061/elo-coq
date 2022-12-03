@@ -15,7 +15,6 @@ From Elo Require Import SafeSpawns.
 
 Local Definition safe_memory_sharing m ths := forall tid1 tid2 ad,
   tid1 <> tid2 ->
-  access m ths[tid1] ad -> (* TODO: remove *)
   access m ths[tid2] ad ->
   ~ UnsafeAccess m ths[tid1] ad.
 
@@ -50,8 +49,7 @@ Local Lemma step_write_sms_helper : forall m t ad v ths tid tid' V,
   ~ access m ths[tid'] ad.
 Proof.
   intros * Hneq Htype Hsms ? F.
-  assert (Hacc : access m ths[tid] ad) by eauto using step_write_requires_acc.
-  destruct (Htype tid). specialize (Hsms _ _ _ Hneq Hacc F).
+  destruct (Htype tid). specialize (Hsms _ _ _ Hneq F).
   eauto using step_write_requires_uacc.
 Qed.
 
@@ -60,7 +58,7 @@ Local Lemma step_none_sms_preservation : forall m t ths tid,
   ths[tid] --[EF_None]--> t ->
   safe_memory_sharing m ths[tid <- t].
 Proof.
-  intros * ? ? tid1 tid2 ? ? ? ?.
+  intros * ? ? tid1 tid2 ? ? ?.
   assert (tid < length ths) by eauto using length_tid.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia;
   simpl_array; eauto using step_none_preserves_nuacc, step_none_inherits_access.
@@ -72,7 +70,8 @@ Local Lemma step_alloc_sms_preservation : forall m t v ths tid V,
   ths[tid] --[EF_Alloc (length m) v V]--> t ->
   safe_memory_sharing (m +++ (v, V)) ths[tid <- t].
 Proof.
-  intros * Hva ? ? tid1 tid2 ad Hneq Hacc1 Hacc2.
+  intros * Hva ? ? tid1 tid2 ad Hneq Hacc1 Huacc.
+  eapply uacc_then_acc in Huacc as Hacc2. contradict Huacc.
   assert (tid < length ths) by eauto using length_tid.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia;
   simpl_array;
@@ -95,7 +94,7 @@ Local Lemma step_read_sms_preservation : forall m t ad ths tid,
   ths[tid] --[EF_Read ad m[ad].tm]--> t ->
   safe_memory_sharing m ths[tid <- t].
 Proof.
-  intros * ? Htype ? ? ? tid1 tid2 ? ? ? ?.
+  intros * ? Htype ? ? ? tid1 tid2 ? ? ?.
   destruct (Htype tid1).
   assert (tid < length ths) by eauto using length_tid.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia;
@@ -108,7 +107,8 @@ Local Lemma step_write_sms_preservation : forall m ths t tid ad v V,
   ths[tid] --[EF_Write ad v V]--> t ->
   safe_memory_sharing m[ad <- (v, V)] ths[tid <- t].
 Proof.
-  intros * ? ? ? tid1 tid2 ad' ? ? ?.
+  intros * ? ? ? tid1 tid2 ad' ? ? Huacc.
+  eapply uacc_then_acc in Huacc as Hacc2. contradict Huacc.
   assert (tid < length ths) by eauto using length_tid.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia;
   simpl_array;
@@ -204,7 +204,7 @@ Theorem safe_memory_sharing_preservation : forall m m' ths ths' tid eff,
 Proof.
   intros. inversion_cstep; eauto using mstep_sms_preservation.
   assert (NoMut block) by eauto using nomut_block.
-  intros tid1 tid2 ad Hneq Hacc1 Hacc2.
+  intros tid1 tid2. intros.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia;
   decompose sum (lt_eq_lt_dec tid1 (length ths)); subst; simpl_array;
   eauto using step_spawn_inherits_acc, step_spawn_preserves_nuacc;
