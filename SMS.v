@@ -224,7 +224,37 @@ Proof.
         simpl_array. unfold thread_default in *. inversion_access.
     + do 6 simpl_array. inversion_step.
     + do 8 simpl_array. inversion_step.
-  - admit.
-  - admit.
-Abort.
+  - destruct (lt_eq_lt_dec tid1 (length ths)) as [[Hlen1 | ?] | Hlen]; subst.
+    + rewrite <- (set_preserves_length _ tid2 t') in Hlen1. do 4 simpl_array.
+      destruct (lt_eq_lt_dec tid2 (length ths)) as [[Hlen2 | ?] | Hlen2]; subst.
+      * rewrite <- (set_preserves_length _ tid2 t') in Hlen2. do 2 simpl_array.
+        assert (access m' ths[tid2] ad) by eauto using step_spawn_inherits_acc.
+        eauto using step_spawn_preserves_nuacc.
+      * do 4 simpl_array. inversion_step.
+      * do 5 simpl_array. inversion_step.
+    + rewrite <- (set_preserves_length _ tid2 t').
+      simpl_array. eauto using nomut_then_nuacc.
+    + rewrite <- (set_preserves_length _ tid2 t') in Hlen.
+      do 2 simpl_array.
+      intros ?. unfold thread_default in *. inversion_uacc.
+  - destruct (lt_eq_lt_dec tid1 (length ths)) as [[Hlen1 | ?] | Hlen]; subst.
+    + rewrite <- (set_preserves_length _ tid t') in Hlen1.
+      do 4 simpl_array.
+      destruct (lt_eq_lt_dec tid2 (length ths)) as [[Hlen2 | ?] | Hlen2]; subst.
+      * rewrite <- (set_preserves_length _ tid t') in Hlen2.
+        do 2 simpl_array.
+        eauto.
+      * rewrite <- (set_preserves_length _ tid t') in Hacc2.
+        simpl_array.
+        intros F.
+        eapply (consistent_uacc m' ths[tid1]) in Hacc2;
+        eauto using step_spawn_wtr_block, step_spawn_wtr_preservation.
+        eapply nomut_then_nuacc; eauto.
+      * rewrite <- (set_preserves_length _ tid t') in Hlen2.
+        do 1 simpl_array. unfold thread_default in *. inversion_access.
+    + rewrite <- (set_preserves_length _ tid t').
+      simpl_array. eauto using nomut_then_nuacc.
+    + rewrite <- (set_preserves_length _ tid t') in Hlen.
+      do 2 simpl_array. intros ?. unfold thread_default in *. inversion_uacc.
+Qed.
 
