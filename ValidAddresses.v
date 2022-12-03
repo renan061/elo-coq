@@ -141,6 +141,21 @@ Ltac inversion_nha :=
   | H : ~ HasAddress _ <{ spawn _  }> |- _ => eapply inv_nha_spawn in H
   end.
 
+(* ------------------------------------------------------------------------- *)
+(* has-address helpers                                                       *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma step_write_hasad1 : forall t t' ad v V,
+  t --[EF_Write ad v V]--> t' ->
+  HasAddress ad t.
+Proof. intros. induction_step; eauto using HasAddress. Qed.
+
+Lemma step_write_hasad2 : forall t t' ad ad' v V,
+  HasAddress ad v ->
+  t --[EF_Write ad' v V]--> t' ->
+  HasAddress ad t.
+Proof. intros. induction_step; eauto using HasAddress. Qed.
+
 (* -------------------------------------------------------------------------- *)
 (* valid-addresses                                                            *)
 (* -------------------------------------------------------------------------- *)
@@ -366,17 +381,6 @@ Local Lemma hasad_alloc_term : forall t t' ad ad' v V,
   HasAddress ad t.
 Proof. intros. induction_step; eauto using HasAddress. Qed.
 
-Local Lemma hasad_write_term1 : forall t t' ad v V,
-  t --[EF_Write ad v V]--> t' ->
-  HasAddress ad t.
-Proof. intros. induction_step; eauto using HasAddress. Qed.
-
-Local Lemma hasad_write_term2 : forall t t' ad ad' v V,
-  HasAddress ad v ->
-  t --[EF_Write ad' v V]--> t' ->
-  HasAddress ad t.
-Proof. intros. induction_step; eauto using HasAddress. Qed.
-
 Local Lemma step_alloc_mem_va_preservation : forall m t t' v V,
   valid_addresses m t ->
   forall_memory_terms m (valid_addresses m) ->
@@ -397,10 +401,10 @@ Local Lemma step_write_mem_va_preservation : forall m t t' ad v V,
 Proof.
   intros. intros ad'. 
   assert (HasAddress ad t); assert (ad < length m);
-  eauto using hasad_write_term1.
+  eauto using step_write_hasad1.
   destruct (Nat.eq_dec ad ad'); subst; simpl_array;
   intros ? ?; rewrite set_preserves_length;
-  eauto using hasad_write_term2, Nat.lt_lt_succ_r.
+  eauto using step_write_hasad2, Nat.lt_lt_succ_r.
   unfold valid_addresses in *. eauto.
 Qed.
 

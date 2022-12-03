@@ -1,5 +1,7 @@
+From Coq Require Import Arith.
 From Coq Require Import Strings.String.
 From Coq Require Import List.
+From Coq Require Import Lia.
 
 From Elo Require Import Util.
 From Elo Require Import Array.
@@ -483,4 +485,52 @@ Ltac inversion_type :=
   | H : _ |-- (_ _ _) is _    |- _ => inversion H; subst; clear H
   | H : _ |-- (_ _ _ _) is _  |- _ => inversion H; subst; clear H
   end.
+
+(* ------------------------------------------------------------------------- *)
+(* meta                                                                      *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma cstep_preservation :
+  forall (P : mem -> tm -> Prop) m m' ths ths' tid eff,
+    (* Memory step preserves the property. *)
+    (forall tid' t',
+      m / ths[tid'] ==[eff]==> m' / t' ->
+      P m' t'
+    ) ->
+    (* The untouched threads and the new memory still preserve the property. *)
+    (forall tid' t',
+      tid <> tid' ->
+      tid' < length ths ->
+      m / ths[tid] ==[eff]==> m' / t' ->
+      P m' ths[tid']
+    ) ->
+    (* The new thread preserves the property. *)
+    (forall block t',
+      ths[tid] --[EF_Spawn block]--> t' ->
+      P m block
+    ) ->
+    (* The term after the spawn preserves the property. *)
+    (forall block t',
+      ths[tid] --[EF_Spawn block]--> t' ->
+      P m t' 
+    ) ->
+    (* Unit preserves the property. *)
+    P m' thread_default ->
+    (* What we want to prove. *)
+    forall_threads ths (P m) ->
+    m / ths ~~[tid, eff]~~> m' / ths' ->
+    forall_threads ths' (P m').
+Proof.
+  intros. inversion_cstep; intros tid'.
+  - destruct (Nat.eq_dec tid tid'); subst; simpl_array; eauto.
+    decompose sum (lt_eq_lt_dec tid' (length ths)); subst; eauto;
+    simpl_array; eauto.
+  - destruct (Nat.eq_dec tid' (length ths)); subst.
+    + rewrite <- (set_preserves_length _ tid t'). simpl_array. eauto.
+    + destruct (lt_eq_lt_dec tid' (length ths)) as [[Ha | ?] | Hb]; subst;
+      try lia.
+      * rewrite <- (set_preserves_length _ tid t') in Ha. simpl_array.
+        destruct (Nat.eq_dec tid tid'); subst; simpl_array; eauto.
+      * rewrite <- (set_preserves_length _ tid t') in Hb. simpl_array. eauto.
+Qed.
 
