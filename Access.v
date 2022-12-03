@@ -66,6 +66,8 @@ Qed.
 
 Ltac inversion_access :=
   match goal with
+  | H : access _ memory_default _ |- _ => inversion H; clear H
+  | H : access _ thread_default _ |- _ => inversion H; clear H
   | H : access _ TM_Unit        _ |- _ => inversion H; clear H
   | H : access _ (TM_Num _)     _ |- _ => inversion H; clear H
   | H : access _ (TM_Ref _ _)   _ |- _ => inversion H; subst; clear H

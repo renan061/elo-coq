@@ -19,7 +19,7 @@ Proof.
   intros * Hnacc Hacc. remember (m +++ v) as m'.
   induction Hacc; inversion Heqm'; subst; inversion_not_access Hnacc.
   decompose sum (lt_eq_lt_dec ad' (length m)); subst; try lia;
-  do 2 simpl_array; eauto using access. simpl_array. simpl in *.
+  simpl_array; eauto using access. simpl in *.
   inversion_access.
 Qed.
 
@@ -34,7 +34,7 @@ Lemma mem_set_acc : forall m t ad ad' v,
 Proof.
   intros * Hnacc Hacc.  remember (m[ad' <- v]) as m'.
   induction Hacc; inversion_subst_clear Heqm'; inversion_not_access Hnacc;
-  try (do 2 simpl_array); eauto using access.
+  simpl_array; eauto using access.
 Qed.
 
 Local Lemma mem_set_acc' : forall m t ad ad' v V,
@@ -47,12 +47,12 @@ Proof.
   inversion_subst_clear Heqm'; eauto using access.
   match goal with |- access _ <{ & ?ad :: _ }> _ => rename ad into ad'' end.
   destruct (Nat.eq_dec ad' ad''); subst;
-  try solve [do 2 simpl_array; eauto using access];
+  try solve [simpl_array; eauto using access];
   destruct (Nat.eq_dec ad'' ad); subst; eauto using access.
   auto_specialize. rewrite (get_set_eq memory_default) in IH. 1: contradiction.
-  eapply not_le. intros Hlen. do 3 simpl_array. 
+  eapply not_le. intros Hlen. simpl_array. 
   eapply Nat.lt_eq_cases in Hlen as [? | ?]; subst;
-  do 2 simpl_array; simpl in *; inversion_access.
+  simpl_array; simpl in *; inversion_access.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -105,7 +105,7 @@ Proof.
   intros * Hnacc Hacc. induction Hacc;
   inversion_not_access Hnacc; eauto using access.
   decompose sum (lt_eq_lt_dec ad' (length m)); subst;
-  do 3 simpl_array; eauto using access; try contradiction.
+  simpl_array; eauto using access; try contradiction.
   auto_specialize. simpl in *. inversion_access.
 Qed.
 
@@ -116,8 +116,7 @@ Proof.
   intros * Hnacc F. remember (length m) as ad.
   induction F; inversion Heqad; subst; inversion_not_access Hnacc.
   decompose sum (lt_eq_lt_dec ad' (length m)); subst; try lia;
-  do 2 simpl_array; eauto.
-  simpl_array. eauto.
+  simpl_array; eauto.
 Qed.
 
 Lemma mem_add_nacc_lt : forall m t ad v,
@@ -127,7 +126,7 @@ Lemma mem_add_nacc_lt : forall m t ad v,
 Proof.
   intros * Hnacc1 Hnacc2 F. induction F; inversion_not_access Hnacc2.
   decompose sum (lt_eq_lt_dec ad' (length m)); subst;
-  do 2 simpl_array;
+  simpl_array;
   inversion_not_access Hnacc1.
   eapply IHF; eapply not_access_iff; eauto using not_access.
 Qed.
@@ -140,7 +139,7 @@ Proof.
   destruct (Nat.eq_dec ad ad'); subst; eauto using access.
   eapply access_mem; trivial.
   decompose sum (lt_eq_lt_dec ad' (length m)); subst;
-  simpl_array; trivial; do 2 simpl_array; simpl in *; inversion_access.
+  simpl_array; trivial; simpl in *; inversion_access.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -182,7 +181,7 @@ Lemma mem_set_preserves_nacc2 : forall m t ad ad' v,
 Proof.
   intros * Hnacc' Hnacc F. remember (m[ad' <- v]) as m'.
   induction F; inversion_not_access Hnacc'; inversion_not_access Hnacc.
-  do 2 simpl_array. eauto.
+  simpl_array. eauto.
 Qed.
 
 Lemma mem_set_preserves_nacc : forall m t ad ad' v V,
@@ -205,7 +204,7 @@ Proof.
     destruct (Nat.eq_dec ad' ad) as [? | Hneq]; subst;
     try (assert (ad < length m) by eauto)
   end;
-  do 2 simpl_array; eauto using access.
+  simpl_array; eauto using access.
 Qed.
 
 (* ------------------------------------------------------------------------- *)

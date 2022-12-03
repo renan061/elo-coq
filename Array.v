@@ -225,8 +225,33 @@ Ltac rewrite_set_invalid :=
     rewrite (set_invalid l i a (Nat.lt_le_incl _ _ Hlen))
   end.
 
+Ltac rewrite_get_add_set :=
+  match goal with
+  (* eq *)
+  | H : context C [ (?l[?i' <- ?a'] +++ ?a)[length ?l] or ?d ] |- _ =>
+    rewrite <- (set_preserves_length _ i' a') in H
+  | |- context C [ (?l[?i' <- ?a'] +++ ?a)[length ?l] or ?d ] =>
+    rewrite <- (set_preserves_length _ i' a')
+  (* lt *)
+  | Hlen : ?i < length ?l,
+    H : context C [ (?l[?i' <- ?a'] +++ ?a)[?i] or ?d ]
+    |- _ =>
+    rewrite <- (set_preserves_length _ i' a') in Hlen
+  | Hlen : ?i < length ?l
+    |- context C [ (?l[?i' <- ?a'] +++ ?a)[?i] or ?d ] =>
+    rewrite <- (set_preserves_length _ i' a') in Hlen
+  (* gt *)
+  | Hlen : length ?l < ?i,
+    H : context C [ (?l[?i' <- ?a'] +++ ?a)[?i] or ?d ]
+    |- _ =>
+    rewrite <- (set_preserves_length _ i' a') in Hlen
+  | Hlen : length ?l < ?i
+    |- context C [ (?l[?i' <- ?a'] +++ ?a)[?i] or ?d ] =>
+    rewrite <- (set_preserves_length _ i' a') in Hlen
+  end.
+
 Ltac simpl_array :=
-  (  rewrite_get_add_eq
+  progress (repeat (rewrite_get_add_eq
   || rewrite_get_add_lt
   || rewrite_get_add_gt
   || rewrite_get_set_eq
@@ -235,7 +260,8 @@ Ltac simpl_array :=
   || rewrite_get_set_gt
   || rewrite_get_default
   || rewrite_set_invalid
-  ).
+  || rewrite_get_add_set
+  )).
 
 (* ------------------------------------------------------------------------- *)
 (* forall                                                                    *)
@@ -269,8 +295,8 @@ Qed.
 (* rewrite tests                                                             *)
 (* ------------------------------------------------------------------------- *)
 
-Local Ltac test_with H :=
-  intros; do 1 H; reflexivity.
+Local Ltac test_with T :=
+  intros; T; reflexivity.
 
 Local Lemma test_rewrite_get_add_eq : forall {A} default (l : list A) a,
   (l +++ a)[length l] or default = a.

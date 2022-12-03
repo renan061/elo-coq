@@ -422,7 +422,7 @@ Proof.
     eauto using SafeSpawns, step_safe_spawns_preservation.
 Qed.
 
-Lemma nomut_thread : forall t t' block,
+Lemma nomut_block : forall t t' block,
   SafeSpawns t ->
   t --[EF_Spawn block]--> t' ->
   NoMut block.
@@ -432,7 +432,8 @@ Qed.
 
 Lemma nomut_then_nuacc: forall m t ad,
   NoMut t ->
-  ~ UnsafeAccess m t ad.
+  UnsafeAccess m t ad ->
+  False.
 Proof.
   intros * Hnm Huacc. induction Hnm; inversion_uacc; eauto.
 Qed.

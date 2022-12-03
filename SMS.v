@@ -63,8 +63,7 @@ Proof.
   intros * ? ? tid1 tid2 ? ? ? ?.
   assert (tid < length ths) by eauto using length_tid.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia;
-  do 3 simpl_array;
-  eauto using step_none_preserves_nuacc, step_none_inherits_access.
+  simpl_array; eauto using step_none_preserves_nuacc, step_none_inherits_access.
 Qed.
 
 Local Lemma step_alloc_sms_preservation : forall m t v ths tid V,
@@ -76,7 +75,7 @@ Proof.
   intros * Hva ? ? tid1 tid2 ad Hneq Hacc1 Hacc2.
   assert (tid < length ths) by eauto using length_tid.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia;
-  do 3 simpl_array;
+  simpl_array;
   assert (ad <> length m)
     by eauto 6 using mem_add_acc, mem_add_uacc, uacc_then_acc,
       va_length, va_nacc_length, Nat.lt_neq;
@@ -100,8 +99,7 @@ Proof.
   destruct (Htype tid1).
   assert (tid < length ths) by eauto using length_tid.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia;
-  do 3 simpl_array;
-  eauto using step_read_preserves_nuacc, step_read_inherits_acc.
+  simpl_array; eauto using step_read_preserves_nuacc, step_read_inherits_acc.
 Qed.
 
 Local Lemma step_write_sms_preservation : forall m ths t tid ad v V,
@@ -113,7 +111,7 @@ Proof.
   intros * ? ? ? tid1 tid2 ad' ? ? ?.
   assert (tid < length ths) by eauto using length_tid.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia;
-  do 3 simpl_array;
+  simpl_array;
   assert (~ UnsafeAccess m ths[tid1] ad');
   assert (~ UnsafeAccess m ths[tid2] ad');
   eauto 8 using mem_set_acc, mem_set_uacc, step_write_sms_helper,
@@ -204,57 +202,19 @@ Theorem safe_memory_sharing_preservation : forall m m' ths ths' tid eff,
   m / ths ~~[tid, eff]~~> m' / ths' ->
   safe_memory_sharing m' ths'.
 Proof.
-  intros * ? ? ? ? ? Hsb. intros.
-  inversion_cstep; eauto using mstep_sms_preservation.
-  assert (NoMut block) by eauto using nomut_thread.
+  intros. inversion_cstep; eauto using mstep_sms_preservation.
+  assert (NoMut block) by eauto using nomut_block.
   intros tid1 tid2 ad Hneq Hacc1 Hacc2.
-  destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia.
-  - destruct (lt_eq_lt_dec tid1 (length ths)) as [[Hlen1 | ?] | ?]; subst.
-    + rewrite <- (set_preserves_length _ tid1 t') in Hlen1. do 4 simpl_array.
-      assert (access m' ths[tid1] ad) by eauto using step_spawn_inherits_acc.
-      destruct (lt_eq_lt_dec tid2 (length ths)) as [[Hlen2 | ?] | Hlen2]; subst.
-      * rewrite <- (set_preserves_length _ tid1 t') in Hlen2. do 2 simpl_array.
-        eauto using step_spawn_preserves_nuacc.
-      * rewrite <- (set_preserves_length _ tid1 t') in Hacc2. simpl_array.
-        intros F.
-        eapply (consistent_uacc m' t') in Hacc2;
-        eauto using step_spawn_wtr_block, step_spawn_wtr_preservation.
-        eapply nomut_then_nuacc; eauto.
-      * rewrite <- (set_preserves_length _ tid1 t') in Hlen2.
-        simpl_array. unfold thread_default in *. inversion_access.
-    + do 6 simpl_array. inversion_step.
-    + do 8 simpl_array. inversion_step.
-  - destruct (lt_eq_lt_dec tid1 (length ths)) as [[Hlen1 | ?] | Hlen]; subst.
-    + rewrite <- (set_preserves_length _ tid2 t') in Hlen1. do 4 simpl_array.
-      destruct (lt_eq_lt_dec tid2 (length ths)) as [[Hlen2 | ?] | Hlen2]; subst.
-      * rewrite <- (set_preserves_length _ tid2 t') in Hlen2. do 2 simpl_array.
-        assert (access m' ths[tid2] ad) by eauto using step_spawn_inherits_acc.
-        eauto using step_spawn_preserves_nuacc.
-      * do 4 simpl_array. inversion_step.
-      * do 5 simpl_array. inversion_step.
-    + rewrite <- (set_preserves_length _ tid2 t').
-      simpl_array. eauto using nomut_then_nuacc.
-    + rewrite <- (set_preserves_length _ tid2 t') in Hlen.
-      do 2 simpl_array.
-      intros ?. unfold thread_default in *. inversion_uacc.
-  - destruct (lt_eq_lt_dec tid1 (length ths)) as [[Hlen1 | ?] | Hlen]; subst.
-    + rewrite <- (set_preserves_length _ tid t') in Hlen1.
-      do 4 simpl_array.
-      destruct (lt_eq_lt_dec tid2 (length ths)) as [[Hlen2 | ?] | Hlen2]; subst.
-      * rewrite <- (set_preserves_length _ tid t') in Hlen2.
-        do 2 simpl_array.
-        eauto.
-      * rewrite <- (set_preserves_length _ tid t') in Hacc2.
-        simpl_array.
-        intros F.
-        eapply (consistent_uacc m' ths[tid1]) in Hacc2;
-        eauto using step_spawn_wtr_block, step_spawn_wtr_preservation.
-        eapply nomut_then_nuacc; eauto.
-      * rewrite <- (set_preserves_length _ tid t') in Hlen2.
-        do 1 simpl_array. unfold thread_default in *. inversion_access.
-    + rewrite <- (set_preserves_length _ tid t').
-      simpl_array. eauto using nomut_then_nuacc.
-    + rewrite <- (set_preserves_length _ tid t') in Hlen.
-      do 2 simpl_array. intros ?. unfold thread_default in *. inversion_uacc.
+  destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia;
+  decompose sum (lt_eq_lt_dec tid1 (length ths)); subst; simpl_array;
+  eauto using step_spawn_inherits_acc, step_spawn_preserves_nuacc;
+  eauto using nomut_then_nuacc;
+  eauto using nuacc_unit;
+  decompose sum (lt_eq_lt_dec tid2 (length ths)); subst; simpl_array;
+  eauto using step_spawn_inherits_acc, step_spawn_preserves_nuacc;
+  try inversion_access; intros ?;
+  eauto using consistent_uacc,
+    step_spawn_wtr_block, step_spawn_wtr_preservation,
+    nomut_then_nuacc.
 Qed.
 

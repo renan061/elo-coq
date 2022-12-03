@@ -60,6 +60,8 @@ Inductive UnsafeAccess (m : mem) : tm -> addr -> Prop :=
 
 Ltac inversion_uacc :=
   match goal with
+  | H : UnsafeAccess _ memory_default     _ |- _ => inversion H; subst
+  | H : UnsafeAccess _ thread_default     _ |- _ => inversion H; subst
   | H : UnsafeAccess _ <{ unit         }> _ |- _ => inversion H; subst
   | H : UnsafeAccess _ <{ N _          }> _ |- _ => inversion H; subst
   | H : UnsafeAccess _ <{ & _ :: _     }> _ |- _ => inversion H; subst
@@ -75,6 +77,8 @@ Ltac inversion_uacc :=
 
 Ltac inversion_clear_uacc :=
   match goal with
+  | H : UnsafeAccess _ memory_default     _ |- _ => inversion_subst_clear H
+  | H : UnsafeAccess _ thread_default     _ |- _ => inversion_subst_clear H
   | H : UnsafeAccess _ <{ unit         }> _ |- _ => inversion_subst_clear H
   | H : UnsafeAccess _ <{ N _          }> _ |- _ => inversion_subst_clear H
   | H : UnsafeAccess _ <{ & _ :: _     }> _ |- _ => inversion_subst_clear H
@@ -98,6 +102,10 @@ Proof. eauto using classic_decidable. Qed.
 
 Local Ltac solve_nuacc :=
   intros; try (split; intros); eauto using UnsafeAccess.
+
+Lemma nuacc_unit : forall m ad,
+  ~ UnsafeAccess m <{ unit }> ad.
+Proof. intros * ?. inversion_uacc. Qed.
 
 Lemma nuacc_mem : forall m ad ad' T,
   ad <> ad' ->
@@ -226,7 +234,7 @@ Proof.
   eauto using UnsafeAccess.
   eapply uacc_mem; trivial.
   decompose sum (lt_eq_lt_dec ad' (length m)); subst;
-  do 2 simpl_array; eauto; do 2 simpl_array; eauto; lia.
+  simpl_array; eauto; lia.
 Qed.
 
 Lemma mem_add_nuacc : forall m t ad v,
@@ -237,7 +245,7 @@ Proof.
   intros. intros Huacc.
   induction Huacc; eauto using UnsafeAccess; inversion_nuacc;
   try solve [inversion_nuacc; eauto using UnsafeAccess].
-  decompose sum (lt_eq_lt_dec ad' (length m)); subst; do 2 simpl_array;
+  decompose sum (lt_eq_lt_dec ad' (length m)); subst; simpl_array;
   simpl in *; try inversion_uacc; eauto using UnsafeAccess.
   assert (length m <> ad') by eauto using Nat.lt_neq, Nat.neq_sym.
   inversion_nuacc. eauto.
@@ -250,7 +258,7 @@ Lemma mem_set_uacc : forall m t ad ad' v,
 Proof.
   intros * Hnacc Huacc. remember (m[ad' <- v]) as m'.
   induction Huacc; inversion_subst_clear Heqm'; inversion_not_access Hnacc;
-  eauto using UnsafeAccess. do 2 simpl_array. eauto using UnsafeAccess.
+  eauto using UnsafeAccess. simpl_array. eauto using UnsafeAccess.
 Qed.
 
 Lemma mem_set_nuacc : forall m t ad ad' v V,
@@ -272,7 +280,7 @@ Proof.
   match goal with _ : _ <> ?ad |- _ => rename ad into ad'' end. 
   destruct (Nat.eq_dec ad' ad'') as [? | Hneq]; subst;
   try (assert (ad'' < length m) by eauto using Hlen);
-  do 2 simpl_array; eauto using UnsafeAccess.
+  simpl_array; eauto using UnsafeAccess.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
