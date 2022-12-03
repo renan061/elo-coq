@@ -6,6 +6,7 @@ From Elo Require Import Map.
 From Elo Require Import Core.
 From Elo Require Import Access.
 From Elo Require Import Soundness.
+From Elo Require Import UnsafeAccess.
 
 (* ------------------------------------------------------------------------- *)
 (* NotMut                                                                    *)
@@ -427,5 +428,12 @@ Lemma nomut_thread : forall t t' block,
   NoMut block.
 Proof.
   intros. induction_step; inversion_safe_spawns; eauto.
+Qed.
+
+Lemma nomut_then_nuacc: forall m t ad,
+  NoMut t ->
+  ~ UnsafeAccess m t ad.
+Proof.
+  intros * Hnm Huacc. induction Hnm; inversion_uacc; eauto.
 Qed.
 

@@ -137,11 +137,64 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
+(* consistency                                                               *)
+(* ------------------------------------------------------------------------- *)
+
+Local Lemma uacc_then_mut : forall m ad v T,
+  value v ->
+  UnsafeAccess m v ad ->
+  empty |-- v is <{{ Immut T }}> ->
+  False.
+Proof.
+  intros * Hval Huacc ?. generalize dependent T.
+  induction Huacc; intros; inversion Hval; subst; inversion_type; eauto.
+Qed.
+
+Local Lemma consistent_memtyp : forall m t ad T,
+  forall_memory_terms m value ->
+  forall_memory_terms m (well_typed_references m) ->
+  well_typed_references m t ->
+  m[ad].typ = <{{ &T }}> ->
+  access m t ad ->
+  UnsafeAccess m t ad.
+Proof.
+  intros * ? ? ? Heq Hacc. induction Hacc;
+  inversion_wtr; eauto using UnsafeAccess;
+  exfalso; eauto using uacc_then_mut.
+  rewrite Heq in *. discriminate.
+Qed.
+
+Local Lemma wtr_uacc_memtyp : forall m t ad,
+  forall_memory_terms m (well_typed_references m) ->
+  well_typed_references m t ->
+  UnsafeAccess m t ad ->
+  exists T, m[ad].typ = <{{ &T }}>.
+Proof.
+  intros * ? ? Huacc. induction Huacc; inversion_wtr; eauto.
+Qed.
+
+Lemma consistent_uacc : forall m t t' ad,
+  forall_memory_terms m value ->
+  forall_memory_terms m (well_typed_references m) ->
+  well_typed_references m t ->
+  well_typed_references m t' ->
+  UnsafeAccess m t ad ->
+  access m t' ad ->
+  UnsafeAccess m t' ad.
+Proof.
+  intros.
+  assert (exists T, m[ad].typ = <{{ &T }}>) as [? ?]
+    by eauto using wtr_uacc_memtyp.
+  eauto using consistent_memtyp.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
 (* sms preservation                                                          *)
 (* ------------------------------------------------------------------------- *)
 
 Theorem safe_memory_sharing_preservation : forall m m' ths ths' tid eff,
   forall_memory_terms m value ->
+  forall_memory_terms m (well_typed_references m) ->
   forall_threads ths (valid_accesses m) ->
   forall_threads ths well_typed_thread ->
   forall_threads ths (well_typed_references m) ->
@@ -163,17 +216,15 @@ Proof.
       * rewrite <- (set_preserves_length _ tid1 t') in Hlen2. do 2 simpl_array.
         eauto using step_spawn_preserves_nuacc.
       * rewrite <- (set_preserves_length _ tid1 t') in Hacc2. simpl_array.
-        unfold safe_memory_sharing in Hsb.
         intros F.
-        rename block into newthread.
-        assert (UnsafeAccess m' ths[tid1] ad) by admit.
-        assert (~ UnsafeAccess m' newthread ad) by admit.
-        specialize (Hsb tid1).
-        eauto using step_spawn_preserves_nuacc.
-        admit.
+        eapply (consistent_uacc m' t') in Hacc2;
+        eauto using step_spawn_wtr_block, step_spawn_wtr_preservation.
+        eapply nomut_then_nuacc; eauto.
       * rewrite <- (set_preserves_length _ tid1 t') in Hlen2.
         simpl_array. unfold thread_default in *. inversion_access.
     + do 6 simpl_array. inversion_step.
     + do 8 simpl_array. inversion_step.
+  - admit.
+  - admit.
 Abort.
 

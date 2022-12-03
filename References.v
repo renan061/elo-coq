@@ -1,15 +1,16 @@
-From Coq Require Import Arith.Arith.
+From Coq Require Import Arith.
 From Coq Require Import Lia.
 
 From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Map.
 From Elo Require Import Core.
-From Elo Require Import Access.
-From Elo Require Import ValidAccesses.
+From Elo Require Import ValidAddresses.
 
-(* The types of all addresses inside the term correspond with the types in the
-memory. *)
+(* ------------------------------------------------------------------------- *)
+(* well-typed-references                                                     *)
+(* ------------------------------------------------------------------------- *)
+
 Inductive well_typed_references (m : mem) : tm -> Prop :=
   | wtr_unit :
     well_typed_references m <{ unit }> 
@@ -19,10 +20,12 @@ Inductive well_typed_references (m : mem) : tm -> Prop :=
 
   | wtr_refM : forall T ad,
     empty |-- m[ad].tm is T ->
+    m[ad].typ = <{{ &T }}> ->
     well_typed_references m <{ &ad :: &T }>
 
   | wtr_refI : forall T ad,
-    empty |-- m[ad].tm is (TY_Immut T) ->
+    empty |-- m[ad].tm is <{{ Immut T }}> ->
+    m[ad].typ = <{{ i&T }}> ->
     well_typed_references m <{ &ad :: i&T }>
 
   | wtr_new : forall T t,
@@ -54,23 +57,218 @@ Inductive well_typed_references (m : mem) : tm -> Prop :=
     well_typed_references m t1 ->
     well_typed_references m t2 ->
     well_typed_references m <{ t1; t2 }>
+
+  | wtr_spawn : forall t,
+    well_typed_references m t ->
+    well_typed_references m <{ spawn t }>
   .
 
-(* All terms inside the memory are well typed and satisfy the 
-well-typed-references property. *)
-Definition well_typed_memory (m : mem) := forall ad,
+Ltac inversion_wtr :=
+  match goal with
+  | H : well_typed_references _ <{ unit         }> |- _ => inversion H
+  | H : well_typed_references _ <{ N _          }> |- _ => inversion H
+  | H : well_typed_references _ <{ & _ :: _     }> |- _ => inversion H; subst
+  | H : well_typed_references _ <{ new _ _      }> |- _ => inversion H; subst
+  | H : well_typed_references _ <{ * _          }> |- _ => inversion H; subst
+  | H : well_typed_references _ <{ _ = _        }> |- _ => inversion H; subst
+  | H : well_typed_references _ <{ var _        }> |- _ => inversion H
+  | H : well_typed_references _ <{ fn _ _ --> _ }> |- _ => inversion H; subst
+  | H : well_typed_references _ <{ call _ _     }> |- _ => inversion H; subst
+  | H : well_typed_references _ <{ _ ; _        }> |- _ => inversion H; subst
+  | H : well_typed_references _ <{ spawn _      }> |- _ => inversion H; subst
+  end.
+
+Ltac inversion_clear_wtr :=
+  match goal with
+  |H: well_typed_references _ <{ unit         }> |- _ => inversion H
+  |H: well_typed_references _ <{ N _          }> |- _ => inversion H
+  |H: well_typed_references _ <{ & _ :: _     }> |- _ => inversion_subst_clear H
+  |H: well_typed_references _ <{ new _ _      }> |- _ => inversion_subst_clear H
+  |H: well_typed_references _ <{ * _          }> |- _ => inversion_subst_clear H
+  |H: well_typed_references _ <{ _ = _        }> |- _ => inversion_subst_clear H
+  |H: well_typed_references _ <{ var _        }> |- _ => inversion H
+  |H: well_typed_references _ <{ fn _ _ --> _ }> |- _ => inversion_subst_clear H
+  |H: well_typed_references _ <{ call _ _     }> |- _ => inversion_subst_clear H
+  |H: well_typed_references _ <{ _ ; _        }> |- _ => inversion_subst_clear H
+  |H: well_typed_references _ <{ spawn _      }> |- _ => inversion_subst_clear H
+  end.
+
+(* ------------------------------------------------------------------------- *)
+(* preservation helpers                                                      *)
+(* ------------------------------------------------------------------------- *)
+
+Local Lemma subst_wtr : forall m x Tx t v,
+  well_typed_references m v ->
+  well_typed_references m <{ fn x Tx --> t }> ->
+  well_typed_references m ([x := v] t).
+Proof.
+  intros. inversion_clear_wtr.
+  induction t; inversion_wtr; eauto using well_typed_references;
+  simpl; destruct String.string_dec; eauto using well_typed_references.
+Qed.
+
+Local Lemma mem_add_wtr : forall m t v V,
+  valid_addresses m t ->
+  well_typed_references m t ->
+  well_typed_references (m +++ (v, V)) t.
+Proof.
+  intros * ? Hwtr.
+  induction Hwtr; try inversion_va; eauto using well_typed_references;
+  (eapply wtr_refM || eapply wtr_refI); simpl_array; assumption.
+Qed.
+
+Local Lemma mem_set_wtr : forall m t ad v V,
   ad < length m ->
-  ((exists T, empty |-- m[ad].tm is T) /\ well_typed_references m m[ad].tm).
+  empty |-- v is V ->
+  empty |-- m[ad].tm is V ->
+  well_typed_references m t ->
+  well_typed_references m[ad <- (v, m[ad].typ)] t.
+Proof.
+  intros * ? ? ? Hwtr. rename ad into ad'. 
+  induction Hwtr; eauto using well_typed_references;
+  (eapply wtr_refM || eapply wtr_refI);
+  decompose sum (lt_eq_lt_dec ad' ad); subst;
+  simpl_array; trivial; apply_deterministic_typing; trivial.
+Qed.
 
-Ltac inversion_wtr m :=
-  inversion_term_predicate (well_typed_references m).
-
-Ltac inversion_clear_wtr m :=
-  inversion_clear_term_predicate (well_typed_references m).
+Local Lemma step_write_wtt : forall m t t' ad v V T,
+  empty |-- t is T ->
+  t --[EF_Write ad v V]--> t' ->
+  well_typed_references m t ->
+  (V = m[ad].typ /\ exists V, empty |-- v is V /\ empty |-- m[ad].tm is V).
+Proof.
+  intros * ? ?.
+  assert (exists V, empty |-- v is V) as [? ?].
+  { generalize dependent T. induction_step; intros; inversion_type; eauto. }
+  intros. generalize dependent T.
+  induction_step; intros; inversion_type; inversion_wtr; eauto.
+  inversion_type. inversion_wtr. apply_deterministic_typing. eauto.
+Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* Auxiliary.                                                                *)
+(* preservation                                                              *)
 (* ------------------------------------------------------------------------- *)
+
+Local Lemma step_none_wtr_preservation : forall m t t',
+  well_typed_references m t ->
+  t --[EF_None]--> t' ->
+  well_typed_references m t'.
+Proof.
+  intros. induction_step; inversion_wtr;
+  eauto using subst_wtr, well_typed_references.
+Qed.
+
+Local Lemma step_alloc_wtr_preservation : forall m t t' v V T,
+  empty |-- t is T ->
+  valid_addresses m t ->
+  well_typed_references m t ->
+  t --[EF_Alloc (length m) v V]--> t' ->
+  well_typed_references (m +++ (v, V)) t'.
+Proof.
+  intros. generalize dependent T.
+  induction_step; intros; inversion_va; inversion_type; inversion_wtr;
+  eauto using mem_add_wtr, well_typed_references;
+  (eapply wtr_refM || eapply wtr_refI); simpl_array; trivial.
+Qed.
+
+Local Lemma step_read_wtr_preservation : forall m t t' ad,
+  forall_memory_terms m (well_typed_references m) ->
+  well_typed_references m t ->
+  t --[EF_Read ad m[ad].tm]--> t' ->
+  well_typed_references m t'.
+Proof.
+  intros. induction_step; inversion_wtr; eauto using well_typed_references.
+Qed.
+
+Local Lemma step_write_wtr_preservation : forall m t t' ad v V T,
+  empty |-- t is T ->
+  valid_addresses m t ->
+  well_typed_references m t ->
+  t --[EF_Write ad v V]--> t' ->
+  well_typed_references m[ad <- (v, V)] t'.
+Proof.
+  intros * ? Hva. intros.
+  assert (ad < length m) by eauto using step_write_hasad1.
+  assert (
+    V = m[ad].typ /\
+    exists V, empty |-- v is V /\ empty |-- m[ad].tm is V)
+    as [? [? [? ?]]] by eauto using step_write_wtt.
+  generalize dependent T.
+  induction_step; intros; inversion_type; inversion_va; inversion_wtr;
+  eauto using mem_set_wtr, well_typed_references.
+Qed.
+
+Local Corollary mstep_wtr_preservation : forall m m' t t' eff T,
+  empty |-- t is T ->
+  valid_addresses m t ->
+  well_typed_references m t ->
+  forall_memory_terms m (well_typed_references m) ->
+  m / t ==[eff]==> m' / t' ->
+  well_typed_references m' t'.
+Proof.
+  intros. inversion_mstep;
+  eauto using step_none_wtr_preservation,
+    step_alloc_wtr_preservation,
+    step_read_wtr_preservation,
+    step_write_wtr_preservation.
+Qed.
+
+Local Lemma mstep_threads_wtr_preservation : forall m m' t' ths tid tid' eff,
+  forall_threads ths well_typed_thread ->
+  forall_threads ths (valid_addresses m) ->
+  forall_threads ths (well_typed_references m) ->
+  forall_memory_terms m (well_typed_references m) ->
+  tid <> tid' ->
+  tid' < length ths ->
+  m / ths[tid] ==[eff]==> m' / t' ->
+  well_typed_references m' ths[tid'].
+Proof.
+  intros * Htype. intros. inversion_mstep; eauto using mem_add_wtr.
+  destruct (Htype tid).
+  assert (
+    V = m[ad].typ /\
+    exists V, empty |-- v is V /\ empty |-- m[ad].tm is V)
+    as [Heq [? [? ?]]] by eauto using step_write_wtt.
+  rewrite Heq in *. eauto using mem_set_wtr.
+Qed.
+
+Lemma step_spawn_wtr_block : forall m t t' block,
+  well_typed_references m t ->
+  t --[EF_Spawn block]--> t' ->
+  well_typed_references m block.
+Proof.
+  intros. induction_step; inversion_wtr; eauto using well_typed_references.
+Qed.
+
+Lemma step_spawn_wtr_preservation : forall m t t' block,
+  well_typed_references m t ->
+  t --[EF_Spawn block]--> t' ->
+  well_typed_references m t'.
+Proof.
+  intros. induction_step; inversion_wtr; eauto using well_typed_references.
+Qed.
+
+Theorem cstep_wtr_preservation : forall m m' ths ths' tid eff,
+  forall_threads ths well_typed_thread ->
+  forall_threads ths (valid_addresses m) ->
+  forall_memory_terms m (well_typed_references m) ->
+  forall_threads ths (well_typed_references m) ->
+  m / ths ~~[tid, eff]~~> m' / ths' ->
+  forall_threads ths' (well_typed_references m').
+Proof.
+  intros * Htype. intros. eapply cstep_preservation; eauto; intros.
+  - try destruct (Htype tid'). eauto using mstep_wtr_preservation.
+  - eauto using mstep_threads_wtr_preservation.
+  - eauto using step_spawn_wtr_block.
+  - eauto using step_spawn_wtr_preservation.
+  - eauto using well_typed_references.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* memory preservation                                                       *)
+(* ------------------------------------------------------------------------- *)
+
+(* TODO: refactor check *)
 
 Local Lemma wtt_alloc_value : forall t t' ad v V T,
   empty |-- t is T ->
@@ -81,34 +279,12 @@ Proof.
   induction_step; intros; inversion_type; eauto.
 Qed.
 
-Local Lemma wtt_write_value : forall t t' ad v V T,
-  empty |-- t is T ->
-  t --[EF_Write ad v V]--> t' ->
-  exists V', empty |-- v is V'.
-Proof.
-  intros. generalize dependent T.
-  induction_step; intros; inversion_type; eauto.
-Qed.
-
-Local Lemma wtt_write_memory_address : forall m t t' ad v V Vp T,
-  empty |-- t is T ->
-  empty |-- v is V ->
-  well_typed_references m t ->
-  t --[EF_Write ad v Vp]--> t' ->
-  empty |-- m[ad].tm is V.
-Proof.
-  intros. generalize dependent T.
-  induction_step; intros; inversion_type; inversion_wtr m; eauto.
-  inversion_type. inversion_wtr m.
-  apply_deterministic_typing. assumption.
-Qed.
-
 Local Lemma wtr_alloc_value : forall m t t' ad v V,
   well_typed_references m t ->
   t --[EF_Alloc ad v V]--> t' ->
   well_typed_references m v.
 Proof.
-  intros. induction_step; intros; inversion_wtr m; eauto.
+  intros. induction_step; intros; inversion_wtr; eauto.
 Qed.
 
 Local Lemma wtr_write_value : forall m t t' ad v V,
@@ -116,136 +292,31 @@ Local Lemma wtr_write_value : forall m t t' ad v V,
   t --[EF_Write ad v V]--> t' ->
   well_typed_references m v.
 Proof.
-  intros. induction_step; intros; inversion_wtr m; eauto.
+  intros. induction_step; intros; inversion_wtr; eauto.
 Qed.
 
-(* ------------------------------------------------------------------------- *)
-(* well-typed-references preservation                                        *)
-(* ------------------------------------------------------------------------- *)
-
-Local Lemma wtr_subst : forall m x Tx t v,
-  well_typed_references m v ->
-  well_typed_references m <{ fn x Tx --> t }> ->
-  well_typed_references m ([x := v] t).
-Proof.
-  intros. inversion_clear_wtr m.
-  induction t; simpl; inversion_wtr m; eauto using well_typed_references;
-  destruct String.string_dec; eauto using well_typed_references.
-Qed.
-
-Local Lemma wtr_mem_add : forall m t v V,
-  valid_accesses m t ->
-  well_typed_references m t ->
-  well_typed_references (m +++ (v, V)) t.
-Proof.
-  intros * ? Hwtr. generalize dependent v.
-  induction Hwtr; intros; try (inversion_va);
-  eauto using well_typed_references;
-  (eapply wtr_refM || eapply wtr_refI);
-  rewrite (get_add_lt memory_default); eauto using access.
-Qed.
-
-Local Lemma wtr_mem_set : forall m t ad' v V T,
-  ad' < length m ->
-  empty |-- v is T ->
-  empty |-- m[ad'].tm is T ->
-  well_typed_references m t ->
-  well_typed_references m[ad' <- (v, V)] t.
-Proof.
-  intros * ? ? ? Hwtr. 
-  induction Hwtr; eauto using well_typed_references;
-  (eapply wtr_refM || eapply wtr_refI);
-  decompose sum (lt_eq_lt_dec ad' ad); subst;
-  simpl_array; trivial; apply_deterministic_typing; trivial.
-Qed.
-
-Local Lemma wtr_preservation_none : forall m t t',
-  well_typed_references m t ->
-  t --[EF_None]--> t' ->
-  well_typed_references m t'.
-Proof.
-  intros. induction_step; inversion_wtr m;
-  eauto using well_typed_references, wtr_subst.
-Qed.
-
-Local Lemma wtr_preservation_alloc: forall m t t' v V T,
+Theorem mem_wtr_preservation : forall m m' t t' eff T,
   empty |-- t is T ->
-  valid_accesses m t ->
+  valid_addresses m t ->
+  forall_memory_terms m (valid_addresses m) ->
   well_typed_references m t ->
-  t --[EF_Alloc (length m) v V]--> t' ->
-  well_typed_references (m +++ (v, V)) t'.
-Proof.
-  intros. generalize dependent T.
-  induction_step; intros; inversion_va; inversion_type; inversion_wtr m;
-  eauto using well_typed_references, wtr_mem_add;
-  (eapply wtr_refM || eapply wtr_refI);
-  simpl_array; trivial.
-Qed.
-
-Local Lemma wtr_preservation_read : forall m t t' ad,
-  ad < length m ->
-  well_typed_references m t ->
-  well_typed_memory m ->
-  t --[EF_Read ad m[ad].tm]--> t' ->
-  well_typed_references m t'.
-Proof.
-  intros * ? ? Hwtm ?.
-  induction_step; inversion_wtr m; eauto using well_typed_references.
-  inversion_wtr m; destruct (Hwtm ad) as [_ ?]; trivial.
-Qed.
-
-Local Lemma wtr_preservation_write : forall m t t' ad v V T,
-  ad < length m ->
-  empty |-- t is T ->
-  well_typed_references m t ->
-  well_typed_memory m ->
-  t --[EF_Write ad v V]--> t' ->
-  well_typed_references m[ad <- (v, V)] t'.
-Proof.
-  intros.
-  assert (exists V, empty |-- v is V) as [? ?] by eauto using wtt_write_value.
-  generalize dependent T.
-  induction_step; intros; inversion_type; inversion_wtr m;
-  eauto using well_typed_references, wtr_mem_set, wtt_write_memory_address.
-Qed.
-
-Theorem well_typed_references_preservation : forall m m' t t' eff T,
-  empty |-- t is T ->
-  valid_accesses m t ->
-  well_typed_references m t ->
-  well_typed_memory m ->
+  forall_memory_terms m well_typed_tm ->
+  forall_memory_terms m (well_typed_references m) ->
   m / t ==[eff]==> m' / t' ->
-  well_typed_references m' t'.
+  forall_memory_terms m' (well_typed_references m').
 Proof.
-  intros. inversion_mstep;
-  eauto using wtr_preservation_none, wtr_preservation_alloc,
-    wtr_preservation_read, wtr_preservation_write.
-Qed.
-
-(* ------------------------------------------------------------------------- *)
-(* well-typed-memory preservation                                            *)
-(* ------------------------------------------------------------------------- *)
-
-Theorem well_typed_memory_preservation : forall m m' t t' eff T,
-  empty |-- t is T ->
-  valid_accesses m t ->
-  forall_memory_terms m (valid_accesses m) ->
-  well_typed_references m t ->
-  well_typed_memory m ->
-  m / t ==[eff]==> m' / t' ->
-  well_typed_memory m'.
-Proof.
-  intros * ? ? ? ? Hwtm ?. inversion_mstep; trivial;
-  intros ad' Hlen; specialize (Hwtm ad'); destruct_and Hwtm;
-  assert (exists V, empty |-- v is V) as [? ?]
-    by eauto using wtt_alloc_value, wtt_write_value.
-  - rewrite add_increments_length in Hlen.
-    split; decompose sum (lt_eq_lt_dec ad' (length m)); subst;
+  intros * ? ? ? ? Hwtt ? ?. inversion_mstep; trivial;
+  intros ad'; specialize (Hwtt ad').
+  - assert (exists V, empty |-- v is V) as [? ?] by eauto using wtt_alloc_value.
+    decompose sum (lt_eq_lt_dec ad' (length m)); subst;
     simpl_array; eauto using well_typed_references;
-    eauto using well_typed_term, wtr_mem_add, wtr_alloc_value.
-  - rewrite set_preserves_length in Hlen.
-    split; decompose sum (lt_eq_lt_dec ad' ad); subst;
+    eauto using wtr_alloc_value, mem_add_wtr, well_typed_term.
+  - assert (
+      V = m[ad].typ /\
+      exists V, empty |-- v is V /\ empty |-- m[ad].tm is V)
+      as [? [? [? ?]]] by eauto using step_write_wtt.
+    decompose sum (lt_eq_lt_dec ad' ad); subst;
     simpl_array;
-    eauto using wtr_mem_set, wtr_write_value, wtt_write_memory_address.
+    eauto using step_write_wtt, wtr_write_value, mem_set_wtr.
 Qed.
 

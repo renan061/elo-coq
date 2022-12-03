@@ -330,10 +330,10 @@ Lemma step_read_preserves_nuacc : forall m t t' ad ad' T,
   ~ UnsafeAccess m t' ad.
 Proof.
   intros * Hval ? Hwtr ? ? ?. generalize dependent T. induction_step; intros;
-  inversion_wtr m; inversion_type; inversion_nuacc; try inversion_clear_uacc;
+  inversion_wtr; inversion_type; inversion_nuacc; try inversion_clear_uacc;
   eauto; inversion_type; destruct (Nat.eq_dec ad' ad); subst;
   eauto using UnsafeAccess;
-  inversion_wtr m; contradict H2; eauto using nuacc_refI. (* TODO *)
+  inversion_wtr; contradict H2; eauto using nuacc_refI. (* TODO *)
 Qed.
 
 Lemma step_write_preserves_nuacc : forall m t t' ad ad' v V,

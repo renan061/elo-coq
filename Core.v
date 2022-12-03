@@ -380,7 +380,8 @@ Definition forall_memory_terms (m : mem) P : Prop :=
 Definition forall_threads (ths : threads) P : Prop :=
   forall_array thread_default P ths.
 
-Definition well_typed_thread := fun t => exists T, empty |-- t is T.
+Definition well_typed_tm := fun t => exists T, empty |-- t is T.
+Definition well_typed_thread := well_typed_tm.
 
 (* ------------------------------------------------------------------------- *)
 (* Determinism                                                               *)
