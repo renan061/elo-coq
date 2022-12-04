@@ -175,7 +175,7 @@ Theorem uacc_soundness : forall m m' t t' ad eff T,
   m / t ==[eff]==> m' / t' ->
   m[ad].tm = m'[ad].tm.
 Proof.
-  intros * ? ? Hnuacc ?. rename ad into ad'. inversion_mstep; trivial.
+  intros * ? ? Hnuacc ?. rename ad into ad'. inversion_clear_mstep; trivial.
   - decompose sum (lt_eq_lt_dec ad' (length m)); subst;
     simpl_array; trivial. lia.
   - decompose sum (lt_eq_lt_dec ad' ad); subst; simpl_array; trivial.
@@ -330,7 +330,7 @@ Proof.
 Qed.
 
 Lemma step_read_preserves_nuacc : forall m t t' ad ad' T,
-  forall_memory_terms m value ->
+  forall_memory m value ->
   empty |-- t is T ->
   well_typed_references m t ->
   ~ UnsafeAccess m t ad ->
@@ -353,7 +353,7 @@ Proof.
   inversion_nuacc; inversion_clear_uacc; eauto using UnsafeAccess;
   match goal with H : UnsafeAccess _ ?t _ |- _ => rename t into tx end;
   eapply (mem_set_nuacc _ tx _ _ v);
-  eauto using step_write_contains_val, contains_nuacc.
+  eauto using step_write_contains, contains_nuacc.
 Qed.
 
 Lemma step_spawn_preserves_nuacc : forall m t t' ad block,

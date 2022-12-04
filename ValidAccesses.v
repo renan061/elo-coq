@@ -268,9 +268,9 @@ Qed.
 
 Local Lemma mva_alloc_preservation : forall m t t' v V,
   valid_accesses m t ->
-  forall_memory_terms m (valid_accesses m) ->
+  forall_memory m (valid_accesses m) ->
   t --[EF_Alloc (length m) v V]--> t' ->
-  forall_memory_terms (m +++ (v, V)) (valid_accesses (m +++ (v, V))).
+  forall_memory (m +++ (v, V)) (valid_accesses (m +++ (v, V))).
 Proof.
   intros * Hva ? ? ad. induction_step; inversion_va; eauto.
   decompose sum (lt_eq_lt_dec ad (length m)); subst;
@@ -280,9 +280,9 @@ Qed.
 
 Local Lemma mva_write_preservation : forall m t t' ad v V,
   valid_accesses m t ->
-  forall_memory_terms m (valid_accesses m) ->
+  forall_memory m (valid_accesses m) ->
   t --[EF_Write ad v V]--> t' ->
-  forall_memory_terms m[ad <- (v, V)] (valid_accesses m[ad <- (v, V)]).
+  forall_memory m[ad <- (v, V)] (valid_accesses m[ad <- (v, V)]).
 Proof.
   intros * Hva Hmva ? ad'. induction_step; inversion_va; eauto.
   decompose sum (lt_eq_lt_dec ad ad'); subst;
@@ -292,9 +292,9 @@ Qed.
 
 Theorem mva_mstep_preservation : forall m m' t t' eff,
   valid_accesses m t ->
-  forall_memory_terms m (valid_accesses m) ->
+  forall_memory m (valid_accesses m) ->
   m / t ==[eff]==> m' / t' ->
-  forall_memory_terms m' (valid_accesses m').
+  forall_memory m' (valid_accesses m').
 Proof.
   intros. inversion_mstep;
   eauto using mva_alloc_preservation, mva_write_preservation.

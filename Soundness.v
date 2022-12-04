@@ -48,7 +48,7 @@ Proof.
 Qed.
 
 Local Lemma type_preservation_subst : forall t tx T Tx Tx' Gamma x,
-  Gamma |-- (TM_Fun x Tx t) is (TY_Fun Tx' T) ->
+  Gamma |-- <{ fn x Tx --> t }> is <{{  Tx' --> T }}> ->
   empty |-- tx is Tx' ->
   Gamma |-- [x := tx] t is T.
 Proof.
@@ -97,7 +97,7 @@ Theorem mstep_type_preservation : forall m m' t t' eff T,
   m / t ==[eff]==> m' / t' ->
   empty |-- t' is T.
 Proof.
-  intros * Hwtr ? ?. inversion_mstep; generalize dependent t';
+  intros * Hwtr ? ?. inversion_clear_mstep; generalize dependent t';
   remember empty as Gamma;
   induction_type; intros; inversion_step; inversion_clear Hwtr;
   eauto using well_typed_term, type_preservation_subst;
@@ -121,7 +121,7 @@ Theorem mstep_memory_preservation : forall m m' t t' eff ad T M,
   m / t ==[eff]==> m' / t' ->
   empty |-- m'[ad].tm is M.
 Proof.
-  intros * Hwtr ? HtypeT HtypeM ?. inversion_mstep; eauto.
+  intros * Hwtr ? HtypeT HtypeM ?. inversion_clear_mstep; eauto.
   try solve [simpl_array; trivial].
   decompose sum (lt_eq_lt_dec ad0 ad); subst; simpl_array; trivial.
   generalize dependent t'. remember empty as Gamma.
@@ -133,7 +133,6 @@ Proof.
   apply_deterministic_typing.
   eauto.
 Qed.
-
 
 (*
 Ltac solve_with_steps :=

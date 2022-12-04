@@ -59,10 +59,34 @@ Inductive NoMut : tm -> Prop :=
   .
 
 Ltac inversion_nomut :=
-  inversion_term_predicate NoMut.
+  match goal with
+  | H : NoMut <{ unit         }> |- _ => inversion H; subst
+  | H : NoMut <{ N _          }> |- _ => inversion H; subst
+  | H : NoMut <{ & _ :: _     }> |- _ => inversion H; subst
+  | H : NoMut <{ new _ _      }> |- _ => inversion H; subst
+  | H : NoMut <{ * _          }> |- _ => inversion H; subst
+  | H : NoMut <{ _ = _        }> |- _ => inversion H; subst
+  | H : NoMut <{ var _        }> |- _ => inversion H; subst
+  | H : NoMut <{ fn _ _ --> _ }> |- _ => inversion H; subst
+  | H : NoMut <{ call _ _     }> |- _ => inversion H; subst
+  | H : NoMut <{ _ ; _        }> |- _ => inversion H; subst
+  | H : NoMut <{ spawn _      }> |- _ => inversion H; subst
+  end.
 
 Ltac inversion_clear_nomut :=
-  inversion_clear_term_predicate NoMut.
+  match goal with
+  | H : NoMut <{ unit         }> |- _ => inversion_subst_clear H
+  | H : NoMut <{ N _          }> |- _ => inversion_subst_clear H
+  | H : NoMut <{ & _ :: _     }> |- _ => inversion_subst_clear H
+  | H : NoMut <{ new _ _      }> |- _ => inversion_subst_clear H
+  | H : NoMut <{ * _          }> |- _ => inversion_subst_clear H
+  | H : NoMut <{ _ = _        }> |- _ => inversion_subst_clear H
+  | H : NoMut <{ var _        }> |- _ => inversion_subst_clear H
+  | H : NoMut <{ fn _ _ --> _ }> |- _ => inversion_subst_clear H
+  | H : NoMut <{ call _ _     }> |- _ => inversion_subst_clear H
+  | H : NoMut <{ _ ; _        }> |- _ => inversion_subst_clear H
+  | H : NoMut <{ spawn _      }> |- _ => inversion_subst_clear H
+  end.
 
 Local Lemma nomut_subst : forall x t t',
   NoMut t ->
@@ -124,11 +148,35 @@ Inductive SafeSpawns : tm -> Prop :=
       SafeSpawns <{ spawn t }>
   .
 
-Ltac inversion_safe_spawns :=
-  inversion_term_predicate SafeSpawns.
+Ltac inversion_ss :=
+  match goal with
+  | H : SafeSpawns <{ unit         }> |- _ => inversion H; subst
+  | H : SafeSpawns <{ N _          }> |- _ => inversion H; subst
+  | H : SafeSpawns <{ & _ :: _     }> |- _ => inversion H; subst
+  | H : SafeSpawns <{ new _ _      }> |- _ => inversion H; subst
+  | H : SafeSpawns <{ * _          }> |- _ => inversion H; subst
+  | H : SafeSpawns <{ _ = _        }> |- _ => inversion H; subst
+  | H : SafeSpawns <{ var _        }> |- _ => inversion H; subst
+  | H : SafeSpawns <{ fn _ _ --> _ }> |- _ => inversion H; subst
+  | H : SafeSpawns <{ call _ _     }> |- _ => inversion H; subst
+  | H : SafeSpawns <{ _ ; _        }> |- _ => inversion H; subst
+  | H : SafeSpawns <{ spawn _      }> |- _ => inversion H; subst
+  end.
 
-Ltac inversion_clear_safe_spawns :=
-  inversion_clear_term_predicate SafeSpawns.
+Ltac inversion_clear_ss :=
+  match goal with
+  | H : SafeSpawns <{ unit         }> |- _ => inversion_subst_clear H
+  | H : SafeSpawns <{ N _          }> |- _ => inversion_subst_clear H
+  | H : SafeSpawns <{ & _ :: _     }> |- _ => inversion_subst_clear H
+  | H : SafeSpawns <{ new _ _      }> |- _ => inversion_subst_clear H
+  | H : SafeSpawns <{ * _          }> |- _ => inversion_subst_clear H
+  | H : SafeSpawns <{ _ = _        }> |- _ => inversion_subst_clear H
+  | H : SafeSpawns <{ var _        }> |- _ => inversion_subst_clear H
+  | H : SafeSpawns <{ fn _ _ --> _ }> |- _ => inversion_subst_clear H
+  | H : SafeSpawns <{ call _ _     }> |- _ => inversion_subst_clear H
+  | H : SafeSpawns <{ _ ; _        }> |- _ => inversion_subst_clear H
+  | H : SafeSpawns <{ spawn _      }> |- _ => inversion_subst_clear H
+  end.
 
 (* ------------------------------------------------------------------------- *)
 (* HasVar                                                                    *)
@@ -180,11 +228,35 @@ Inductive HasVar (x : id) : tm  -> Prop :=
       HasVar x <{ spawn t }>
   .
 
-Ltac inversion_hasvar x :=
-  inversion_term_predicate (HasVar x).
+Ltac inversion_hv :=
+  match goal with
+  | H : HasVar _ <{ unit         }> |- _ => inversion H; subst
+  | H : HasVar _ <{ N _          }> |- _ => inversion H; subst
+  | H : HasVar _ <{ & _ :: _     }> |- _ => inversion H; subst
+  | H : HasVar _ <{ new _ _      }> |- _ => inversion H; subst
+  | H : HasVar _ <{ * _          }> |- _ => inversion H; subst
+  | H : HasVar _ <{ _ = _        }> |- _ => inversion H; subst
+  | H : HasVar _ <{ var _        }> |- _ => inversion H; subst
+  | H : HasVar _ <{ fn _ _ --> _ }> |- _ => inversion H; subst
+  | H : HasVar _ <{ call _ _     }> |- _ => inversion H; subst
+  | H : HasVar _ <{ _ ; _        }> |- _ => inversion H; subst
+  | H : HasVar _ <{ spawn _      }> |- _ => inversion H; subst
+  end.
 
-Ltac inversion_clear_hasvar x :=
-  inversion_clear_term_predicate (HasVar x).
+Ltac inversion_clear_hv :=
+  match goal with
+  | H : HasVar _ <{ unit         }> |- _ => inversion_subst_clear H
+  | H : HasVar _ <{ N _          }> |- _ => inversion_subst_clear H
+  | H : HasVar _ <{ & _ :: _     }> |- _ => inversion_subst_clear H
+  | H : HasVar _ <{ new _ _      }> |- _ => inversion_subst_clear H
+  | H : HasVar _ <{ * _          }> |- _ => inversion_subst_clear H
+  | H : HasVar _ <{ _ = _        }> |- _ => inversion_subst_clear H
+  | H : HasVar _ <{ var _        }> |- _ => inversion_subst_clear H
+  | H : HasVar _ <{ fn _ _ --> _ }> |- _ => inversion_subst_clear H
+  | H : HasVar _ <{ call _ _     }> |- _ => inversion_subst_clear H
+  | H : HasVar _ <{ _ ; _        }> |- _ => inversion_subst_clear H
+  | H : HasVar _ <{ spawn _      }> |- _ => inversion_subst_clear H
+  end.
 
 Lemma hasvar_dec : forall x t,
   Decidable.decidable (HasVar x t).
@@ -266,7 +338,7 @@ Lemma hasvar_typing : forall Gamma x t T,
 Proof.
   assert (forall Gamma x, Gamma x = None -> (safe Gamma) x = None).
   { unfold safe. intros * H. rewrite H. reflexivity. }
-  intros * ? HGamma F. induction_type; inversion_hasvar x; eauto.
+  intros * ? HGamma F. induction_type; inversion_hv; eauto.
   - rewrite HGamma in *. discriminate.
   - rewrite lookup_update_neq in IHF; eauto.
 Qed.
@@ -328,15 +400,15 @@ Qed.
 
 Local Lemma mstep_tm_safe_spawns_preservation : forall m m' t t' eff T,
   empty |-- t is T ->
-  forall_memory_terms m SafeSpawns ->
+  forall_memory m SafeSpawns ->
   SafeSpawns t ->
   m / t ==[eff]==> m' / t' ->
   SafeSpawns t'.
 Proof.
   intros. generalize dependent T.
-  inversion_mstep; induction_step; intros;
-  try solve [inversion_type; inversion_safe_spawns; eauto using SafeSpawns].
-  do 2 (inversion_safe_spawns; inversion_type).
+  inversion_clear_mstep; induction_step; intros;
+  try solve [inversion_type; inversion_ss; eauto using SafeSpawns].
+  do 2 (inversion_ss; inversion_type).
   eauto using safe_spawns_subst.
 Qed.
 
@@ -345,32 +417,30 @@ Qed.
 (* ------------------------------------------------------------------------- *)
 
 Local Lemma mem_safe_spawns_alloc : forall m t t' v V,
-  forall_memory_terms m SafeSpawns ->
+  forall_memory m SafeSpawns ->
   SafeSpawns t ->
   t --[EF_Alloc (length m) v V]--> t' ->
-  forall_memory_terms (m +++ (v, V)) SafeSpawns.
+  forall_memory (m +++ (v, V)) SafeSpawns.
 Proof.
-  intros. assert (SafeSpawns v).
-  { induction_step; inversion_safe_spawns; eauto. }
-  unfold forall_memory_terms. eauto using forall_array_add, SafeSpawns.
+  intros. assert (SafeSpawns v) by (induction_step; inversion_ss; eauto).
+  unfold forall_memory. eauto using forall_array_add, SafeSpawns.
 Qed.
 
 Local Lemma mem_safe_spawns_store : forall m t t' ad v V,
-  forall_memory_terms m SafeSpawns ->
+  forall_memory m SafeSpawns ->
   SafeSpawns t ->
   t --[EF_Write ad v V]--> t' ->
-  forall_memory_terms m[ad <- (v, V)] SafeSpawns.
+  forall_memory m[ad <- (v, V)] SafeSpawns.
 Proof.
-  intros. assert (SafeSpawns v).
-  { induction_step; inversion_safe_spawns; eauto. }
-  unfold forall_memory_terms. eauto using forall_array_set, SafeSpawns.
+  intros. assert (SafeSpawns v) by (induction_step; inversion_ss; eauto).
+  unfold forall_memory. eauto using forall_array_set, SafeSpawns.
 Qed.
 
 Local Lemma mstep_mem_safe_spawns_preservation : forall m m' t t' eff,
-  forall_memory_terms m SafeSpawns ->
+  forall_memory m SafeSpawns ->
   SafeSpawns t ->
   m / t ==[eff]==> m' / t' ->
-  forall_memory_terms m' SafeSpawns.
+  forall_memory m' SafeSpawns.
 Proof.
   intros. inversion_mstep;
   eauto using mem_safe_spawns_alloc, mem_safe_spawns_store.
@@ -392,7 +462,7 @@ Local Lemma safe_spawns_for_block : forall t t' block,
   t --[EF_Spawn block]--> t' ->
   SafeSpawns block.
 Proof.
-  intros. induction_step; inversion_safe_spawns;
+  intros. induction_step; inversion_ss;
   eauto using SafeSpawns, nomut_then_safe_spawns.
 Qed.
 
@@ -401,16 +471,16 @@ Local Lemma step_safe_spawns_preservation : forall t t' block,
   t --[EF_Spawn block]--> t' ->
   SafeSpawns t'.
 Proof.
-  intros. induction_step; inversion_safe_spawns;
+  intros. induction_step; inversion_ss;
   eauto using SafeSpawns, nomut_then_safe_spawns.
 Qed.
 
 Theorem safe_spawns_preservation : forall m m' ths ths' tid eff,
   forall_threads ths well_typed_thread ->
-  forall_memory_terms m SafeSpawns ->
+  forall_memory m SafeSpawns ->
   forall_threads ths SafeSpawns ->
   m / ths ~~[tid, eff]~~> m' / ths' ->
-  (forall_memory_terms m' SafeSpawns /\ forall_threads ths' SafeSpawns).
+  (forall_memory m' SafeSpawns /\ forall_threads ths' SafeSpawns).
 Proof.
   intros * H; intros. split; inversion_cstep;
   eauto using mstep_mem_safe_spawns_preservation.
@@ -427,7 +497,7 @@ Lemma nomut_block : forall t t' block,
   t --[EF_Spawn block]--> t' ->
   NoMut block.
 Proof.
-  intros. induction_step; inversion_safe_spawns; eauto.
+  intros. induction_step; inversion_ss; eauto.
 Qed.
 
 Lemma nomut_then_nuacc: forall m t ad,

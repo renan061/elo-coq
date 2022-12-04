@@ -270,7 +270,7 @@ Lemma mstep_none_inherits_access : forall m m' t t' ad,
   m / t ==[EF_None]==> m' / t' ->
   access m t ad.
 Proof.
-  intros. inversion_mstep. induction_step;
+  intros. inversion_clear_mstep. induction_step;
   try inversion_access; eauto using access, access_subst.
 Qed.
 
@@ -279,7 +279,7 @@ Lemma mstep_none_preserves_not_access : forall m m' t t' ad,
   m / t ==[EF_None]==> m' / t' ->
   ~ access m' t' ad.
 Proof.
-  intros * Hnacc ?. inversion_mstep.
+  intros * Hnacc ?. inversion_clear_mstep.
   induction_step; inversion_not_access Hnacc;
   eapply not_access_iff; eauto using not_access.
   eapply not_access_iff. eauto using not_access_subst_fun.
@@ -320,7 +320,7 @@ Lemma mstep_read_address_access: forall m m' t t' ad v,
   m / t ==[EF_Read ad v]==> m' / t' ->
   access m t ad.
 Proof.
-  intros. inversion_mstep. induction_step; eauto using access.
+  intros. inversion_clear_mstep. induction_step; eauto using access.
 Qed.
 
 Lemma mstep_read_inherits_access : forall m m' t t' ad ad' v,
@@ -328,7 +328,7 @@ Lemma mstep_read_inherits_access : forall m m' t t' ad ad' v,
   m / t ==[EF_Read ad' v]==> m' / t' ->
   access m t ad.
 Proof.
-  intros * ? ?. inversion_mstep. induction_step;
+  intros * ? ?. inversion_clear_mstep. induction_step;
   try inversion_access; eauto using access.
   destruct (Nat.eq_dec ad' ad); subst; eauto using access.
 Qed.
@@ -339,7 +339,7 @@ Lemma mstep_read_preserves_access : forall m m' t t' ad ad' v,
   m / t ==[EF_Read ad' v]==> m' / t' ->
   access m' t' ad.
 Proof.
-  intros * Hneq Hacc Hmstep. inversion_mstep. induction_step;
+  intros * Hneq Hacc Hmstep. inversion_clear_mstep. induction_step;
   inversion_access; eauto using access.
   inversion_access; subst; trivial. exfalso. eauto.
 Qed.

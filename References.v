@@ -5,6 +5,7 @@ From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Map.
 From Elo Require Import Core.
+From Elo Require Import HasAddress.
 From Elo Require Import ValidAddresses.
 
 (* ------------------------------------------------------------------------- *)
@@ -172,7 +173,7 @@ Proof.
 Qed.
 
 Local Lemma step_read_wtr_preservation : forall m t t' ad,
-  forall_memory_terms m (well_typed_references m) ->
+  forall_memory m (well_typed_references m) ->
   well_typed_references m t ->
   t --[EF_Read ad m[ad].tm]--> t' ->
   well_typed_references m t'.
@@ -202,7 +203,7 @@ Local Corollary mstep_wtr_preservation : forall m m' t t' eff T,
   empty |-- t is T ->
   valid_addresses m t ->
   well_typed_references m t ->
-  forall_memory_terms m (well_typed_references m) ->
+  forall_memory m (well_typed_references m) ->
   m / t ==[eff]==> m' / t' ->
   well_typed_references m' t'.
 Proof.
@@ -217,7 +218,7 @@ Local Lemma mstep_threads_wtr_preservation : forall m m' t' ths tid tid' eff,
   forall_threads ths well_typed_thread ->
   forall_threads ths (valid_addresses m) ->
   forall_threads ths (well_typed_references m) ->
-  forall_memory_terms m (well_typed_references m) ->
+  forall_memory m (well_typed_references m) ->
   tid <> tid' ->
   tid' < length ths ->
   m / ths[tid] ==[eff]==> m' / t' ->
@@ -226,7 +227,7 @@ Proof.
   intros * Htype. intros. inversion_mstep; eauto using mem_add_wtr.
   destruct (Htype tid).
   assert (
-    V = m[ad].typ /\
+    Tr = m[ad].typ /\
     exists V, empty |-- v is V /\ empty |-- m[ad].tm is V)
     as [Heq [? [? ?]]] by eauto using step_write_wtt.
   rewrite Heq in *. eauto using mem_set_wtr.
@@ -251,7 +252,7 @@ Qed.
 Theorem cstep_wtr_preservation : forall m m' ths ths' tid eff,
   forall_threads ths well_typed_thread ->
   forall_threads ths (valid_addresses m) ->
-  forall_memory_terms m (well_typed_references m) ->
+  forall_memory m (well_typed_references m) ->
   forall_threads ths (well_typed_references m) ->
   m / ths ~~[tid, eff]~~> m' / ths' ->
   forall_threads ths' (well_typed_references m').
@@ -298,12 +299,12 @@ Qed.
 Theorem mem_wtr_preservation : forall m m' t t' eff T,
   empty |-- t is T ->
   valid_addresses m t ->
-  forall_memory_terms m (valid_addresses m) ->
+  forall_memory m (valid_addresses m) ->
   well_typed_references m t ->
-  forall_memory_terms m well_typed_tm ->
-  forall_memory_terms m (well_typed_references m) ->
+  forall_memory m well_typed_tm ->
+  forall_memory m (well_typed_references m) ->
   m / t ==[eff]==> m' / t' ->
-  forall_memory_terms m' (well_typed_references m').
+  forall_memory m' (well_typed_references m').
 Proof.
   intros * ? ? ? ? Hwtt ? ?. inversion_mstep; trivial;
   intros ad'; specialize (Hwtt ad').
@@ -312,7 +313,7 @@ Proof.
     simpl_array; eauto using well_typed_references;
     eauto using wtr_alloc_value, mem_add_wtr, well_typed_term.
   - assert (
-      V = m[ad].typ /\
+      Tr = m[ad].typ /\
       exists V, empty |-- v is V /\ empty |-- m[ad].tm is V)
       as [? [? [? ?]]] by eauto using step_write_wtt.
     decompose sum (lt_eq_lt_dec ad' ad); subst;

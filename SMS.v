@@ -87,7 +87,7 @@ Proof.
 Qed.
 
 Local Lemma step_read_sms_preservation : forall m t ad ths tid,
-  forall_memory_terms m value ->
+  forall_memory m value ->
   forall_threads ths well_typed_thread ->
   forall_threads ths (well_typed_references m) ->
   safe_memory_sharing m ths ->
@@ -119,7 +119,7 @@ Proof.
 Qed.
 
 Local Corollary mstep_sms_preservation : forall m m' t eff ths tid,
-  forall_memory_terms m value ->
+  forall_memory m value ->
   forall_threads ths (valid_accesses m) ->
   forall_threads ths well_typed_thread ->
   forall_threads ths (well_typed_references m) ->
@@ -149,8 +149,8 @@ Proof.
 Qed.
 
 Local Lemma consistent_memtyp : forall m t ad T,
-  forall_memory_terms m value ->
-  forall_memory_terms m (well_typed_references m) ->
+  forall_memory m value ->
+  forall_memory m (well_typed_references m) ->
   well_typed_references m t ->
   m[ad].typ = <{{ &T }}> ->
   access m t ad ->
@@ -163,7 +163,7 @@ Proof.
 Qed.
 
 Local Lemma wtr_uacc_memtyp : forall m t ad,
-  forall_memory_terms m (well_typed_references m) ->
+  forall_memory m (well_typed_references m) ->
   well_typed_references m t ->
   UnsafeAccess m t ad ->
   exists T, m[ad].typ = <{{ &T }}>.
@@ -172,8 +172,8 @@ Proof.
 Qed.
 
 Lemma consistent_uacc : forall m t t' ad,
-  forall_memory_terms m value ->
-  forall_memory_terms m (well_typed_references m) ->
+  forall_memory m value ->
+  forall_memory m (well_typed_references m) ->
   well_typed_references m t ->
   well_typed_references m t' ->
   UnsafeAccess m t ad ->
@@ -191,8 +191,8 @@ Qed.
 (* ------------------------------------------------------------------------- *)
 
 Theorem safe_memory_sharing_preservation : forall m m' ths ths' tid eff,
-  forall_memory_terms m value ->
-  forall_memory_terms m (well_typed_references m) ->
+  forall_memory m value ->
+  forall_memory m (well_typed_references m) ->
   forall_threads ths (valid_accesses m) ->
   forall_threads ths well_typed_thread ->
   forall_threads ths (well_typed_references m) ->

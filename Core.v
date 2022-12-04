@@ -11,7 +11,7 @@ Definition id := string.
 Definition num := nat.
 
 (* ------------------------------------------------------------------------- *)
-(* Types                                                                     *)
+(* types                                                                     *)
 (* ------------------------------------------------------------------------- *)
 
 Inductive immutable_typ : Set :=
@@ -35,7 +35,7 @@ Definition safe (Gamma : map typ) : map typ :=
     end.
 
 (* ------------------------------------------------------------------------- *)
-(* Terms                                                                     *)
+(* terms                                                                     *)
 (* ------------------------------------------------------------------------- *)
 
 Inductive tm : Set :=
@@ -58,7 +58,7 @@ Inductive tm : Set :=
   .
 
 (* ------------------------------------------------------------------------- *)
-(* Notations                                                                 *)
+(* notations                                                                 *)
 (* ------------------------------------------------------------------------- *)
 
 Declare Custom Entry elo_typ.
@@ -109,7 +109,7 @@ Reserved Notation "Gamma '|--' t 'is' T"
   (at level 40).
 
 (* ------------------------------------------------------------------------- *)
-(* Values                                                                    *)
+(* values                                                                    *)
 (* ------------------------------------------------------------------------- *)
 
 Inductive value : tm -> Prop :=
@@ -120,7 +120,7 @@ Inductive value : tm -> Prop :=
   .
 
 (* ------------------------------------------------------------------------- *)
-(* Effects                                                                   *)
+(* effects                                                                   *)
 (* ------------------------------------------------------------------------- *)
 
 Definition addr := nat.
@@ -134,31 +134,31 @@ Inductive effect : Set :=
   .
 
 (* ------------------------------------------------------------------------- *)
-(* Substitution                                                              *)
+(* substitution                                                              *)
 (* ------------------------------------------------------------------------- *)
 
 Local Infix "=?" := string_dec (at level 70, no associativity).
 
 Fixpoint subst (x : id) (tx t : tm) : tm :=
   match t with
-  | <{ unit }>            => t
-  | <{ N _ }>             => t
-  | <{ & _ :: _ }>        => t
-  | <{ new T t' }>        => TM_New T ([x := tx] t')
-  | <{ *t' }>             => TM_Load  ([x := tx] t')
-  | <{ t1 = t2 }>         => TM_Asg   ([x := tx] t1) ([x := tx] t2)
-  | <{ var x' }>          => if x =? x' then tx else t
+  | <{ unit            }> => t
+  | <{ N _             }> => t
+  | <{ & _ :: _        }> => t
+  | <{ new T t'        }> => <{ new T ([x := tx] t')            }>
+  | <{ *t'             }> => <{ * ([x := tx] t')                }>
+  | <{ t1 = t2         }> => <{ ([x := tx] t1) = ([x := tx] t2) }>
+  | <{ var x'          }> => if x =? x' then tx else t
   | <{ fn x' Tx --> t' }> => if x =? x'
                               then t 
-                              else TM_Fun x' Tx ([x := tx] t')
-  | <{ call t1 t2 }>      => TM_Call  ([x := tx] t1) ([x := tx] t2)
-  | <{ t1; t2 }>          => TM_Seq   ([x := tx] t1) ([x := tx] t2)
-  | <{ spawn t' }>        => TM_Spawn ([x := tx] t')
+                              else <{ fn x' Tx --> ([x := tx] t')  }>
+  | <{ call t1 t2      }> => <{ call ([x := tx] t1) ([x := tx] t2) }>
+  | <{ t1; t2          }> => <{ ([x := tx] t1) ; ([x := tx] t2)    }>
+  | <{ spawn t'        }> => <{ spawn ([x := tx] t')               }>
   end
   where "'[' x ':=' tx ']' t" := (subst x tx t).
 
 (* ------------------------------------------------------------------------- *)
-(* Operational Semantics -- Term Step                                        *)
+(* operational semantics -- term step                                        *)
 (* ------------------------------------------------------------------------- *)
 
 Inductive step : tm -> effect -> tm -> Prop :=
@@ -167,17 +167,17 @@ Inductive step : tm -> effect -> tm -> Prop :=
     t --[eff]--> t' ->
     <{ new T t }> --[eff]--> <{ new T t' }>
 
-  | ST_New : forall ad v V,
+  | ST_New : forall ad v Tr,
     value v ->
-    <{ new V v }> --[EF_Alloc ad v V]--> <{ &ad :: V }>
+    <{ new Tr v }> --[EF_Alloc ad v Tr]--> <{ &ad :: Tr }>
 
   (* Load *)
   | ST_Load1 : forall t t' eff,
     t --[eff]--> t' ->
     <{ *t }> --[eff]--> <{ *t' }>
 
-  | ST_Load : forall ad t T,
-    <{ * &ad :: T }> --[EF_Read ad t]--> t
+  | ST_Load : forall ad t Tr,
+    <{ * &ad :: Tr }> --[EF_Read ad t]--> t
 
   (* Asg *)
   | ST_Asg1 : forall t1 t1' t2 eff,
@@ -189,9 +189,9 @@ Inductive step : tm -> effect -> tm -> Prop :=
     t --[eff]--> t' ->
     <{ v = t }> --[eff]--> <{ v = t' }>
 
-  | ST_Asg : forall ad v V,
+  | ST_Asg : forall ad v Tr,
     value v ->
-    <{ &ad :: V = v }> --[EF_Write ad v V]--> <{ unit }>
+    <{ &ad :: Tr = v }> --[EF_Write ad v Tr]--> <{ unit }>
 
   (* Call *)
   | ST_Call1 : forall t1 t1' t2 eff,
@@ -223,7 +223,7 @@ Inductive step : tm -> effect -> tm -> Prop :=
   where "t '--[' eff ']-->' t'" := (step t eff t').
 
 (* ------------------------------------------------------------------------- *)
-(* Operational Semantics -- Memory Step                                      *)
+(* operational semantics -- memory step                                      *)
 (* ------------------------------------------------------------------------- *)
 
 Definition mem := list (tm * typ).
@@ -239,41 +239,41 @@ Inductive mstep : mem -> tm -> effect -> mem -> tm -> Prop :=
     t --[EF_None]--> t' ->
     m / t ==[EF_None]==> m / t'
 
-  | MST_Alloc : forall m t t' ad v V,
-    ad = length m ->
-    t --[EF_Alloc ad v V]--> t' ->
-    m / t ==[EF_Alloc ad v V]==> (m +++ (v, V)) / t'
+  | MST_Alloc : forall m t t' ad v Tr,
+    ad = #m ->
+    t --[EF_Alloc ad v Tr]--> t' ->
+    m / t ==[EF_Alloc ad v Tr]==> (m +++ (v, Tr)) / t'
 
   | MST_Read : forall m t t' ad,
-    ad < length m ->
+    ad < #m ->
     t --[EF_Read ad m[ad].tm]--> t' ->
     m / t ==[EF_Read ad m[ad].tm]==> m / t'
 
-  | MST_Write : forall m t t' ad v V,
-    ad < length m ->
-    t --[EF_Write ad v V]--> t' ->
-    m / t ==[EF_Write ad v V]==> m[ad <- (v, V)] / t'
+  | MST_Write : forall m t t' ad v Tr,
+    ad < #m ->
+    t --[EF_Write ad v Tr]--> t' ->
+    m / t ==[EF_Write ad v Tr]==> m[ad <- (v, Tr)] / t'
 
   where "m / t '==[' eff ']==>' m' / t'" := (mstep m t eff m' t').
 
 (* ------------------------------------------------------------------------- *)
-(* Operation Semantics -- Concurrent Step                                    *)
+(* operation semantics -- concurrent step                                    *)
 (* ------------------------------------------------------------------------- *)
 
 Definition threads := list tm.
 Definition thread_default := <{ unit }>.
 
-Notation " l '[' i ']' " := (get thread_default l i)
+Notation " l '[' i ']' " := (l[i] or thread_default)
   (at level 9, i at next level).
 
 Inductive cstep : mem -> threads -> nat -> effect -> mem -> threads -> Prop :=
   | CST_Mem : forall m m' t' ths tid eff,
-      tid < length ths ->
+      tid < #ths ->
       m / ths[tid] ==[eff]==> m' / t' ->
       m / ths ~~[tid, eff]~~> m' / ths[tid <- t']
 
   | CST_Spawn : forall m t' ths tid block,
-      tid < length ths ->
+      tid < #ths ->
       ths[tid] --[EF_Spawn block]--> t' ->
       m / ths ~~[tid, EF_Spawn block]~~> m / (ths[tid <- t'] +++ block)
 
@@ -281,7 +281,7 @@ Inductive cstep : mem -> threads -> nat -> effect -> mem -> threads -> Prop :=
     (cstep m ths tid eff m' ths').
 
 (* ------------------------------------------------------------------------- *)
-(* Typing                                                                    *)
+(* typing                                                                    *)
 (* ------------------------------------------------------------------------- *)
 
 Definition ctx := map typ.
@@ -304,7 +304,7 @@ Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
     Gamma |-- <{ new &T t }> is <{{ &T }}>
 
   | T_NewI : forall Gamma t T,
-    Gamma |-- t is (TY_Immut T) ->
+    Gamma |-- t is <{{ Immut T }}> ->
     Gamma |-- <{ new i&T t }> is <{{ i&T }}>
 
   | T_LoadM : forall Gamma t T,
@@ -313,7 +313,7 @@ Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
 
   | T_LoadI : forall Gamma t T,
     Gamma |-- t is <{{ i&T }}> ->
-    Gamma |-- <{ *t }> is (TY_Immut T)
+    Gamma |-- <{ *t }> is <{{ Immut T }}>
 
   | T_Asg : forall Gamma t1 t2 T,
     Gamma |-- t1 is <{{ &T }}> ->
@@ -345,7 +345,7 @@ Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
   where "Gamma '|--' t 'is' T" := (well_typed_term Gamma t T).
 
 (* ------------------------------------------------------------------------- *)
-(* Decidability                                                              *)
+(* decidability                                                              *)
 (* ------------------------------------------------------------------------- *)
 
 Theorem immutable_typ_eq_dec : forall (T1 T2 : immutable_typ),
@@ -371,10 +371,10 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* Array Properties                                                          *)
+(* array properties                                                          *)
 (* ------------------------------------------------------------------------- *)
 
-Definition forall_memory_terms (m : mem) P : Prop :=
+Definition forall_memory (m : mem) P : Prop :=
   forall_array memory_default (fun tT => P (fst tT)) m.
 
 Definition forall_threads (ths : threads) P : Prop :=
@@ -384,7 +384,7 @@ Definition well_typed_tm := fun t => exists T, empty |-- t is T.
 Definition well_typed_thread := well_typed_tm.
 
 (* ------------------------------------------------------------------------- *)
-(* Determinism                                                               *)
+(* determinism                                                               *)
 (* ------------------------------------------------------------------------- *)
 
 Lemma deterministic_typing : forall Gamma t T1 T2,
@@ -410,38 +410,8 @@ Ltac apply_deterministic_typing :=
   end.
 
 (* ------------------------------------------------------------------------- *)
-(* Auxiliary Tactics                                                         *)
+(* auxiliary tactics                                                         *)
 (* ------------------------------------------------------------------------- *)
-
-Ltac inversion_term_predicate P :=
-  match goal with
-  | H : P <{ unit         }> |- _ => inversion H; subst
-  | H : P <{ N _          }> |- _ => inversion H; subst
-  | H : P <{ & _ :: _     }> |- _ => inversion H; subst
-  | H : P <{ new _ _      }> |- _ => inversion H; subst
-  | H : P <{ * _          }> |- _ => inversion H; subst
-  | H : P <{ _ = _        }> |- _ => inversion H; subst
-  | H : P <{ var _        }> |- _ => inversion H; subst
-  | H : P <{ fn _ _ --> _ }> |- _ => inversion H; subst
-  | H : P <{ call _ _     }> |- _ => inversion H; subst
-  | H : P <{ _ ; _        }> |- _ => inversion H; subst
-  | H : P <{ spawn _      }> |- _ => inversion H; subst
-  end.
-
-Ltac inversion_clear_term_predicate P :=
-  match goal with
-  | H : P <{ unit         }> |- _ => inversion_subst_clear H
-  | H : P <{ N _          }> |- _ => inversion_subst_clear H
-  | H : P <{ & _ :: _     }> |- _ => inversion_subst_clear H
-  | H : P <{ new _ _      }> |- _ => inversion_subst_clear H
-  | H : P <{ * _          }> |- _ => inversion_subst_clear H
-  | H : P <{ _ = _        }> |- _ => inversion_subst_clear H
-  | H : P <{ var _        }> |- _ => inversion_subst_clear H
-  | H : P <{ fn _ _ --> _ }> |- _ => inversion_subst_clear H
-  | H : P <{ call _ _     }> |- _ => inversion_subst_clear H
-  | H : P <{ _ ; _        }> |- _ => inversion_subst_clear H
-  | H : P <{ spawn _      }> |- _ => inversion_subst_clear H
-  end.
 
 Ltac induction_step :=
   match goal with
@@ -451,40 +421,62 @@ Ltac induction_step :=
 
 Ltac inversion_step :=
   match goal with
-  | H : _ --[_]--> _ |- _ =>
-    inversion H; subst; clear H
-  end.
-
-Ltac inversion_mstep_noclear :=
-  match goal with
-  | H : _ / _ ==[_]==> _ / _ |- _ =>
-    inversion H; subst
+  | H : _ --[_]--> _ |- _ => inversion H; subst; clear H
   end.
 
 Ltac inversion_mstep :=
   match goal with
-  | H : _ / _ ==[_]==> _ / _ |- _ =>
-    inversion_subst_clear H
+  | H : _ / _ ==[_]==> _ / _ |- _ => inversion H; subst
+  end.
+
+Ltac inversion_clear_mstep :=
+  match goal with
+  | H : _ / _ ==[_]==> _ / _ |- _ => inversion_subst_clear H
   end.
 
 Ltac inversion_cstep :=
   match goal with
-  | H : _ / _ ~~[_, _]~~> _ / _ |- _ =>
-    inversion_subst_clear H
+  | H : _ / _ ~~[_, _]~~> _ / _ |- _ => inversion H; subst
+  end.
+
+Ltac inversion_clear_cstep :=
+  match goal with
+  | H : _ / _ ~~[_, _]~~> _ / _ |- _ => inversion_subst_clear H
   end.
 
 Ltac induction_type :=
   match goal with
-  | H : _ |-- _ is _ |- _ =>
-    induction H
+  | H : _ |-- _ is _ |- _ => induction H
   end.
 
 Ltac inversion_type :=
   match goal with
-  | H : _ |-- <{ unit }> is _ |- _ => inversion H; subst; clear H
-  | H : _ |-- (_ _) is _      |- _ => inversion H; subst; clear H
-  | H : _ |-- (_ _ _) is _    |- _ => inversion H; subst; clear H
-  | H : _ |-- (_ _ _ _) is _  |- _ => inversion H; subst; clear H
+  | H : _ |-- <{ unit         }> is _ |- _ => inversion H; subst
+  | H : _ |-- <{ N _          }> is _ |- _ => inversion H; subst
+  | H : _ |-- <{ & _ :: _     }> is _ |- _ => inversion H; subst
+  | H : _ |-- <{ new _ _      }> is _ |- _ => inversion H; subst
+  | H : _ |-- <{ * _          }> is _ |- _ => inversion H; subst
+  | H : _ |-- <{ _ = _        }> is _ |- _ => inversion H; subst
+  | H : _ |-- <{ var _        }> is _ |- _ => inversion H; subst
+  | H : _ |-- <{ fn _ _ --> _ }> is _ |- _ => inversion H; subst
+  | H : _ |-- <{ call _ _     }> is _ |- _ => inversion H; subst
+  | H : _ |-- <{ _ ; _        }> is _ |- _ => inversion H; subst
+  | H : _ |-- <{ spawn _      }> is _ |- _ => inversion H; subst
+  end.
+
+Ltac inversion_clear_type :=
+  match goal with
+  | H : _ |-- <{ unit         }> is _ |- _ => inversion_subst_clear H
+  | H : _ |-- <{ N _          }> is _ |- _ => inversion_subst_clear H
+  | H : _ |-- <{ & _ :: _     }> is _ |- _ => inversion_subst_clear H
+  | H : _ |-- <{ new _ _      }> is _ |- _ => inversion_subst_clear H
+  | H : _ |-- <{ * _          }> is _ |- _ => inversion_subst_clear H
+  | H : _ |-- <{ _ = _        }> is _ |- _ => inversion_subst_clear H
+  | H : _ |-- <{ var _        }> is _ |- _ => inversion_subst_clear H
+  | H : _ |-- <{ fn _ _ --> _ }> is _ |- _ => inversion_subst_clear H
+  | H : _ |-- <{ call _ _     }> is _ |- _ => inversion_subst_clear H
+  | H : _ |-- <{ _ ; _        }> is _ |- _ => inversion_subst_clear H
+  | H : _ |-- <{ spawn _      }> is _ |- _ => inversion_subst_clear H
   end.
 
 (* ------------------------------------------------------------------------- *)
@@ -501,7 +493,7 @@ Lemma cstep_preservation :
     (* The untouched threads and the new memory still preserve the property. *)
     (forall tid' t',
       tid <> tid' ->
-      tid' < length ths ->
+      tid' < #ths ->
       m / ths[tid] ==[eff]==> m' / t' ->
       P m' ths[tid']
     ) ->
@@ -524,9 +516,9 @@ Lemma cstep_preservation :
 Proof.
   intros. inversion_cstep; intros tid'.
   - destruct (Nat.eq_dec tid tid'); subst; simpl_array; eauto.
-    decompose sum (lt_eq_lt_dec tid' (length ths)); subst; eauto;
+    decompose sum (lt_eq_lt_dec tid' (#ths)); subst; eauto;
     simpl_array; eauto.
-  - destruct (Nat.eq_dec tid' (length ths)); subst.
+  - destruct (Nat.eq_dec tid' (#ths)); subst.
     + rewrite <- (set_preserves_length _ tid t'). simpl_array. eauto.
     + destruct (lt_eq_lt_dec tid' (length ths)) as [[Ha | ?] | Hb]; subst;
       try lia.

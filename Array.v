@@ -17,18 +17,23 @@ Fixpoint set {A} (l : list A) (i : nat) (a : A) : list A :=
     end
   end.
 
-(* Notations *)
+(* ------------------------------------------------------------------------- *)
+(* notations                                                                 *)
+(* ------------------------------------------------------------------------- *)
 
+Notation "# l" := (length l) (at level 15).
 Notation " l +++ a " := (add l a) (at level 50).
 Notation " l '[' i ']' 'or' default " := (get default l i)
   (at level 9, i at next level).
 Notation " l '[' i <- a ']' " := (set l i a)
   (at level 9, i at next level, a at next level).
 
-(* Proofs *)
+(* ------------------------------------------------------------------------- *)
+(* proofs                                                                    *)
+(* ------------------------------------------------------------------------- *)
 
 Lemma set_invalid : forall {A} (l : list A) i a,
-  length l <= i ->
+  #l <= i ->
   l[i <- a] = l.
 Proof.
   intros *. generalize dependent i.
@@ -39,20 +44,20 @@ Proof.
 Qed.
 
 Lemma set_preserves_length : forall {A} (l : list A) i a,
-  length l[i <- a] = length l.
+  #l[i <- a] = #l.
 Proof.
   intros ?. induction l; trivial.
   destruct i; simpl; eauto.
 Qed.
 
 Lemma add_increments_length : forall {A} (l : list A) a,
-  length (l +++ a) = S (length l).
+  #(l +++ a) = S (#l).
 Proof.
   intros. unfold add. rewrite last_length. reflexivity.
 Qed.
 
 Lemma get_default : forall {A} default (l : list A) i,
-  length l <= i ->
+  #l <= i ->
   l[i] or default = default.
 Proof.
   intros *. generalize dependent i.
@@ -64,7 +69,7 @@ Proof.
 Qed.
 
 Lemma get_set_eq : forall {A} default (l : list A) i a,
-  i < length l ->
+  i < #l ->
   l[i <- a][i] or default = a.
 Proof.
   intros ? ? l. induction l as [| ? ? IH]; intros * Hlen;
@@ -97,20 +102,20 @@ Proof.
 Qed.
 
 Lemma get_set_invalid : forall {A} default (l : list A) i a,
-  length l <= i ->
+  #l <= i ->
   l[i <- a][i] or default = default.
 Proof.
   intros * H. rewrite set_invalid; trivial. eauto using get_default.
 Qed.
 
 Lemma get_add_eq : forall {A} default (l : list A) a,
-  (l +++ a)[length l] or default = a.
+  (l +++ a)[#l] or default = a.
 Proof.
   intros. induction l; eauto.
 Qed.
 
 Lemma get_add_lt : forall {A} default (l : list A) i a,
-  i < length l ->
+  i < #l ->
   (l +++ a)[i] or default = l[i] or default.
 Proof.
   intros. generalize dependent i. induction l; intros ?.
@@ -120,7 +125,7 @@ Proof.
 Qed.
 
 Lemma get_add_gt : forall {A} default (l : list A) i a,
-  length l < i ->
+  #l < i ->
   (l +++ a)[i] or default = default.
 Proof.
   intros. generalize dependent i. induction l; intros ? H;
@@ -135,33 +140,33 @@ Qed.
 
 Ltac rewrite_get_add_eq :=
   match goal with
-  | H : context C [ (?l +++ ?a)[length ?l] or ?d ] |- _ =>
+  | H : context C [ (?l +++ ?a)[#?l] or ?d ] |- _ =>
     rewrite (get_add_eq d l a) in H
-  | |-  context C [ (?l +++ ?a)[length ?l] or ?d ] =>
+  | |-  context C [ (?l +++ ?a)[#?l] or ?d ] =>
     rewrite (get_add_eq d l a)
   end.
 
 Ltac rewrite_get_add_lt :=
   match goal with
-  | Hlen : ?i < length ?l, H : context C [ (?l +++ ?a)[?i] or ?d ] |- _ =>
+  | Hlen : ?i < #?l, H : context C [ (?l +++ ?a)[?i] or ?d ] |- _ =>
     rewrite (get_add_lt d l i a Hlen) in H
-  | Hlen : ?i < length ?l  |-  context C [ (?l +++ ?a)[?i] or ?d ] =>
+  | Hlen : ?i < #?l  |-  context C [ (?l +++ ?a)[?i] or ?d ] =>
     rewrite (get_add_lt d l i a Hlen)
   end.
 
 Ltac rewrite_get_add_gt :=
   match goal with
-  | Hlen : length ?l < ?i, H : context C [ (?l +++ ?a)[?i] or ?d ] |- _ =>
+  | Hlen : #?l < ?i, H : context C [ (?l +++ ?a)[?i] or ?d ] |- _ =>
     rewrite (get_add_gt d l i a Hlen) in H
-  | Hlen : length ?l < ?i  |-  context C [ (?l +++ ?a)[?i] or ?d ] =>
+  | Hlen : #?l < ?i  |-  context C [ (?l +++ ?a)[?i] or ?d ] =>
     rewrite (get_add_gt d l i a Hlen)
   end.
 
 Ltac rewrite_get_set_eq :=
   match goal with
-  | Hlen : ?i < length ?l, H : context C [ ?l[?i <- ?a ][?i] or ?d ] |- _ =>
+  | Hlen : ?i < #?l, H : context C [ ?l[?i <- ?a ][?i] or ?d ] |- _ =>
     rewrite (get_set_eq d l i a Hlen) in H
-  | Hlen : ?i < length ?l  |-  context C [ ?l[?i <- ?a ][?i] or ?d ] =>
+  | Hlen : ?i < #?l  |-  context C [ ?l[?i <- ?a ][?i] or ?d ] =>
     rewrite (get_set_eq d l i a Hlen)
   end.
 
@@ -199,53 +204,53 @@ Ltac rewrite_get_set_gt :=
 
 Ltac rewrite_get_default :=
   match goal with
-  | H : context C [ ?l[length ?l] or ?d] |- _ => 
-    assert (Hlen : length l <= length l) by eauto using Nat.eq_le_incl;
-    rewrite (get_default d l (length l) Hlen) in H;
+  | H : context C [ ?l[#?l] or ?d] |- _ => 
+    assert (Hlen : #l <= #l) by eauto using Nat.eq_le_incl;
+    rewrite (get_default d l (#l) Hlen) in H;
     clear Hlen
-  | |-  context C [ ?l[length ?l] or ?d] => 
-    assert (Hlen : length l <= length l) by eauto using Nat.eq_le_incl;
-    rewrite (get_default d l (length l) Hlen);
+  | |-  context C [ ?l[#?l] or ?d] => 
+    assert (Hlen : #l <= #l) by eauto using Nat.eq_le_incl;
+    rewrite (get_default d l (#l) Hlen);
     clear Hlen
-  | Hlen : length ?l < ?i, H : context C [ ?l[?i] or ?d] |- _ => 
+  | Hlen : #?l < ?i, H : context C [ ?l[?i] or ?d] |- _ => 
     rewrite (get_default d l i (Nat.lt_le_incl _ _ Hlen)) in H
-  | Hlen : length ?l < ?i  |-  context C [ ?l[?i] or ?d] => 
+  | Hlen : #?l < ?i  |-  context C [ ?l[?i] or ?d] => 
     rewrite (get_default d l i (Nat.lt_le_incl _ _ Hlen))
   end.
 
 Ltac rewrite_set_invalid :=
   match goal with
-  | Hlen : length ?l <= ?i, H : context C [ ?l[?i <- ?a] ] |- _ => 
+  | Hlen : #?l <= ?i, H : context C [ ?l[?i <- ?a] ] |- _ => 
     rewrite (set_invalid l i a Hlen) in H
-  | Hlen : length ?l <= ?i  |-  context C [ ?l[?i <- ?a] ] => 
+  | Hlen : #?l <= ?i  |-  context C [ ?l[?i <- ?a] ] => 
     rewrite (set_invalid l i a Hlen)
-  | Hlen : length ?l < ?i, H : context C [ ?l[?i <- ?a] ] |- _ => 
+  | Hlen : #?l < ?i, H : context C [ ?l[?i <- ?a] ] |- _ => 
     rewrite (set_invalid l i a (Nat.lt_le_incl _ _ Hlen)) in H
-  | Hlen : length ?l < ?i  |-  context C [ ?l[?i <- ?a] ] => 
+  | Hlen : #?l < ?i  |-  context C [ ?l[?i <- ?a] ] => 
     rewrite (set_invalid l i a (Nat.lt_le_incl _ _ Hlen))
   end.
 
 Ltac rewrite_get_add_set :=
   match goal with
   (* eq *)
-  | H : context C [ (?l[?i' <- ?a'] +++ ?a)[length ?l] or ?d ] |- _ =>
+  | H : context C [ (?l[?i' <- ?a'] +++ ?a)[#?l] or ?d ] |- _ =>
     rewrite <- (set_preserves_length _ i' a') in H
-  | |- context C [ (?l[?i' <- ?a'] +++ ?a)[length ?l] or ?d ] =>
+  | |- context C [ (?l[?i' <- ?a'] +++ ?a)[#?l] or ?d ] =>
     rewrite <- (set_preserves_length _ i' a')
   (* lt *)
-  | Hlen : ?i < length ?l,
+  | Hlen : ?i < #?l,
     H : context C [ (?l[?i' <- ?a'] +++ ?a)[?i] or ?d ]
     |- _ =>
     rewrite <- (set_preserves_length _ i' a') in Hlen
-  | Hlen : ?i < length ?l
+  | Hlen : ?i < #?l
     |- context C [ (?l[?i' <- ?a'] +++ ?a)[?i] or ?d ] =>
     rewrite <- (set_preserves_length _ i' a') in Hlen
   (* gt *)
-  | Hlen : length ?l < ?i,
+  | Hlen : #?l < ?i,
     H : context C [ (?l[?i' <- ?a'] +++ ?a)[?i] or ?d ]
     |- _ =>
     rewrite <- (set_preserves_length _ i' a') in Hlen
-  | Hlen : length ?l < ?i
+  | Hlen : #?l < ?i
     |- context C [ (?l[?i' <- ?a'] +++ ?a)[?i] or ?d ] =>
     rewrite <- (set_preserves_length _ i' a') in Hlen
   end.
@@ -276,7 +281,7 @@ Lemma forall_array_add : forall {A} (P : A -> Prop) default l a,
   forall_array default P l ->
   forall_array default P (l +++ a).
 Proof.
-  intros; intros i. decompose sum (lt_eq_lt_dec i (length l)); subst;
+  intros; intros i. decompose sum (lt_eq_lt_dec i (#l)); subst;
   simpl_array; trivial.
 Qed.
 
@@ -287,7 +292,7 @@ Lemma forall_array_set : forall {A} (P : A -> Prop) default l i a,
   forall_array default P l[i <- a].
 Proof.
   intros; intros i'. decompose sum (lt_eq_lt_dec i i'); subst;
-  decompose sum (le_lt_dec (length l) i');
+  decompose sum (le_lt_dec (#l) i');
   simpl_array; trivial.
 Qed.
 
@@ -299,21 +304,21 @@ Local Ltac test_with T :=
   intros; T; reflexivity.
 
 Local Lemma test_rewrite_get_add_eq : forall {A} default (l : list A) a,
-  (l +++ a)[length l] or default = a.
+  (l +++ a)[#l] or default = a.
 Proof. intros. rewrite_get_add_eq. reflexivity. Qed.
 
 Local Lemma test_rewrite_get_add_lt : forall {A} default (l : list A) i a,
-  i < length l ->
+  i < #l ->
   (l +++ a)[i] or default = l[i] or default.
 Proof. intros. rewrite_get_add_lt. reflexivity. Qed.
 
 Local Lemma test_rewrite_get_add_gt : forall {A} default (l : list A) i a,
-  length l < i ->
+  #l < i ->
   (l +++ a)[i] or default = default.
 Proof. intros. rewrite_get_add_gt. reflexivity. Qed.
 
 Local Lemma test_rewrite_get_set_eq : forall {A} default (l : list A) i a,
-  i < length l ->
+  i < #l ->
   l[i <- a][i] or default = a.
 Proof. intros. rewrite_get_set_eq. reflexivity. Qed.
 
@@ -338,16 +343,16 @@ Local Lemma test_rewrite_get_set_gt : forall {A} default (l : list A) i j a,
 Proof. intros. rewrite_get_set_gt. reflexivity. Qed.
 
 Local Lemma test_rewrite_get_default1 : forall {A} default (l : list A) i,
-  length l < i ->
+  #l < i ->
   l[i] or default = default.
 Proof. intros. rewrite_get_default. reflexivity. Qed.
 
 Local Lemma test_rewrite_get_default2 : forall {A} default (l : list A),
-  l[length l] or default = default.
+  l[#l] or default = default.
 Proof. intros. rewrite_get_default. reflexivity. Qed.
 
 Local Lemma test_rewrite_set_invalid : forall {A} (l : list A) i a,
-  length l <= i ->
+  #l <= i ->
   l[i <- a] = l.
 Proof. intros. rewrite_set_invalid. reflexivity. Qed.
 
