@@ -230,7 +230,7 @@ Lemma mem_add_uacc : forall m t ad v,
   UnsafeAccess m t ad.
 Proof.
   intros * Hnacc Huacc. remember (m +++ v) as m'.
-  induction Huacc; inversion Heqm'; subst; inversion_not_access Hnacc;
+  induction Huacc; inversion Heqm'; subst; inversion_nacc Hnacc;
   eauto using UnsafeAccess.
   eapply uacc_mem; trivial.
   decompose sum (lt_eq_lt_dec ad' (length m)); subst;
@@ -257,7 +257,7 @@ Lemma mem_set_uacc : forall m t ad ad' v,
   UnsafeAccess m t ad.
 Proof.
   intros * Hnacc Huacc. remember (m[ad' <- v]) as m'.
-  induction Huacc; inversion_subst_clear Heqm'; inversion_not_access Hnacc;
+  induction Huacc; inversion_subst_clear Heqm'; inversion_nacc Hnacc;
   eauto using UnsafeAccess. simpl_array. eauto using UnsafeAccess.
 Qed.
 
@@ -292,7 +292,7 @@ Local Lemma step_alloc_value_nacc : forall m t t' v V,
   t --[EF_Alloc (length m) v V]--> t' ->
   ~ access m v (length m).
 Proof.
-  intros * Hva ?. induction_step; inversion_va; eauto using access.
+  intros * Hva ?. induction_step; inversion_vac; eauto using access.
   intros F. specialize (Hva (length m) F). lia.
 Qed.
 
@@ -323,10 +323,10 @@ Lemma step_alloc_preserves_nuacc : forall m t t' ad v V,
   ~ UnsafeAccess (m +++ (v, V)) t' ad.
 Proof.
   intros. intros ?. induction_step;
-  inversion_va; inversion_nuacc; inversion_uacc;
+  inversion_vac; inversion_nuacc; inversion_uacc;
   eauto using UnsafeAccess; try simpl_array;
   match goal with F : UnsafeAccess (_ +++ _) _ _ |- _ => contradict F end;
-  eauto using mem_add_nuacc, va_nacc_length, nacc_then_nuacc.
+  eauto using mem_add_nuacc, vac_nacc_length, nacc_then_nuacc.
 Qed.
 
 Lemma step_read_preserves_nuacc : forall m t t' ad ad' T,

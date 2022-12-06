@@ -77,13 +77,13 @@ Proof.
   simpl_array;
   assert (ad <> length m)
     by eauto 6 using mem_add_acc, mem_add_uacc, uacc_then_acc,
-      va_length, va_nacc_length, Nat.lt_neq;
+      vac_length, vac_nacc_length, Nat.lt_neq;
   eauto 6 using step_alloc_inherits_acc, step_alloc_preserves_nuacc,
-    mem_add_acc, va_nacc_length;
-  intros Huacc; eapply mem_add_uacc in Huacc; eauto using va_nacc_length;
+    mem_add_acc, vac_nacc_length;
+  intros Huacc; eapply mem_add_uacc in Huacc; eauto using vac_nacc_length;
   specialize Huacc as Huacc'; contradict Huacc';
   eauto using step_alloc_inherits_acc, mem_add_acc,
-    uacc_then_acc, va_nacc_length.
+    uacc_then_acc, vac_nacc_length.
 Qed.
 
 Local Lemma step_read_sms_preservation : forall m t ad ths tid,
@@ -212,7 +212,7 @@ Proof.
   eauto using nuacc_unit;
   decompose sum (lt_eq_lt_dec tid2 (length ths)); subst; simpl_array;
   eauto using step_spawn_inherits_acc, step_spawn_preserves_nuacc;
-  try inversion_access; intros ?;
+  try inversion_acc; intros ?;
   eauto using consistent_uacc,
     step_spawn_wtr_block, step_spawn_wtr_preservation,
     nomut_then_nuacc.
