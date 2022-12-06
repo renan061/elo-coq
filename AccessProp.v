@@ -17,10 +17,10 @@ Lemma mem_add_acc : forall m t ad v,
   access m t ad.
 Proof.
   intros * Hnacc Hacc. remember (m +++ v) as m'.
-  induction Hacc; inversion Heqm'; subst; inversion_not_access Hnacc.
+  induction Hacc; inversion Heqm'; subst; inversion_nacc Hnacc.
   decompose sum (lt_eq_lt_dec ad' (length m)); subst; try lia;
   simpl_array; eauto using access. simpl in *.
-  inversion_access.
+  inversion_acc.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -33,7 +33,7 @@ Lemma mem_set_acc : forall m t ad ad' v,
   access m t ad.
 Proof.
   intros * Hnacc Hacc.  remember (m[ad' <- v]) as m'.
-  induction Hacc; inversion_subst_clear Heqm'; inversion_not_access Hnacc;
+  induction Hacc; inversion_subst_clear Heqm'; inversion_nacc Hnacc;
   simpl_array; eauto using access.
 Qed.
 
@@ -52,7 +52,7 @@ Proof.
   auto_specialize. rewrite (get_set_eq memory_default) in IH. 1: contradiction.
   eapply not_le. intros Hlen. simpl_array. 
   eapply Nat.lt_eq_cases in Hlen as [? | ?]; subst;
-  simpl_array; simpl in *; inversion_access.
+  simpl_array; simpl in *; inversion_acc.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -64,8 +64,8 @@ Lemma step_write_inherits_acc : forall m t t' ad ad' v V,
   t --[EF_Write ad' v V]--> t' ->
   access m t ad.
 Proof.
-  intros. induction_step; inversion_access; eauto using access;
-  destruct (access_dec m v ad);
+  intros. induction_step; inversion_acc; eauto using access;
+  destruct (acc_dec m v ad);
   eauto using mem_set_acc', access;
   assert (forall t t', t --[EF_Write ad' v V]--> t' -> access m t ad)
     by (intros; induction_step; eauto using access);
@@ -77,7 +77,7 @@ Lemma step_spawn_inherits_acc : forall m t t' block ad,
   t --[EF_Spawn block]--> t' ->
   access m t ad.
 Proof.
-  intros. induction_step; inversion_access; eauto using access.
+  intros. induction_step; inversion_acc; eauto using access.
 Qed.
 
 
@@ -103,10 +103,10 @@ Local Lemma todo1 : forall m t ad v,
   access m t ad.
 Proof.
   intros * Hnacc Hacc. induction Hacc;
-  inversion_not_access Hnacc; eauto using access.
+  inversion_nacc Hnacc; eauto using access.
   decompose sum (lt_eq_lt_dec ad' (length m)); subst;
   simpl_array; eauto using access; try contradiction.
-  auto_specialize. simpl in *. inversion_access.
+  auto_specialize. simpl in *. inversion_acc.
 Qed.
 
 Lemma mem_add_nacc_length : forall m t v,
@@ -114,7 +114,7 @@ Lemma mem_add_nacc_length : forall m t v,
   ~ access (m +++ v) t (length m).
 Proof.
   intros * Hnacc F. remember (length m) as ad.
-  induction F; inversion Heqad; subst; inversion_not_access Hnacc.
+  induction F; inversion Heqad; subst; inversion_nacc Hnacc.
   decompose sum (lt_eq_lt_dec ad' (length m)); subst; try lia;
   simpl_array; eauto.
 Qed.
@@ -124,11 +124,11 @@ Lemma mem_add_nacc_lt : forall m t ad v,
   ~ access m t ad ->
   ~ access (m +++ v) t ad.
 Proof.
-  intros * Hnacc1 Hnacc2 F. induction F; inversion_not_access Hnacc2.
+  intros * Hnacc1 Hnacc2 F. induction F; inversion_nacc Hnacc2.
   decompose sum (lt_eq_lt_dec ad' (length m)); subst;
   simpl_array;
-  inversion_not_access Hnacc1.
-  eapply IHF; eapply not_access_iff; eauto using not_access.
+  inversion_nacc Hnacc1.
+  eapply IHF; eapply nacc_iff; eauto using not_access.
 Qed.
 
 Lemma mem_add_preserves_access : forall m t ad v,
@@ -137,9 +137,9 @@ Lemma mem_add_preserves_access : forall m t ad v,
 Proof.
   intros * Hacc. induction Hacc; eauto using access.
   destruct (Nat.eq_dec ad ad'); subst; eauto using access.
-  eapply access_mem; trivial.
+  eapply acc_mem; trivial.
   decompose sum (lt_eq_lt_dec ad' (length m)); subst;
-  simpl_array; trivial; simpl in *; inversion_access.
+  simpl_array; trivial; simpl in *; inversion_acc.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -151,12 +151,12 @@ Lemma mem_set_preserves_acc1 : forall m t ad ad' v,
   access m t ad ->
   access m[ad' <- v] t ad.
 Proof.
-  intros * Hnacc Hacc. induction Hacc; inversion_not_access Hnacc.
+  intros * Hnacc Hacc. induction Hacc; inversion_nacc Hnacc.
   match goal with H : ~ access _ _ ?ad' |- _ => 
     destruct (Nat.eq_dec ad ad'); subst
   end.
   - contradiction.
-  - eapply access_mem; trivial. simpl_array. eauto.
+  - eapply acc_mem; trivial. simpl_array. eauto.
 Qed.
 
 Lemma mem_set_preserves_acc2 : forall m t ad ad' v,
@@ -165,12 +165,12 @@ Lemma mem_set_preserves_acc2 : forall m t ad ad' v,
   access m[ad' <- v] t ad.
 Proof.
   intros * ? Hacc.
-  destruct (access_dec m t ad'); eauto using mem_set_preserves_acc1.
-  induction Hacc; inversion_access; eauto using mem_set_preserves_acc1, access;
+  destruct (acc_dec m t ad'); eauto using mem_set_preserves_acc1.
+  induction Hacc; inversion_acc; eauto using mem_set_preserves_acc1, access;
   solve
-    [ eapply access_mem; trivial; simpl_array; eauto
-    | destruct (access_dec m t1 ad'); eauto using mem_set_preserves_acc1, access
-    | destruct (access_dec m t2 ad'); eauto using mem_set_preserves_acc1, access
+    [ eapply acc_mem; trivial; simpl_array; eauto
+    | destruct (acc_dec m t1 ad'); eauto using mem_set_preserves_acc1, access
+    | destruct (acc_dec m t2 ad'); eauto using mem_set_preserves_acc1, access
     ].
 Qed.
 
@@ -180,7 +180,7 @@ Lemma mem_set_preserves_nacc2 : forall m t ad ad' v,
   ~ access m[ad' <- v] t ad.
 Proof.
   intros * Hnacc' Hnacc F. remember (m[ad' <- v]) as m'.
-  induction F; inversion_not_access Hnacc'; inversion_not_access Hnacc.
+  induction F; inversion_nacc Hnacc'; inversion_nacc Hnacc.
   simpl_array. eauto.
 Qed.
 
@@ -247,7 +247,7 @@ Lemma step_none_inherits_access : forall m t t' ad,
   access m t ad.
 Proof.
   intros. induction_step;
-  try inversion_access; eauto using access, access_subst.
+  try inversion_acc; eauto using access, access_subst.
 Qed.
 
 Lemma step_none_preserves_not_access : forall m t t' ad,
@@ -256,7 +256,7 @@ Lemma step_none_preserves_not_access : forall m t t' ad,
   ~ access m t' ad.
 Proof.
   intros * Hnacc ?.
-  induction_step; inversion_not_access Hnacc;
+  induction_step; inversion_nacc Hnacc;
   eapply not_access_iff; eauto using not_access.
   eapply not_access_iff. eauto using not_access_subst_fun.
 Qed.
@@ -271,7 +271,7 @@ Lemma mstep_none_inherits_access : forall m m' t t' ad,
   access m t ad.
 Proof.
   intros. inversion_clear_mstep. induction_step;
-  try inversion_access; eauto using access, access_subst.
+  try inversion_acc; eauto using access, access_subst.
 Qed.
 
 Lemma mstep_none_preserves_not_access : forall m m' t t' ad,
@@ -280,7 +280,7 @@ Lemma mstep_none_preserves_not_access : forall m m' t t' ad,
   ~ access m' t' ad.
 Proof.
   intros * Hnacc ?. inversion_clear_mstep.
-  induction_step; inversion_not_access Hnacc;
+  induction_step; inversion_nacc Hnacc;
   eapply not_access_iff; eauto using not_access.
   eapply not_access_iff. eauto using not_access_subst_fun.
 Qed.
@@ -296,7 +296,7 @@ Lemma step_read_inherits_acc : forall m t t' ad ad',
   access m t ad.
 Proof.
   intros * ? ?. induction_step;
-  try inversion_access; eauto using access.
+  try inversion_acc; eauto using access.
   destruct (Nat.eq_dec ad' ad); subst; eauto using access.
 Qed.
 
@@ -305,10 +305,11 @@ Lemma step_read_preserves_not_access : forall m t t' ad ad',
   t --[EF_Read ad' m[ad'].tm]--> t' ->
   ~ access m t' ad.
 Proof.
-  intros * Hnacc ?. induction_step; inversion_not_access Hnacc;
+  intros * Hnacc ?. induction_step; inversion_nacc Hnacc;
   solve
     [ eapply not_access_iff; eauto using not_access
-    | match goal with | H : ~ access _ _ _ |- _ => inversion_not_access H end
+    | match goal with | H : ~ access _ _ _ |- _ => inversion_nacc
+     H end
     ].
 Qed.
 
@@ -329,7 +330,7 @@ Lemma mstep_read_inherits_access : forall m m' t t' ad ad' v,
   access m t ad.
 Proof.
   intros * ? ?. inversion_clear_mstep. induction_step;
-  try inversion_access; eauto using access.
+  try inversion_acc; eauto using access.
   destruct (Nat.eq_dec ad' ad); subst; eauto using access.
 Qed.
 
@@ -340,8 +341,8 @@ Lemma mstep_read_preserves_access : forall m m' t t' ad ad' v,
   access m' t' ad.
 Proof.
   intros * Hneq Hacc Hmstep. inversion_clear_mstep. induction_step;
-  inversion_access; eauto using access.
-  inversion_access; subst; trivial. exfalso. eauto.
+  inversion_acc; eauto using access.
+  inversion_acc; subst; trivial. exfalso. eauto.
 Qed.
 
 Corollary mstep_read_preserves_not_access : forall m m' t t' ad ad' v,
@@ -368,7 +369,7 @@ Lemma step_alloc_preserves_acc : forall m t t' ad v V,
   t --[EF_Alloc (length m) v V]--> t' ->
   access (m +++ (v, V)) t' ad.
 Proof.
-  intros. induction_step; inversion_access;
+  intros. induction_step; inversion_acc;
   eauto using access, mem_add_preserves_access.
   destruct (Nat.eq_dec ad (length m)); subst; eauto using access.
   eapply access_mem; trivial. simpl_array.
@@ -383,8 +384,8 @@ Lemma step_alloc_preserves_nacc : forall m t t' ad v V,
   ~ access (m +++ (v, V)) t' ad.
 Proof.
   intros * Hva ? Hnacc ?.
-  induction_step; inversion_va; inversion_not_access Hnacc;
-  intros F; inversion_access;
+  induction_step; inversion_va; inversion_nacc Hnacc;
+  intros F; inversion_acc;
   try solve [unfold not in *; eauto]; try simpl_array;
   match goal with F : access (_ +++ _) _ _ |- _ => contradict F end;
   eauto using mem_add_nacc_lt, va_nacc_length.
@@ -398,7 +399,7 @@ Lemma step_alloc_inherits_acc : forall m t t' ad v V,
   access m t ad.
 Proof.
   intros. induction_step;
-  inversion_va; inversion_access; eauto using access;
+  inversion_va; inversion_acc; eauto using access;
   try lia; try simpl_array;
   eauto using mem_add_acc, va_nacc_length, access.
 Qed.
@@ -411,7 +412,7 @@ Lemma step_alloc_creates_acc : forall ad v m t t' V,
   ad = length m.
 Proof.
   intros * ? Hnacc ? ?.
-  induction_step; inversion_va; inversion_not_access Hnacc; inversion_access;
+  induction_step; inversion_va; inversion_nacc Hnacc; inversion_acc;
   eauto; try simpl_array;
   match goal with F : access (_ +++ _) _ _ |- _ => contradict F end;
   eauto using mem_add_nacc_lt, va_nacc_length.
@@ -438,7 +439,7 @@ Lemma step_write_preserves_nacc : forall m t t' ad ad' v V,
   ~ access m[ad' <- (v, V)] t' ad.
 Proof.
   intros * Hnacc ?. induction_step; 
-  inversion_not_access Hnacc; eapply not_access_iff; eauto using not_access;
+  inversion_nacc Hnacc; eapply not_access_iff; eauto using not_access;
   eauto using mem_set_preserves_nacc, step_write_value_nacc, not_access.
 Qed.
 

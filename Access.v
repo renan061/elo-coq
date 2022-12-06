@@ -8,53 +8,87 @@ From Elo Require Import Core.
 (* A term accesses an address if it refers to the address directly or 
 indirectly. *)
 Inductive access (m : mem) : tm -> addr -> Prop :=
-  | access_mem : forall ad ad' T,
+  | acc_mem : forall ad ad' T,
     ad <> ad' ->
     access m m[ad'].tm ad ->
     access m <{ &ad' :: T }> ad
 
-  | access_ref : forall ad T,
+  | acc_ref : forall ad T,
     access m <{ &ad :: T }> ad
 
-  | access_new : forall T t ad,
+  | acc_new : forall T t ad,
     access m t ad ->
     access m <{ new T t }> ad
 
-  | access_load : forall t ad,
+  | acc_load : forall t ad,
     access m t ad ->
     access m <{ *t }> ad
 
-  | access_asg1 : forall t1 t2 ad,
+  | acc_asg1 : forall t1 t2 ad,
     access m t1 ad ->
     access m <{ t1 = t2 }> ad
 
-  | access_asg2 : forall t1 t2 ad,
+  | acc_asg2 : forall t1 t2 ad,
     access m t2 ad ->
     access m <{ t1 = t2 }> ad
 
-  | access_fun : forall x Tx t ad,
+  | acc_fun : forall x Tx t ad,
     access m t ad ->
     access m <{ fn x Tx --> t }> ad
 
-  | access_call1 : forall t1 t2 ad,
+  | acc_call1 : forall t1 t2 ad,
     access m t1 ad ->
     access m <{ call t1 t2 }> ad
 
-  | access_call2 : forall t1 t2 ad,
+  | acc_call2 : forall t1 t2 ad,
     access m t2 ad ->
     access m <{ call t1 t2 }> ad
 
-  | access_seq1 : forall t1 t2 ad,
+  | acc_seq1 : forall t1 t2 ad,
     access m t1 ad ->
     access m <{ t1; t2 }> ad
 
-  | access_seq2 : forall t1 t2 ad,
+  | acc_seq2 : forall t1 t2 ad,
     access m t2 ad ->
     access m <{ t1; t2 }> ad
   .
 
-(* strong access_mem *)
-Theorem access_get_trans : forall m t ad ad',
+Ltac inversion_acc :=
+  match goal with
+  | H : access _ <{ unit         }> _ |- _ => inversion H
+  | H : access _ <{ N _          }> _ |- _ => inversion H
+  | H : access _ <{ & _ :: _     }> _ |- _ => inversion H; subst
+  | H : access _ <{ new _ _      }> _ |- _ => inversion H; subst
+  | H : access _ <{ * _          }> _ |- _ => inversion H; subst
+  | H : access _ <{ _ = _        }> _ |- _ => inversion H; subst
+  | H : access _ <{ var _        }> _ |- _ => inversion H
+  | H : access _ <{ fn _ _ --> _ }> _ |- _ => inversion H; subst
+  | H : access _ <{ call _ _     }> _ |- _ => inversion H; subst
+  | H : access _ <{ _ ; _        }> _ |- _ => inversion H; subst
+  | H : access _ <{ spawn _      }> _ |- _ => inversion H
+  end.
+
+Ltac inversion_clear_acc :=
+  match goal with
+  | H : access _ <{ unit         }> _ |- _ => inversion H
+  | H : access _ <{ N _          }> _ |- _ => inversion H
+  | H : access _ <{ & _ :: _     }> _ |- _ => inversion_subst_clear H
+  | H : access _ <{ new _ _      }> _ |- _ => inversion_subst_clear H
+  | H : access _ <{ * _          }> _ |- _ => inversion_subst_clear H
+  | H : access _ <{ _ = _        }> _ |- _ => inversion_subst_clear H
+  | H : access _ <{ var _        }> _ |- _ => inversion H
+  | H : access _ <{ fn _ _ --> _ }> _ |- _ => inversion_subst_clear H
+  | H : access _ <{ call _ _     }> _ |- _ => inversion_subst_clear H
+  | H : access _ <{ _ ; _        }> _ |- _ => inversion_subst_clear H
+  | H : access _ <{ spawn _      }> _ |- _ => inversion H
+  end.
+
+(* ------------------------------------------------------------------------- *)
+(* properties                                                                *)
+(* ------------------------------------------------------------------------- *)
+
+(* strong acc_mem *)
+Theorem acc_mem_trans : forall m t ad ad',
   ad <> ad' ->
   access m t ad' ->
   access m m[ad'].tm ad ->
@@ -64,24 +98,7 @@ Proof.
   destruct (Nat.eq_dec ad ad'); subst; eauto using access.
 Qed.
 
-Ltac inversion_access :=
-  match goal with
-  | H : access _ memory_default _ |- _ => inversion H; clear H
-  | H : access _ thread_default _ |- _ => inversion H; clear H
-  | H : access _ TM_Unit        _ |- _ => inversion H; clear H
-  | H : access _ (TM_Num _)     _ |- _ => inversion H; clear H
-  | H : access _ (TM_Ref _ _)   _ |- _ => inversion H; subst; clear H
-  | H : access _ (TM_New _ _)   _ |- _ => inversion H; subst; clear H
-  | H : access _ (TM_Load _)    _ |- _ => inversion H; subst; clear H
-  | H : access _ (TM_Asg _ _)   _ |- _ => inversion H; subst; clear H
-  | H : access _ (TM_Var _)     _ |- _ => inversion H; clear H
-  | H : access _ (TM_Fun _ _ _) _ |- _ => inversion H; subst; clear H
-  | H : access _ (TM_Call _ _)  _ |- _ => inversion H; subst; clear H
-  | H : access _ (TM_Seq _ _)   _ |- _ => inversion H; subst; clear H
-  | H : access _ (TM_Spawn _)   _ |- _ => inversion H; clear H
-  end.
-
-Lemma access_length : forall m ad ad',
+Lemma acc_length : forall m ad ad',
   access m m[ad'].tm ad ->
   ad' < length m.
 Proof.
@@ -90,7 +107,7 @@ Proof.
   simpl_array; try lia; inversion Hacc.
 Qed.
 
-Lemma access_dec : forall m t ad,
+Lemma acc_dec : forall m t ad,
   Decidable.decidable (access m t ad).
 Proof. eauto using classic_decidable. Qed.
 
@@ -99,108 +116,101 @@ Proof. eauto using classic_decidable. Qed.
 (* ------------------------------------------------------------------------- *)
 
 Inductive not_access (m : mem) : tm -> addr -> Prop :=
-  | not_access_unit : forall ad,
+  | nacc_unit : forall ad,
     not_access m <{ unit }> ad
 
-  | not_access_num : forall n ad,
+  | nacc_num : forall n ad,
     not_access m <{ N n }> ad
 
-  | not_access_ref : forall T ad ad',
+  | nacc_ref : forall T ad ad',
     ad <> ad' ->
     ~ access m m[ad].tm ad' ->
     not_access m <{ &ad :: T }> ad'
 
-  | not_access_new : forall T t ad,
+  | nacc_new : forall T t ad,
     ~ access m t ad ->
     not_access m <{ new T t }> ad
 
-  | not_access_load : forall t ad,
+  | nacc_load : forall t ad,
     ~ access m t ad ->
     not_access m <{ *t }> ad
 
-  | not_access_asg : forall t1 t2 ad,
+  | nacc_asg : forall t1 t2 ad,
     ~ access m t1 ad ->
     ~ access m t2 ad ->
     not_access m <{ t1 = t2 }> ad
 
-  | not_access_var : forall x ad,
+  | nacc_var : forall x ad,
     not_access m <{ var x }> ad
 
-  | not_access_fun : forall x Tx t ad,
+  | nacc_fun : forall x Tx t ad,
     ~ access m t ad ->
     not_access m <{ fn x Tx --> t }> ad
 
-  | not_access_call : forall t1 t2 ad,
+  | nacc_call : forall t1 t2 ad,
     ~ access m t1 ad ->
     ~ access m t2 ad ->
     not_access m <{ call t1 t2 }> ad
 
-  | not_access_seq : forall t1 t2 ad,
+  | nacc_seq : forall t1 t2 ad,
     ~ access m t1 ad ->
     ~ access m t2 ad ->
     not_access m <{ t1; t2 }> ad
 
-  | not_access_spawn : forall t ad,
+  | nacc_spawn : forall t ad,
     not_access m <{ spawn t }> ad
   .
 
-Theorem not_access_iff : forall m t ad,
+Theorem nacc_iff : forall m t ad,
   ~ access m t ad <-> not_access m t ad.
 Proof.
   intros. split; intros Hnacc; destruct t;
-  try (eapply not_access_ref
-    || eapply not_access_asg
-    || eapply not_access_call
-    || eapply not_access_seq);
+  try (eapply nacc_ref
+    || eapply nacc_asg
+    || eapply nacc_call
+    || eapply nacc_seq);
   eauto using access, not_access;
   intros ?; subst;
-  try (inversion_access; inversion_clear Hnacc); eauto using access.
+  try (inversion_acc; inversion_clear Hnacc); eauto using access.
   match goal with
   | Hnacc : ~ access _ <{ & ?ad :: _ }> ?ad' |- _ =>
     destruct (Nat.eq_dec ad ad'); subst; eauto using access
   end.
 Qed.
 
-Ltac inversion_not_access H :=
-  eapply not_access_iff in H; inversion H; subst; eauto using access.
+Ltac inversion_nacc Hnacc :=
+  eapply nacc_iff in Hnacc; inversion Hnacc; subst; eauto using access.
 
 (* ------------------------------------------------------------------------- *)
-(* access-subst * not-access-subst                                           *)
+(* preservation helpers                                                      *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma access_subst : forall m x Tx t t' ad,
+Lemma subst_acc : forall m x Tx t t' ad,
   access m ([x := t'] t) ad ->
   access m <{ call <{ fn x Tx --> t }> t' }> ad.
 Proof.
   intros. induction t; eauto using access; simpl in *;
   try (destruct String.string_dec; eauto using access);
-  try solve [ 
-    inversion_access; auto_specialize;
-    inversion_access; try inversion_access; eauto using access
-  ].
+  inversion_clear_acc; auto_specialize; do 2 inversion_acc; eauto using access.
 Qed.
 
-Lemma not_access_subst : forall m t tx ad x,
+Local Lemma subst_nacc' : forall m t tx ad x,
   ~ access m t ad ->
   ~ access m tx ad ->
   ~ access m ([x := tx] t) ad.
 Proof.
-  intros * Hnacc ?.
-  generalize dependent tx.
+  intros * Hnacc ?. generalize dependent tx.
   induction t; intros; trivial; simpl;
-  try solve [
-    eapply not_access_iff;
-    inversion_not_access Hnacc; eauto using not_access
-  ];
+  try solve [eapply nacc_iff; inversion_nacc Hnacc; eauto using not_access];
   destruct String.string_dec; trivial.
-  inversion_not_access Hnacc. eapply not_access_iff. eauto using not_access.
+  inversion_nacc Hnacc. eapply nacc_iff. eauto using not_access.
 Qed.
 
-Lemma not_access_subst_fun : forall m t tx ad x Tx,
+Lemma subst_nacc : forall m t tx ad x Tx,
   ~ access m <{ fn x Tx --> t }> ad ->
   ~ access m tx ad ->
   ~ access m ([x := tx] t) ad.
 Proof.
-  intros * Hnacc ?. inversion_not_access Hnacc; eauto using not_access_subst.
+  intros * Hnacc ?. inversion_nacc Hnacc; eauto using subst_nacc'.
 Qed.
 

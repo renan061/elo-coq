@@ -11,11 +11,11 @@ core:
 	$(COQC) Core.v
 
 access: core
-	$(COQC) Contains.v
-	$(COQC) Access.v
 	$(COQC) HasAddress.v
 	$(COQC) ValidAddresses.v
+	$(COQC) Access.v
 	$(COQC) ValidAccesses.v
+	$(COQC) Contains.v
 	$(COQC) References.v
 
 soundness: access 
