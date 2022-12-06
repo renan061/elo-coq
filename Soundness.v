@@ -29,7 +29,7 @@ Proof.
   - rewrite lookup_update_neq in *; trivial.
 Qed.
 
-Lemma context_weakening : forall Gamma Gamma' t T,
+Local Lemma context_weakening : forall Gamma Gamma' t T,
   Gamma' |-- t is T ->
   Gamma includes Gamma' ->
   Gamma  |-- t is T.
@@ -40,14 +40,14 @@ Proof.
     MapInclusion.update_inclusion.
 Qed.
 
-Lemma context_weakening_empty : forall Gamma t T,
+Local Lemma context_weakening_empty : forall Gamma t T,
   empty |-- t is T ->
   Gamma |-- t is T.
 Proof.
   intros. eapply (context_weakening _ empty); trivial. discriminate.
 Qed.
 
-Local Lemma type_preservation_subst : forall t tx T Tx Tx' Gamma x,
+Local Lemma subst_type_preservation : forall t tx T Tx Tx' Gamma x,
   Gamma |-- <{ fn x Tx --> t }> is <{{  Tx' --> T }}> ->
   empty |-- tx is Tx' ->
   Gamma |-- [x := tx] t is T.
@@ -73,47 +73,42 @@ Proof.
   intros * ?. inversion_type. intros. eauto.
 Qed.
 
-(* TODO step_type_preservation *)
-Theorem step_read_type_preservation : forall m t t' ad T,
+(* ------------------------------------------------------------------------- *)
+(* term preservation                                                         *)
+(* ------------------------------------------------------------------------- *)
+
+Local Lemma step_read_type_preservation : forall m t t' ad T,
   well_typed_references m t ->
   empty |-- t is T ->
   t --[EF_Read ad m[ad].tm]--> t' ->
   empty |-- t' is T.
 Proof.
-  intros * Hwtr ? ?.
-  remember empty as Gamma. generalize dependent t'.
-  induction_type; intros; inversion_subst_clear Hwtr; inversion_step;
-  eauto using well_typed_term, type_preservation_subst;
-  match goal with
-  | Hwtr : well_typed_references _ _ |- _ =>
-    inversion_type; inversion_subst_clear Hwtr; trivial
-  end;
+  intros. remember empty as Gamma. generalize dependent t'.
+  induction_type; intros; inversion_wtr; inversion_step;
+  eauto using well_typed_term, subst_type_preservation;
+  inversion_type; inversion_wtr; trivial;
   eauto using context_weakening_empty.
 Qed.
 
-Theorem mstep_type_preservation : forall m m' t t' eff T,
+Local Lemma mstep_type_preservation : forall m m' t t' eff T,
   well_typed_references m t ->
   empty |-- t is T ->
   m / t ==[eff]==> m' / t' ->
   empty |-- t' is T.
 Proof.
-  intros * Hwtr ? ?. inversion_clear_mstep; generalize dependent t';
+  intros. inversion_clear_mstep; generalize dependent t';
   remember empty as Gamma;
-  induction_type; intros; inversion_step; inversion_clear Hwtr;
-  eauto using well_typed_term, type_preservation_subst;
-  inversion_type;
-  match goal with
-  | H : well_typed_references _ _ |- _ => inversion_clear H
-  end;
+  induction_type; intros; inversion_step; inversion_wtr;
+  eauto using well_typed_term, subst_type_preservation;
+  inversion_type; inversion_wtr;
   eauto using context_weakening_empty.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* Memory Type Preservation                                                  *)
+(* memory preservation                                                       *)
 (* ------------------------------------------------------------------------- *)
 
-(* TODO: clean up *)
-Theorem mstep_memory_preservation : forall m m' t t' eff ad T M,
+Local Lemma mstep_mem_type_preservation : forall m m' t t' eff ad T M,
   well_typed_references m t ->
   ad < length m ->
   empty |-- t is T ->
@@ -121,17 +116,13 @@ Theorem mstep_memory_preservation : forall m m' t t' eff ad T M,
   m / t ==[eff]==> m' / t' ->
   empty |-- m'[ad].tm is M.
 Proof.
-  intros * Hwtr ? HtypeT HtypeM ?. inversion_clear_mstep; eauto.
-  try solve [simpl_array; trivial].
-  decompose sum (lt_eq_lt_dec ad0 ad); subst; simpl_array; trivial.
+  intros * ? ? Htype ? ?. rename ad into ad'.
+  inversion_clear_mstep; try simpl_array; trivial.
+  decompose sum (lt_eq_lt_dec ad' ad); subst; simpl_array; trivial.
   generalize dependent t'. remember empty as Gamma.
-  induction HtypeT; inversion HeqGamma; subst; intros;
-  inversion_clear Hwtr; inversion_step; eauto.
-  do 4 auto_specialize.
-  inversion HtypeT1; subst.
-  inversion H3; subst.
-  apply_deterministic_typing.
-  eauto.
+  induction Htype; inversion HeqGamma; subst; intros;
+  inversion_wtr; inversion_step; eauto.
+  inversion_type; inversion_wtr; apply_deterministic_typing. eauto.
 Qed.
 
 (*

@@ -59,8 +59,8 @@ Proof.
   intros * Hcon ?. induction Hcon; subst; eauto using Contains.
 Qed.
 
-Lemma step_write_contains : forall t t' ad v V,
-  t --[EF_Write ad v V]--> t' ->
+Lemma step_write_contains : forall t t' ad v Tr,
+  t --[EF_Write ad v Tr]--> t' ->
   t contains v.
 Proof.
   intros. induction_step; eauto using Contains.

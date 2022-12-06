@@ -61,7 +61,8 @@ Proof.
   intros * ? ? tid1 tid2 ? ? ?.
   assert (tid < length ths) by eauto using length_tid.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia;
-  simpl_array; eauto using step_none_preserves_nuacc, step_none_inherits_access.
+  simpl_array;
+  eauto using step_none_nuacc_preservation, step_none_inherits_access.
 Qed.
 
 Local Lemma step_alloc_sms_preservation : forall m t v ths tid V,
@@ -78,7 +79,7 @@ Proof.
   assert (ad <> length m)
     by eauto 6 using mem_add_acc, mem_add_uacc, uacc_then_acc,
       vac_length, vac_nacc_length, Nat.lt_neq;
-  eauto 6 using step_alloc_inherits_acc, step_alloc_preserves_nuacc,
+  eauto 6 using step_alloc_inherits_acc, step_alloc_nuacc_preservation,
     mem_add_acc, vac_nacc_length;
   intros Huacc; eapply mem_add_uacc in Huacc; eauto using vac_nacc_length;
   specialize Huacc as Huacc'; contradict Huacc';
@@ -98,7 +99,7 @@ Proof.
   destruct (Htype tid1).
   assert (tid < length ths) by eauto using length_tid.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia;
-  simpl_array; eauto using step_read_preserves_nuacc, step_read_inherits_acc.
+  simpl_array; eauto using step_read_nuacc_preservation, step_read_inherits_acc.
 Qed.
 
 Local Lemma step_write_sms_preservation : forall m ths t tid ad v V,
@@ -115,7 +116,7 @@ Proof.
   assert (~ UnsafeAccess m ths[tid1] ad');
   assert (~ UnsafeAccess m ths[tid2] ad');
   eauto 8 using mem_set_acc, mem_set_uacc, step_write_sms_helper,
-    step_write_preserves_nuacc, step_write_inherits_acc.
+    step_write_nuacc_preservation, step_write_inherits_acc.
 Qed.
 
 Local Corollary mstep_sms_preservation : forall m m' t eff ths tid,
@@ -202,17 +203,17 @@ Theorem safe_memory_sharing_preservation : forall m m' ths ths' tid eff,
   m / ths ~~[tid, eff]~~> m' / ths' ->
   safe_memory_sharing m' ths'.
 Proof.
-  intros. inversion_cstep; eauto using mstep_sms_preservation.
+  intros. inversion_clear_cstep; eauto using mstep_sms_preservation.
   assert (NoMut block) by eauto using nomut_block.
   intros tid1 tid2. intros.
   destruct (Nat.eq_dec tid tid1), (Nat.eq_dec tid tid2); subst; try lia;
   decompose sum (lt_eq_lt_dec tid1 (length ths)); subst; simpl_array;
-  eauto using step_spawn_inherits_acc, step_spawn_preserves_nuacc;
+  eauto using step_spawn_inherits_acc, step_spawn_nuacc_preservation;
   eauto using nomut_then_nuacc;
   eauto using nuacc_unit;
   decompose sum (lt_eq_lt_dec tid2 (length ths)); subst; simpl_array;
-  eauto using step_spawn_inherits_acc, step_spawn_preserves_nuacc;
-  try inversion_acc; intros ?;
+  eauto using step_spawn_inherits_acc, step_spawn_nuacc_preservation;
+  unfold thread_default in *; try inversion_acc; intros ?;
   eauto using consistent_uacc,
     step_spawn_wtr_block, step_spawn_wtr_preservation,
     nomut_then_nuacc.

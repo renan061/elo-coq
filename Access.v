@@ -6,7 +6,7 @@ From Elo Require Import Array.
 From Elo Require Import Core.
 
 (* A term accesses an address if it refers to the address directly or 
-indirectly. *)
+indirectly. Ignores <spawn> blocks. *)
 Inductive access (m : mem) : tm -> addr -> Prop :=
   | acc_mem : forall ad ad' T,
     ad <> ad' ->
@@ -100,10 +100,9 @@ Qed.
 
 Lemma acc_length : forall m ad ad',
   access m m[ad'].tm ad ->
-  ad' < length m.
+  ad' < #m.
 Proof.
-  intros * Hacc.
-  decompose sum (lt_eq_lt_dec ad' (length m)); subst; trivial;
+  intros * Hacc. decompose sum (lt_eq_lt_dec ad' (#m)); subst; trivial;
   simpl_array; try lia; inversion Hacc.
 Qed.
 
@@ -182,7 +181,7 @@ Ltac inversion_nacc Hnacc :=
   eapply nacc_iff in Hnacc; inversion Hnacc; subst; eauto using access.
 
 (* ------------------------------------------------------------------------- *)
-(* preservation helpers                                                      *)
+(* properties                                                                *)
 (* ------------------------------------------------------------------------- *)
 
 Lemma subst_acc : forall m x Tx t t' ad,

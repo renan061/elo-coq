@@ -97,18 +97,6 @@ Qed.
 (* Mem -- Add                                                                *)
 (* ------------------------------------------------------------------------- *)
 
-Local Lemma todo1 : forall m t ad v,
-  ~ access (m +++ v) t (length m) ->
-  access (m +++ v) t ad ->
-  access m t ad.
-Proof.
-  intros * Hnacc Hacc. induction Hacc;
-  inversion_nacc Hnacc; eauto using access.
-  decompose sum (lt_eq_lt_dec ad' (length m)); subst;
-  simpl_array; eauto using access; try contradiction.
-  auto_specialize. simpl in *. inversion_acc.
-Qed.
-
 Lemma mem_add_nacc_length : forall m t v,
   ~ access m t (length m) ->
   ~ access (m +++ v) t (length m).

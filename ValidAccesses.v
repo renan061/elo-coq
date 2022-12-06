@@ -89,7 +89,7 @@ Ltac inversion_vac :=
   end.
 
 (* ------------------------------------------------------------------------- *)
-(* preservation derives from valid-addresses                                 *)
+(* valid-accesses derives from valid-addresses                               *)
 (* ------------------------------------------------------------------------- *)
 
 Local Lemma acc_then_hasad : forall m t ad,
