@@ -299,13 +299,36 @@ Qed.
 (* preservation                                                              *)
 (* ------------------------------------------------------------------------- *)
 
+From Elo Require Import HasAddress.
+From Elo Require Import ValidAddresses.
+
+Local Lemma todo : forall m t ad,
+  access m t ad ->
+  HasAddress ad t \/ (exists ad', HasAddress ad m[ad'].tm).
+Proof.
+  intros * Hacc. induction Hacc;
+  try destruct IHHacc as [? | [? ?]];
+  eauto using HasAddress.
+Qed.
+
 Local Lemma step_spawn_block_vac : forall m t t' block,
+  forall_memory m (valid_addresses m) ->
+  valid_addresses m t ->
+  valid_accesses m t ->
   t --[EF_Spawn block]--> t' ->
   valid_accesses m block.
 Proof.
-Abort.
+  intros. induction_step;
+  inversion_va; try inversion_vac; eauto. 
+  intros ? ?. specialize (H0 ad).
+  assert (HasAddress ad block \/ (exists ad', HasAddress ad m[ad'].tm))
+    as [? | [? ?]] by eauto using todo; eauto.
+  specialize (H x). simpl in *. eauto.
+Qed.
 
 Theorem valid_accesses_term_preservation : forall m m' ths ths' tid eff,
+  forall_memory m (valid_addresses m) ->
+  forall_threads ths (valid_addresses m) ->
   forall_memory m (valid_accesses m) ->
   forall_threads ths (valid_accesses m) ->
   m / ths ~~[tid, eff]~~> m' / ths' ->
@@ -314,10 +337,10 @@ Proof.
   intros. eapply cstep_preservation; eauto; intros.
   - eauto using mstep_vac_preservation.
   - inversion_mstep; eauto using mem_add_vac, mem_set_vac, step_write_value_vac.
-  - admit.
+  - eauto using step_spawn_block_vac.
   - eauto using step_spawn_vac_preservation.
   - unfold thread_default. eauto using vac_unit.
-Abort.
+Qed.
 
 Theorem valid_accesses_memory_preservation : forall m m' ths ths' tid eff,
   forall_threads ths (valid_accesses m) ->
