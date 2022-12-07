@@ -4,6 +4,8 @@ From Coq Require Import Lia.
 From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Core.
+From Elo Require Import HasAddress.
+From Elo Require Import ValidAddresses.
 
 (* A term accesses an address if it refers to the address directly or 
 indirectly. Ignores <spawn> blocks. *)
@@ -181,7 +183,123 @@ Ltac inversion_nacc Hnacc :=
   eapply nacc_iff in Hnacc; inversion Hnacc; subst; eauto using access.
 
 (* ------------------------------------------------------------------------- *)
-(* properties                                                                *)
+(* valid-accesses                                                            *)
+(* ------------------------------------------------------------------------- *)
+
+Definition valid_accesses (m : mem) (t : tm) :=
+  forall ad, access m t ad -> ad < length m.
+
+Lemma vac_length : forall m t ad,
+  valid_accesses m t ->
+  access m t ad ->
+  ad < #m.
+Proof.
+  intros * Hvac Hacc.
+  decompose sum (lt_eq_lt_dec ad (#m)); subst; trivial.
+  - specialize (Hvac (#m) Hacc). lia.
+  - specialize (Hvac ad Hacc). lia.
+Qed.
+
+Lemma vac_nacc_length : forall m t,
+  valid_accesses m t ->
+  ~ access m t (#m).
+Proof.
+  intros * ? F. eapply vac_length in F; eauto. lia.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* inversion -- valid-accesses                                               *)
+(* ------------------------------------------------------------------------- *)
+
+Local Ltac solve_vac_inversion := 
+  intros; unfold valid_accesses in *; try split; eauto using access.
+
+Local Lemma inv_vac_ref : forall m ad T,
+  valid_accesses m <{ &ad :: T }> ->
+  valid_accesses m m[ad].tm.
+Proof.
+  intros; unfold valid_accesses in *; eauto using access.
+  intros ad'. destruct (Nat.eq_dec ad ad'); subst; eauto using access.
+Qed.
+
+Local Lemma inv_vac_new : forall m t T,
+  valid_accesses m <{ new T t }> ->
+  valid_accesses m t.
+Proof. solve_vac_inversion. Qed.
+
+Local Lemma inv_vac_load : forall m t,
+  valid_accesses m <{ *t }> ->
+  valid_accesses m t.
+Proof. solve_vac_inversion. Qed.
+
+Local Lemma inv_vac_asg : forall m t1 t2,
+  valid_accesses m <{ t1 = t2 }> ->
+  valid_accesses m t1 /\ valid_accesses m t2.
+Proof. solve_vac_inversion. Qed.
+
+Local Lemma inv_vac_fun : forall m x Tx t,
+  valid_accesses m <{ fn x Tx --> t }> ->
+  valid_accesses m t.
+Proof. solve_vac_inversion. Qed.
+
+Local Lemma inv_vac_call : forall m t1 t2,
+  valid_accesses m <{ call t1 t2 }> ->
+  valid_accesses m t1 /\ valid_accesses m t2.
+Proof. solve_vac_inversion. Qed.
+
+Local Lemma inv_vac_seq : forall m t1 t2,
+  valid_accesses m <{ t1; t2 }> ->
+  valid_accesses m t1 /\ valid_accesses m t2.
+Proof. solve_vac_inversion. Qed.
+
+Ltac inversion_vac :=
+  match goal with
+  | H: valid_accesses _ <{ &_ :: _  }> |- _ => eapply inv_vac_ref  in H as Hwba'
+  | H: valid_accesses _ <{ new _ _  }> |- _ => eapply inv_vac_new  in H
+  | H: valid_accesses _ <{ * _      }> |- _ => eapply inv_vac_load in H
+  | H: valid_accesses _ <{ _ = _    }> |- _ => eapply inv_vac_asg  in H as [? ?]
+  | H: valid_accesses _ <{ fn _ _ --> _ }> |- _ => eapply inv_vac_fun in H
+  | H: valid_accesses _ <{ call _ _ }> |- _ => eapply inv_vac_call in H as [? ?]
+  | H: valid_accesses _ <{ _ ; _    }> |- _ => eapply inv_vac_seq  in H as [? ?]
+  end.
+
+(* ------------------------------------------------------------------------- *)
+(* valid-accesses derives from valid-addresses                               *)
+(* ------------------------------------------------------------------------- *)
+
+Local Lemma acc_then_hasad : forall m t ad,
+  access m t ad ->
+  HasAddress ad t \/ (exists ad', HasAddress ad m[ad'].tm).
+Proof.
+  intros * Hacc.
+  induction Hacc; try destruct IHHacc as [? | [? ?]]; eauto using HasAddress.
+Qed.
+
+Theorem vad_then_vac : forall m t,
+  valid_addresses m t ->
+  forall_memory m (valid_addresses m) ->
+  valid_accesses m t.
+Proof.
+  intros. intros ? ?. unfold forall_memory in *. unfold valid_addresses in *.
+  assert (HasAddress ad t \/ (exists ad', HasAddress ad m[ad'].tm))
+    as [? | [? ?]];
+  eauto using acc_then_hasad.
+Qed.
+
+Theorem vad_then_mem_vac : forall m t,
+  valid_addresses m t ->
+  forall_memory m (valid_addresses m) ->
+  forall_memory m (valid_accesses m).
+Proof.
+  intros. intros ad' ? ?.
+  unfold forall_memory in *. unfold valid_addresses in *.
+  assert (HasAddress ad m[ad'].tm \/ (exists ad'', HasAddress ad m[ad''].tm))
+    as [? | [? ?]];
+  eauto using acc_then_hasad.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* access properties -- subst                                                *)
 (* ------------------------------------------------------------------------- *)
 
 Lemma subst_acc : forall m x Tx t t' ad,
@@ -211,5 +329,101 @@ Lemma subst_nacc : forall m t tx ad x Tx,
   ~ access m ([x := tx] t) ad.
 Proof.
   intros * Hnacc ?. inversion_nacc Hnacc; eauto using subst_nacc'.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* access properties -- memory                                               *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma mem_add_acc : forall m t ad vTr,
+  ~ access m t (#m) ->
+  access (m +++ vTr) t ad ->
+  access m t ad.
+Proof.
+  intros * Hnacc Hacc. remember (m +++ vTr) as m'.
+  induction Hacc; inversion Heqm'; subst; inversion_nacc Hnacc.
+  decompose sum (lt_eq_lt_dec ad' (#m)); subst; try lia;
+  simpl_array; eauto using access. simpl in *. inversion_acc.
+Qed.
+
+Lemma mem_set_acc : forall m t ad ad' vTr,
+  ~ access m t ad' ->
+  access m[ad' <- vTr] t ad ->
+  access m t ad.
+Proof.
+  intros * Hnacc Hacc.  remember (m[ad' <- vTr]) as m'.
+  induction Hacc; inversion_subst_clear Heqm'; inversion_nacc Hnacc;
+  simpl_array; eauto using access.
+Qed.
+
+Local Lemma mem_set_acc' : forall m t ad ad' v Tr,
+  ~ access m v ad ->
+  access m[ad' <- (v, Tr)] t ad ->
+  access m t ad.
+Proof.
+  intros * Hnacc Hacc. remember (m[ad' <- (v, Tr)]) as m'.
+  induction Hacc; try rename IHHacc into IH;
+  inversion_subst_clear Heqm'; eauto using access.
+  match goal with |- access _ <{ & ?ad :: _ }> _ => rename ad into ad'' end.
+  destruct (Nat.eq_dec ad' ad''); subst;
+  try simpl_array; eauto using access;
+  destruct (Nat.eq_dec ad'' ad); subst; eauto using access.
+  auto_specialize. rewrite (get_set_eq memory_default) in IH. 1: contradiction.
+  eapply not_le. intros Hlen. simpl_array. 
+  eapply Nat.lt_eq_cases in Hlen as [? | ?]; subst;
+  simpl_array; simpl in *; inversion_acc.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* access properties -- inheritance                                          *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma step_none_inherits_access : forall m t t' ad,
+  access m t' ad ->
+  t --[EF_None]--> t' ->
+  access m t ad.
+Proof.
+  intros. induction_step; try inversion_acc; eauto using access, subst_acc.
+Qed.
+
+Lemma step_alloc_inherits_acc : forall m t t' ad v Tr,
+  valid_accesses m t ->
+  ad <> #m ->
+  access (m +++ (v, Tr)) t' ad ->
+  t --[EF_Alloc (#m) v Tr]--> t' ->
+  access m t ad.
+Proof.
+  intros. induction_step;
+  inversion_vac; inversion_acc; eauto using access; try lia; try simpl_array;
+  eauto using mem_add_acc, vac_nacc_length, access.
+Qed.
+
+Lemma step_read_inherits_acc : forall m t t' ad ad',
+  access m t' ad ->
+  t --[EF_Read ad' m[ad'].tm]--> t' ->
+  access m t ad.
+Proof.
+  intros. induction_step; try inversion_acc; eauto using access.
+  destruct (Nat.eq_dec ad' ad); subst; eauto using access.
+Qed.
+
+Lemma step_write_inherits_acc : forall m t t' ad ad' v Tr,
+  access m[ad' <- (v, Tr)] t' ad ->
+  t --[EF_Write ad' v Tr]--> t' ->
+  access m t ad.
+Proof.
+  intros. induction_step; inversion_acc; eauto using access;
+  destruct (acc_dec m v ad); eauto using mem_set_acc', access;
+  assert (forall t t', t --[EF_Write ad' v Tr]--> t' -> access m t ad)
+    by (intros; induction_step; eauto using access);
+  eauto using access.
+Qed.
+
+Lemma step_spawn_inherits_acc : forall m t t' block ad,
+  access m t' ad ->
+  t --[EF_Spawn block]--> t' ->
+  access m t ad.
+Proof.
+  intros. induction_step; inversion_acc; eauto using access.
 Qed.
 
