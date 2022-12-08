@@ -5,7 +5,6 @@ From Elo Require Import Array.
 From Elo Require Import Map.
 From Elo Require Import Core.
 From Elo Require Import Access.
-From Elo Require Import Soundness.
 From Elo Require Import UnsafeAccess.
 
 (* ------------------------------------------------------------------------- *)
@@ -476,21 +475,43 @@ Proof.
 Qed.
 
 Theorem safe_spawns_preservation : forall m m' ths ths' tid eff,
-  forall_threads ths well_typed_thread ->
-  forall_memory m SafeSpawns ->
-  forall_threads ths SafeSpawns ->
+  forall_threads ths well_typed ->
+  forall_program m ths SafeSpawns ->
   m / ths ~~[tid, eff]~~> m' / ths' ->
-  (forall_memory m' SafeSpawns /\ forall_threads ths' SafeSpawns).
+  forall_program m' ths' SafeSpawns.
 Proof.
-  intros * H; intros. split; inversion_cstep;
+  intros * Htype [? ?]. split; inversion_cstep;
   eauto using mstep_mem_safe_spawns_preservation.
   - eapply forall_array_set;
-    eauto using SafeSpawns. specialize (H tid) as [? ?].
+    eauto using SafeSpawns. specialize (Htype tid) as [? ?].
     eauto using mstep_tm_safe_spawns_preservation. (* performance *)
   - eapply forall_array_add; eauto using SafeSpawns, safe_spawns_for_block.
     eapply forall_array_set;
     eauto using SafeSpawns, step_safe_spawns_preservation.
 Qed.
+
+From Elo Require Import ValidAddresses.
+From Elo Require Import References.
+From Elo Require Import Soundness.
+
+Theorem safe_spawns_multistep_preservation : forall m m' ths ths' tc,
+  forall_program m ths well_typed ->
+  forall_program m ths (valid_addresses m) ->
+  forall_program m ths (well_typed_references m) ->
+  (* --- *)
+  forall_program m ths SafeSpawns ->
+  m / ths ~~[tc]~~>* m' / ths' ->
+  forall_program m' ths' SafeSpawns.
+Proof.
+  intros * ? ? ? ? Hmultistep. induction Hmultistep; eauto.
+  destruct IHHmultistep; eauto.
+  eapply (safe_spawns_preservation m' m'' ths' ths''); eauto.
+  eapply well_typed_multistep_preservation; eauto.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+(*                                                                           *)
+(* ------------------------------------------------------------------------- *)
 
 Lemma nomut_block : forall t t' block,
   SafeSpawns t ->

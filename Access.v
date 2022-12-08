@@ -298,6 +298,14 @@ Proof.
   eauto using acc_then_hasad.
 Qed.
 
+Corollary forall_threads_vad_then_vac : forall m ths,
+  forall_threads ths (valid_addresses m) ->
+  forall_memory m (valid_addresses m) ->
+  forall_threads ths (valid_accesses m).
+Proof.
+  intros. intros ?. eauto using vad_then_vac.
+Qed.
+
 (* ------------------------------------------------------------------------- *)
 (* access properties -- subst                                                *)
 (* ------------------------------------------------------------------------- *)

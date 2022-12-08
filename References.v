@@ -264,7 +264,7 @@ Local Lemma mstep_mem_wtr_preservation : forall m m' t t' eff T,
   valid_addresses m t ->
   forall_memory m (valid_addresses m) ->
   well_typed_references m t ->
-  forall_memory m well_typed_tm ->
+  forall_memory m well_typed ->
   forall_memory m (well_typed_references m) ->
   m / t ==[eff]==> m' / t' ->
   forall_memory m' (well_typed_references m').
@@ -289,15 +289,15 @@ Qed.
 (* preservation                                                              *)
 (* ------------------------------------------------------------------------- *)
 
-Theorem well_typed_references_preservation : forall m m' ths ths' tid eff,
-  forall_threads ths well_typed_thread ->
+Theorem well_typed_references_term_preservation : forall m m' ths ths' tid eff,
+  forall_threads ths well_typed ->
   forall_threads ths (valid_addresses m) ->
-  forall_memory m (well_typed_references m) ->
-  forall_threads ths (well_typed_references m) ->
+  (* --- *)
+  forall_program m ths (well_typed_references m) ->
   m / ths ~~[tid, eff]~~> m' / ths' ->
   forall_threads ths' (well_typed_references m').
 Proof.
-  intros * Htype. intros. eapply cstep_preservation; eauto; intros.
+  intros * Htype ? [? ?]. intros. eapply cstep_preservation; eauto; intros.
   - destruct (Htype tid'). eauto using mstep_wtr_preservation.
   - inversion_mstep; eauto using mem_add_wtr.
     destruct (Htype tid).
@@ -309,5 +309,18 @@ Proof.
   - eauto using step_spawn_wtr_block.
   - eauto using step_spawn_wtr_preservation.
   - eauto using well_typed_references.
+Qed.
+
+Theorem well_typed_references_memory_preservation :
+  forall m m' ths ths' tid eff,
+    forall_program m ths well_typed ->
+    forall_program m ths (valid_addresses m) ->
+    (* --- *)
+    forall_program m ths (well_typed_references m) ->
+    m / ths ~~[tid, eff]~~> m' / ths' ->
+    forall_memory m' (well_typed_references m').
+Proof.
+  intros * [? Htype] [? ?] [? ?]. intros. inversion_clear_cstep; trivial.
+  destruct (Htype tid). eauto using mstep_mem_wtr_preservation.
 Qed.
 

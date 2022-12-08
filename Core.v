@@ -105,6 +105,9 @@ Reserved Notation "m / t '==[' eff ']==>' m' / t'"
 Reserved Notation "m / ths '~~[' tid , eff ']~~>' m' / ths'"
   (at level 40, ths at next level, tid at next level, eff at next level,
                 m' at next level).
+Reserved Notation "m / t '~~[' tc ']~~>*' m' / t'"
+  (at level 40, t at next level, tc at next level,
+                m' at next level, t' at next level).
 Reserved Notation "Gamma '|--' t 'is' T"
   (at level 40).
 
@@ -281,6 +284,23 @@ Inductive cstep : mem -> threads -> nat -> effect -> mem -> threads -> Prop :=
     (cstep m ths tid eff m' ths').
 
 (* ------------------------------------------------------------------------- *)
+(* multistep                                                                 *)
+(* ------------------------------------------------------------------------- *)
+
+Definition trace := list (nat * effect).
+
+Inductive multistep : mem -> threads -> trace -> mem -> threads -> Prop :=
+  | cmultistep_refl: forall m ths,
+    m / ths ~~[nil]~~>* m / ths
+
+  | cmultistep_trans : forall m m' m'' ths ths' ths'' tc tid eff,
+    m  / ths  ~~[tc]~~>* m'  / ths'  ->
+    m' / ths' ~~[tid, eff]~~> m'' / ths'' ->
+    m  / ths  ~~[(tid, eff) :: tc]~~>* m'' / ths''
+
+  where "m / t '~~[' tc ']~~>*' m' / t'" := (multistep m t tc m' t').
+
+(* ------------------------------------------------------------------------- *)
 (* typing                                                                    *)
 (* ------------------------------------------------------------------------- *)
 
@@ -380,8 +400,12 @@ Definition forall_memory (m : mem) P : Prop :=
 Definition forall_threads (ths : threads) P : Prop :=
   forall_array thread_default P ths.
 
-Definition well_typed_tm := fun t => exists T, empty |-- t is T.
-Definition well_typed_thread := well_typed_tm.
+Definition forall_program (m : mem) (ths : threads) P : Prop :=
+  (forall_memory m P) /\ (forall_threads ths P).
+
+Definition well_typed := fun t => exists T, empty |-- t is T.
+
+Global Hint Unfold forall_program : core.
 
 (* ------------------------------------------------------------------------- *)
 (* determinism                                                               *)
@@ -442,6 +466,16 @@ Ltac inversion_cstep :=
 Ltac inversion_clear_cstep :=
   match goal with
   | H : _ / _ ~~[_, _]~~> _ / _ |- _ => inversion_subst_clear H
+  end.
+
+Ltac inversion_multistep :=
+  match goal with
+  | H : _ / _ ~~[_]~~>* _ / _ |- _ => inversion H; subst
+  end.
+
+Ltac inversion_clear_multistep :=
+  match goal with
+  | H : _ / _ ~~[_]~~>* _ / _ |- _ => inversion_subst_clear H
   end.
 
 Ltac induction_type :=

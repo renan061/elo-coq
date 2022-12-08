@@ -274,12 +274,11 @@ Qed.
 (* ------------------------------------------------------------------------- *)
 
 Theorem valid_addresses_term_preservation : forall m m' ths ths' tid eff,
-  forall_memory m (valid_addresses m) ->
-  forall_threads ths (valid_addresses m) ->
+  forall_program m ths (valid_addresses m) ->
   m / ths ~~[tid, eff]~~> m' / ths' ->
   forall_threads ths' (valid_addresses m').
 Proof.
-  intros. eapply cstep_preservation; eauto.
+  intros * [? ?]. intros. eapply cstep_preservation; eauto.
   - eauto using mstep_vad_preservation.
   - intros. intros ? ?. unfold valid_addresses in *. inversion_mstep; eauto;
     (rewrite add_increments_length || rewrite set_preserves_length);
@@ -290,11 +289,23 @@ Proof.
 Qed.
 
 Theorem valid_addresses_memory_preservation : forall m m' ths ths' tid eff,
-  forall_threads ths (valid_addresses m) ->
-  forall_memory m (valid_addresses m) ->
+  forall_program m ths (valid_addresses m) ->
   m / ths ~~[tid, eff]~~> m' / ths' ->
   forall_memory m' (valid_addresses m').
 Proof.
-  intros. inversion_cstep; eauto using mstep_mem_vad_preservation.
+  intros * [? ?]. intros.
+  inversion_cstep; eauto using mstep_mem_vad_preservation.
+Qed.
+
+Theorem valid_addresses_multistep_preservation : forall m m' ths ths' tc,
+  forall_program m ths (valid_addresses m) ->
+  m / ths ~~[tc]~~>* m' / ths' ->
+  forall_memory m' (valid_addresses m') /\
+  forall_threads ths' (valid_addresses m').
+Proof.
+  intros * [? ?] Hmultistep. induction Hmultistep; eauto.
+  destruct IHHmultistep; eauto; split;
+  eauto using valid_addresses_term_preservation,
+    valid_addresses_memory_preservation.
 Qed.
 

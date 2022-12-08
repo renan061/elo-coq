@@ -7,7 +7,6 @@ From Elo Require Import Map.
 From Elo Require Import Core.
 From Elo Require Import Contains.
 From Elo Require Import Access.
-From Elo Require Import ValidAccesses.
 From Elo Require Import References.
 
 (* There is a mutable pointer to <ad> in the term. *)
