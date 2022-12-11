@@ -435,3 +435,9 @@ Proof.
   intros. induction_step; inversion_acc; eauto using access.
 Qed.
 
+Corollary mstep_write_inherits_acc : forall m m' t t' ad ad' v Tr,
+  access m[ad' <- (v, Tr)] t' ad ->
+  m / t ==[EF_Write ad' v Tr]==> m' / t' ->
+  access m t ad.
+Proof. intros. inversion_mstep. eauto using step_write_inherits_acc. Qed.
+

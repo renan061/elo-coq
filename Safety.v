@@ -31,7 +31,6 @@ Inductive mmultistep : mem -> tm -> mtrace -> mem -> tm -> Prop :=
 
   where "m / t '==[' tc ']==>*' m' / t'" := (mmultistep m t tc m' t').
 
-
 (* ------------------------------------------------------------------------- *)
 (*                                                                           *)
 (* ------------------------------------------------------------------------- *)
@@ -130,24 +129,40 @@ Proof.
   inversion_type. eauto using UnsafeAccess.
 Qed.
 
-Theorem safety : forall m m' ths ths' tid1 tid2 ad v v' tc Tr,
+Theorem safety : forall m m' ths ths' tid1 tid2 ad v1 v2 tc Tr,
   forall_threads ths well_typed ->
   safe_memory_sharing m ths ->
   tid1 <> tid2 ->
-  m / ths ~~[(tid1, EF_Read  ad v    ) :: tc ++
-             (tid2, EF_Write ad v' Tr) :: nil]~~>* m' / ths' ->
+  m / ths ~~[(tid1, EF_Read  ad v1   ) :: tc ++
+             (tid2, EF_Write ad v2 Tr) :: nil]~~>* m' / ths' ->
   False.
 Proof.
-  intros * Htype Hsms Hneq Hcmultistep.
-  inversion_subst_clear Hcmultistep.
-  assert (Hacc : access m'0 ths'0[tid1] ad)
+  intros * Htype Hsms Hneq Hmultistep.
+  inversion_subst_clear Hmultistep.
+  assert (Hacc' : access m'0 ths'0[tid1] ad)
     by eauto using cstep_read_requires_acc.
-  assert (safe_memory_sharing)
-  destruct tc.
-  - inversion H6; subst.
-    inversion H7; subst.
+  induction tc.
+  - inversion_multistep.
+    inversion_multistep.
     assert (Huacc : UnsafeAccess m'1 ths'1[tid2] ad)
       by eauto using cstep_write_requires_uacc.
+
+    rename m'1 into m;  rename ths'1 into ths;
+
+    rename H9 into First.
+    rename H7 into Second.
+
+    inversion First; subst. inversion H0; subst.
+    inversion Second; subst. inversion H2; subst.
+
+    simpl_array.
+    eapply (Hsms tid2 tid1); eauto.
+    destruct (acc_dec m ths[tid1] ad);
+    eauto using mem_set_acc.
+  - rename m' into m'''. rename ths' into ths'''.
+    rename m'0 into m''. rename ths'0 into ths''.
+    inversion_clear_multistep.
+
 
 Qed.
 
