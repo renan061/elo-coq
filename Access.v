@@ -505,7 +505,7 @@ Proof.
 Qed.
 
 Local Lemma step_alloc_nacc_preservation : forall m t t' ad v Tr,
-  ad <> #m ->
+  ad < #m ->
   valid_accesses m t ->
   ~ access m t ad ->
   t --[EF_Alloc (#m) v Tr]--> t' ->
@@ -514,7 +514,7 @@ Proof.
   intros * ? ? Hnacc. intros.
   induction_step; inversion_vac; inversion_nacc Hnacc;
   eapply nacc_iff; eauto using vac_nacc_length, mem_add_nacc, not_access.
-  eapply nacc_ref; eauto. simpl_array. simpl in *.
+  eapply nacc_ref; eauto using not_eq_sym, Nat.lt_neq. simpl_array. simpl in *.
   eauto using vac_nacc_length, mem_add_nacc.
 Qed.
 
@@ -545,7 +545,7 @@ Proof.
 Qed.
 
 Corollary mstep_nacc_preservation : forall m m' t t' ad eff,
-  ad <> #m ->
+  ad < #m ->
   valid_accesses m t ->
   ~ access m t ad ->
   m / t ==[eff]==> m' / t' ->

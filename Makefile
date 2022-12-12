@@ -24,6 +24,7 @@ safety: soundness
 	$(COQC) UnsafeAccess.v
 	$(COQC) SafeSpawns.v
 	$(COQC) SMS.v
+	$(COQC) Multistep.v
 	$(COQC) Safety.v
 
 clean:

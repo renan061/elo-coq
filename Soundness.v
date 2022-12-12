@@ -133,16 +133,6 @@ Qed.
 
 
 
-Theorem well_typed_multistep_preservation : forall m m' ths ths' tc,
-  forall_program m ths (valid_addresses m) ->
-  (* --- *)
-  forall_program m ths well_typed ->
-  forall_program m ths (well_typed_references m) ->
-  m / ths ~~[tc]~~>* m' / ths' ->
-  forall_program m' ths' well_typed /\
-  forall_program m' ths' (well_typed_references m').
-Proof.
-Admitted.
 
 (*
 Ltac solve_with_steps :=

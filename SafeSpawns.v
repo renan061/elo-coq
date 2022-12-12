@@ -490,25 +490,6 @@ Proof.
     eauto using SafeSpawns, step_safe_spawns_preservation.
 Qed.
 
-From Elo Require Import ValidAddresses.
-From Elo Require Import References.
-From Elo Require Import Soundness.
-
-Theorem safe_spawns_multistep_preservation : forall m m' ths ths' tc,
-  forall_program m ths well_typed ->
-  forall_program m ths (valid_addresses m) ->
-  forall_program m ths (well_typed_references m) ->
-  (* --- *)
-  forall_program m ths SafeSpawns ->
-  m / ths ~~[tc]~~>* m' / ths' ->
-  forall_program m' ths' SafeSpawns.
-Proof.
-  intros * ? ? ? ? Hmultistep. induction Hmultistep; eauto.
-  destruct IHHmultistep; eauto.
-  eapply (safe_spawns_preservation m' m'' ths' ths''); eauto.
-  eapply well_typed_multistep_preservation; eauto.
-Qed.
-
 (* ------------------------------------------------------------------------- *)
 (*                                                                           *)
 (* ------------------------------------------------------------------------- *)

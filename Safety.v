@@ -1,4 +1,4 @@
-From Coq Require Import Arith.Arith.
+From Coq Require Import Arith.
 From Coq Require Import Lists.List.
 From Coq Require Import Lia.
 
@@ -6,9 +6,13 @@ From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Map.
 From Elo Require Import Core.
+From Elo Require Import ValidAddresses.
 From Elo Require Import Access.
+From Elo Require Import References.
 From Elo Require Import UnsafeAccess.
+From Elo Require Import SafeSpawns.
 From Elo Require Import SMS.
+From Elo Require Import Multistep.
 
 Reserved Notation "m / t '==[' tc ']==>*' m' / t'"
   (at level 40, t at next level, tc at next level,
@@ -35,7 +39,7 @@ Inductive mmultistep : mem -> tm -> mtrace -> mem -> tm -> Prop :=
 (*                                                                           *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma monotonic_nondecreasing_memory_length: forall m m' eff t t',
+Lemma monotonic_nondecreasing_memory_length' : forall m m' eff t t',
   m / t ==[eff]==>* m' / t' ->
   #m <= #m'.
 Proof.
@@ -92,7 +96,7 @@ Proof.
     H : _ / _ ==[_]==>* _ / _ |- _ =>
       eapply destruct_multistep' in H as [? [? [? Hmultistep']]]
     end.
-    eapply monotonic_nondecreasing_memory_length in Hmultistep'.
+    eapply monotonic_nondecreasing_memory_length' in Hmultistep'.
     match goal with
     H1 : _ / _ ==[_]==> _ / _,
     H2 : _ / _ ==[_]==> _ / _ |- _ =>
@@ -146,55 +150,56 @@ Proof.
 Qed.
 
 Theorem safety : forall m m' ths ths' tid1 tid2 ad v1 v2 tc Tr,
-  forall_threads ths well_typed ->
+  forall_memory m value ->
+  forall_program m ths well_typed ->
+  forall_program m ths (valid_addresses m) ->
+  forall_program m ths (well_typed_references m) ->
+  forall_program m ths SafeSpawns ->
   safe_memory_sharing m ths ->
+  (* --- *)
   tid1 <> tid2 ->
   m / ths ~~[(tid1, EF_Read  ad v1   ) :: tc ++
              (tid2, EF_Write ad v2 Tr) :: nil]~~>* m' / ths' ->
   False.
 Proof.
-  intros * Htype Hsms Hneq Hmultistep.
-  inversion_subst_clear Hmultistep.
-  assert (Hacc' : access m'0 ths'0[tid1] ad)
+  intros * ? [? ?] [? ?] ? ? Hsms. intros. inversion_clear_multistep.
+  rename m'0 into m3. rename ths'0 into ths3.
+  assert (Hacc' : access m3 ths3[tid1] ad)
     by eauto using cstep_read_requires_acc.
-  induction tc.
-  - inversion_multistep.
-    inversion_multistep.
-    assert (Huacc : UnsafeAccess m'1 ths'1[tid2] ad)
-      by eauto using cstep_write_requires_uacc.
-
-    rename m'1 into m;  rename ths'1 into ths;
-
-    rename H9 into First.
-    rename H7 into Second.
-
-    inversion First; subst. inversion H0; subst.
-    inversion Second; subst. inversion H2; subst.
-
-    simpl_array.
-    eapply (Hsms tid2 tid1); eauto.
-    destruct (acc_dec m ths[tid1] ad);
-    eauto using mem_set_acc.
-  - rename m' into m'''. rename ths' into ths'''.
-    rename m'0 into m''. rename ths'0 into ths''.
-
-    clear IHtc.
-
-    inversion_multistep.
-
-    clear H7.
-    eapply destruct_multistep in H3 as [m2 [ths2 [Hcstep Hmultistep]]].
-
-    assert (Huacc : UnsafeAccess m ths[tid2] ad)
-      by eauto using cstep_write_requires_uacc.
-    destruct (acc_dec m ths[tid1] ad);
-    try solve [eapply (Hsms tid2 tid1); eauto].
-    eauto using mem_set_acc.
-    
-    eapply cstep_nacc_multistep_preservation; eauto.
-
+  match goal with
+  | H1 : _ / _ ~~[ _    ]~~>* _ / _
+  , H2 : _ / _ ~~[ _, _ ]~~>  _ / _
+  |- _ =>
+    rename H1 into Hmultistep; rename H2 into H3_cstep
+  end.
+  eapply destruct_multistep in Hmultistep
+    as [m2 [ths2 [H1_cstep H2_Hmultistep]]].
+  assert (Huacc : UnsafeAccess m ths[tid2] ad)
+    by eauto using cstep_write_requires_uacc.
+  destruct (acc_dec m ths[tid1] ad);
+  try solve [eapply (Hsms tid2 tid1); eauto].
+  assert (forall_threads ths (valid_accesses m))
+    by eauto using forall_threads_vad_then_vac.
+  assert (ad < #m) by eauto using vac_length, cstep_write_requires_uacc,
+    uacc_then_acc.
+  assert (ad < #m2) by eauto using Nat.lt_le_trans,
+    monotonic_nondecreasing_memory_length, multistep.
+  decompose sum (lt_eq_lt_dec tid1 (#ths)); subst.
+  - assert (tid1 < #ths2) by eauto using Nat.lt_le_trans,
+      monotonic_nondecreasing_threads_length, multistep.
+    eapply (not_access_multistep_preservation m2 m3 ths2 ths3); eauto.
+    + eapply memory_value_multistep_preservation; eauto using multistep.
+    + eapply well_typed_multistep_preservation; eauto using multistep.
+    + eapply valid_addresses_multistep_preservation; eauto using multistep.
+    + eapply well_typed_multistep_preservation; eauto using multistep.
+    + eapply safe_spawns_multistep_preservation; eauto using multistep.
+    + eapply safe_memory_sharing_multistep_preservation; eauto using multistep.
+    + eapply (not_access_multistep_preservation m m2 ths ths2);
+      eauto using multistep.
+  - inversion H1_cstep; subst.
+    admit.
+  -
 Qed.
-
 
 (* ------------------------------------------------------------------------- *)
 (* TODO                                                                      *)

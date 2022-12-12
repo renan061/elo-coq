@@ -468,6 +468,11 @@ Ltac inversion_clear_cstep :=
   | H : _ / _ ~~[_, _]~~> _ / _ |- _ => inversion_subst_clear H
   end.
 
+Ltac induction_multistep :=
+  match goal with
+  | H : _ / _ ~~[_]~~>* _ / _ |- _ => induction H
+  end.
+
 Ltac inversion_multistep :=
   match goal with
   | H : _ / _ ~~[_]~~>* _ / _ |- _ => inversion H; subst
