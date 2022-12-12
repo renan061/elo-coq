@@ -56,7 +56,7 @@ Proof.
   intros. inversion_mstep. eauto using add_increments_length.
 Qed.
 
-Lemma destruct_multistep : forall tc eff m0 mF t0 tF,
+Lemma destruct_multistep' : forall tc eff m0 mF t0 tF,
   m0 / t0  ==[tc ++ eff :: nil]==>* mF / tF ->
   (exists m t, m0 / t0 ==[eff]==> m / t /\ m / t ==[tc]==>* mF / tF).
 Proof.
@@ -90,7 +90,7 @@ Proof.
     lia.
   - match goal with
     H : _ / _ ==[_]==>* _ / _ |- _ =>
-      eapply destruct_multistep in H as [? [? [? Hmultistep']]]
+      eapply destruct_multistep' in H as [? [? [? Hmultistep']]]
     end.
     eapply monotonic_nondecreasing_memory_length in Hmultistep'.
     match goal with
@@ -109,6 +109,22 @@ Qed.
 (* ------------------------------------------------------------------------- *)
 (*                                                                           *)
 (* ------------------------------------------------------------------------- *)
+
+Local Lemma destruct_multistep : forall tc m1 m3 ths1 ths3 tid eff,
+  m1 / ths1  ~~[tc ++ (tid, eff) :: nil]~~>* m3 / ths3 ->
+  (exists m2 ths2,
+    m1 / ths1 ~~[tid, eff]~~> m2 / ths2 /\
+    m2 / ths2 ~~[tc]~~>*      m3 / ths3).
+Proof.
+  intros ?. induction tc; intros * Hmultistep;
+  inversion_clear_multistep.
+  - inversion_multistep. do 2 eexists. split; eauto using multistep.
+  - match goal with
+    | Hmultistep : _ / _ ~~[ _ ]~~>* _ / _ |- _ => 
+      decompose record (IHtc _ _ _ _ _ _ Hmultistep);
+      do 2 eexists; split; eauto using multistep
+    end.
+Qed.
 
 Local Lemma cstep_read_requires_acc : forall m m' ths ths' tid ad v,
   m / ths ~~[tid, EF_Read ad v]~~> m' / ths' ->
@@ -161,8 +177,21 @@ Proof.
     eauto using mem_set_acc.
   - rename m' into m'''. rename ths' into ths'''.
     rename m'0 into m''. rename ths'0 into ths''.
-    inversion_clear_multistep.
 
+    clear IHtc.
+
+    inversion_multistep.
+
+    clear H7.
+    eapply destruct_multistep in H3 as [m2 [ths2 [Hcstep Hmultistep]]].
+
+    assert (Huacc : UnsafeAccess m ths[tid2] ad)
+      by eauto using cstep_write_requires_uacc.
+    destruct (acc_dec m ths[tid1] ad);
+    try solve [eapply (Hsms tid2 tid1); eauto].
+    eauto using mem_set_acc.
+    
+    eapply cstep_nacc_multistep_preservation; eauto.
 
 Qed.
 

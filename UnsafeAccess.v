@@ -191,6 +191,16 @@ Proof.
   intros * ? Huacc. induction Huacc; eauto using access.
 Qed.
 
+Lemma step_write_requires_uacc : forall m t t' ad v Tr T,
+  empty |-- t is T ->
+  t --[EF_Write ad v Tr]--> t' ->
+  UnsafeAccess m t ad.
+Proof.
+  intros. generalize dependent T.
+  induction_step; intros * ?; inversion_type; eauto using UnsafeAccess.
+  inversion_type. eauto using UnsafeAccess.
+Qed.
+
 (* ------------------------------------------------------------------------- *)
 (* helpers                                                                   *)
 (* ------------------------------------------------------------------------- *)

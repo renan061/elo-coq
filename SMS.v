@@ -41,16 +41,6 @@ Qed.
 (* mstep preservation                                                        *)
 (* ------------------------------------------------------------------------- *)
 
-Local Lemma step_write_requires_uacc : forall m t t' ad v V T,
-  empty |-- t is T ->
-  t --[EF_Write ad v V]--> t' ->
-  UnsafeAccess m t ad.
-Proof.
-  intros. generalize dependent T.
-  induction_step; intros * ?; inversion_type; eauto using UnsafeAccess.
-  inversion_type. eauto using UnsafeAccess.
-Qed.
-
 Local Lemma step_write_sms_helper : forall m t ad v ths tid tid' V,
   tid <> tid' ->
   forall_threads ths well_typed ->
@@ -254,5 +244,76 @@ Proof.
   - eapply valid_addresses_multistep_preservation; eauto.
   - eapply well_typed_multistep_preservation; eauto.
   - eapply safe_spawns_multistep_preservation; eauto.
+Admitted.
+
+(* ------------------------------------------------------------------------- *)
+(* TODO                                                                      *)
+(* ------------------------------------------------------------------------- *)
+
+Local Lemma todo : forall m t ad ad' v Tr,
+  valid_accesses m t ->
+  ~ access m t ad ->
+  access m[ad' <- (v, Tr)] t ad ->
+  access m t ad'.
+Proof.
+  intros * ? Hnacc Hacc. eapply nacc_iff in Hnacc.
+  induction Hnacc; try inversion_vac; inversion_acc; try lia;
+  try solve [
+    try
+      (  destruct (acc_dec m t ad')
+      || destruct (acc_dec m t1 ad')
+      || destruct (acc_dec m t2 ad')
+      );
+    eauto using access; exfalso;
+    eapply (mem_set_nacc1 _ _ ad ad' (v, Tr)); eauto using vac_nacc_length
+  ];
+  try solve [
+    destruct (acc_dec m t1 ad'); eauto using access;
+    destruct (acc_dec m t2 ad'); eauto using access;
+    exfalso;
+    eapply (mem_set_nacc1 _ _ ad ad' (v, Tr)); eauto using vac_nacc_length
+  ].
+  destruct (Nat.eq_dec ad ad'); subst; eauto using access. simpl_array.
+  rename ad'0 into AD.
+  eapply acc_mem; eauto.
+  destruct (acc_dec m m[ad].tm ad'); trivial. exfalso.
+  eapply (mem_set_nacc1 _ _ AD ad' (v, Tr)); eauto using vac_nacc_length.
+Qed.
+
+Local Lemma cstep_nacc_preservation : forall m m' ths ths' tid tid' ad eff,
+  ad <> #m ->
+  tid < #ths ->
+  forall_threads ths well_typed ->
+  forall_threads ths (valid_accesses m) ->
+  safe_memory_sharing m ths ->
+  ~ access m ths[tid] ad ->
+  m / ths ~~[tid', eff]~~> m' / ths' ->
+  ~ access m' ths'[tid] ad.
+Proof.
+  intros * ? ? Htype ? Hsms. intros. rename ad into ad'.
+  destruct (Htype tid'). inversion_clear_cstep;
+  destruct (Nat.eq_dec tid tid'); subst; simpl_array;
+  eauto using mstep_nacc_preservation, step_spawn_nacc_preservation.
+  inversion_mstep; eauto using vac_nacc_length, mem_add_nacc.
+  assert (UnsafeAccess m ths[tid'] ad) by eauto using step_write_requires_uacc.
+  intros F.
+  eapply todo in F; eauto.
+  eapply (Hsms tid' tid); eauto.
+Qed.
+
+Theorem cstep_nacc_multistep_preservation : forall m m' ths ths' tid ad tc,
+  ad <> #m ->
+  tid < #ths ->
+  forall_threads ths well_typed ->
+  forall_threads ths (valid_accesses m) ->
+  safe_memory_sharing m ths ->
+  ~ access m ths[tid] ad ->
+  m / ths ~~[tc]~~>* m' / ths' ->
+  ~ access m' ths'[tid] ad.
+Proof.
+  intros * ? ? Htype ? Hsms. intros.
+  induction H3; trivial.
+  do 6 auto_specialize.
+  eapply (cstep_nacc_preservation m' _ ths'); eauto.
 Admitted.
 
