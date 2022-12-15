@@ -21,15 +21,6 @@ Definition safe_memory_sharing m ths := forall tid1 tid2 ad,
 (* helpers                                                                   *)
 (* ------------------------------------------------------------------------- *)
 
-Local Lemma step_length_tid : forall t ths tid eff,
-  ths[tid] --[eff]--> t ->
-  tid < #ths.
-Proof.
-  intros * Hstep.
-  decompose sum (lt_eq_lt_dec tid (#ths)); subst; trivial;
-  simpl_array; try lia; inversion_step.
-Qed.
-
 Local Lemma cstep_length_tid : forall m m' ths ths' tid eff,
   m / ths ~~[tid, eff]~~> m' / ths' ->
   tid < #ths.

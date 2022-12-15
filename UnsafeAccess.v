@@ -141,6 +141,8 @@ Ltac inversion_nuacc :=
   match goal with
   | H: ~ UnsafeAccess _ <{ & ?ad' :: _ }> ?ad, Hneq : ?ad <> ?ad' |- _ =>
     eapply (nuacc_mem _ _ _ _ Hneq) in H
+  | H: ~ UnsafeAccess _ <{ & ?ad :: & _ }> ?ad |- _ =>
+    contradict H; eauto using UnsafeAccess
   | H: ~ UnsafeAccess _ <{ new _ _  }> _ |- _ => eapply nuacc_new  in H
   | H: ~ UnsafeAccess _ <{ * _      }> _ |- _ => eapply nuacc_load in H
   | H: ~ UnsafeAccess _ <{ _ = _    }> _ |- _ => eapply nuacc_asg  in H as [? ?]

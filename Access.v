@@ -187,7 +187,7 @@ Ltac inversion_nacc Hnacc :=
 (* ------------------------------------------------------------------------- *)
 
 Definition valid_accesses (m : mem) (t : tm) :=
-  forall ad, access m t ad -> ad < length m.
+  forall ad, access m t ad -> ad < #m.
 
 (* TODO vac_lt_length *)
 Lemma vac_length : forall m t ad,

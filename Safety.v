@@ -149,6 +149,65 @@ Proof.
   inversion_type. eauto using UnsafeAccess.
 Qed.
 
+(* ------------------------------------------------------------------------- *)
+(* TODO                                                                      *)
+(* ------------------------------------------------------------------------- *)
+
+Local Lemma split_trace3 : forall m m' ths ths' tc,
+  #ths < #ths' ->
+  m / ths ~~[tc]~~>* m' / ths' ->
+  exists mA thsA mB thsB tc1 tc2 tid block,
+    tc = tc1 ++ (tid, EF_Spawn block) :: tc2 /\
+    m  / ths  ~~[tc1]~~>*                mA / thsA /\
+    mA / thsA ~~[tid, EF_Spawn block]~~> mB / thsB /\
+    mB / thsB ~~[tc2]~~>*                m' / ths'.
+Proof.
+  intros. 
+  generalize dependent m'. generalize dependent ths'. 
+  induction tc; intros; inversion_multistep; try lia.
+  rename m'0 into mA. rename ths'0 into thsA.
+  specialize (IHtc thsA).
+Abort.
+
+Local Lemma spawn_sacc : forall m m' ths ths' tid ad eff,
+  forall_threads ths SafeSpawns ->
+  m / ths ~~[tid, eff]~~> m' / ths' ->
+  access m' ths'[#ths] ad ->
+  ~ UnsafeAccess m' ths'[#ths] ad.
+Proof.
+  intros. inversion_clear_cstep; simpl_array; intros ?;
+  eauto using nomut_then_nuacc, nomut_block.
+  unfold thread_default in *. inversion_acc.
+Qed.
+
+Local Lemma wtr_sacc_memtyp : forall m t ad,
+  forall_memory m value ->
+  forall_memory m (well_typed_references m) ->
+  well_typed_references m t ->
+  access m t ad ->
+  ~ UnsafeAccess m t ad ->
+  exists T, m[ad].typ = <{{ i&T }}>.
+Proof.
+  intros * ? HwtrM ? Hacc Hnuacc. induction Hacc;
+  inversion_clear_wtr; try inversion_nuacc; eauto using nuacc_refI.
+Qed.
+
+Local Lemma todo : forall m m' ths ths' ad tc,
+  forall_memory m value ->
+  forall_program m ths (well_typed_references m) ->
+  forall_program m ths SafeSpawns ->
+  m / ths ~~[tc]~~>* m' / ths' ->
+  access m' ths'[#ths] ad ->
+  exists T, m'[ad].typ = <{{ i&T }}>.
+Proof.
+  intros * ? ? ? Hmultistep Hacc. induction_multistep.
+  - simpl_array. unfold thread_default in *. inversion_acc.
+  - do 3 auto_specialize. 
+    inversion_cstep.
+    + admit.
+    + admit.
+Abort.
+
 Theorem safety : forall m m' ths ths' tid1 tid2 ad v1 v2 tc Tr,
   forall_memory m value ->
   forall_program m ths well_typed ->

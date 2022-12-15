@@ -519,6 +519,32 @@ Ltac inversion_clear_type :=
   end.
 
 (* ------------------------------------------------------------------------- *)
+(* auxiliary lemmas                                                          *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma step_length_tid : forall t ths tid eff,
+  ths[tid] --[eff]--> t ->
+  tid < #ths.
+Proof.
+  intros. decompose sum (lt_eq_lt_dec tid (#ths)); subst; trivial;
+  simpl_array; try lia; inversion_step.
+Qed.
+
+Corollary mstep_length_tid : forall m m' t' ths tid eff,
+  m / ths[tid] ==[eff]==> m' / t' ->
+  tid < #ths.
+Proof.
+  intros. inversion_mstep; eauto using step_length_tid.
+Qed.
+
+Corollary cstep_length_tid : forall m m' ths ths' tid eff,
+  m / ths ~~[tid, eff]~~> m' / ths' ->
+  tid < #ths.
+Proof.
+  intros. inversion_cstep; trivial.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
 (* meta                                                                      *)
 (* ------------------------------------------------------------------------- *)
 
