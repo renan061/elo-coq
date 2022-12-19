@@ -9,20 +9,21 @@ From Elo Require Import Core.
 From Elo Require Import ValidAddresses.
 From Elo Require Import Access.
 From Elo Require Import References.
+From Elo Require Import Soundness.
 From Elo Require Import UnsafeAccess.
 From Elo Require Import SafeSpawns.
 From Elo Require Import SMS.
 From Elo Require Import Multistep.
+
+(* ------------------------------------------------------------------------- *)
+(* mstep -- reflexive transitive closure                                     *)
+(* ------------------------------------------------------------------------- *)
 
 Reserved Notation "m / t '==[' tc ']==>*' m' / t'"
   (at level 40, t at next level, tc at next level,
                 m' at next level, t' at next level).
 
 Definition mtrace := list effect.
-
-(* ------------------------------------------------------------------------- *)
-(* reflexive transitive closure                                              *)
-(* ------------------------------------------------------------------------- *)
 
 Inductive mmultistep : mem -> tm -> mtrace -> mem -> tm -> Prop :=
   | mmultistep_refl: forall m t,
@@ -180,7 +181,7 @@ Proof.
   unfold thread_default in *. inversion_acc.
 Qed.
 
-Local Lemma wtr_sacc_memtyp : forall m t ad,
+Local Lemma memtyp_sacc : forall m t ad,
   forall_memory m value ->
   forall_memory m (well_typed_references m) ->
   well_typed_references m t ->
@@ -195,17 +196,36 @@ Qed.
 Local Lemma todo : forall m m' ths ths' ad tc,
   forall_memory m value ->
   forall_program m ths (well_typed_references m) ->
+  forall_program m ths (valid_addresses m) ->
   forall_program m ths SafeSpawns ->
+  ~ access m ths[#ths] ad -> (* TODO: assert *)
   m / ths ~~[tc]~~>* m' / ths' ->
   access m' ths'[#ths] ad ->
   exists T, m'[ad].typ = <{{ i&T }}>.
 Proof.
-  intros * ? ? ? Hmultistep Hacc. induction_multistep.
+  intros * Hval [? ?] [? ?] [? ?] Hnacc Hmultistep Hacc. induction_multistep.
   - simpl_array. unfold thread_default in *. inversion_acc.
-  - do 3 auto_specialize. 
-    inversion_cstep.
-    + admit.
-    + admit.
+  - do 8 auto_specialize. 
+    destruct (acc_dec m' ths'[#ths] ad).
+    + destruct IHHmultistep as [T Hmemtyp]; eauto.
+      exists T. rewrite <- Hmemtyp. eapply cstep_memtyp; eauto.
+      * admit.
+      * assert (forall_program m' ths' (valid_addresses m')) as [? ?]
+          by eauto using valid_addresses_multistep_preservation.
+        eauto using vad_then_vac, vac_length.
+    + clear IHHmultistep.
+      inversion_cstep.
+      * admit.
+      *
+
+
+      specialize Hacc as F. contradict F.
+      eapply not_access_multistep_preservation; eauto.
+      * admit.
+      * admit.
+      * admit.
+      * admit.
+      * admit.
 Abort.
 
 Theorem safety : forall m m' ths ths' tid1 tid2 ad v1 v2 tc Tr,
@@ -221,7 +241,7 @@ Theorem safety : forall m m' ths ths' tid1 tid2 ad v1 v2 tc Tr,
              (tid2, EF_Write ad v2 Tr) :: nil]~~>* m' / ths' ->
   False.
 Proof.
-  intros * ? [? ?] [? ?] ? ? Hsms. intros. inversion_clear_multistep.
+  intros * ? [? ?] [? ?] [? ?] ? Hsms. intros. inversion_clear_multistep.
   rename m'0 into m3. rename ths'0 into ths3.
   assert (Hacc' : access m3 ths3[tid1] ad)
     by eauto using cstep_read_requires_acc.
@@ -232,7 +252,7 @@ Proof.
     rename H1 into Hmultistep; rename H2 into H3_cstep
   end.
   eapply destruct_multistep in Hmultistep
-    as [m2 [ths2 [H1_cstep H2_Hmultistep]]].
+    as [m2 [ths2 [H1_cstep H2_multistep]]].
   assert (Huacc : UnsafeAccess m ths[tid2] ad)
     by eauto using cstep_write_requires_uacc.
   destruct (acc_dec m ths[tid1] ad);
@@ -255,8 +275,19 @@ Proof.
     + eapply safe_memory_sharing_multistep_preservation; eauto using multistep.
     + eapply (not_access_multistep_preservation m m2 ths ths2);
       eauto using multistep.
-  - inversion H1_cstep; subst.
-    admit.
+  - assert (exists T, m[ad].typ = <{{ &T }}>) as [T Htype1]
+      by eauto using (memtyp_uacc _ ths[tid2]).
+    eapply cstep_memtyp_preservation in H1_cstep as Hext; eauto.
+    eapply well_typed_multistep_preservation in H2_multistep as [_ [_ ?]].
+    + shelve.
+    + eapply valid_addresses_multistep_preservation; eauto using multistep.
+    + eapply well_typed_multistep_preservation; eauto using multistep.
+    + eapply well_typed_multistep_preservation; eauto using multistep.
+    Unshelve.
+    assert (m3 extends m) by eauto using Extension.trans.
+    assert (Htype1': m3[ad].typ = m[ad].typ) by eauto using Extension.get.
+    rewrite Htype1 in Htype1'.
+    
   -
 Qed.
 

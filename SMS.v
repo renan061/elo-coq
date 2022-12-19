@@ -154,7 +154,7 @@ Proof.
   rewrite Heq in *. discriminate.
 Qed.
 
-Local Lemma wtr_uacc_memtyp : forall m t ad,
+Lemma memtyp_uacc : forall m t ad,
   forall_memory m (well_typed_references m) ->
   well_typed_references m t ->
   UnsafeAccess m t ad ->
@@ -173,8 +173,7 @@ Lemma consistent_uacc : forall m t t' ad,
   UnsafeAccess m t' ad.
 Proof.
   intros.
-  assert (exists T, m[ad].typ = <{{ &T }}>) as [? ?]
-    by eauto using wtr_uacc_memtyp.
+  assert (exists T, m[ad].typ = <{{ &T }}>) as [? ?] by eauto using memtyp_uacc.
   eauto using consistent_memtyp.
 Qed.
 

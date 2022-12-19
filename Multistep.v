@@ -7,6 +7,7 @@ From Elo Require Import Core.
 From Elo Require Import ValidAddresses.
 From Elo Require Import Access.
 From Elo Require Import References.
+From Elo Require Import Soundness.
 From Elo Require Import UnsafeAccess.
 From Elo Require Import SafeSpawns.
 From Elo Require Import SMS.
@@ -44,7 +45,8 @@ Theorem well_typed_multistep_preservation : forall m m' ths ths' tc,
   forall_program m ths (well_typed_references m) ->
   m / ths ~~[tc]~~>* m' / ths' ->
   forall_program m' ths' well_typed /\
-    forall_program m' ths' (well_typed_references m').
+    forall_program m' ths' (well_typed_references m') /\
+    m' extends m.
 Proof.
   (* TODO *)
 Admitted.
