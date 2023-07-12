@@ -7,43 +7,37 @@ From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Map.
  
-Definition id := string.
-Definition num := nat.
-
 (* ------------------------------------------------------------------------- *)
 (* types                                                                     *)
 (* ------------------------------------------------------------------------- *)
 
-Inductive immutable_typ : Set :=
+(* immutable type *)
+Inductive ityp : Set :=
   | TY_Unit
   | TY_Num
-  | TY_RefI : immutable_typ -> immutable_typ
+  | TY_RefI : ityp -> ityp
   .
 
+(* type *)
 Inductive typ : Set :=
-  | TY_Immut : immutable_typ -> typ
-  | TY_RefM : typ -> typ
-  | TY_Fun : typ -> typ -> typ
+  | TY_Immut : ityp -> typ
+  | TY_RefM  : typ  -> typ
+  | TY_Fun   : typ  -> typ -> typ
   .
-
-Definition safe (Gamma : map typ) : map typ :=
-  fun k => 
-    match Gamma k with
-    | None => None
-    | Some (TY_Immut T) => Some (TY_Immut T)
-    | Some _ => None
-    end.
 
 (* ------------------------------------------------------------------------- *)
 (* terms                                                                     *)
 (* ------------------------------------------------------------------------- *)
+
+Definition id := string.
+Definition num := nat.
 
 Inductive tm : Set :=
   (* primitives *)
   | TM_Unit
   | TM_Num   : num -> tm
   (* memory *)
-  | TM_Ref   : typ -> num -> tm
+  | TM_Ad    : num -> typ -> tm
   | TM_New   : typ -> tm  -> tm
   | TM_Load  : tm  -> tm
   | TM_Asg   : tm  -> tm  -> tm
@@ -74,36 +68,36 @@ Notation "'i&' T"      := (TY_Immut (TY_RefI T)) (in custom elo_typ at level 5).
 Notation "T1 '-->' T2" := (TY_Fun T1 T2)         (in custom elo_typ at level 50,
                                                            right associativity).
 
-Declare Custom Entry elo.
-Notation "<{ t }>" := t (t custom elo at level 99).
-Notation "x"       := x (in custom elo at level 0, x constr at level 0).
+Declare Custom Entry elo_tm.
+Notation "<{ t }>" := t (t custom elo_tm at level 99).
+Notation "x"       := x (in custom elo_tm at level 0, x constr at level 0).
 
-Notation "'unit'"            := (TM_Unit)       (in custom elo at level 0).
-Notation "'N' n"             := (TM_Num n)      (in custom elo at level 0).
-Notation "'&' ad '::' T"     := (TM_Ref T ad)    (in custom elo at level 0,
-                                              T custom elo_typ at level 0).
-Notation "'new' T t"         := (TM_New T t)     (in custom elo at level 0,
-                                              T custom elo_typ at level 0).
-Notation "'*' t"             := (TM_Load t)     (in custom elo at level 0).
-Notation "t1 '=' t2"         := (TM_Asg t1 t2)  (in custom elo at level 70,
-                                                         no associativity).
-Notation "'var' x"           := (TM_Var x)      (in custom elo at level 0).
-Notation "'fn' x Tx '-->' t" := (TM_Fun x Tx t)  (in custom elo at level 0,
-                                                       x constr at level 0,
-                                             Tx custom elo_typ at level 0).
-Notation "'call' t1 t2"      := (TM_Call t1 t2) (in custom elo at level 0).
-Notation "t1 ';' t2"         := (TM_Seq t1 t2)   (in custom elo at level 2,
-                                                      right associativity).
-Notation "'spawn' t"         := (TM_Spawn t)    (in custom elo at level 0).
+Notation "'unit'"            := (TM_Unit)       (in custom elo_tm at level 0).
+Notation "'N' n"             := (TM_Num n)      (in custom elo_tm at level 0).
+Notation "'&' ad '::' T"     := (TM_Ad ad T)     (in custom elo_tm at level 0,
+                                                 T custom elo_typ at level 0).
+Notation "'new' T t"         := (TM_New T t)     (in custom elo_tm at level 0,
+                                                 T custom elo_typ at level 0).
+Notation "'*' t"             := (TM_Load t)     (in custom elo_tm at level 0).
+Notation "t1 '=' t2"         := (TM_Asg t1 t2)  (in custom elo_tm at level 70,
+                                                            no associativity).
+Notation "'var' x"           := (TM_Var x)      (in custom elo_tm at level 0).
+Notation "'fn' x Tx '-->' t" := (TM_Fun x Tx t)  (in custom elo_tm at level 0,
+                                                          x constr at level 0,
+                                                Tx custom elo_typ at level 0).
+Notation "'call' t1 t2"      := (TM_Call t1 t2) (in custom elo_tm at level 0).
+Notation "t1 ';' t2"         := (TM_Seq t1 t2)   (in custom elo_tm at level 2,
+                                                         right associativity).
+Notation "'spawn' t"         := (TM_Spawn t)    (in custom elo_tm at level 0).
 
 Reserved Notation "'[' x ':=' tx ']' t"
   (at level 20, x constr).
-Reserved Notation "t '--[' eff ']-->' t'"
-  (at level 40, eff at next level, t' at next level).
-Reserved Notation "m / t '==[' eff ']==>' m' / t'"
-  (at level 40, t at next level, eff at next level, m' at next level).
-Reserved Notation "m / ths '~~[' tid , eff ']~~>' m' / ths'"
-  (at level 40, ths at next level, tid at next level, eff at next level,
+Reserved Notation "t '--[' e ']-->' t'"
+  (at level 40, e at next level, t' at next level).
+Reserved Notation "m / t '==[' e ']==>' m' / t'"
+  (at level 40, t at next level, e at next level, m' at next level).
+Reserved Notation "m / ths '~~[' tid , e ']~~>' m' / ths'"
+  (at level 40, ths at next level, tid at next level, e at next level,
                 m' at next level).
 Reserved Notation "m / t '~~[' tc ']~~>*' m' / t'"
   (at level 40, t at next level, tc at next level,
@@ -164,56 +158,56 @@ Fixpoint subst (x : id) (tx t : tm) : tm :=
 (* operational semantics -- term step                                        *)
 (* ------------------------------------------------------------------------- *)
 
-Inductive step : tm -> effect -> tm -> Prop :=
+Inductive tstep : tm -> effect -> tm -> Prop :=
   (* New *)
-  | ST_New1 : forall t t' eff T,
-    t --[eff]--> t' ->
-    <{ new T t }> --[eff]--> <{ new T t' }>
+  | ST_New1 : forall t t' e T,
+    t --[e]--> t' ->
+    <{ new T t }> --[e]--> <{ new T t' }>
 
   | ST_New : forall ad v Tr,
     value v ->
     <{ new Tr v }> --[EF_Alloc ad v Tr]--> <{ &ad :: Tr }>
 
   (* Load *)
-  | ST_Load1 : forall t t' eff,
-    t --[eff]--> t' ->
-    <{ *t }> --[eff]--> <{ *t' }>
+  | ST_Load1 : forall t t' e,
+    t --[e]--> t' ->
+    <{ *t }> --[e]--> <{ *t' }>
 
   | ST_Load : forall ad t Tr,
     <{ * &ad :: Tr }> --[EF_Read ad t]--> t
 
   (* Asg *)
-  | ST_Asg1 : forall t1 t1' t2 eff,
-    t1 --[eff]--> t1' ->
-    <{ t1 = t2 }> --[eff]--> <{ t1' = t2 }>
+  | ST_Asg1 : forall t1 t1' t2 e,
+    t1 --[e]--> t1' ->
+    <{ t1 = t2 }> --[e]--> <{ t1' = t2 }>
 
-  | ST_Asg2 : forall t t' v eff,
+  | ST_Asg2 : forall t t' v e,
     value v ->
-    t --[eff]--> t' ->
-    <{ v = t }> --[eff]--> <{ v = t' }>
+    t --[e]--> t' ->
+    <{ v = t }> --[e]--> <{ v = t' }>
 
   | ST_Asg : forall ad v Tr,
     value v ->
     <{ &ad :: Tr = v }> --[EF_Write ad v Tr]--> <{ unit }>
 
   (* Call *)
-  | ST_Call1 : forall t1 t1' t2 eff,
-    t1 --[eff]--> t1' ->
-    <{ call t1 t2 }> --[eff]--> <{ call t1' t2 }>
+  | ST_Call1 : forall t1 t1' t2 e,
+    t1 --[e]--> t1' ->
+    <{ call t1 t2 }> --[e]--> <{ call t1' t2 }>
 
-  | ST_Call2 : forall t t' v eff,
+  | ST_Call2 : forall t t' v e,
     value v ->
-    t --[eff]--> t' ->
-    <{ call v t }> --[eff]--> <{ call v t' }>
+    t --[e]--> t' ->
+    <{ call v t }> --[e]--> <{ call v t' }>
 
   | ST_Call : forall x Tx t v,
     value v ->
     <{ call <{ fn x Tx --> t }> v }> --[EF_None]--> ([x := v] t)
 
   (* Seq *)
-  | ST_Seq1 : forall t1 t1' t2 eff,
-    t1 --[eff]--> t1' ->
-    <{ t1; t2 }> --[eff]--> <{ t1'; t2 }>
+  | ST_Seq1 : forall t1 t1' t2 e,
+    t1 --[e]--> t1' ->
+    <{ t1; t2 }> --[e]--> <{ t1'; t2 }>
 
   | ST_Seq : forall v t,
     value v ->
@@ -223,7 +217,7 @@ Inductive step : tm -> effect -> tm -> Prop :=
   | ST_Spawn : forall t,
     <{ spawn t }> --[EF_Spawn t]--> <{ unit }>
 
-  where "t '--[' eff ']-->' t'" := (step t eff t').
+  where "t '--[' e ']-->' t'" := (tstep t e t').
 
 (* ------------------------------------------------------------------------- *)
 (* operational semantics -- memory step                                      *)
@@ -257,7 +251,7 @@ Inductive mstep : mem -> tm -> effect -> mem -> tm -> Prop :=
     t --[EF_Write ad v Tr]--> t' ->
     m / t ==[EF_Write ad v Tr]==> m[ad <- (v, Tr)] / t'
 
-  where "m / t '==[' eff ']==>' m' / t'" := (mstep m t eff m' t').
+  where "m / t '==[' e ']==>' m' / t'" := (mstep m t e m' t').
 
 (* ------------------------------------------------------------------------- *)
 (* operation semantics -- concurrent step                                    *)
@@ -270,18 +264,18 @@ Notation " l '[' i ']' " := (l[i] or thread_default)
   (at level 9, i at next level).
 
 Inductive cstep : mem -> threads -> nat -> effect -> mem -> threads -> Prop :=
-  | CST_Mem : forall m m' t' ths tid eff,
+  | CST_Mem : forall m m' t' ths tid e,
       tid < #ths ->
-      m / ths[tid] ==[eff]==> m' / t' ->
-      m / ths ~~[tid, eff]~~> m' / ths[tid <- t']
+      m / ths[tid] ==[e]==> m' / t' ->
+      m / ths ~~[tid, e]~~> m' / ths[tid <- t']
 
   | CST_Spawn : forall m t' ths tid block,
       tid < #ths ->
       ths[tid] --[EF_Spawn block]--> t' ->
       m / ths ~~[tid, EF_Spawn block]~~> m / (ths[tid <- t'] +++ block)
 
-  where "m / ths '~~[' tid ,  eff ']~~>' m' / ths'" :=
-    (cstep m ths tid eff m' ths').
+  where "m / ths '~~[' tid ,  e ']~~>' m' / ths'" :=
+    (cstep m ths tid e m' ths').
 
 (* ------------------------------------------------------------------------- *)
 (* multistep                                                                 *)
@@ -293,10 +287,10 @@ Inductive multistep : mem -> threads -> trace -> mem -> threads -> Prop :=
   | cmultistep_refl: forall m ths,
     m / ths ~~[nil]~~>* m / ths
 
-  | cmultistep_trans : forall m m' m'' ths ths' ths'' tc tid eff,
+  | cmultistep_trans : forall m m' m'' ths ths' ths'' tc tid e,
     m  / ths  ~~[tc]~~>* m'  / ths'  ->
-    m' / ths' ~~[tid, eff]~~> m'' / ths'' ->
-    m  / ths  ~~[(tid, eff) :: tc]~~>* m'' / ths''
+    m' / ths' ~~[tid, e]~~> m'' / ths'' ->
+    m  / ths  ~~[(tid, e) :: tc]~~>* m'' / ths''
 
   where "m / t '~~[' tc ']~~>*' m' / t'" := (multistep m t tc m' t').
 
@@ -305,6 +299,15 @@ Inductive multistep : mem -> threads -> trace -> mem -> threads -> Prop :=
 (* ------------------------------------------------------------------------- *)
 
 Definition ctx := map typ.
+
+Definition safe (Gamma : map typ) : map typ :=
+  fun k => 
+    match Gamma k with
+    | None => None
+    | Some (TY_Immut T) => Some (TY_Immut T)
+    | Some _ => None
+    end.
+
 
 Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
   | T_Unit : forall Gamma,
@@ -368,13 +371,13 @@ Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
 (* decidability                                                              *)
 (* ------------------------------------------------------------------------- *)
 
-Theorem immutable_typ_eq_dec : forall (T1 T2 : immutable_typ),
+Theorem ityp_eq_dec : forall (T1 T2 : ityp),
   {T1 = T2} + {T1 <> T2}.
 Proof. intros. decide equality; eauto. Qed.
 
 Theorem typ_eq_dec : forall (T1 T2 : typ),
   {T1 = T2} + {T1 <> T2}.
-Proof. intros. decide equality; eauto using immutable_typ_eq_dec. Qed.
+Proof. intros. decide equality; eauto using ityp_eq_dec. Qed.
 
 Theorem tm_eq_dec : forall (t1 t2 : tm),
   {t1 = t2} + {t1 <> t2}.
@@ -522,23 +525,23 @@ Ltac inversion_clear_type :=
 (* auxiliary lemmas                                                          *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma step_length_tid : forall t ths tid eff,
-  ths[tid] --[eff]--> t ->
+Lemma step_length_tid : forall t ths tid e,
+  ths[tid] --[e]--> t ->
   tid < #ths.
 Proof.
   intros. decompose sum (lt_eq_lt_dec tid (#ths)); subst; trivial;
   simpl_array; try lia; inversion_step.
 Qed.
 
-Corollary mstep_length_tid : forall m m' t' ths tid eff,
-  m / ths[tid] ==[eff]==> m' / t' ->
+Corollary mstep_length_tid : forall m m' t' ths tid e,
+  m / ths[tid] ==[e]==> m' / t' ->
   tid < #ths.
 Proof.
   intros. inversion_mstep; eauto using step_length_tid.
 Qed.
 
-Corollary cstep_length_tid : forall m m' ths ths' tid eff,
-  m / ths ~~[tid, eff]~~> m' / ths' ->
+Corollary cstep_length_tid : forall m m' ths ths' tid e,
+  m / ths ~~[tid, e]~~> m' / ths' ->
   tid < #ths.
 Proof.
   intros. inversion_cstep; trivial.
@@ -549,17 +552,17 @@ Qed.
 (* ------------------------------------------------------------------------- *)
 
 Lemma cstep_preservation :
-  forall (P : mem -> tm -> Prop) m m' ths ths' tid eff,
+  forall (P : mem -> tm -> Prop) m m' ths ths' tid e,
     (* Memory step preserves the property. *)
     (forall tid' t',
-      m / ths[tid'] ==[eff]==> m' / t' ->
+      m / ths[tid'] ==[e]==> m' / t' ->
       P m' t'
     ) ->
     (* The untouched threads and the new memory still preserve the property. *)
     (forall tid' t',
       tid <> tid' ->
       tid' < #ths ->
-      m / ths[tid] ==[eff]==> m' / t' ->
+      m / ths[tid] ==[e]==> m' / t' ->
       P m' ths[tid']
     ) ->
     (* The new thread preserves the property. *)
@@ -576,7 +579,7 @@ Lemma cstep_preservation :
     P m' thread_default ->
     (* What we want to prove. *)
     forall_threads ths (P m) ->
-    m / ths ~~[tid, eff]~~> m' / ths' ->
+    m / ths ~~[tid, e]~~> m' / ths' ->
     forall_threads ths' (P m').
 Proof.
   intros. inversion_cstep; intros tid'.
