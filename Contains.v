@@ -1,4 +1,5 @@
 From Elo Require Import Core.
+From Elo Require Import CoreExt.
 
 Reserved Notation " t 'contains' t' " (at level 30, no associativity).
 

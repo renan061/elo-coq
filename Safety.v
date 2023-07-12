@@ -6,6 +6,7 @@ From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Map.
 From Elo Require Import Core.
+From Elo Require Import CoreExt.
 From Elo Require Import ValidAddresses.
 From Elo Require Import Access.
 From Elo Require Import References.
@@ -193,6 +194,7 @@ Proof.
   inversion_clear_wtr; try inversion_nuacc; eauto using nuacc_refI.
 Qed.
 
+(*
 Local Lemma todo : forall m m' ths ths' ad tc,
   forall_memory m value ->
   forall_program m ths (well_typed_references m) ->
@@ -227,6 +229,7 @@ Proof.
       * admit.
       * admit.
 Abort.
+*)
 
 Theorem safety : forall m m' ths ths' tid1 tid2 ad v1 v2 tc Tr,
   forall_memory m value ->
@@ -287,9 +290,9 @@ Proof.
     assert (m3 extends m) by eauto using Extension.trans.
     assert (Htype1': m3[ad].typ = m[ad].typ) by eauto using Extension.get.
     rewrite Htype1 in Htype1'.
-    
-  -
-Qed.
+    admit.
+  - admit.
+Admitted.
 
 (* ------------------------------------------------------------------------- *)
 (* TODO                                                                      *)

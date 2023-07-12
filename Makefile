@@ -9,6 +9,7 @@ core:
 	$(COQC) Array.v
 	$(COQC) Map.v
 	$(COQC) Core.v
+	$(COQC) CoreExt.v
 
 access: core
 	$(COQC) HasAddress.v

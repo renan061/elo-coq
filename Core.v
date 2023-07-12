@@ -131,183 +131,18 @@ Inductive effect : Set :=
   .
 
 (* ------------------------------------------------------------------------- *)
-(* substitution                                                              *)
-(* ------------------------------------------------------------------------- *)
-
-Local Infix "=?" := string_dec (at level 70, no associativity).
-
-Fixpoint subst (x : id) (tx t : tm) : tm :=
-  match t with
-  | <{ unit            }> => t
-  | <{ N _             }> => t
-  | <{ & _ :: _        }> => t
-  | <{ new T t'        }> => <{ new T ([x := tx] t')            }>
-  | <{ *t'             }> => <{ * ([x := tx] t')                }>
-  | <{ t1 = t2         }> => <{ ([x := tx] t1) = ([x := tx] t2) }>
-  | <{ var x'          }> => if x =? x' then tx else t
-  | <{ fn x' Tx --> t' }> => if x =? x'
-                              then t 
-                              else <{ fn x' Tx --> ([x := tx] t')  }>
-  | <{ call t1 t2      }> => <{ call ([x := tx] t1) ([x := tx] t2) }>
-  | <{ t1; t2          }> => <{ ([x := tx] t1) ; ([x := tx] t2)    }>
-  | <{ spawn t'        }> => <{ spawn ([x := tx] t')               }>
-  end
-  where "'[' x ':=' tx ']' t" := (subst x tx t).
-
-(* ------------------------------------------------------------------------- *)
-(* operational semantics -- term step                                        *)
-(* ------------------------------------------------------------------------- *)
-
-Inductive tstep : tm -> effect -> tm -> Prop :=
-  (* New *)
-  | ST_New1 : forall t t' e T,
-    t --[e]--> t' ->
-    <{ new T t }> --[e]--> <{ new T t' }>
-
-  | ST_New : forall ad v Tr,
-    value v ->
-    <{ new Tr v }> --[EF_Alloc ad v Tr]--> <{ &ad :: Tr }>
-
-  (* Load *)
-  | ST_Load1 : forall t t' e,
-    t --[e]--> t' ->
-    <{ *t }> --[e]--> <{ *t' }>
-
-  | ST_Load : forall ad t Tr,
-    <{ * &ad :: Tr }> --[EF_Read ad t]--> t
-
-  (* Asg *)
-  | ST_Asg1 : forall t1 t1' t2 e,
-    t1 --[e]--> t1' ->
-    <{ t1 = t2 }> --[e]--> <{ t1' = t2 }>
-
-  | ST_Asg2 : forall t t' v e,
-    value v ->
-    t --[e]--> t' ->
-    <{ v = t }> --[e]--> <{ v = t' }>
-
-  | ST_Asg : forall ad v Tr,
-    value v ->
-    <{ &ad :: Tr = v }> --[EF_Write ad v Tr]--> <{ unit }>
-
-  (* Call *)
-  | ST_Call1 : forall t1 t1' t2 e,
-    t1 --[e]--> t1' ->
-    <{ call t1 t2 }> --[e]--> <{ call t1' t2 }>
-
-  | ST_Call2 : forall t t' v e,
-    value v ->
-    t --[e]--> t' ->
-    <{ call v t }> --[e]--> <{ call v t' }>
-
-  | ST_Call : forall x Tx t v,
-    value v ->
-    <{ call <{ fn x Tx --> t }> v }> --[EF_None]--> ([x := v] t)
-
-  (* Seq *)
-  | ST_Seq1 : forall t1 t1' t2 e,
-    t1 --[e]--> t1' ->
-    <{ t1; t2 }> --[e]--> <{ t1'; t2 }>
-
-  | ST_Seq : forall v t,
-    value v ->
-    <{ v; t }> --[EF_None]--> t
-
-  (* Spawn *)
-  | ST_Spawn : forall t,
-    <{ spawn t }> --[EF_Spawn t]--> <{ unit }>
-
-  where "t '--[' e ']-->' t'" := (tstep t e t').
-
-(* ------------------------------------------------------------------------- *)
-(* operational semantics -- memory step                                      *)
-(* ------------------------------------------------------------------------- *)
-
-Definition mem := list (tm * typ).
-Definition memory_default := (<{ unit }>, <{{ Unit }}>).
-
-Notation " l '[' i '].tm' " := (fst (get memory_default l i))
-  (at level 9, i at next level).
-Notation " l '[' i '].typ' " := (snd (get memory_default l i))
-  (at level 9, i at next level).
-
-Inductive mstep : mem -> tm -> effect -> mem -> tm -> Prop :=
-  | MST_None : forall m t t',
-    t --[EF_None]--> t' ->
-    m / t ==[EF_None]==> m / t'
-
-  | MST_Alloc : forall m t t' ad v Tr,
-    ad = #m ->
-    t --[EF_Alloc ad v Tr]--> t' ->
-    m / t ==[EF_Alloc ad v Tr]==> (m +++ (v, Tr)) / t'
-
-  | MST_Read : forall m t t' ad,
-    ad < #m ->
-    t --[EF_Read ad m[ad].tm]--> t' ->
-    m / t ==[EF_Read ad m[ad].tm]==> m / t'
-
-  | MST_Write : forall m t t' ad v Tr,
-    ad < #m ->
-    t --[EF_Write ad v Tr]--> t' ->
-    m / t ==[EF_Write ad v Tr]==> m[ad <- (v, Tr)] / t'
-
-  where "m / t '==[' e ']==>' m' / t'" := (mstep m t e m' t').
-
-(* ------------------------------------------------------------------------- *)
-(* operation semantics -- concurrent step                                    *)
-(* ------------------------------------------------------------------------- *)
-
-Definition threads := list tm.
-Definition thread_default := <{ unit }>.
-
-Notation " l '[' i ']' " := (l[i] or thread_default)
-  (at level 9, i at next level).
-
-Inductive cstep : mem -> threads -> nat -> effect -> mem -> threads -> Prop :=
-  | CST_Mem : forall m m' t' ths tid e,
-      tid < #ths ->
-      m / ths[tid] ==[e]==> m' / t' ->
-      m / ths ~~[tid, e]~~> m' / ths[tid <- t']
-
-  | CST_Spawn : forall m t' ths tid block,
-      tid < #ths ->
-      ths[tid] --[EF_Spawn block]--> t' ->
-      m / ths ~~[tid, EF_Spawn block]~~> m / (ths[tid <- t'] +++ block)
-
-  where "m / ths '~~[' tid ,  e ']~~>' m' / ths'" :=
-    (cstep m ths tid e m' ths').
-
-(* ------------------------------------------------------------------------- *)
-(* multistep                                                                 *)
-(* ------------------------------------------------------------------------- *)
-
-Definition trace := list (nat * effect).
-
-Inductive multistep : mem -> threads -> trace -> mem -> threads -> Prop :=
-  | cmultistep_refl: forall m ths,
-    m / ths ~~[nil]~~>* m / ths
-
-  | cmultistep_trans : forall m m' m'' ths ths' ths'' tc tid e,
-    m  / ths  ~~[tc]~~>* m'  / ths'  ->
-    m' / ths' ~~[tid, e]~~> m'' / ths'' ->
-    m  / ths  ~~[(tid, e) :: tc]~~>* m'' / ths''
-
-  where "m / t '~~[' tc ']~~>*' m' / t'" := (multistep m t tc m' t').
-
-(* ------------------------------------------------------------------------- *)
 (* typing                                                                    *)
 (* ------------------------------------------------------------------------- *)
 
 Definition ctx := map typ.
 
-Definition safe (Gamma : map typ) : map typ :=
+(* Filters out of the context all variables with non-immutable types. *)
+Definition safe (Gamma : ctx) : ctx :=
   fun k => 
     match Gamma k with
-    | None => None
-    | Some (TY_Immut T) => Some (TY_Immut T)
-    | Some _ => None
+    | Some <{{ Immut T }}> => Some <{{ Immut T }}>
+    | _ => None
     end.
-
 
 Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
   | T_Unit : forall Gamma,
@@ -368,230 +203,169 @@ Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
   where "Gamma '|--' t 'is' T" := (well_typed_term Gamma t T).
 
 (* ------------------------------------------------------------------------- *)
-(* decidability                                                              *)
+(* substitution                                                              *)
 (* ------------------------------------------------------------------------- *)
 
-Theorem ityp_eq_dec : forall (T1 T2 : ityp),
-  {T1 = T2} + {T1 <> T2}.
-Proof. intros. decide equality; eauto. Qed.
+Local Infix "=?" := string_dec (at level 70, no associativity).
 
-Theorem typ_eq_dec : forall (T1 T2 : typ),
-  {T1 = T2} + {T1 <> T2}.
-Proof. intros. decide equality; eauto using ityp_eq_dec. Qed.
-
-Theorem tm_eq_dec : forall (t1 t2 : tm),
-  {t1 = t2} + {t1 <> t2}.
-Proof.
-  intros. decide equality; 
-  eauto using PeanoNat.Nat.eq_dec, string_dec, typ_eq_dec.
-Qed.
-
-Theorem effect_eq_dec : forall (e1 e2 : effect),
-  {e1 = e2} + {e1 <> e2}.
-Proof.
-  intros. decide equality;
-  eauto using PeanoNat.Nat.eq_dec, tm_eq_dec, typ_eq_dec.
-Qed.
+Fixpoint subst (x : id) (tx t : tm) : tm :=
+  match t with
+  | <{ unit            }> => t
+  | <{ N _             }> => t
+  | <{ & _ :: _        }> => t
+  | <{ new T t'        }> => <{ new T ([x := tx] t')            }>
+  | <{ *t'             }> => <{ * ([x := tx] t')                }>
+  | <{ t1 = t2         }> => <{ ([x := tx] t1) = ([x := tx] t2) }>
+  | <{ var x'          }> => if x =? x' then tx else t
+  | <{ fn x' Tx --> t' }> => if x =? x'
+                              then t 
+                              else <{ fn x' Tx --> ([x := tx] t')  }>
+  | <{ call t1 t2      }> => <{ call ([x := tx] t1) ([x := tx] t2) }>
+  | <{ t1; t2          }> => <{ ([x := tx] t1) ; ([x := tx] t2)    }>
+  | <{ spawn t'        }> => <{ spawn ([x := tx] t')               }>
+  end
+  where "'[' x ':=' tx ']' t" := (subst x tx t).
 
 (* ------------------------------------------------------------------------- *)
-(* array properties                                                          *)
+(* operational semantics -- term step                                        *)
 (* ------------------------------------------------------------------------- *)
 
-Definition forall_memory (m : mem) P : Prop :=
-  forall_array memory_default (fun tT => P (fst tT)) m.
+Inductive tstep : tm -> effect -> tm -> Prop :=
+  (* New *)
+  | TS_New1 : forall t t' e T,
+    t --[e]--> t' ->
+    <{ new T t }> --[e]--> <{ new T t' }>
 
-Definition forall_threads (ths : threads) P : Prop :=
-  forall_array thread_default P ths.
+  | TS_New : forall ad v T,
+    value v ->
+    <{ new T v }> --[EF_Alloc ad v T]--> <{ &ad :: T }>
 
-Definition forall_program (m : mem) (ths : threads) P : Prop :=
-  (forall_memory m P) /\ (forall_threads ths P).
+  (* Load *)
+  | TS_Load1 : forall t t' e,
+    t --[e]--> t' ->
+    <{ *t }> --[e]--> <{ *t' }>
 
-Definition well_typed := fun t => exists T, empty |-- t is T.
+  | TS_Load : forall ad t T,
+    <{ * &ad :: T }> --[EF_Read ad t]--> t
 
-Global Hint Unfold forall_program : core.
+  (* Asg *)
+  | TS_Asg1 : forall t1 t1' t2 e,
+    t1 --[e]--> t1' ->
+    <{ t1 = t2 }> --[e]--> <{ t1' = t2 }>
 
-(* ------------------------------------------------------------------------- *)
-(* determinism                                                               *)
-(* ------------------------------------------------------------------------- *)
+  | TS_Asg2 : forall t t' v e,
+    value v ->
+    t --[e]--> t' ->
+    <{ v = t }> --[e]--> <{ v = t' }>
 
-Lemma deterministic_typing : forall Gamma t T1 T2,
-  Gamma |-- t is T1 ->
-  Gamma |-- t is T2 ->
-  T1 = T2.
-Proof.
-  intros * Htype1. generalize dependent T2.
-  induction Htype1; intros ? Htype2;
-  inversion Htype2; subst; eauto;
-  repeat match goal with
-  | IH : forall _, _ |-- ?t is _ -> _, H : _ |-- ?t is _ |- _ =>
-    eapply IH in H; subst
-  end;
-  congruence.
-Qed.
+  | TS_Asg : forall ad v T,
+    value v ->
+    <{ &ad :: T = v }> --[EF_Write ad v T]--> <{ unit }>
 
-Ltac apply_deterministic_typing :=
-  match goal with
-  | H1 : _ |-- ?t is ?T1, H2 : _ |-- ?t is ?T2 |- _ =>
-    assert (Heq : T1 = T2) by eauto using deterministic_typing; subst;
-    try (inversion Heq; subst; clear Heq)
-  end.
+  (* Call *)
+  | TS_Call1 : forall t1 t1' t2 e,
+    t1 --[e]--> t1' ->
+    <{ call t1 t2 }> --[e]--> <{ call t1' t2 }>
 
-(* ------------------------------------------------------------------------- *)
-(* auxiliary tactics                                                         *)
-(* ------------------------------------------------------------------------- *)
+  | TS_Call2 : forall t t' v e,
+    value v ->
+    t --[e]--> t' ->
+    <{ call v t }> --[e]--> <{ call v t' }>
 
-Ltac induction_step :=
-  match goal with
-  | H : _ --[?e]--> _ |- _ =>
-    remember e as eff; induction H; inversion Heqeff; subst
-  end.
+  | TS_Call : forall x Tx t v,
+    value v ->
+    <{ call <{ fn x Tx --> t }> v }> --[EF_None]--> ([x := v] t)
 
-Ltac inversion_step :=
-  match goal with
-  | H : _ --[_]--> _ |- _ => inversion H; subst; clear H
-  end.
+  (* Seq *)
+  | TS_Seq1 : forall t1 t1' t2 e,
+    t1 --[e]--> t1' ->
+    <{ t1; t2 }> --[e]--> <{ t1'; t2 }>
 
-Ltac inversion_mstep :=
-  match goal with
-  | H : _ / _ ==[_]==> _ / _ |- _ => inversion H; subst
-  end.
+  | TS_Seq : forall v t,
+    value v ->
+    <{ v; t }> --[EF_None]--> t
 
-Ltac inversion_clear_mstep :=
-  match goal with
-  | H : _ / _ ==[_]==> _ / _ |- _ => inversion_subst_clear H
-  end.
+  (* Spawn *)
+  | TS_Spawn : forall t,
+    <{ spawn t }> --[EF_Spawn t]--> <{ unit }>
 
-Ltac inversion_cstep :=
-  match goal with
-  | H : _ / _ ~~[_, _]~~> _ / _ |- _ => inversion H; subst
-  end.
-
-Ltac inversion_clear_cstep :=
-  match goal with
-  | H : _ / _ ~~[_, _]~~> _ / _ |- _ => inversion_subst_clear H
-  end.
-
-Ltac induction_multistep :=
-  match goal with
-  | H : _ / _ ~~[_]~~>* _ / _ |- _ => induction H
-  end.
-
-Ltac inversion_multistep :=
-  match goal with
-  | H : _ / _ ~~[_]~~>* _ / _ |- _ => inversion H; subst
-  end.
-
-Ltac inversion_clear_multistep :=
-  match goal with
-  | H : _ / _ ~~[_]~~>* _ / _ |- _ => inversion_subst_clear H
-  end.
-
-Ltac induction_type :=
-  match goal with
-  | H : _ |-- _ is _ |- _ => induction H
-  end.
-
-Ltac inversion_type :=
-  match goal with
-  | H : _ |-- <{ unit         }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ N _          }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ & _ :: _     }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ new _ _      }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ * _          }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ _ = _        }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ var _        }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ fn _ _ --> _ }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ call _ _     }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ _ ; _        }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ spawn _      }> is _ |- _ => inversion H; subst
-  end.
-
-Ltac inversion_clear_type :=
-  match goal with
-  | H : _ |-- <{ unit         }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ N _          }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ & _ :: _     }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ new _ _      }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ * _          }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ _ = _        }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ var _        }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ fn _ _ --> _ }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ call _ _     }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ _ ; _        }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ spawn _      }> is _ |- _ => inversion_subst_clear H
-  end.
+  where "t '--[' e ']-->' t'" := (tstep t e t').
 
 (* ------------------------------------------------------------------------- *)
-(* auxiliary lemmas                                                          *)
+(* operational semantics -- memory step                                      *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma step_length_tid : forall t ths tid e,
-  ths[tid] --[e]--> t ->
-  tid < #ths.
-Proof.
-  intros. decompose sum (lt_eq_lt_dec tid (#ths)); subst; trivial;
-  simpl_array; try lia; inversion_step.
-Qed.
+Definition mem := list (tm * typ).
+Definition memory_default := (<{ unit }>, <{{ Unit }}>).
 
-Corollary mstep_length_tid : forall m m' t' ths tid e,
-  m / ths[tid] ==[e]==> m' / t' ->
-  tid < #ths.
-Proof.
-  intros. inversion_mstep; eauto using step_length_tid.
-Qed.
+Notation " l '[' i '].tm' " := (fst (l[i] or memory_default))
+  (at level 9, i at next level).
+Notation " l '[' i '].typ' " := (snd (l[i] or memory_default))
+  (at level 9, i at next level).
 
-Corollary cstep_length_tid : forall m m' ths ths' tid e,
-  m / ths ~~[tid, e]~~> m' / ths' ->
-  tid < #ths.
-Proof.
-  intros. inversion_cstep; trivial.
-Qed.
+Inductive mstep : mem -> tm -> effect -> mem -> tm -> Prop :=
+  | MS_Alloc : forall m t t' ad v T,
+    ad = #m ->
+    t --[EF_Alloc ad v T]--> t' ->
+    m / t ==[EF_Alloc ad v T]==> (m +++ (v, T)) / t'
+
+  | MS_Read : forall m t t' ad,
+    ad < #m ->
+    t --[EF_Read ad m[ad].tm]--> t' ->
+    m / t ==[EF_Read ad m[ad].tm]==> m / t'
+
+  | MS_Write : forall m t t' ad v T,
+    ad < #m ->
+    t --[EF_Write ad v T]--> t' ->
+    m / t ==[EF_Write ad v T]==> m[ad <- (v, T)] / t'
+
+  | MS_None : forall m t t',
+    t --[EF_None]--> t' ->
+    m / t ==[EF_None]==> m / t'
+
+  where "m / t '==[' e ']==>' m' / t'" := (mstep m t e m' t').
 
 (* ------------------------------------------------------------------------- *)
-(* meta                                                                      *)
+(* operational semantics -- concurrent step                                  *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma cstep_preservation :
-  forall (P : mem -> tm -> Prop) m m' ths ths' tid e,
-    (* Memory step preserves the property. *)
-    (forall tid' t',
-      m / ths[tid'] ==[e]==> m' / t' ->
-      P m' t'
-    ) ->
-    (* The untouched threads and the new memory still preserve the property. *)
-    (forall tid' t',
-      tid <> tid' ->
-      tid' < #ths ->
+Definition threads := list tm.
+Definition thread_default := <{ unit }>.
+Definition thread_id := nat.
+
+Notation " l '[' i ']' " := (l[i] or thread_default)
+  (at level 9, i at next level).
+
+Inductive cstep :
+  mem -> threads -> thread_id -> effect -> mem -> threads -> Prop :=
+
+  | CS_Spawn : forall m t' ths tid block,
+      tid < #ths ->
+      ths[tid] --[EF_Spawn block]--> t' ->
+      m / ths ~~[tid, EF_Spawn block]~~> m / (ths[tid <- t'] +++ block)
+
+  | CS_Mem : forall m m' t' ths tid e,
+      tid < #ths ->
       m / ths[tid] ==[e]==> m' / t' ->
-      P m' ths[tid']
-    ) ->
-    (* The new thread preserves the property. *)
-    (forall block t',
-      ths[tid] --[EF_Spawn block]--> t' ->
-      P m block
-    ) ->
-    (* The term after the spawn preserves the property. *)
-    (forall block t',
-      ths[tid] --[EF_Spawn block]--> t' ->
-      P m t' 
-    ) ->
-    (* Unit preserves the property. *)
-    P m' thread_default ->
-    (* What we want to prove. *)
-    forall_threads ths (P m) ->
-    m / ths ~~[tid, e]~~> m' / ths' ->
-    forall_threads ths' (P m').
-Proof.
-  intros. inversion_cstep; intros tid'.
-  - destruct (Nat.eq_dec tid tid'); subst; simpl_array; eauto.
-    decompose sum (lt_eq_lt_dec tid' (#ths)); subst; eauto;
-    simpl_array; eauto.
-  - destruct (Nat.eq_dec tid' (#ths)); subst.
-    + rewrite <- (set_preserves_length _ tid t'). simpl_array. eauto.
-    + destruct (lt_eq_lt_dec tid' (length ths)) as [[Ha | ?] | Hb]; subst;
-      try lia.
-      * rewrite <- (set_preserves_length _ tid t') in Ha. simpl_array.
-        destruct (Nat.eq_dec tid tid'); subst; simpl_array; eauto.
-      * rewrite <- (set_preserves_length _ tid t') in Hb. simpl_array. eauto.
-Qed.
+      m / ths ~~[tid, e]~~> m' / ths[tid <- t']
+
+  where "m / ths '~~[' tid ,  e ']~~>' m' / ths'" :=
+    (cstep m ths tid e m' ths').
+
+(* ------------------------------------------------------------------------- *)
+(* multistep                                                                 *)
+(* ------------------------------------------------------------------------- *)
+
+Definition trace := list (thread_id * effect).
+
+Inductive multistep : mem -> threads -> trace -> mem -> threads -> Prop :=
+  | cmultistep_refl: forall m ths,
+    m / ths ~~[nil]~~>* m / ths (* TODO: nil? *)
+
+  | cmultistep_trans : forall m m' m'' ths ths' ths'' tc tid e,
+    m  / ths  ~~[tc]~~>* m'  / ths'  ->
+    m' / ths' ~~[tid, e]~~> m'' / ths'' ->
+    m  / ths  ~~[(tid, e) :: tc]~~>* m'' / ths''
+
+  where "m / t '~~[' tc ']~~>*' m' / t'" := (multistep m t tc m' t').
 

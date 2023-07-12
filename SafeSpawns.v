@@ -4,6 +4,7 @@ From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Map.
 From Elo Require Import Core.
+From Elo Require Import CoreExt.
 From Elo Require Import Access.
 From Elo Require Import UnsafeAccess.
 
@@ -482,12 +483,12 @@ Theorem safe_spawns_preservation : forall m m' ths ths' tid eff,
 Proof.
   intros * Htype [? ?]. split; inversion_cstep;
   eauto using mstep_mem_safe_spawns_preservation.
-  - eapply forall_array_set;
-    eauto using SafeSpawns. specialize (Htype tid) as [? ?].
-    eauto using mstep_tm_safe_spawns_preservation. (* performance *)
   - eapply forall_array_add; eauto using SafeSpawns, safe_spawns_for_block.
     eapply forall_array_set;
     eauto using SafeSpawns, step_safe_spawns_preservation.
+  - eapply forall_array_set;
+    eauto using SafeSpawns. specialize (Htype tid) as [? ?].
+    eauto using mstep_tm_safe_spawns_preservation. (* performance *)
 Qed.
 
 (* ------------------------------------------------------------------------- *)

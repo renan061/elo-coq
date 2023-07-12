@@ -5,6 +5,7 @@ From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Map.
 From Elo Require Import Core.
+From Elo Require Import CoreExt.
 From Elo Require Import HasAddress.
 From Elo Require Import ValidAddresses.
 
@@ -276,8 +277,11 @@ Proof.
     decompose sum (lt_eq_lt_dec ad' (#m)); subst;
     simpl_array; eauto using well_typed_references;
     eauto using step_alloc_wtr_value, mem_add_wtr, well_typed_term.
-  - assert (
-      Tr = m[ad].typ /\
+  - match goal with
+    | _ : _ --[EF_Write _ _ ?T]--> _ |- _ => rename T into T'
+    end.
+    assert (
+      T' = m[ad].typ /\
       exists V, empty |-- v is V /\ empty |-- m[ad].tm is V)
       as [? [? [? ?]]] by eauto using step_write_wtt.
     decompose sum (lt_eq_lt_dec ad' ad); subst;
@@ -301,8 +305,11 @@ Proof.
   - destruct (Htype tid'). eauto using mstep_wtr_preservation.
   - inversion_mstep; eauto using mem_add_wtr.
     destruct (Htype tid).
+    match goal with
+    | _ : _ --[EF_Write _ _ ?T]--> _ |- _ => rename T into T'
+    end.
     assert (
-      Tr = m[ad].typ /\
+      T' = m[ad].typ /\
       exists V, empty |-- v is V /\ empty |-- m[ad].tm is V)
       as [Heq [? [? ?]]] by eauto using step_write_wtt.
     rewrite Heq in *. eauto using mem_set_wtr.

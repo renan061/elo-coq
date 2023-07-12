@@ -5,6 +5,7 @@ From Coq Require Classical_Prop.
 From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Core.
+From Elo Require Import CoreExt.
 From Elo Require Import HasAddress.
 
 (* The addresses of a term are valid if they

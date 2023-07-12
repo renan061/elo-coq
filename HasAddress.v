@@ -2,11 +2,12 @@ From Coq Require Classical_Prop.
 
 From Elo Require Import Util.
 From Elo Require Import Core.
+From Elo Require Import CoreExt.
 
 (* A term has an address <ad> if it contains
 a reference term poiting to <ad>. *)
 Inductive HasAddress (ad : addr) : tm -> Prop :=
-  | hasad_ref : forall T,
+  | hasad_ad : forall T,
     HasAddress ad <{ &ad :: T }>
 
   | hasad_new : forall t T,
