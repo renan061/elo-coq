@@ -12,7 +12,7 @@ core:
 	$(COQC) CoreExt.v
 
 access: core
-	$(COQC) HasAddress.v
+	$(COQC) AnyTerm.v
 	$(COQC) ValidAddresses.v
 	$(COQC) Access.v
 	$(COQC) Contains.v
