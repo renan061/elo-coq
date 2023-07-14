@@ -1,6 +1,5 @@
 From Coq Require Import Arith.Arith.
 From Coq Require Import Lia.
-From Coq Require Classical_Prop.
 
 From Elo Require Import Util.
 From Elo Require Import Array.
@@ -348,5 +347,14 @@ Theorem valid_addresses_memory_preservation : forall m m' ths ths' tid e,
 Proof.
   intros * [? ?]. intros.
   inversion_cstep; eauto using mstep_mem_vad_preservation.
+Qed.
+
+Corollary valid_addresses_preservation : forall m m' ths ths' tid e,
+  forall_program m ths (valid_addresses m) ->
+  m / ths ~~[tid, e]~~> m' / ths' ->
+  forall_program m' ths' (valid_addresses m').
+Proof.
+  eauto using valid_addresses_term_preservation,
+              valid_addresses_memory_preservation.
 Qed.
 

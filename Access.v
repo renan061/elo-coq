@@ -58,32 +58,32 @@ Inductive access (m : mem) : tm -> addr -> Prop :=
 
 Ltac inversion_acc :=
   match goal with
-  | H : access _ <{ unit     }> _ |- _ => inversion H
-  | H : access _ <{ N _      }> _ |- _ => inversion H
+  | H : access _ <{ unit     }> _ |- _ => inversion H; subst
+  | H : access _ <{ N _      }> _ |- _ => inversion H; subst
   | H : access _ <{ & _ :: _ }> _ |- _ => inversion H; subst
   | H : access _ <{ new _ _  }> _ |- _ => inversion H; subst
   | H : access _ <{ * _      }> _ |- _ => inversion H; subst
   | H : access _ <{ _ = _    }> _ |- _ => inversion H; subst
-  | H : access _ <{ var _    }> _ |- _ => inversion H
+  | H : access _ <{ var _    }> _ |- _ => inversion H; subst
   | H : access _ <{ fn _ _ _ }> _ |- _ => inversion H; subst
   | H : access _ <{ call _ _ }> _ |- _ => inversion H; subst
   | H : access _ <{ _ ; _    }> _ |- _ => inversion H; subst
-  | H : access _ <{ spawn _  }> _ |- _ => inversion H
+  | H : access _ <{ spawn _  }> _ |- _ => inversion H; subst
   end.
 
 Ltac inversion_clear_acc :=
   match goal with
-  | H : access _ <{ unit     }> _ |- _ => inversion H
-  | H : access _ <{ N _      }> _ |- _ => inversion H
+  | H : access _ <{ unit     }> _ |- _ => inversion_subst_clear H
+  | H : access _ <{ N _      }> _ |- _ => inversion_subst_clear H
   | H : access _ <{ & _ :: _ }> _ |- _ => inversion_subst_clear H
   | H : access _ <{ new _ _  }> _ |- _ => inversion_subst_clear H
   | H : access _ <{ * _      }> _ |- _ => inversion_subst_clear H
   | H : access _ <{ _ = _    }> _ |- _ => inversion_subst_clear H
-  | H : access _ <{ var _    }> _ |- _ => inversion H
+  | H : access _ <{ var _    }> _ |- _ => inversion_subst_clear H
   | H : access _ <{ fn _ _ _ }> _ |- _ => inversion_subst_clear H
   | H : access _ <{ call _ _ }> _ |- _ => inversion_subst_clear H
   | H : access _ <{ _ ; _    }> _ |- _ => inversion_subst_clear H
-  | H : access _ <{ spawn _  }> _ |- _ => inversion H
+  | H : access _ <{ spawn _  }> _ |- _ => inversion_subst_clear H
   end.
 
 (* ------------------------------------------------------------------------- *)
@@ -264,7 +264,7 @@ Proof. solve_vac_inversion. Qed.
 
 Ltac inversion_vac :=
   match goal with
-  | H: valid_accesses _ <{ &_ :: _  }> |- _ => eapply inv_vac_ref  in H as Hwba'
+  | H: valid_accesses _ <{ &_ :: _  }> |- _ => eapply inv_vac_ref  in H as Hvac'
   | H: valid_accesses _ <{ new _ _  }> |- _ => eapply inv_vac_new  in H
   | H: valid_accesses _ <{ * _      }> |- _ => eapply inv_vac_load in H
   | H: valid_accesses _ <{ _ = _    }> |- _ => eapply inv_vac_asg  in H as [? ?]

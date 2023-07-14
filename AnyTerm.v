@@ -48,3 +48,44 @@ Proof.
   intros. induction_step; eauto using anyt.
 Qed.
 
+(* ------------------------------------------------------------------------- *)
+(* anyT - anyt ignoring spawn blocks                                         *)
+(* ------------------------------------------------------------------------- *)
+
+Inductive anyT (P : tm -> Prop) : tm -> Prop :=
+  | anyT_unit   :                P <{ unit }>       -> anyT P <{ unit }>
+  | anyT_num    : forall n,      P <{ N n }>        -> anyT P <{ N n }>
+  | anyT_ad     : forall ad T,   P <{ &ad :: T }>   -> anyT P <{ &ad :: T }>
+  | anyT_new    : forall T t,    P <{ new T t }>    -> anyT P <{ new T t }>
+  | anyT_new1   : forall T t,    anyT P t           -> anyT P <{ new T t }>
+  | anyT_load   : forall t,      P <{ *t }>         -> anyT P <{ *t }>
+  | anyT_load1  : forall t,      anyT P t           -> anyT P <{ *t }>
+  | anyT_asg    : forall t1 t2,  P <{ t1 = t2 }>    -> anyT P <{ t1 = t2 }>
+  | anyT_asg1   : forall t1 t2,  anyT P t1          -> anyT P <{ t1 = t2 }>
+  | anyT_asg2   : forall t1 t2,  anyT P t2          -> anyT P <{ t1 = t2 }>
+  | anyT_var    : forall x,      P <{ var x }>      -> anyT P <{ var x }>
+  | anyT_fun    : forall x Tx t, P <{ fn x Tx t }>  -> anyT P <{ fn x Tx t }>
+  | anyT_fun1   : forall x Tx t, anyT P t           -> anyT P <{ fn x Tx t }>
+  | anyT_call   : forall t1 t2,  P <{ call t1 t2 }> -> anyT P <{ call t1 t2 }>
+  | anyT_call1  : forall t1 t2,  anyT P t1          -> anyT P <{ call t1 t2 }>
+  | anyT_call2  : forall t1 t2,  anyT P t2          -> anyT P <{ call t1 t2 }>
+  | anyT_seq    : forall t1 t2,  P <{ t1; t2 }>     -> anyT P <{ t1; t2 }>
+  | anyT_seq1   : forall t1 t2,  anyT P t1          -> anyT P <{ t1; t2 }>
+  | anyT_seq2   : forall t1 t2,  anyT P t2          -> anyT P <{ t1; t2 }>
+  | anyT_spawn  : forall t,      P <{ spawn t }>    -> anyT P <{ spawn t }>
+  .
+
+(* Alternative access for the future
+
+Inductive has_access : mem -> addr -> tm -> Prop :=
+  | has_access_mem : forall m ad ad' T,
+    ad <> ad' ->
+    anyT (has_access m ad) m[ad'].tm ->
+    has_access m ad <{ &ad' :: T}> 
+
+  | has_access_ad : forall m ad T,
+    has_access m ad <{ &ad :: T}>
+  .
+
+Definition access m t ad := anyT (has_access m ad) t.
+*)

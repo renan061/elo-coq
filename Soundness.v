@@ -8,8 +8,6 @@ From Elo Require Import Array.
 From Elo Require Import Map.
 From Elo Require Import Core.
 From Elo Require Import CoreExt.
-From Elo Require Import ValidAddresses.
-From Elo Require Import Access.
 From Elo Require Import References.
 
 (* ------------------------------------------------------------------------- *)
@@ -236,8 +234,8 @@ Proof.
   inversion_type; inversion_wtr; apply_deterministic_typing. eauto.
 Qed.
 
-
-
+(* TODO *)
+(* did not prove preservation *)
 
 
 
