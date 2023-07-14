@@ -72,23 +72,23 @@ Declare Custom Entry elo_tm.
 Notation "<{ t }>" := t (t custom elo_tm at level 99).
 Notation "x"       := x (in custom elo_tm at level 0, x constr at level 0).
 
-Notation "'unit'"            := (TM_Unit)       (in custom elo_tm at level 0).
-Notation "'N' n"             := (TM_Num n)      (in custom elo_tm at level 0).
-Notation "'&' ad '::' T"     := (TM_Ad ad T)     (in custom elo_tm at level 0,
-                                                 T custom elo_typ at level 0).
-Notation "'new' T t"         := (TM_New T t)     (in custom elo_tm at level 0,
-                                                 T custom elo_typ at level 0).
-Notation "'*' t"             := (TM_Load t)     (in custom elo_tm at level 0).
-Notation "t1 '=' t2"         := (TM_Asg t1 t2)  (in custom elo_tm at level 70,
-                                                            no associativity).
-Notation "'var' x"           := (TM_Var x)      (in custom elo_tm at level 0).
-Notation "'fn' x Tx '-->' t" := (TM_Fun x Tx t)  (in custom elo_tm at level 0,
-                                                          x constr at level 0,
-                                                Tx custom elo_typ at level 0).
-Notation "'call' t1 t2"      := (TM_Call t1 t2) (in custom elo_tm at level 0).
-Notation "t1 ';' t2"         := (TM_Seq t1 t2)   (in custom elo_tm at level 2,
-                                                         right associativity).
-Notation "'spawn' t"         := (TM_Spawn t)    (in custom elo_tm at level 0).
+Notation "'unit'"        := (TM_Unit)       (in custom elo_tm at level 0).
+Notation "'N' n"         := (TM_Num n)      (in custom elo_tm at level 0).
+Notation "'&' ad '::' T" := (TM_Ad ad T)     (in custom elo_tm at level 0,
+                                             T custom elo_typ at level 0).
+Notation "'new' T t"     := (TM_New T t)     (in custom elo_tm at level 0,
+                                             T custom elo_typ at level 0).
+Notation "'*' t"         := (TM_Load t)     (in custom elo_tm at level 0).
+Notation "t1 '=' t2"     := (TM_Asg t1 t2)  (in custom elo_tm at level 70,
+                                                        no associativity).
+Notation "'var' x"       := (TM_Var x)      (in custom elo_tm at level 0).
+Notation "'fn' x Tx t"   := (TM_Fun x Tx t)  (in custom elo_tm at level 0,
+                                                      x constr at level 0,
+                                            Tx custom elo_typ at level 0).
+Notation "'call' t1 t2"  := (TM_Call t1 t2) (in custom elo_tm at level 0).
+Notation "t1 ';' t2"     := (TM_Seq t1 t2)   (in custom elo_tm at level 2,
+                                                     right associativity).
+Notation "'spawn' t"     := (TM_Spawn t)    (in custom elo_tm at level 0).
 
 Reserved Notation "'[' x ':=' tx ']' t"
   (at level 20, x constr).
@@ -113,7 +113,7 @@ Inductive value : tm -> Prop :=
   | V_Unit : value <{ unit }> 
   | V_Num : forall n, value <{ N n }>
   | V_Ref : forall ad T, value <{ &ad :: T }>
-  | V_Fun : forall x Tx t, value <{ fn x Tx --> t }>
+  | V_Fun : forall x Tx t, value <{ fn x Tx t }>
   .
 
 (* ------------------------------------------------------------------------- *)
@@ -184,7 +184,7 @@ Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
 
   | T_Fun : forall Gamma x t T Tx,
     Gamma[x <== Tx] |-- t is T ->
-    Gamma |-- <{ fn x Tx --> t }> is <{{ Tx --> T }}>
+    Gamma |-- <{ fn x Tx t }> is <{{ Tx --> T }}>
 
   | T_Call : forall Gamma t1 t2 Tx T,
     Gamma |-- t1 is <{{ Tx --> T }}> ->
@@ -210,19 +210,17 @@ Local Infix "=?" := string_dec (at level 70, no associativity).
 
 Fixpoint subst (x : id) (tx t : tm) : tm :=
   match t with
-  | <{ unit            }> => t
-  | <{ N _             }> => t
-  | <{ & _ :: _        }> => t
-  | <{ new T t'        }> => <{ new T ([x := tx] t')            }>
-  | <{ *t'             }> => <{ * ([x := tx] t')                }>
-  | <{ t1 = t2         }> => <{ ([x := tx] t1) = ([x := tx] t2) }>
-  | <{ var x'          }> => if x =? x' then tx else t
-  | <{ fn x' Tx --> t' }> => if x =? x'
-                              then t 
-                              else <{ fn x' Tx --> ([x := tx] t')  }>
-  | <{ call t1 t2      }> => <{ call ([x := tx] t1) ([x := tx] t2) }>
-  | <{ t1; t2          }> => <{ ([x := tx] t1) ; ([x := tx] t2)    }>
-  | <{ spawn t'        }> => <{ spawn ([x := tx] t')               }>
+  | <{ unit        }> => t
+  | <{ N _         }> => t
+  | <{ & _ :: _    }> => t
+  | <{ new T t'    }> => <{ new T ([x := tx] t')            }>
+  | <{ *t'         }> => <{ * ([x := tx] t')                }>
+  | <{ t1 = t2     }> => <{ ([x := tx] t1) = ([x := tx] t2) }>
+  | <{ var x'      }> => if x =? x' then tx else t
+  | <{ fn x' Tx t' }> => if x =? x' then t  else <{ fn x' Tx ([x := tx] t') }>
+  | <{ call t1 t2  }> => <{ call ([x := tx] t1) ([x := tx] t2) }>
+  | <{ t1; t2      }> => <{ ([x := tx] t1) ; ([x := tx] t2)    }>
+  | <{ spawn t'    }> => <{ spawn ([x := tx] t')               }>
   end
   where "'[' x ':=' tx ']' t" := (subst x tx t).
 
@@ -274,7 +272,7 @@ Inductive tstep : tm -> effect -> tm -> Prop :=
 
   | TS_Call : forall x Tx t v,
     value v ->
-    <{ call <{ fn x Tx --> t }> v }> --[EF_None]--> ([x := v] t)
+    <{ call <{ fn x Tx t }> v }> --[EF_None]--> ([x := v] t)
 
   (* Seq *)
   | TS_Seq1 : forall t1 t1' t2 e,

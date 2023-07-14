@@ -129,32 +129,32 @@ Ltac induction_type :=
 
 Ltac inversion_type :=
   match goal with
-  | H : _ |-- <{ unit         }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ N _          }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ & _ :: _     }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ new _ _      }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ * _          }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ _ = _        }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ var _        }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ fn _ _ --> _ }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ call _ _     }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ _ ; _        }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ spawn _      }> is _ |- _ => inversion H; subst
+  | H : _ |-- <{ unit     }> is _ |- _ => inversion H; subst
+  | H : _ |-- <{ N _      }> is _ |- _ => inversion H; subst
+  | H : _ |-- <{ & _ :: _ }> is _ |- _ => inversion H; subst
+  | H : _ |-- <{ new _ _  }> is _ |- _ => inversion H; subst
+  | H : _ |-- <{ * _      }> is _ |- _ => inversion H; subst
+  | H : _ |-- <{ _ = _    }> is _ |- _ => inversion H; subst
+  | H : _ |-- <{ var _    }> is _ |- _ => inversion H; subst
+  | H : _ |-- <{ fn _ _ _ }> is _ |- _ => inversion H; subst
+  | H : _ |-- <{ call _ _ }> is _ |- _ => inversion H; subst
+  | H : _ |-- <{ _ ; _    }> is _ |- _ => inversion H; subst
+  | H : _ |-- <{ spawn _  }> is _ |- _ => inversion H; subst
   end.
 
 Ltac inversion_clear_type :=
   match goal with
-  | H : _ |-- <{ unit         }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ N _          }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ & _ :: _     }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ new _ _      }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ * _          }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ _ = _        }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ var _        }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ fn _ _ --> _ }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ call _ _     }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ _ ; _        }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ spawn _      }> is _ |- _ => inversion_subst_clear H
+  | H : _ |-- <{ unit     }> is _ |- _ => inversion_subst_clear H
+  | H : _ |-- <{ N _      }> is _ |- _ => inversion_subst_clear H
+  | H : _ |-- <{ & _ :: _ }> is _ |- _ => inversion_subst_clear H
+  | H : _ |-- <{ new _ _  }> is _ |- _ => inversion_subst_clear H
+  | H : _ |-- <{ * _      }> is _ |- _ => inversion_subst_clear H
+  | H : _ |-- <{ _ = _    }> is _ |- _ => inversion_subst_clear H
+  | H : _ |-- <{ var _    }> is _ |- _ => inversion_subst_clear H
+  | H : _ |-- <{ fn _ _ _ }> is _ |- _ => inversion_subst_clear H
+  | H : _ |-- <{ call _ _ }> is _ |- _ => inversion_subst_clear H
+  | H : _ |-- <{ _ ; _    }> is _ |- _ => inversion_subst_clear H
+  | H : _ |-- <{ spawn _  }> is _ |- _ => inversion_subst_clear H
   end.
 
 (* ------------------------------------------------------------------------- *)

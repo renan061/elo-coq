@@ -26,7 +26,7 @@ Inductive Contains (t' : tm) : tm -> Prop :=
 
   | contains_fun : forall t x Tx,
     t contains t' ->
-    <{ fn x Tx --> t }> contains t'
+    <{ fn x Tx t }> contains t'
 
   | contains_call1 : forall t1 t2,
     t1 contains t' ->

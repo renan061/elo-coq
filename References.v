@@ -6,7 +6,7 @@ From Elo Require Import Array.
 From Elo Require Import Map.
 From Elo Require Import Core.
 From Elo Require Import CoreExt.
-From Elo Require Import HasAddress.
+From Elo Require Import AnyTerm.
 From Elo Require Import ValidAddresses.
 
 (* ------------------------------------------------------------------------- *)
@@ -48,7 +48,7 @@ Inductive well_typed_references (m : mem) : tm -> Prop :=
 
   | wtr_fun : forall x Tx t,
     well_typed_references m t ->
-    well_typed_references m <{ fn x Tx --> t }>
+    well_typed_references m <{ fn x Tx t }>
 
   | wtr_call : forall t1 t2,
     well_typed_references m t1 ->
@@ -67,32 +67,32 @@ Inductive well_typed_references (m : mem) : tm -> Prop :=
 
 Ltac inversion_wtr :=
   match goal with
-  | H : well_typed_references _ <{ unit         }> |- _ => inversion H
-  | H : well_typed_references _ <{ N _          }> |- _ => inversion H
-  | H : well_typed_references _ <{ & _ :: _     }> |- _ => inversion H; subst
-  | H : well_typed_references _ <{ new _ _      }> |- _ => inversion H; subst
-  | H : well_typed_references _ <{ * _          }> |- _ => inversion H; subst
-  | H : well_typed_references _ <{ _ = _        }> |- _ => inversion H; subst
-  | H : well_typed_references _ <{ var _        }> |- _ => inversion H
-  | H : well_typed_references _ <{ fn _ _ --> _ }> |- _ => inversion H; subst
-  | H : well_typed_references _ <{ call _ _     }> |- _ => inversion H; subst
-  | H : well_typed_references _ <{ _ ; _        }> |- _ => inversion H; subst
-  | H : well_typed_references _ <{ spawn _      }> |- _ => inversion H; subst
+  | H : well_typed_references _ <{ unit     }> |- _ => inversion H
+  | H : well_typed_references _ <{ N _      }> |- _ => inversion H
+  | H : well_typed_references _ <{ & _ :: _ }> |- _ => inversion H; subst
+  | H : well_typed_references _ <{ new _ _  }> |- _ => inversion H; subst
+  | H : well_typed_references _ <{ * _      }> |- _ => inversion H; subst
+  | H : well_typed_references _ <{ _ = _    }> |- _ => inversion H; subst
+  | H : well_typed_references _ <{ var _    }> |- _ => inversion H
+  | H : well_typed_references _ <{ fn _ _ _ }> |- _ => inversion H; subst
+  | H : well_typed_references _ <{ call _ _ }> |- _ => inversion H; subst
+  | H : well_typed_references _ <{ _ ; _    }> |- _ => inversion H; subst
+  | H : well_typed_references _ <{ spawn _  }> |- _ => inversion H; subst
   end.
 
 Ltac inversion_clear_wtr :=
   match goal with
-  |H: well_typed_references _ <{ unit         }> |- _ => inversion H
-  |H: well_typed_references _ <{ N _          }> |- _ => inversion H
-  |H: well_typed_references _ <{ & _ :: _     }> |- _ => inversion_subst_clear H
-  |H: well_typed_references _ <{ new _ _      }> |- _ => inversion_subst_clear H
-  |H: well_typed_references _ <{ * _          }> |- _ => inversion_subst_clear H
-  |H: well_typed_references _ <{ _ = _        }> |- _ => inversion_subst_clear H
-  |H: well_typed_references _ <{ var _        }> |- _ => inversion H
-  |H: well_typed_references _ <{ fn _ _ --> _ }> |- _ => inversion_subst_clear H
-  |H: well_typed_references _ <{ call _ _     }> |- _ => inversion_subst_clear H
-  |H: well_typed_references _ <{ _ ; _        }> |- _ => inversion_subst_clear H
-  |H: well_typed_references _ <{ spawn _      }> |- _ => inversion_subst_clear H
+  |H: well_typed_references _ <{ unit     }> |- _ => inversion H
+  |H: well_typed_references _ <{ N _      }> |- _ => inversion H
+  |H: well_typed_references _ <{ & _ :: _ }> |- _ => inversion_subst_clear H
+  |H: well_typed_references _ <{ new _ _  }> |- _ => inversion_subst_clear H
+  |H: well_typed_references _ <{ * _      }> |- _ => inversion_subst_clear H
+  |H: well_typed_references _ <{ _ = _    }> |- _ => inversion_subst_clear H
+  |H: well_typed_references _ <{ var _    }> |- _ => inversion H
+  |H: well_typed_references _ <{ fn _ _ _ }> |- _ => inversion_subst_clear H
+  |H: well_typed_references _ <{ call _ _ }> |- _ => inversion_subst_clear H
+  |H: well_typed_references _ <{ _ ; _    }> |- _ => inversion_subst_clear H
+  |H: well_typed_references _ <{ spawn _  }> |- _ => inversion_subst_clear H
   end.
 
 (* ------------------------------------------------------------------------- *)
@@ -101,7 +101,7 @@ Ltac inversion_clear_wtr :=
 
 Local Lemma subst_wtr : forall m x Tx t v,
   well_typed_references m v ->
-  well_typed_references m <{ fn x Tx --> t }> ->
+  well_typed_references m <{ fn x Tx t }> ->
   well_typed_references m ([x := v] t).
 Proof.
   intros. inversion_clear_wtr.
@@ -197,15 +197,13 @@ Local Lemma step_write_wtr_preservation : forall m t t' ad v Tr T,
   t --[EF_Write ad v Tr]--> t' ->
   well_typed_references m[ad <- (v, Tr)] t'.
 Proof.
-  intros * ? Hva. intros.
-  assert (ad < #m) by eauto using step_write_hasad1.
-  assert (
+  intros. assert (
     Tr = m[ad].typ /\
     exists V, empty |-- v is V /\ empty |-- m[ad].tm is V)
     as [? [? [? ?]]] by eauto using step_write_wtt.
   generalize dependent T.
   induction_step; intros; inversion_type; inversion_vad; inversion_wtr;
-  eauto using mem_set_wtr, well_typed_references.
+  eauto using valid_address_write, mem_set_wtr, well_typed_references.
 Qed.
 
 Local Corollary mstep_wtr_preservation : forall m m' t t' eff T,

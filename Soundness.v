@@ -159,7 +159,7 @@ Proof.
 Qed.
 
 Local Lemma subst_type_preservation : forall t tx T Tx Tx' Gamma x,
-  Gamma |-- <{ fn x Tx --> t }> is <{{  Tx' --> T }}> ->
+  Gamma |-- <{ fn x Tx t }> is <{{  Tx' --> T }}> ->
   empty |-- tx is Tx' ->
   Gamma |-- [x := tx] t is T.
 Proof.

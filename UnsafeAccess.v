@@ -38,7 +38,7 @@ Inductive UnsafeAccess (m : mem) : tm -> addr -> Prop :=
 
   | uacc_fun : forall x Tx t ad,
     UnsafeAccess m t ad ->
-    UnsafeAccess m <{ fn x Tx --> t }> ad
+    UnsafeAccess m <{ fn x Tx t }> ad
 
   | uacc_call1 : forall t1 t2 ad,
     UnsafeAccess m t1 ad ->
@@ -59,32 +59,32 @@ Inductive UnsafeAccess (m : mem) : tm -> addr -> Prop :=
 
 Ltac inversion_uacc :=
   match goal with
-  | H : UnsafeAccess _ <{ unit         }> _ |- _ => inversion H; subst
-  | H : UnsafeAccess _ <{ N _          }> _ |- _ => inversion H; subst
-  | H : UnsafeAccess _ <{ & _ :: _     }> _ |- _ => inversion H; subst
-  | H : UnsafeAccess _ <{ new _ _      }> _ |- _ => inversion H; subst
-  | H : UnsafeAccess _ <{ * _          }> _ |- _ => inversion H; subst
-  | H : UnsafeAccess _ <{ _ = _        }> _ |- _ => inversion H; subst
-  | H : UnsafeAccess _ <{ var _        }> _ |- _ => inversion H; subst
-  | H : UnsafeAccess _ <{ fn _ _ --> _ }> _ |- _ => inversion H; subst
-  | H : UnsafeAccess _ <{ call _ _     }> _ |- _ => inversion H; subst
-  | H : UnsafeAccess _ <{ _ ; _        }> _ |- _ => inversion H; subst
-  | H : UnsafeAccess _ <{ spawn _      }> _ |- _ => inversion H; subst
+  | H : UnsafeAccess _ <{ unit     }> _ |- _ => inversion H; subst
+  | H : UnsafeAccess _ <{ N _      }> _ |- _ => inversion H; subst
+  | H : UnsafeAccess _ <{ & _ :: _ }> _ |- _ => inversion H; subst
+  | H : UnsafeAccess _ <{ new _ _  }> _ |- _ => inversion H; subst
+  | H : UnsafeAccess _ <{ * _      }> _ |- _ => inversion H; subst
+  | H : UnsafeAccess _ <{ _ = _    }> _ |- _ => inversion H; subst
+  | H : UnsafeAccess _ <{ var _    }> _ |- _ => inversion H; subst
+  | H : UnsafeAccess _ <{ fn _ _ _ }> _ |- _ => inversion H; subst
+  | H : UnsafeAccess _ <{ call _ _ }> _ |- _ => inversion H; subst
+  | H : UnsafeAccess _ <{ _ ; _    }> _ |- _ => inversion H; subst
+  | H : UnsafeAccess _ <{ spawn _  }> _ |- _ => inversion H; subst
   end.
 
 Ltac inversion_clear_uacc :=
   match goal with
-  | H : UnsafeAccess _ <{ unit         }> _ |- _ => inversion_subst_clear H
-  | H : UnsafeAccess _ <{ N _          }> _ |- _ => inversion_subst_clear H
-  | H : UnsafeAccess _ <{ & _ :: _     }> _ |- _ => inversion_subst_clear H
-  | H : UnsafeAccess _ <{ new _ _      }> _ |- _ => inversion_subst_clear H
-  | H : UnsafeAccess _ <{ * _          }> _ |- _ => inversion_subst_clear H
-  | H : UnsafeAccess _ <{ _ = _        }> _ |- _ => inversion_subst_clear H
-  | H : UnsafeAccess _ <{ var _        }> _ |- _ => inversion_subst_clear H
-  | H : UnsafeAccess _ <{ fn _ _ --> _ }> _ |- _ => inversion_subst_clear H
-  | H : UnsafeAccess _ <{ call _ _     }> _ |- _ => inversion_subst_clear H
-  | H : UnsafeAccess _ <{ _ ; _        }> _ |- _ => inversion_subst_clear H
-  | H : UnsafeAccess _ <{ spawn _      }> _ |- _ => inversion_subst_clear H
+  | H : UnsafeAccess _ <{ unit     }> _ |- _ => inversion_subst_clear H
+  | H : UnsafeAccess _ <{ N _      }> _ |- _ => inversion_subst_clear H
+  | H : UnsafeAccess _ <{ & _ :: _ }> _ |- _ => inversion_subst_clear H
+  | H : UnsafeAccess _ <{ new _ _  }> _ |- _ => inversion_subst_clear H
+  | H : UnsafeAccess _ <{ * _      }> _ |- _ => inversion_subst_clear H
+  | H : UnsafeAccess _ <{ _ = _    }> _ |- _ => inversion_subst_clear H
+  | H : UnsafeAccess _ <{ var _    }> _ |- _ => inversion_subst_clear H
+  | H : UnsafeAccess _ <{ fn _ _ _ }> _ |- _ => inversion_subst_clear H
+  | H : UnsafeAccess _ <{ call _ _ }> _ |- _ => inversion_subst_clear H
+  | H : UnsafeAccess _ <{ _ ; _    }> _ |- _ => inversion_subst_clear H
+  | H : UnsafeAccess _ <{ spawn _  }> _ |- _ => inversion_subst_clear H
   end.
 
 Lemma uacc_dec : forall m t ad,
@@ -124,7 +124,7 @@ Lemma nuacc_asg : forall m t1 t2 ad,
 Proof. solve_nuacc. Qed.
 
 Lemma nuacc_fun : forall m t ad x Tx,
-  ~ UnsafeAccess m <{ fn x Tx --> t }> ad ->
+  ~ UnsafeAccess m <{ fn x Tx t }> ad ->
   ~ UnsafeAccess m t ad.
 Proof. solve_nuacc. Qed.
 
@@ -147,7 +147,7 @@ Ltac inversion_nuacc :=
   | H: ~ UnsafeAccess _ <{ new _ _  }> _ |- _ => eapply nuacc_new  in H
   | H: ~ UnsafeAccess _ <{ * _      }> _ |- _ => eapply nuacc_load in H
   | H: ~ UnsafeAccess _ <{ _ = _    }> _ |- _ => eapply nuacc_asg  in H as [? ?]
-  | H: ~ UnsafeAccess _ <{ fn _ _ --> _ }> _ |- _ => eapply nuacc_fun in H
+  | H: ~ UnsafeAccess _ <{ fn _ _ _ }> _ |- _ => eapply nuacc_fun  in H
   | H: ~ UnsafeAccess _ <{ call _ _ }> _ |- _ => eapply nuacc_call in H as [? ?]
   | H: ~ UnsafeAccess _ <{ _ ; _    }> _ |- _ => eapply nuacc_seq  in H as [? ?]
   end.
@@ -220,7 +220,7 @@ Qed.
 
 Local Corollary subst_nuacc : forall m t ad v x Tx,
   ~ UnsafeAccess m v ad ->
-  ~ UnsafeAccess m <{ fn x Tx --> t }> ad ->
+  ~ UnsafeAccess m <{ fn x Tx t }> ad ->
   ~ UnsafeAccess m ([x := v] t) ad.
 Proof.
   intros. inversion_nuacc. eauto using subst_nuacc'.

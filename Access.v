@@ -5,7 +5,7 @@ From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Core.
 From Elo Require Import CoreExt.
-From Elo Require Import HasAddress.
+From Elo Require Import AnyTerm.
 From Elo Require Import ValidAddresses.
 
 (* A term accesses an address if it refers to the address directly or 
@@ -37,7 +37,7 @@ Inductive access (m : mem) : tm -> addr -> Prop :=
 
   | acc_fun : forall x Tx t ad,
     access m t ad ->
-    access m <{ fn x Tx --> t }> ad
+    access m <{ fn x Tx t }> ad
 
   | acc_call1 : forall t1 t2 ad,
     access m t1 ad ->
@@ -58,32 +58,32 @@ Inductive access (m : mem) : tm -> addr -> Prop :=
 
 Ltac inversion_acc :=
   match goal with
-  | H : access _ <{ unit         }> _ |- _ => inversion H
-  | H : access _ <{ N _          }> _ |- _ => inversion H
-  | H : access _ <{ & _ :: _     }> _ |- _ => inversion H; subst
-  | H : access _ <{ new _ _      }> _ |- _ => inversion H; subst
-  | H : access _ <{ * _          }> _ |- _ => inversion H; subst
-  | H : access _ <{ _ = _        }> _ |- _ => inversion H; subst
-  | H : access _ <{ var _        }> _ |- _ => inversion H
-  | H : access _ <{ fn _ _ --> _ }> _ |- _ => inversion H; subst
-  | H : access _ <{ call _ _     }> _ |- _ => inversion H; subst
-  | H : access _ <{ _ ; _        }> _ |- _ => inversion H; subst
-  | H : access _ <{ spawn _      }> _ |- _ => inversion H
+  | H : access _ <{ unit     }> _ |- _ => inversion H
+  | H : access _ <{ N _      }> _ |- _ => inversion H
+  | H : access _ <{ & _ :: _ }> _ |- _ => inversion H; subst
+  | H : access _ <{ new _ _  }> _ |- _ => inversion H; subst
+  | H : access _ <{ * _      }> _ |- _ => inversion H; subst
+  | H : access _ <{ _ = _    }> _ |- _ => inversion H; subst
+  | H : access _ <{ var _    }> _ |- _ => inversion H
+  | H : access _ <{ fn _ _ _ }> _ |- _ => inversion H; subst
+  | H : access _ <{ call _ _ }> _ |- _ => inversion H; subst
+  | H : access _ <{ _ ; _    }> _ |- _ => inversion H; subst
+  | H : access _ <{ spawn _  }> _ |- _ => inversion H
   end.
 
 Ltac inversion_clear_acc :=
   match goal with
-  | H : access _ <{ unit         }> _ |- _ => inversion H
-  | H : access _ <{ N _          }> _ |- _ => inversion H
-  | H : access _ <{ & _ :: _     }> _ |- _ => inversion_subst_clear H
-  | H : access _ <{ new _ _      }> _ |- _ => inversion_subst_clear H
-  | H : access _ <{ * _          }> _ |- _ => inversion_subst_clear H
-  | H : access _ <{ _ = _        }> _ |- _ => inversion_subst_clear H
-  | H : access _ <{ var _        }> _ |- _ => inversion H
-  | H : access _ <{ fn _ _ --> _ }> _ |- _ => inversion_subst_clear H
-  | H : access _ <{ call _ _     }> _ |- _ => inversion_subst_clear H
-  | H : access _ <{ _ ; _        }> _ |- _ => inversion_subst_clear H
-  | H : access _ <{ spawn _      }> _ |- _ => inversion H
+  | H : access _ <{ unit     }> _ |- _ => inversion H
+  | H : access _ <{ N _      }> _ |- _ => inversion H
+  | H : access _ <{ & _ :: _ }> _ |- _ => inversion_subst_clear H
+  | H : access _ <{ new _ _  }> _ |- _ => inversion_subst_clear H
+  | H : access _ <{ * _      }> _ |- _ => inversion_subst_clear H
+  | H : access _ <{ _ = _    }> _ |- _ => inversion_subst_clear H
+  | H : access _ <{ var _    }> _ |- _ => inversion H
+  | H : access _ <{ fn _ _ _ }> _ |- _ => inversion_subst_clear H
+  | H : access _ <{ call _ _ }> _ |- _ => inversion_subst_clear H
+  | H : access _ <{ _ ; _    }> _ |- _ => inversion_subst_clear H
+  | H : access _ <{ spawn _  }> _ |- _ => inversion H
   end.
 
 (* ------------------------------------------------------------------------- *)
@@ -147,7 +147,7 @@ Inductive not_access (m : mem) : tm -> addr -> Prop :=
 
   | nacc_fun : forall x Tx t ad,
     ~ access m t ad ->
-    not_access m <{ fn x Tx --> t }> ad
+    not_access m <{ fn x Tx t }> ad
 
   | nacc_call : forall t1 t2 ad,
     ~ access m t1 ad ->
@@ -248,7 +248,7 @@ Local Lemma inv_vac_asg : forall m t1 t2,
 Proof. solve_vac_inversion. Qed.
 
 Local Lemma inv_vac_fun : forall m x Tx t,
-  valid_accesses m <{ fn x Tx --> t }> ->
+  valid_accesses m <{ fn x Tx t }> ->
   valid_accesses m t.
 Proof. solve_vac_inversion. Qed.
 
@@ -268,7 +268,7 @@ Ltac inversion_vac :=
   | H: valid_accesses _ <{ new _ _  }> |- _ => eapply inv_vac_new  in H
   | H: valid_accesses _ <{ * _      }> |- _ => eapply inv_vac_load in H
   | H: valid_accesses _ <{ _ = _    }> |- _ => eapply inv_vac_asg  in H as [? ?]
-  | H: valid_accesses _ <{ fn _ _ --> _ }> |- _ => eapply inv_vac_fun in H
+  | H: valid_accesses _ <{ fn _ _ _ }> |- _ => eapply inv_vac_fun  in H
   | H: valid_accesses _ <{ call _ _ }> |- _ => eapply inv_vac_call in H as [? ?]
   | H: valid_accesses _ <{ _ ; _    }> |- _ => eapply inv_vac_seq  in H as [? ?]
   end.
@@ -279,10 +279,10 @@ Ltac inversion_vac :=
 
 Local Lemma acc_then_hasad : forall m t ad,
   access m t ad ->
-  HasAddress ad t \/ (exists ad', HasAddress ad m[ad'].tm).
+  t has_address ad \/ (exists ad', m[ad'].tm has_address ad).
 Proof.
-  intros * Hacc.
-  induction Hacc; try destruct IHHacc as [? | [? ?]]; eauto using HasAddress.
+  intros * Hacc. induction Hacc; try destruct IHHacc as [? | [? ?]];
+  eauto using anyt, is_address.
 Qed.
 
 Theorem vad_then_vac : forall m t,
@@ -291,7 +291,7 @@ Theorem vad_then_vac : forall m t,
   valid_accesses m t.
 Proof.
   intros. intros ? ?. unfold forall_memory in *. unfold valid_addresses in *.
-  assert (HasAddress ad t \/ (exists ad', HasAddress ad m[ad'].tm))
+  assert (t has_address ad \/ (exists ad', m[ad'].tm has_address ad))
     as [? | [? ?]];
   eauto using acc_then_hasad.
 Qed.
@@ -303,7 +303,7 @@ Theorem vad_then_mem_vac : forall m t,
 Proof.
   intros. intros ad' ? ?.
   unfold forall_memory in *. unfold valid_addresses in *.
-  assert (HasAddress ad m[ad'].tm \/ (exists ad'', HasAddress ad m[ad''].tm))
+  assert (m[ad'].tm has_address ad \/ (exists ad'', m[ad''].tm has_address ad))
     as [? | [? ?]];
   eauto using acc_then_hasad.
 Qed.
@@ -322,7 +322,7 @@ Qed.
 
 Lemma subst_acc : forall m x Tx t t' ad,
   access m ([x := t'] t) ad ->
-  access m <{ call <{ fn x Tx --> t }> t' }> ad.
+  access m <{ call <{ fn x Tx t }> t' }> ad.
 Proof.
   intros. induction t; eauto using access; simpl in *;
   try (destruct String.string_dec; eauto using access);
@@ -342,7 +342,7 @@ Proof.
 Qed.
 
 Lemma subst_nacc : forall m t tx ad x Tx,
-  ~ access m <{ fn x Tx --> t }> ad ->
+  ~ access m <{ fn x Tx t }> ad ->
   ~ access m tx ad ->
   ~ access m ([x := tx] t) ad.
 Proof.

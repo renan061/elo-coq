@@ -41,7 +41,7 @@ Inductive NoMut : tm -> Prop :=
 
   | nomut_fun : forall x Tx t,
     NoMut t ->
-    NoMut <{ fn x Tx --> t }>
+    NoMut <{ fn x Tx t }>
 
   | nomut_call : forall t1 t2,
     NoMut t1 ->
@@ -60,32 +60,32 @@ Inductive NoMut : tm -> Prop :=
 
 Ltac inversion_nomut :=
   match goal with
-  | H : NoMut <{ unit         }> |- _ => inversion H; subst
-  | H : NoMut <{ N _          }> |- _ => inversion H; subst
-  | H : NoMut <{ & _ :: _     }> |- _ => inversion H; subst
-  | H : NoMut <{ new _ _      }> |- _ => inversion H; subst
-  | H : NoMut <{ * _          }> |- _ => inversion H; subst
-  | H : NoMut <{ _ = _        }> |- _ => inversion H; subst
-  | H : NoMut <{ var _        }> |- _ => inversion H; subst
-  | H : NoMut <{ fn _ _ --> _ }> |- _ => inversion H; subst
-  | H : NoMut <{ call _ _     }> |- _ => inversion H; subst
-  | H : NoMut <{ _ ; _        }> |- _ => inversion H; subst
-  | H : NoMut <{ spawn _      }> |- _ => inversion H; subst
+  | H : NoMut <{ unit     }> |- _ => inversion H; subst
+  | H : NoMut <{ N _      }> |- _ => inversion H; subst
+  | H : NoMut <{ & _ :: _ }> |- _ => inversion H; subst
+  | H : NoMut <{ new _ _  }> |- _ => inversion H; subst
+  | H : NoMut <{ * _      }> |- _ => inversion H; subst
+  | H : NoMut <{ _ = _    }> |- _ => inversion H; subst
+  | H : NoMut <{ var _    }> |- _ => inversion H; subst
+  | H : NoMut <{ fn _ _ _ }> |- _ => inversion H; subst
+  | H : NoMut <{ call _ _ }> |- _ => inversion H; subst
+  | H : NoMut <{ _ ; _    }> |- _ => inversion H; subst
+  | H : NoMut <{ spawn _  }> |- _ => inversion H; subst
   end.
 
 Ltac inversion_clear_nomut :=
   match goal with
-  | H : NoMut <{ unit         }> |- _ => inversion_subst_clear H
-  | H : NoMut <{ N _          }> |- _ => inversion_subst_clear H
-  | H : NoMut <{ & _ :: _     }> |- _ => inversion_subst_clear H
-  | H : NoMut <{ new _ _      }> |- _ => inversion_subst_clear H
-  | H : NoMut <{ * _          }> |- _ => inversion_subst_clear H
-  | H : NoMut <{ _ = _        }> |- _ => inversion_subst_clear H
-  | H : NoMut <{ var _        }> |- _ => inversion_subst_clear H
-  | H : NoMut <{ fn _ _ --> _ }> |- _ => inversion_subst_clear H
-  | H : NoMut <{ call _ _     }> |- _ => inversion_subst_clear H
-  | H : NoMut <{ _ ; _        }> |- _ => inversion_subst_clear H
-  | H : NoMut <{ spawn _      }> |- _ => inversion_subst_clear H
+  | H : NoMut <{ unit     }> |- _ => inversion_subst_clear H
+  | H : NoMut <{ N _      }> |- _ => inversion_subst_clear H
+  | H : NoMut <{ & _ :: _ }> |- _ => inversion_subst_clear H
+  | H : NoMut <{ new _ _  }> |- _ => inversion_subst_clear H
+  | H : NoMut <{ * _      }> |- _ => inversion_subst_clear H
+  | H : NoMut <{ _ = _    }> |- _ => inversion_subst_clear H
+  | H : NoMut <{ var _    }> |- _ => inversion_subst_clear H
+  | H : NoMut <{ fn _ _ _ }> |- _ => inversion_subst_clear H
+  | H : NoMut <{ call _ _ }> |- _ => inversion_subst_clear H
+  | H : NoMut <{ _ ; _    }> |- _ => inversion_subst_clear H
+  | H : NoMut <{ spawn _  }> |- _ => inversion_subst_clear H
   end.
 
 Local Lemma nomut_subst : forall x t t',
@@ -131,7 +131,7 @@ Inductive SafeSpawns : tm -> Prop :=
 
   | safe_spawns_fun : forall x Tx t,
       SafeSpawns t ->
-      SafeSpawns <{ fn x Tx --> t }>
+      SafeSpawns <{ fn x Tx t }>
 
   | safe_spawns_call : forall t1 t2,
       SafeSpawns t1 ->
@@ -150,32 +150,32 @@ Inductive SafeSpawns : tm -> Prop :=
 
 Ltac inversion_ss :=
   match goal with
-  | H : SafeSpawns <{ unit         }> |- _ => inversion H; subst
-  | H : SafeSpawns <{ N _          }> |- _ => inversion H; subst
-  | H : SafeSpawns <{ & _ :: _     }> |- _ => inversion H; subst
-  | H : SafeSpawns <{ new _ _      }> |- _ => inversion H; subst
-  | H : SafeSpawns <{ * _          }> |- _ => inversion H; subst
-  | H : SafeSpawns <{ _ = _        }> |- _ => inversion H; subst
-  | H : SafeSpawns <{ var _        }> |- _ => inversion H; subst
-  | H : SafeSpawns <{ fn _ _ --> _ }> |- _ => inversion H; subst
-  | H : SafeSpawns <{ call _ _     }> |- _ => inversion H; subst
-  | H : SafeSpawns <{ _ ; _        }> |- _ => inversion H; subst
-  | H : SafeSpawns <{ spawn _      }> |- _ => inversion H; subst
+  | H : SafeSpawns <{ unit     }> |- _ => inversion H; subst
+  | H : SafeSpawns <{ N _      }> |- _ => inversion H; subst
+  | H : SafeSpawns <{ & _ :: _ }> |- _ => inversion H; subst
+  | H : SafeSpawns <{ new _ _  }> |- _ => inversion H; subst
+  | H : SafeSpawns <{ * _      }> |- _ => inversion H; subst
+  | H : SafeSpawns <{ _ = _    }> |- _ => inversion H; subst
+  | H : SafeSpawns <{ var _    }> |- _ => inversion H; subst
+  | H : SafeSpawns <{ fn _ _ _ }> |- _ => inversion H; subst
+  | H : SafeSpawns <{ call _ _ }> |- _ => inversion H; subst
+  | H : SafeSpawns <{ _ ; _    }> |- _ => inversion H; subst
+  | H : SafeSpawns <{ spawn _  }> |- _ => inversion H; subst
   end.
 
 Ltac inversion_clear_ss :=
   match goal with
-  | H : SafeSpawns <{ unit         }> |- _ => inversion_subst_clear H
-  | H : SafeSpawns <{ N _          }> |- _ => inversion_subst_clear H
-  | H : SafeSpawns <{ & _ :: _     }> |- _ => inversion_subst_clear H
-  | H : SafeSpawns <{ new _ _      }> |- _ => inversion_subst_clear H
-  | H : SafeSpawns <{ * _          }> |- _ => inversion_subst_clear H
-  | H : SafeSpawns <{ _ = _        }> |- _ => inversion_subst_clear H
-  | H : SafeSpawns <{ var _        }> |- _ => inversion_subst_clear H
-  | H : SafeSpawns <{ fn _ _ --> _ }> |- _ => inversion_subst_clear H
-  | H : SafeSpawns <{ call _ _     }> |- _ => inversion_subst_clear H
-  | H : SafeSpawns <{ _ ; _        }> |- _ => inversion_subst_clear H
-  | H : SafeSpawns <{ spawn _      }> |- _ => inversion_subst_clear H
+  | H : SafeSpawns <{ unit     }> |- _ => inversion_subst_clear H
+  | H : SafeSpawns <{ N _      }> |- _ => inversion_subst_clear H
+  | H : SafeSpawns <{ & _ :: _ }> |- _ => inversion_subst_clear H
+  | H : SafeSpawns <{ new _ _  }> |- _ => inversion_subst_clear H
+  | H : SafeSpawns <{ * _      }> |- _ => inversion_subst_clear H
+  | H : SafeSpawns <{ _ = _    }> |- _ => inversion_subst_clear H
+  | H : SafeSpawns <{ var _    }> |- _ => inversion_subst_clear H
+  | H : SafeSpawns <{ fn _ _ _ }> |- _ => inversion_subst_clear H
+  | H : SafeSpawns <{ call _ _ }> |- _ => inversion_subst_clear H
+  | H : SafeSpawns <{ _ ; _    }> |- _ => inversion_subst_clear H
+  | H : SafeSpawns <{ spawn _  }> |- _ => inversion_subst_clear H
   end.
 
 (* ------------------------------------------------------------------------- *)
@@ -205,7 +205,7 @@ Inductive HasVar (x : id) : tm  -> Prop :=
   | hasvar_fun : forall x' Tx t,
       x <> x' ->
       HasVar x t ->
-      HasVar x <{ fn x' Tx --> t }>
+      HasVar x <{ fn x' Tx t }>
 
   | hasvar_call1 : forall t1 t2,
       HasVar x t1 ->
@@ -230,32 +230,32 @@ Inductive HasVar (x : id) : tm  -> Prop :=
 
 Ltac inversion_hv :=
   match goal with
-  | H : HasVar _ <{ unit         }> |- _ => inversion H; subst
-  | H : HasVar _ <{ N _          }> |- _ => inversion H; subst
-  | H : HasVar _ <{ & _ :: _     }> |- _ => inversion H; subst
-  | H : HasVar _ <{ new _ _      }> |- _ => inversion H; subst
-  | H : HasVar _ <{ * _          }> |- _ => inversion H; subst
-  | H : HasVar _ <{ _ = _        }> |- _ => inversion H; subst
-  | H : HasVar _ <{ var _        }> |- _ => inversion H; subst
-  | H : HasVar _ <{ fn _ _ --> _ }> |- _ => inversion H; subst
-  | H : HasVar _ <{ call _ _     }> |- _ => inversion H; subst
-  | H : HasVar _ <{ _ ; _        }> |- _ => inversion H; subst
-  | H : HasVar _ <{ spawn _      }> |- _ => inversion H; subst
+  | H : HasVar _ <{ unit     }> |- _ => inversion H; subst
+  | H : HasVar _ <{ N _      }> |- _ => inversion H; subst
+  | H : HasVar _ <{ & _ :: _ }> |- _ => inversion H; subst
+  | H : HasVar _ <{ new _ _  }> |- _ => inversion H; subst
+  | H : HasVar _ <{ * _      }> |- _ => inversion H; subst
+  | H : HasVar _ <{ _ = _    }> |- _ => inversion H; subst
+  | H : HasVar _ <{ var _    }> |- _ => inversion H; subst
+  | H : HasVar _ <{ fn _ _ _ }> |- _ => inversion H; subst
+  | H : HasVar _ <{ call _ _ }> |- _ => inversion H; subst
+  | H : HasVar _ <{ _ ; _    }> |- _ => inversion H; subst
+  | H : HasVar _ <{ spawn _  }> |- _ => inversion H; subst
   end.
 
 Ltac inversion_clear_hv :=
   match goal with
-  | H : HasVar _ <{ unit         }> |- _ => inversion_subst_clear H
-  | H : HasVar _ <{ N _          }> |- _ => inversion_subst_clear H
-  | H : HasVar _ <{ & _ :: _     }> |- _ => inversion_subst_clear H
-  | H : HasVar _ <{ new _ _      }> |- _ => inversion_subst_clear H
-  | H : HasVar _ <{ * _          }> |- _ => inversion_subst_clear H
-  | H : HasVar _ <{ _ = _        }> |- _ => inversion_subst_clear H
-  | H : HasVar _ <{ var _        }> |- _ => inversion_subst_clear H
-  | H : HasVar _ <{ fn _ _ --> _ }> |- _ => inversion_subst_clear H
-  | H : HasVar _ <{ call _ _     }> |- _ => inversion_subst_clear H
-  | H : HasVar _ <{ _ ; _        }> |- _ => inversion_subst_clear H
-  | H : HasVar _ <{ spawn _      }> |- _ => inversion_subst_clear H
+  | H : HasVar _ <{ unit     }> |- _ => inversion_subst_clear H
+  | H : HasVar _ <{ N _      }> |- _ => inversion_subst_clear H
+  | H : HasVar _ <{ & _ :: _ }> |- _ => inversion_subst_clear H
+  | H : HasVar _ <{ new _ _  }> |- _ => inversion_subst_clear H
+  | H : HasVar _ <{ * _      }> |- _ => inversion_subst_clear H
+  | H : HasVar _ <{ _ = _    }> |- _ => inversion_subst_clear H
+  | H : HasVar _ <{ var _    }> |- _ => inversion_subst_clear H
+  | H : HasVar _ <{ fn _ _ _ }> |- _ => inversion_subst_clear H
+  | H : HasVar _ <{ call _ _ }> |- _ => inversion_subst_clear H
+  | H : HasVar _ <{ _ ; _    }> |- _ => inversion_subst_clear H
+  | H : HasVar _ <{ spawn _  }> |- _ => inversion_subst_clear H
   end.
 
 Lemma hasvar_dec : forall x t,
@@ -295,7 +295,7 @@ Lemma not_hv_asg2 : forall x t1 t2,
 Proof. solve_not_hasvar. Qed.
 
 Lemma not_hv_fun : forall x x' t Tx,
-  x <> x' -> ~ HasVar x <{ fn x' Tx --> t }> -> ~ HasVar x t.
+  x <> x' -> ~ HasVar x <{ fn x' Tx t }> -> ~ HasVar x t.
 Proof. solve_not_hasvar. Qed.
 
 Lemma not_hv_call1 : forall x t1 t2,
