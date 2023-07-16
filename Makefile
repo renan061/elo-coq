@@ -10,9 +10,12 @@ core:
 	$(COQC) Map.v
 	$(COQC) Core.v
 	$(COQC) CoreExt.v
-	$(COQC) AnyTerm.v
 
-access: core
+meta: core
+	$(COQC) AnyTerm.v
+	$(COQC) Meta.v
+
+access: meta
 	$(COQC) ValidAddresses.v
 	$(COQC) Access.v
 	$(COQC) Contains.v

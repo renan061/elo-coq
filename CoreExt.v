@@ -211,7 +211,7 @@ Lemma cstep_preservation :
       ths[tid] --[EF_Spawn block]--> t' ->
       P m t' 
     ) ->
-    (* Unit preserves the property. *)
+    (* `unit` preserves the property. *)
     P m' thread_default ->
     (* What we want to prove. *)
     forall_threads ths (P m) ->

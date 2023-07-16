@@ -82,17 +82,17 @@ Ltac inversion_wtr :=
 
 Ltac inversion_clear_wtr :=
   match goal with
-  |H: well_typed_references _ <{ unit     }> |- _ => inversion H
-  |H: well_typed_references _ <{ N _      }> |- _ => inversion H
-  |H: well_typed_references _ <{ & _ :: _ }> |- _ => inversion_subst_clear H
-  |H: well_typed_references _ <{ new _ _  }> |- _ => inversion_subst_clear H
-  |H: well_typed_references _ <{ * _      }> |- _ => inversion_subst_clear H
-  |H: well_typed_references _ <{ _ = _    }> |- _ => inversion_subst_clear H
-  |H: well_typed_references _ <{ var _    }> |- _ => inversion H
-  |H: well_typed_references _ <{ fn _ _ _ }> |- _ => inversion_subst_clear H
-  |H: well_typed_references _ <{ call _ _ }> |- _ => inversion_subst_clear H
-  |H: well_typed_references _ <{ _ ; _    }> |- _ => inversion_subst_clear H
-  |H: well_typed_references _ <{ spawn _  }> |- _ => inversion_subst_clear H
+  | H : well_typed_references _ <{ unit     }> |- _ => inversion H
+  | H : well_typed_references _ <{ N _      }> |- _ => inversion H
+  | H : well_typed_references _ <{ & _ :: _ }> |- _ => inversion_subst_clear H
+  | H : well_typed_references _ <{ new _ _  }> |- _ => inversion_subst_clear H
+  | H : well_typed_references _ <{ * _      }> |- _ => inversion_subst_clear H
+  | H : well_typed_references _ <{ _ = _    }> |- _ => inversion_subst_clear H
+  | H : well_typed_references _ <{ var _    }> |- _ => inversion H
+  | H : well_typed_references _ <{ fn _ _ _ }> |- _ => inversion_subst_clear H
+  | H : well_typed_references _ <{ call _ _ }> |- _ => inversion_subst_clear H
+  | H : well_typed_references _ <{ _ ; _    }> |- _ => inversion_subst_clear H
+  | H : well_typed_references _ <{ spawn _  }> |- _ => inversion_subst_clear H
   end.
 
 (* ------------------------------------------------------------------------- *)
