@@ -12,7 +12,7 @@ From Elo Require Import Meta.
 (* has_address                                                               *)
 (* ------------------------------------------------------------------------- *)
 
-(* Make into submodule. *)
+(* TODO: make into submodule. *)
 
 Inductive is_address : addr -> tm -> Prop :=
   | is_ad : forall ad T,
@@ -267,8 +267,8 @@ Local Corollary vad_mstep_preservation : forall m m' t t' e,
   m / t ==[e]==> m' / t' ->
   valid_addresses m' t'.
 Proof.
-  eauto 6 using (mstep_preservation valid_addresses),
-    vad_tstep_none_preservation,
+  intros *. eapply (mstep_preservation valid_addresses);
+  eauto using vad_tstep_none_preservation,
     vad_tstep_alloc_preservation,
     vad_tstep_read_preservation,
     vad_tstep_write_preservation.
@@ -279,7 +279,7 @@ Qed.
 Local Lemma vad_thread_default_preservation : forall m,
   valid_addresses m thread_default.
 Proof.
-  intros. intros ? ?. inversion_has_address.
+  intros. eauto with vad_constructors.
 Qed.
 
 Local Lemma vad_spawn_block_preservation : forall m t t' block,

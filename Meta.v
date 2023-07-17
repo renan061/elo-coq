@@ -133,69 +133,67 @@ preservation:
 
 ---------------------------------------------------------------------------- *)
 
-Corollary mstep_preservation (P : mem -> tm -> Prop) :
+Corollary mstep_preservation (P : mem -> tm -> Prop) : forall m m' t t',
   (* tstep_none_preservation *)
-  (forall m t t',
-    P m t ->
-    t --[EF_None]--> t' ->
-    P m t') ->
+  (P m t ->
+   t --[EF_None]--> t' ->
+   P m t') ->
   (* tstep_alloc_preservation *)
-  (forall m t t' v T,
+  (forall v T,
     P m t ->
     t --[EF_Alloc (#m) v T]--> t' ->
     P (m +++ (v, T)) t') ->
   (* tstep_read_preservation *)
-  (forall m t t' ad v,
+  (forall ad v,
     P m v ->
     P m t ->
     t --[EF_Read ad v]--> t' ->
     P m t') ->
   (* tstep_write_preservation: *)
-  (forall m t t' ad v T,
+  (forall ad v T,
     P m t ->
     t --[EF_Write ad v T]--> t' ->
     P m[ad <- (v, T)] t') ->
   (* What we want to prove: *)
-  forall m m' t t' e,
+  forall e,
     forall_memory m (P m) ->
     P m t ->
     m / t ==[e]==> m' / t' ->
     P m' t'.
 Proof. intros. inversion_mstep; eauto. Qed.
 
-Lemma cstep_preservation (P : mem -> tm -> Prop) :
+Lemma cstep_preservation (P : mem -> tm -> Prop) : forall m m' ths ths' tid e,
     (* tstep_spawn_preservation *)
-    (forall m t t' block,
+    (forall t t' block,
       P m t ->
       t --[EF_Spawn block]--> t' ->
       P m t') ->
     (* mstep_preservation *)
-    (forall m m' t t' e,
+    (forall t',
       forall_memory m (P m) ->
-      P m t ->
-      m / t ==[e]==> m' / t' ->
+      P m ths[tid] ->
+      m / ths[tid] ==[e]==> m' / t' ->
       P m' t') ->
     (* thread_default_preservation *)
     (forall m,
       P m thread_default) ->
     (* spawn_block_preservation *)
-    (forall m t t' block,
+    (forall t t' block,
       P m t ->
       t --[EF_Spawn block]--> t' ->
       P m block) ->
     (* untouched_threads_preservation *)
-    (forall m m' ths tid tid' e t',
+    (forall tid' t',
       forall_threads ths (P m) ->
       tid <> tid' ->
       tid' < #ths ->
       m / ths[tid] ==[e]==> m' / t' ->
       P m' ths[tid']) ->
     (* What we want to prove: *)
-    forall m m' ths ths' tid e,
-      forall_memory m (P m) ->
-      forall_threads ths (P m) ->
-      m / ths ~~[tid, e]~~> m' / ths' ->
-      forall_threads ths' (P m').
+    forall_memory m (P m) ->
+    forall_threads ths (P m) ->
+    m / ths ~~[tid, e]~~> m' / ths' ->
+    forall_threads ths' (P m').
 Proof.
   intros. inversion_cstep; intros tid'.
   - destruct (nat_eq_dec tid' (#ths)); subst.
@@ -216,7 +214,7 @@ Corollary mstep_mem_preservation (P : mem -> tm -> Prop) :
     P m t ->
     forall_memory m (P m) ->
     t --[EF_Alloc (#m) v T]--> t' ->
-    forall_memory  (m +++ (v, T)) (P (m +++ (v, T)))) ->
+    forall_memory (m +++ (v, T)) (P (m +++ (v, T)))) ->
   (* tstep_write_mem_preservation *)
   (forall m t t' ad v T,
     P m t ->
