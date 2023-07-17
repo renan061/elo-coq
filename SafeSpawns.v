@@ -386,7 +386,7 @@ Proof.
   intros * Hvalue HtypeV HtypeT Hssv Hsst.
   generalize dependent Gamma. generalize dependent T. generalize dependent Tx.
   induction Hsst; intros; inversion_type;
-  simpl; try (destruct String.string_dec);
+  simpl; try (destruct string_eq_dec);
   eauto using SafeSpawns, equivalence_typing, MapEquivalence.update_permutation.
   eapply safe_spawns_spawn. destruct (hasvar_dec x t).
   - eapply nomut_subst; trivial.

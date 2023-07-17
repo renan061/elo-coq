@@ -30,13 +30,10 @@ Qed.
 Theorem valid_addresses_multistep_preservation : forall m m' ths ths' tc,
   forall_program m ths (valid_addresses m) ->
   m / ths ~~[tc]~~>* m' / ths' ->
-  forall_memory m' (valid_addresses m') /\
-  forall_threads ths' (valid_addresses m').
+  forall_program m' ths' (valid_addresses m').
 Proof.
   intros * [? ?] Hmultistep. induction Hmultistep; eauto.
-  destruct IHHmultistep; eauto; split;
-  eauto using valid_addresses_term_preservation,
-    valid_addresses_memory_preservation.
+  destruct IHHmultistep; eauto using valid_addresses_preservation.
 Qed.
 
 Theorem well_typed_multistep_preservation : forall m m' ths ths' tc,

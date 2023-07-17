@@ -15,16 +15,16 @@ meta: core
 	$(COQC) AnyTerm.v
 	$(COQC) Meta.v
 
-access: meta
+memory: meta
 	$(COQC) ValidAddresses.v
-	$(COQC) Access.v
-	$(COQC) Contains.v
 	$(COQC) References.v
 
-soundness: access 
+soundness: memory
 	$(COQC) Soundness.v
 
 safety: soundness 
+	$(COQC) Contains.v
+	$(COQC) Access.v
 	$(COQC) UnsafeAccess.v
 	$(COQC) SafeSpawns.v
 	$(COQC) SMS.v
