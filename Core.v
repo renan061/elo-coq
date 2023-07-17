@@ -144,7 +144,7 @@ Definition safe (Gamma : ctx) : ctx :=
     | _ => None
     end.
 
-Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
+Inductive type_of : ctx -> tm -> typ -> Prop :=
   | T_Unit : forall Gamma,
     Gamma |-- <{ unit }> is <{{ Unit }}>
 
@@ -200,7 +200,7 @@ Inductive well_typed_term : ctx -> tm -> typ -> Prop :=
     safe Gamma |-- t is T ->
     Gamma |-- <{ spawn t }> is <{{ Unit }}> 
 
-  where "Gamma '|--' t 'is' T" := (well_typed_term Gamma t T).
+  where "Gamma '|--' t 'is' T" := (type_of Gamma t T).
 
 (* ------------------------------------------------------------------------- *)
 (* substitution                                                              *)

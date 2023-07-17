@@ -145,7 +145,7 @@ Local Lemma context_weakening : forall Gamma Gamma' t T,
 Proof.
   intros. generalize dependent Gamma.
   induction_type; intros;
-  eauto using well_typed_term, safe_preserves_inclusion,
+  eauto using type_of, safe_preserves_inclusion,
     MapInclusion.update_inclusion.
 Qed.
 
@@ -169,14 +169,14 @@ Proof.
     unfold subst. intros ?.
     induction t; intros * Htype ?; 
     try (destruct String.string_dec); try inversion_type;
-    eauto using well_typed_term, context_weakening, context_weakening_empty,
+    eauto using type_of, context_weakening, context_weakening_empty,
       MapInclusion.update_overwrite, MapInclusion.update_permutation,
       update_safe_includes_safe_update;
     match goal with
     | H : _[_ <== _] _ = _ |- _ =>
       try (erewrite lookup_update_eq in H || erewrite lookup_update_neq in H);
       inversion H; subst;
-      eauto using context_weakening_empty, well_typed_term
+      eauto using context_weakening_empty, type_of
     end.
   }
   intros * ?. inversion_type. intros. eauto.
@@ -194,7 +194,7 @@ Local Lemma step_read_type_preservation : forall m t t' ad T,
 Proof.
   intros. remember empty as Gamma. generalize dependent t'.
   induction_type; intros; inversion_wtr; inversion_step;
-  eauto using well_typed_term, subst_type_preservation;
+  eauto using type_of, subst_type_preservation;
   inversion_type; inversion_wtr; trivial;
   eauto using context_weakening_empty.
 Qed.
@@ -208,7 +208,7 @@ Proof.
   intros. inversion_clear_mstep; generalize dependent t';
   remember empty as Gamma;
   induction_type; intros; inversion_step; inversion_wtr;
-  eauto using well_typed_term, subst_type_preservation;
+  eauto using type_of, subst_type_preservation;
   inversion_type; inversion_wtr;
   eauto using context_weakening_empty.
 Qed.

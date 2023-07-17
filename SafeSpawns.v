@@ -361,7 +361,7 @@ Local Lemma equivalence_typing : forall Gamma1 Gamma2 t T,
   Gamma2 |-- t is T.
 Proof.
   intros. generalize dependent Gamma2. induction_type; intros;
-  eauto using well_typed_term, equivalence_safe,
+  eauto using type_of, equivalence_safe,
     MapEquivalence.lookup, MapEquivalence.update_equivalence.
 Qed.
 
@@ -476,7 +476,7 @@ Proof.
 Qed.
 
 Theorem safe_spawns_preservation : forall m m' ths ths' tid eff,
-  forall_threads ths well_typed ->
+  forall_threads ths well_typed_term ->
   forall_program m ths SafeSpawns ->
   m / ths ~~[tid, eff]~~> m' / ths' ->
   forall_program m' ths' SafeSpawns.

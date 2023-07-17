@@ -200,7 +200,7 @@ Proof.
     wtr_mem_set_preservation.
 Qed.
 
-Local Lemma wtr_tstep_spawn_preservation : forall m t t' block,
+Lemma wtr_tstep_spawn_preservation : forall m t t' block,
   well_typed_references m t ->
   t --[EF_Spawn block]--> t' ->
   well_typed_references m t'.
@@ -231,7 +231,7 @@ Proof.
   eauto using well_typed_references.
 Qed.
 
-Local Lemma wtr_spawn_block_preservation : forall m t t' block,
+Lemma wtr_spawn_block_preservation : forall m t t' block,
   well_typed_references m t ->
   t --[EF_Spawn block]--> t' ->
   well_typed_references m block.
@@ -308,6 +308,7 @@ Local Lemma wtr_tstep_alloc_mem_preservation : forall m t t' v T,
   well_typed_term t ->
   valid_addresses m t ->
   forall_memory m (valid_addresses m) ->
+  (* --- *)
   well_typed_references m t ->
   forall_memory m (well_typed_references m) ->
   t --[EF_Alloc (#m) v T]--> t' ->
@@ -322,57 +323,67 @@ Proof.
 Qed.
 
 Local Lemma wtr_tstep_write_mem_preservation : forall m t t' ad v T,
+  ad < # m ->
   well_typed_term t ->
-  valid_addresses m t ->
-  forall_memory m (valid_addresses m) ->
-  well_typed_references m t ->
-
+  (* --- *)
   well_typed_references m t ->
   forall_memory m (well_typed_references m) ->
   t --[EF_Write ad v T]--> t' ->
   forall_memory m[ad <- (v, T)] (well_typed_references m[ad <- (v, T)]).
 Proof.
-  intros * [? ?]. intros.
+  intros * ? [? ?]. intros. intros ad'.
   match goal with
-  | _ : _ --[EF_Write ?ad' _ ?T']--> _ |- _ =>
+  | _ : _ --[EF_Write _ _ ?T]--> _ |- _ =>
     assert (
-      T' = m[ad'].typ /\
-      exists Tv, empty |-- v is Tv /\ empty |-- m[ad'].tm is Tv)
+      T = m[ad].typ /\
+      exists V, empty |-- v is V /\ empty |-- m[ad].tm is V)
       as [? [? [? ?]]] by eauto using step_write_wtt
   end.
-  intros ad'. decompose sum (lt_eq_lt_dec ad' ad); subst; simpl_array;
-  eauto using step_write_wtt,
-    wtr_write_value_generalization,
-    wtr_mem_set_preservation.
+  decompose sum (lt_eq_lt_dec ad' ad); subst; simpl_array;
+  eauto using wtr_write_value_generalization, wtr_mem_set_preservation.
 Qed.
 
-Local Lemma wtr_mstep_mem_preservation : forall m m' t t' e,
+Local Corollary wtr_mstep_mem_preservation : forall m m' t t' e,
   well_typed_term t ->
   valid_addresses m t ->
   forall_memory m (valid_addresses m) ->
+  (* --- *)
   well_typed_references m t ->
-  forall_memory m well_typed_term ->
   forall_memory m (well_typed_references m) ->
   m / t ==[e]==> m' / t' ->
   forall_memory m' (well_typed_references m').
 Proof.
-  intros * Hwtt1 ? ? ? Hwtt2 ? ?. inversion_mstep;
-  eauto using wtr_tstep_alloc_mem_preservation.
+  intros. inversion_mstep;
+  eauto using wtr_tstep_alloc_mem_preservation,
+              wtr_tstep_write_mem_preservation.
+Qed.
 
+Local Corollary wtr_cstep_mem_preservation : forall m m' ths ths' tid e,
+  forall_threads ths well_typed_term ->
+  forall_threads ths (valid_addresses m) ->
+  forall_memory m (valid_addresses m) ->
+  (* --- *)
+  forall_threads ths (well_typed_references m) ->
+  forall_memory m (well_typed_references m) ->
+  m / ths ~~[tid, e]~~> m' / ths' ->
+  forall_memory m' (well_typed_references m').
+Proof.
+  intros. inversion_cstep; eauto using wtr_mstep_mem_preservation.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
 
-Theorem well_typed_references_memory_preservation :
-  forall m m' ths ths' tid e,
-    forall_program m ths well_typed_term ->
-    forall_program m ths (valid_addresses m) ->
-    (* --- *)
-    forall_program m ths (well_typed_references m) ->
-    m / ths ~~[tid, e]~~> m' / ths' ->
-    forall_memory m' (well_typed_references m').
+Theorem well_typed_references_preservation : forall m m' ths ths' tid e,
+  forall_program m ths well_typed_term ->
+  forall_program m ths (valid_addresses m) ->
+  (* --- *)
+  forall_program m ths (well_typed_references m) ->
+  m / ths ~~[tid, e]~~> m' / ths' ->
+  forall_program m' ths' (well_typed_references m').
 Proof.
-  intros * [? Htype] [? ?] [? ?]. intros. inversion_clear_cstep; trivial.
-  destruct (Htype tid). eauto using mstep_mem_wtr_preservation.
+  intros * [_ ?] [? ?].
+  eauto using preservation,
+    wtr_cstep_preservation,
+    wtr_cstep_mem_preservation.
 Qed.
 

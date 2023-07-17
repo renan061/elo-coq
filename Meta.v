@@ -208,21 +208,21 @@ Proof.
     simpl_array; eauto.
 Qed.
 
-Corollary mstep_mem_preservation (P : mem -> tm -> Prop) :
+Corollary mstep_mem_preservation (P : mem -> tm -> Prop) : forall m t t',
   (* tstep_alloc_mem_preservation *)
-  (forall m t t' v T,
+  (forall v T,
     P m t ->
     forall_memory m (P m) ->
     t --[EF_Alloc (#m) v T]--> t' ->
     forall_memory (m +++ (v, T)) (P (m +++ (v, T)))) ->
   (* tstep_write_mem_preservation *)
-  (forall m t t' ad v T,
+  (forall ad v T,
     P m t ->
     forall_memory m (P m) ->
     t --[EF_Write ad v T]--> t' ->
     forall_memory m[ad <- (v, T)] (P m[ad <- (v, T)])) ->
   (* What we want to prove: *)
-  forall m m' t t' e,
+  forall m' e,
     P m t ->
     forall_memory m (P m) ->
     m / t ==[e]==> m' / t' ->
@@ -244,23 +244,20 @@ Corollary cstep_mem_preservation (P : mem -> tm -> Prop) :
     forall_memory m' (P m').
 Proof. intros. inversion_cstep; eauto. Qed.
 
-Corollary preservation (P : mem -> tm -> Prop) :
+Corollary preservation (P : mem -> tm -> Prop) : forall m m' ths ths' tid e,
   (* cstep_preservation *)
-  (forall m m' ths ths' tid e,
-    forall_memory m (P m) ->
-    forall_threads ths (P m) ->
-    m / ths ~~[tid, e]~~> m' / ths' ->
-    forall_threads ths' (P m')) ->
+  (forall_memory m (P m) ->
+   forall_threads ths (P m) ->
+   m / ths ~~[tid, e]~~> m' / ths' ->
+   forall_threads ths' (P m')) ->
   (* cstep_mem_preservation *)
-  (forall m m' ths ths' tid e,
-    forall_threads ths (P m) ->
-    forall_memory m (P m) ->
-    m / ths ~~[tid, e]~~> m' / ths' ->
-    forall_memory m' (P m')) ->
+  (forall_threads ths (P m) ->
+   forall_memory m (P m) ->
+   m / ths ~~[tid, e]~~> m' / ths' ->
+   forall_memory m' (P m')) ->
   (* What we want to prove: *)
-  forall m m' ths ths' tid e,
-    forall_program m ths (P m) ->
-    m / ths ~~[tid, e]~~> m' / ths' ->
-    forall_program m' ths' (P m').
-Proof. intros ? ? * [? ?]. eauto. Qed.
+  forall_program m ths (P m) ->
+  m / ths ~~[tid, e]~~> m' / ths' ->
+  forall_program m' ths' (P m').
+Proof. intros * ? ? [? ?]. intros. eauto. Qed.
 

@@ -141,7 +141,7 @@ Proof.
 Qed.
 
 Local Lemma cstep_write_requires_uacc : forall m m' ths ths' tid ad v Tr,
-  forall_threads ths well_typed ->
+  forall_threads ths well_typed_term ->
   m / ths ~~[tid, EF_Write ad v Tr]~~> m' / ths' ->
   UnsafeAccess m ths[tid] ad.
 Proof.
@@ -233,7 +233,7 @@ Abort.
 
 Theorem safety : forall m m' ths ths' tid1 tid2 ad v1 v2 tc Tr,
   forall_memory m value ->
-  forall_program m ths well_typed ->
+  forall_program m ths well_typed_term ->
   forall_program m ths (valid_addresses m) ->
   forall_program m ths (well_typed_references m) ->
   forall_program m ths SafeSpawns ->

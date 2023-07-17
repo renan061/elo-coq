@@ -39,10 +39,10 @@ Qed.
 Theorem well_typed_multistep_preservation : forall m m' ths ths' tc,
   forall_program m ths (valid_addresses m) ->
   (* --- *)
-  forall_program m ths well_typed ->
+  forall_program m ths well_typed_term ->
   forall_program m ths (well_typed_references m) ->
   m / ths ~~[tc]~~>* m' / ths' ->
-  forall_program m' ths' well_typed /\
+  forall_program m' ths' well_typed_term /\
     forall_program m' ths' (well_typed_references m') /\
     m' extends m.
 Proof.
@@ -50,7 +50,7 @@ Proof.
 Admitted.
 
 Theorem safe_spawns_multistep_preservation : forall m m' ths ths' tc,
-  forall_program m ths well_typed ->
+  forall_program m ths well_typed_term ->
   forall_program m ths (valid_addresses m) ->
   forall_program m ths (well_typed_references m) ->
   (* --- *)
@@ -67,7 +67,7 @@ Qed.
 Theorem safe_memory_sharing_multistep_preservation :
   forall m m' ths ths' tc,
     forall_memory m value ->
-    forall_program m ths well_typed ->
+    forall_program m ths well_typed_term ->
     forall_program m ths (valid_addresses m) ->
     forall_program m ths (well_typed_references m) ->
     forall_program m ths SafeSpawns ->
@@ -116,7 +116,7 @@ Qed.
 Local Lemma cstep_nacc_preservation : forall m m' ths ths' tid tid' ad eff,
   ad < #m ->
   tid < #ths ->
-  forall_threads ths well_typed ->
+  forall_threads ths well_typed_term ->
   forall_threads ths (valid_accesses m) ->
   safe_memory_sharing m ths ->
   ~ access m ths[tid] ad ->
@@ -159,7 +159,7 @@ Theorem not_access_multistep_preservation : forall m m' ths ths' tid ad tc,
   ad < #m ->
   tid < #ths ->
   forall_memory m value ->
-  forall_program m ths well_typed ->
+  forall_program m ths well_typed_term ->
   forall_program m ths (valid_addresses m) ->
   forall_program m ths (well_typed_references m) ->
   forall_program m ths SafeSpawns ->

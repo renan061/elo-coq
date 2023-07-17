@@ -35,7 +35,7 @@ Qed.
 
 Local Lemma step_write_sms_helper : forall m t ad v ths tid tid' V,
   tid <> tid' ->
-  forall_threads ths well_typed ->
+  forall_threads ths well_typed_term ->
   safe_memory_sharing m ths ->
   ths[tid] --[EF_Write ad v V]--> t ->
   ~ access m ths[tid'] ad.
@@ -81,7 +81,7 @@ Qed.
 
 Local Lemma step_read_sms_preservation : forall m t ad ths tid,
   forall_memory m value ->
-  forall_threads ths well_typed ->
+  forall_threads ths well_typed_term ->
   forall_threads ths (well_typed_references m) ->
   safe_memory_sharing m ths ->
   ths[tid] --[EF_Read ad m[ad].tm]--> t ->
@@ -95,7 +95,7 @@ Proof.
 Qed.
 
 Local Lemma step_write_sms_preservation : forall m ths t tid ad v V,
-  forall_threads ths well_typed ->
+  forall_threads ths well_typed_term ->
   safe_memory_sharing m ths ->
   ths[tid] --[EF_Write ad v V]--> t ->
   safe_memory_sharing m[ad <- (v, V)] ths[tid <- t].
@@ -114,7 +114,7 @@ Qed.
 Local Corollary mstep_sms_preservation : forall m m' t eff ths tid,
   forall_memory m value ->
   forall_threads ths (valid_accesses m) ->
-  forall_threads ths well_typed ->
+  forall_threads ths well_typed_term ->
   forall_threads ths (well_typed_references m) ->
   safe_memory_sharing m ths ->
   m / ths[tid] ==[eff]==> m' / t ->
@@ -184,7 +184,7 @@ Qed.
 
 Theorem safe_memory_sharing_preservation : forall m m' ths ths' tid eff,
   forall_memory m value ->
-  forall_threads ths well_typed ->
+  forall_threads ths well_typed_term ->
   forall_program m ths (valid_addresses m) ->
   forall_program m ths (well_typed_references m) ->
   forall_threads ths SafeSpawns ->
@@ -209,7 +209,8 @@ Proof.
   eauto using step_spawn_inherits_acc, step_spawn_nuacc_preservation;
   unfold thread_default in *; try inversion_acc; intros ?;
   eauto using consistent_uacc,
-    step_spawn_wtr_block, step_spawn_wtr_preservation,
+    wtr_spawn_block_preservation,
+    wtr_tstep_spawn_preservation,
     nomut_then_nuacc.
 Qed.
 
