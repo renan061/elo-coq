@@ -373,6 +373,8 @@ Qed.
 
 (* ------------------------------------------------------------------------- *)
 
+(* TODO: consistently_typed_references *)
+
 Theorem well_typed_references_preservation : forall m m' ths ths' tid e,
   forall_program m ths well_typed_term ->
   forall_program m ths (valid_addresses m) ->
