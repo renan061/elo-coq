@@ -184,20 +184,20 @@ Qed.
 
 Local Lemma memtyp_sacc : forall m t ad,
   forall_memory m value ->
-  forall_memory m (well_typed_references m) ->
-  well_typed_references m t ->
+  forall_memory m (consistently_typed_references m) ->
+  consistently_typed_references m t ->
   access m t ad ->
   ~ UnsafeAccess m t ad ->
   exists T, m[ad].typ = <{{ i&T }}>.
 Proof.
-  intros * ? HwtrM ? Hacc Hnuacc. induction Hacc;
-  inversion_clear_wtr; try inversion_nuacc; eauto using nuacc_refI.
+  intros * ? HctrM ? Hacc Hnuacc. induction Hacc;
+  inversion_clear_ctr; try inversion_nuacc; eauto using nuacc_refI.
 Qed.
 
 (*
 Local Lemma todo : forall m m' ths ths' ad tc,
   forall_memory m value ->
-  forall_program m ths (well_typed_references m) ->
+  forall_program m ths (consistently_typed_references m) ->
   forall_program m ths (valid_addresses m) ->
   forall_program m ths SafeSpawns ->
   ~ access m ths[#ths] ad -> (* TODO: assert *)
@@ -235,7 +235,7 @@ Theorem safety : forall m m' ths ths' tid1 tid2 ad v1 v2 tc Tr,
   forall_memory m value ->
   forall_program m ths well_typed_term ->
   forall_program m ths (valid_addresses m) ->
-  forall_program m ths (well_typed_references m) ->
+  forall_program m ths (consistently_typed_references m) ->
   forall_program m ths SafeSpawns ->
   safe_memory_sharing m ths ->
   (* --- *)

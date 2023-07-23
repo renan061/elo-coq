@@ -14,20 +14,20 @@ From Elo Require Import References.
 (* memtyp preservation                                                       *)
 (* ------------------------------------------------------------------------- *)
 
-Reserved Notation " m 'extends' m' " (at level 20, no associativity).
+Module MemExtension.
+  Local Reserved Notation " m 'extends' m' " (at level 20, no associativity).
 
-(* array extension for memory types *)
-Inductive extension : mem -> mem -> Prop :=
-  | extension_nil : forall m,
-    m extends nil
+  (* array extension for memory types *)
+  Inductive extension : mem -> mem -> Prop :=
+    | extension_nil : forall m,
+      m extends nil
 
-  | extension_cons : forall m m' v v' Tr,
-    m extends m' ->
-    ((v, Tr) :: m) extends ((v', Tr) :: m') 
+    | extension_cons : forall m m' v v' T,
+      m extends m' ->
+      ((v, T) :: m) extends ((v', T) :: m') 
 
-  where " m 'extends' m' " := (extension m m').
+    where " m 'extends' m' " := (extension m m').
 
-Module Extension.
   Ltac nil_false :=
     match goal with
     F : nil extends (_ :: _) |- _ => inversion F
@@ -37,7 +37,7 @@ Module Extension.
     m extends m.
   Proof.
     intros. induction m; eauto using extension.
-    match goal with |- (?vTr :: _) extends _ => destruct vTr end.
+    match goal with |- (?vT :: _) extends _ => destruct vT end.
     eauto using extension.
   Qed.
 
@@ -46,7 +46,7 @@ Module Extension.
     m' extends m'' ->
     m  extends m''.
   Proof.
-    intros * Hext ?. generalize dependent m''.
+    intros * Hext. intros. generalize dependent m''.
     induction Hext; intros; destruct m''; eauto using extension; try nil_false.
     match goal with
     | H : (_ :: _) extends (_ :: _) |- _ => inversion H; subst
@@ -54,11 +54,11 @@ Module Extension.
     eauto using extension.
   Qed.
 
-  Lemma add : forall m vTr,
-    (m +++ vTr) extends m.
+  Lemma add : forall m vT,
+    (m +++ vT) extends m.
   Proof.
     intros. induction m; unfold add; eauto using extension. simpl in *.
-    match goal with |- (?vTr :: _) extends _ => destruct vTr end.
+    match goal with |- (?vT :: _) extends _ => destruct vT end.
     eauto using extension.
   Qed.
 
@@ -69,49 +69,47 @@ Module Extension.
   Proof.
     intros * Hlen Hext. generalize dependent ad. generalize dependent m.
     induction m'; intros; try solve [inversion Hlen].
-    destruct m; try nil_false. inversion_subst_clear Hext.
+    destruct m; try nil_false. inv_subst_clear Hext.
     destruct ad; simpl; eauto using lt_S_n.
   Qed.
 
-  Lemma set : forall m ad v Tr,
-    m[ad].typ = Tr -> 
-    m[ad <- (v, Tr)] extends m.
+  Lemma set : forall m ad v T,
+    m[ad].typ = T -> 
+    m[ad <- (v, T)] extends m.
   Proof.
-    intros * Heq. generalize dependent ad. induction m; intros; simpl in *;
-    eauto using extension. simpl in *. destruct ad;
-    match goal with |- _ extends (?vTr :: _) => destruct vTr end;
+    intros * Heq. generalize dependent ad.
+    induction m; intros; simpl in *; eauto using extension.
+    simpl in *. destruct ad;
+    match goal with |- _ extends (?vT :: _) => destruct vT end;
     simpl in *; subst; eauto using refl, extension.
   Qed.
-End Extension.
 
-Local Lemma mstep_memtyp_preservation : forall m m' t t' eff,
-  well_typed_references m t ->
-  m / t ==[eff]==> m' / t' ->
-  m' extends m.
-Proof.
-  intros. inversion_clear_mstep; eauto using Extension.refl, Extension.add.
-  eapply Extension.set. induction_step; intros; inversion_wtr; eauto.
-  inversion_wtr; eauto.
-Qed.
+  Lemma mstep_mem_extension : forall m m' t t' e,
+    consistently_typed_references m t ->
+    m / t ==[e]==> m' / t' ->
+    m' extends m.
+  Proof.
+    intros. inversion_clear_mstep; eauto using refl, add.
+    eapply set. induction_step; intros; inversion_ctr; eauto.
+    inversion_ctr; trivial.
+  Qed.
 
-Corollary cstep_memtyp_preservation : forall m m' ths ths' tid eff,
-  forall_threads ths (well_typed_references m) ->
-  m / ths ~~[tid, eff]~~> m' / ths' ->
-  m' extends m.
-Proof.
-  intros. inversion_cstep;
-  eauto using Extension.refl, mstep_memtyp_preservation.
-Qed.
+  Corollary cstep_mem_extension : forall m m' ths ths' tid e,
+    forall_threads ths (consistently_typed_references m) ->
+    m / ths ~~[tid, e]~~> m' / ths' ->
+    m' extends m.
+  Proof.
+    intros. inversion_cstep; eauto using refl, mstep_mem_extension.
+  Qed.
+End MemExtension.
 
-(* TODO *)
-Corollary cstep_memtyp : forall m m' ths ths' tid eff ad,
-  forall_threads ths (well_typed_references m) ->
-  m / ths ~~[tid, eff]~~> m' / ths' ->
+Theorem memtyp_preservation : forall m m' ths ths' tid e ad,
+  forall_threads ths (consistently_typed_references m) ->
+  m / ths ~~[tid, e]~~> m' / ths' ->
   ad < #m ->
   m'[ad].typ = m[ad].typ.
 Proof.
-  intros. assert (m' extends m) by eauto using cstep_memtyp_preservation.
-  eapply Extension.get; eauto.
+  eauto using MemExtension.get, MemExtension.cstep_mem_extension.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -133,7 +131,7 @@ Local Lemma update_safe_includes_safe_update : forall Gamma k T,
   (safe Gamma)[k <== T] includes (safe Gamma[k <== T]).
 Proof.
   intros ? ? ? k' ? H. unfold safe in H. 
-  destruct (String.string_dec k k'); subst.
+  destruct (string_eq_dec k k'); subst.
   - rewrite lookup_update_eq in *. destruct T; inversion H; subst; trivial.
   - rewrite lookup_update_neq in *; trivial.
 Qed.
@@ -143,21 +141,25 @@ Local Lemma context_weakening : forall Gamma Gamma' t T,
   Gamma includes Gamma' ->
   Gamma  |-- t is T.
 Proof.
-  intros. generalize dependent Gamma.
-  induction_type; intros;
-  eauto using type_of, safe_preserves_inclusion,
+  intros. generalize dependent Gamma. induction_type; intros;
+  eauto using type_of,
+    safe_preserves_inclusion,
     MapInclusion.update_inclusion.
 Qed.
 
-Local Lemma context_weakening_empty : forall Gamma t T,
+Local Corollary context_weakening_empty : forall Gamma t T,
   empty |-- t is T ->
   Gamma |-- t is T.
 Proof.
   intros. eapply (context_weakening _ empty); trivial. discriminate.
 Qed.
 
-Local Lemma subst_type_preservation : forall t tx T Tx Tx' Gamma x,
-  Gamma |-- <{ fn x Tx t }> is <{{  Tx' --> T }}> ->
+(* ------------------------------------------------------------------------- *)
+(* preservation                                                              *)
+(* ------------------------------------------------------------------------- *)
+
+Local Lemma typeof_subst_preservation : forall t tx T Tx Tx' Gamma x,
+  Gamma |-- <{ fn x Tx t }> is <{{ Tx' --> T }}> ->
   empty |-- tx is Tx' ->
   Gamma |-- [x := tx] t is T.
 Proof.
@@ -166,76 +168,96 @@ Proof.
     empty |-- tx is Tx ->
     Gamma |-- ([x := tx] t) is T
   ). {
-    unfold subst. intros ?.
-    induction t; intros * Htype ?; 
-    try (destruct String.string_dec); try inversion_type;
+    unfold subst. intros ?. induction t; intros * Htype ?; 
+    try (destruct string_eq_dec); try inversion_type;
     eauto using type_of, context_weakening, context_weakening_empty,
       MapInclusion.update_overwrite, MapInclusion.update_permutation,
       update_safe_includes_safe_update;
     match goal with
     | H : _[_ <== _] _ = _ |- _ =>
       try (erewrite lookup_update_eq in H || erewrite lookup_update_neq in H);
-      inversion H; subst;
-      eauto using context_weakening_empty, type_of
+      inversion H; subst; eauto using context_weakening_empty, type_of
     end.
   }
-  intros * ?. inversion_type. intros. eauto.
+  intros. inversion_type. eauto.
 Qed.
 
-(* ------------------------------------------------------------------------- *)
-(* term preservation                                                         *)
-(* ------------------------------------------------------------------------- *)
-
-Local Lemma step_read_type_preservation : forall m t t' ad T,
-  well_typed_references m t ->
+Local Lemma typeof_tstep_spawn_preservation : forall t t' block T,
   empty |-- t is T ->
-  t --[EF_Read ad m[ad].tm]--> t' ->
+  t --[EF_Spawn block]--> t' ->
   empty |-- t' is T.
 Proof.
-  intros. remember empty as Gamma. generalize dependent t'.
-  induction_type; intros; inversion_wtr; inversion_step;
-  eauto using type_of, subst_type_preservation;
-  inversion_type; inversion_wtr; trivial;
-  eauto using context_weakening_empty.
+  intros. remember empty as Gamma. generalize dependent T.
+  induction_step; intros; inversion_type; eauto using type_of.
 Qed.
 
-Local Lemma mstep_type_preservation : forall m m' t t' eff T,
-  well_typed_references m t ->
+Local Lemma typeof_mstep_preservation : forall m m' t t' e T,
+  consistently_typed_references m t ->
   empty |-- t is T ->
-  m / t ==[eff]==> m' / t' ->
+  m / t ==[e]==> m' / t' ->
   empty |-- t' is T.
 Proof.
-  intros. inversion_clear_mstep; generalize dependent t';
-  remember empty as Gamma;
-  induction_type; intros; inversion_step; inversion_wtr;
-  eauto using type_of, subst_type_preservation;
-  inversion_type; inversion_wtr;
-  eauto using context_weakening_empty.
+  intros.
+  inversion_clear_mstep; generalize dependent t'; remember empty as Gamma;
+  induction_type; intros; inversion_step; inversion_ctr;
+  eauto using type_of, typeof_subst_preservation;
+  inversion_type; inversion_ctr; trivial.
 Qed.
 
-(* ------------------------------------------------------------------------- *)
-(* memory preservation                                                       *)
-(* ------------------------------------------------------------------------- *)
-
-Local Lemma mstep_mem_type_preservation : forall m m' t t' eff ad T M,
-  well_typed_references m t ->
-  ad < length m ->
+Local Lemma typeof_mstep_mem_preservation : forall m m' t t' e ad T Tm,
+  consistently_typed_references m t ->
+  ad < #m ->
   empty |-- t is T ->
-  empty |-- m[ad].tm is M ->
-  m / t ==[eff]==> m' / t' ->
-  empty |-- m'[ad].tm is M.
+  empty |-- m[ad].tm is Tm ->
+  m / t ==[e]==> m' / t' ->
+  empty |-- m'[ad].tm is Tm.
 Proof.
   intros * ? ? Htype ? ?. rename ad into ad'.
   inversion_clear_mstep; try simpl_array; trivial.
   decompose sum (lt_eq_lt_dec ad' ad); subst; simpl_array; trivial.
   generalize dependent t'. remember empty as Gamma.
-  induction Htype; inversion HeqGamma; subst; intros;
-  inversion_wtr; inversion_step; eauto.
-  inversion_type; inversion_wtr; apply_deterministic_typing. eauto.
+  induction Htype; inv_subst HeqGamma; intros;
+  inversion_ctr; inversion_step; eauto.
+  inversion_type; inversion_ctr; apply_deterministic_typing. eauto.
 Qed.
 
-(* TODO *)
-(* did not prove preservation *)
+Lemma typeof_spawn_block_preservation : forall t t' block T,
+  empty |-- t is T ->
+  t --[EF_Spawn block]--> t' ->
+  exists Tb, empty |-- block is Tb.
+Proof.
+  intros. remember empty as Gamma. generalize dependent T.
+  induction_step; intros; inversion_type; eauto.
+Qed.
+
+Definition thread_types (ths : threads) (TT: list typ) :=
+  #ths = #TT /\ forall i, empty |-- ths[i] is (TT[i] or <{{ Unit }}>).
+
+Local Lemma typeof_cstep_preservation : forall m m' ths ths' tid e TT,
+  forall_threads ths (consistently_typed_references m) ->
+  thread_types ths TT ->
+  m / ths ~~[tid, e]~~> m' / ths' ->
+  (thread_types ths' TT \/ (exists T, thread_types ths' (TT +++ T))).
+Proof.
+  intros * ? [? ?]. intros. inversion_cstep.
+  - right.
+    assert (exists T, empty |-- block is T) as [? ?]
+        by eauto using typeof_spawn_block_preservation.
+    eexists. split.
+    + rewrite 2 add_increments_length. rewrite set_preserves_length. eauto.
+    + intros i. decompose sum (lt_eq_lt_dec i (#ths)); subst; simpl_array.
+      * rewrite set_preserves_length in a0. rewrite H0 in a0.
+        decompose sum (lt_eq_lt_dec i tid); subst; simpl_array;
+        eauto using typeof_tstep_spawn_preservation.
+      * rewrite set_preserves_length. rewrite H0. simpl_array. eauto.
+      * rewrite set_preserves_length in b. rewrite H0 in b.
+        simpl_array. eauto using type_of.
+  - left. split.
+    + rewrite set_preserves_length. trivial.
+    + intros i. decompose sum (lt_eq_lt_dec i tid); subst; simpl_array;
+      eauto using typeof_mstep_preservation.
+Qed.
+
 
 
 
@@ -249,21 +271,21 @@ Ltac solve_with_steps :=
 Ltac destruct_IH :=
   match goal with
   | IH : valid_accesses _ _ -> value _ \/ _ |- _ =>
-    destruct IH as [? | [[eff [? [? ?]]] | [? [? ?]]]]; trivial
+    destruct IH as [? | [[e [? [? ?]]] | [? [? ?]]]]; trivial
   end.
 
 Ltac solve_mstep_progress :=
   match goal with
-  | eff : effect |- _ =>
+  | e : eect |- _ =>
     try solve [solve_with_steps];
-    destruct eff; inversion_mstep; try solve [solve_with_steps]
+    destruct e; inversion_mstep; try solve [solve_with_steps]
   end.
 
 Theorem progress : forall m t T,
   valid_accesses m t ->
   empty |-- t is T ->
   (value t
-    \/ (exists eff m' t', m / t ==[eff]==> m' / t')
+    \/ (exists e m' t', m / t ==[e]==> m' / t')
     \/ (exists block t', t --[EF_Spawn block]--> t')).
 Proof.
   intros. induction_type; try inversion_va;
@@ -272,21 +294,21 @@ Proof.
   try solve [left; solve_mstep_progress].
   - destruct_IH.
     + left. solve_with_steps.
-    + left. destruct eff; inversion_mstep; solve_with_steps.
+    + left. destruct e; inversion_mstep; solve_with_steps.
     + right. eauto using step.
   - destruct_IH.
     + left. solve_with_steps.
-    + left. destruct eff; inversion_mstep; solve_with_steps.
+    + left. destruct e; inversion_mstep; solve_with_steps.
     + right. eauto using step.
   - destruct_IH.
     + left. inversion H1; subst; inversion_type.
       eexists. eexists. eexists. eauto using step, mstep, access.
-    + left. destruct eff; inversion_mstep; solve_with_steps.
+    + left. destruct e; inversion_mstep; solve_with_steps.
     + right. eauto using step.
   - destruct_IH.
     + left. inversion H1; subst; inversion_type.
       eexists. eexists. eexists. eauto using step, mstep, access.
-    + left. destruct eff; inversion_mstep; solve_with_steps.
+    + left. destruct e; inversion_mstep; solve_with_steps.
     + right. eauto using step.
   - shelve.
   - shelve.

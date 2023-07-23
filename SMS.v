@@ -82,7 +82,7 @@ Qed.
 Local Lemma step_read_sms_preservation : forall m t ad ths tid,
   forall_memory m value ->
   forall_threads ths well_typed_term ->
-  forall_threads ths (well_typed_references m) ->
+  forall_threads ths (consistently_typed_references m) ->
   safe_memory_sharing m ths ->
   ths[tid] --[EF_Read ad m[ad].tm]--> t ->
   safe_memory_sharing m ths[tid <- t].
@@ -115,7 +115,7 @@ Local Corollary mstep_sms_preservation : forall m m' t eff ths tid,
   forall_memory m value ->
   forall_threads ths (valid_accesses m) ->
   forall_threads ths well_typed_term ->
-  forall_threads ths (well_typed_references m) ->
+  forall_threads ths (consistently_typed_references m) ->
   safe_memory_sharing m ths ->
   m / ths[tid] ==[eff]==> m' / t ->
   safe_memory_sharing m' ths[tid <- t].
@@ -143,32 +143,32 @@ Qed.
 
 Local Lemma consistent_memtyp : forall m t ad T,
   forall_memory m value ->
-  forall_memory m (well_typed_references m) ->
-  well_typed_references m t ->
+  forall_memory m (consistently_typed_references m) ->
+  consistently_typed_references m t ->
   m[ad].typ = <{{ &T }}> ->
   access m t ad ->
   UnsafeAccess m t ad.
 Proof.
   intros * ? ? ? Heq Hacc. induction Hacc;
-  inversion_wtr; eauto using UnsafeAccess;
+  inversion_ctr; eauto using UnsafeAccess;
   exfalso; eauto using uacc_then_mut.
   rewrite Heq in *. discriminate.
 Qed.
 
 Lemma memtyp_uacc : forall m t ad,
-  forall_memory m (well_typed_references m) ->
-  well_typed_references m t ->
+  forall_memory m (consistently_typed_references m) ->
+  consistently_typed_references m t ->
   UnsafeAccess m t ad ->
   exists T, m[ad].typ = <{{ &T }}>.
 Proof.
-  intros * ? ? Huacc. induction Huacc; inversion_wtr; eauto.
+  intros * ? ? Huacc. induction Huacc; inversion_ctr; eauto.
 Qed.
 
 Lemma consistent_uacc : forall m t t' ad,
   forall_memory m value ->
-  forall_memory m (well_typed_references m) ->
-  well_typed_references m t ->
-  well_typed_references m t' ->
+  forall_memory m (consistently_typed_references m) ->
+  consistently_typed_references m t ->
+  consistently_typed_references m t' ->
   UnsafeAccess m t ad ->
   access m t' ad ->
   UnsafeAccess m t' ad.
@@ -186,7 +186,7 @@ Theorem safe_memory_sharing_preservation : forall m m' ths ths' tid eff,
   forall_memory m value ->
   forall_threads ths well_typed_term ->
   forall_program m ths (valid_addresses m) ->
-  forall_program m ths (well_typed_references m) ->
+  forall_program m ths (consistently_typed_references m) ->
   forall_threads ths SafeSpawns ->
   (* --- *)
   safe_memory_sharing m ths ->
@@ -209,8 +209,8 @@ Proof.
   eauto using step_spawn_inherits_acc, step_spawn_nuacc_preservation;
   unfold thread_default in *; try inversion_acc; intros ?;
   eauto using consistent_uacc,
-    wtr_spawn_block_preservation,
-    wtr_tstep_spawn_preservation,
+    ctr_spawn_block_preservation,
+    ctr_tstep_spawn_preservation,
     nomut_then_nuacc.
 Qed.
 

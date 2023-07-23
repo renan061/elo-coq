@@ -267,10 +267,10 @@ Local Corollary vad_mstep_preservation : forall m m' t t' e,
   m / t ==[e]==> m' / t' ->
   valid_addresses m' t'.
 Proof.
-  intros *. eapply (mstep_preservation valid_addresses);
-  eauto using vad_tstep_none_preservation,
-    vad_tstep_alloc_preservation,
-    vad_tstep_read_preservation,
+  solve_mstep_preservation_using
+    vad_tstep_none_preservation
+    vad_tstep_alloc_preservation
+    vad_tstep_read_preservation
     vad_tstep_write_preservation.
 Qed.
 
@@ -350,8 +350,8 @@ Local Corollary vad_mstep_mem_preservation : forall m m' t t' e,
   m / t ==[e]==> m' / t' ->
   forall_memory m' (valid_addresses m').
 Proof.
-  eauto using mstep_mem_preservation,
-    vad_tstep_alloc_mem_preservation,
+  solve_mstep_mem_preservation_using 
+    vad_tstep_alloc_mem_preservation 
     vad_tstep_write_mem_preservation.
 Qed.
 
@@ -361,7 +361,7 @@ Local Corollary vad_cstep_mem_preservation : forall m m' ths ths' tid e,
   m / ths ~~[tid, e]~~> m' / ths' ->
   forall_memory m' (valid_addresses m').
 Proof.
-  eauto using cstep_mem_preservation, vad_mstep_mem_preservation.
+  solve_cstep_mem_preservation_using vad_mstep_mem_preservation.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -371,6 +371,7 @@ Theorem valid_addresses_preservation : forall m m' ths ths' tid e,
   m / ths ~~[tid, e]~~> m' / ths' ->
   forall_program m' ths' (valid_addresses m').
 Proof.
-  eauto using preservation, vad_cstep_preservation, vad_cstep_mem_preservation.
+  intros * [? ?]. intros.
+  eauto using vad_cstep_preservation, vad_cstep_mem_preservation.
 Qed.
 

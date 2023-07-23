@@ -333,16 +333,16 @@ Qed.
 Lemma step_read_nuacc_preservation : forall m t t' ad ad' T,
   forall_memory m value ->
   empty |-- t is T ->
-  well_typed_references m t ->
+  consistently_typed_references m t ->
   ~ UnsafeAccess m t ad ->
   t --[EF_Read ad' m[ad'].tm]--> t' ->
   ~ UnsafeAccess m t' ad.
 Proof.
   intros * Hval. intros. intros ?. generalize dependent T.
   induction_step; intros;
-  inversion_wtr; inversion_type; inversion_nuacc; try inversion_clear_uacc;
+  inversion_ctr; inversion_type; inversion_nuacc; try inversion_clear_uacc;
   eauto; inversion_type; destruct (Nat.eq_dec ad' ad); subst;
-  eauto using UnsafeAccess; inversion_wtr;
+  eauto using UnsafeAccess; inversion_ctr;
   match goal with F : UnsafeAccess _ _[_].tm _ |- _ => contradict F end;
   eauto using nuacc_refI.
 Qed.

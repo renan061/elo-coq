@@ -1,6 +1,12 @@
 From Coq Require Logic.ClassicalFacts.
 From Coq Require Import Logic.Decidable.
 
+(* inversion shortcuts *)
+
+Ltac inv_subst H := inversion H; subst.
+
+Ltac inv_subst_clear H := inv_subst H; clear H.
+
 (* miscellaneous utilities *)
 
 Ltac auto_specialize :=

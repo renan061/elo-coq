@@ -133,34 +133,26 @@ preservation:
 
 ---------------------------------------------------------------------------- *)
 
-Corollary mstep_preservation (P : mem -> tm -> Prop) : forall m m' t t',
-  (* tstep_none_preservation *)
-  (P m t ->
-   t --[EF_None]--> t' ->
-   P m t') ->
-  (* tstep_alloc_preservation *)
-  (forall v T,
-    P m t ->
-    t --[EF_Alloc (#m) v T]--> t' ->
-    P (m +++ (v, T)) t') ->
-  (* tstep_read_preservation *)
-  (forall ad v,
-    P m v ->
-    P m t ->
-    t --[EF_Read ad v]--> t' ->
-    P m t') ->
-  (* tstep_write_preservation: *)
-  (forall ad v T,
-    P m t ->
-    t --[EF_Write ad v T]--> t' ->
-    P m[ad <- (v, T)] t') ->
-  (* What we want to prove: *)
-  forall e,
-    forall_memory m (P m) ->
-    P m t ->
-    m / t ==[e]==> m' / t' ->
-    P m' t'.
-Proof. intros. inversion_mstep; eauto. Qed.
+Ltac solve_mstep_preservation_using
+  tstep_none_preservation
+  tstep_alloc_preservation
+  tstep_read_preservation
+  tstep_write_preservation := 
+    intros; inversion_mstep;
+    eauto using tstep_none_preservation,
+                tstep_alloc_preservation,
+                tstep_read_preservation,
+                tstep_write_preservation.
+
+Ltac solve_mstep_mem_preservation_using
+  tstep_alloc_mem_preservation
+  tstep_write_mem_preservation := 
+    intros; inversion_mstep;
+    eauto using tstep_alloc_mem_preservation, tstep_write_mem_preservation.
+
+Ltac solve_cstep_mem_preservation_using
+  mstep_mem_preservation :=
+    intros; inversion_cstep; eauto using mstep_mem_preservation.
 
 Lemma cstep_preservation (P : mem -> tm -> Prop) : forall m m' ths ths' tid e,
     (* tstep_spawn_preservation *)
@@ -207,57 +199,4 @@ Proof.
     decompose sum (lt_eq_lt_dec tid' (#ths)); subst; eauto;
     simpl_array; eauto.
 Qed.
-
-Corollary mstep_mem_preservation (P : mem -> tm -> Prop) : forall m t t',
-  (* tstep_alloc_mem_preservation *)
-  (forall v T,
-    P m t ->
-    forall_memory m (P m) ->
-    t --[EF_Alloc (#m) v T]--> t' ->
-    forall_memory (m +++ (v, T)) (P (m +++ (v, T)))) ->
-  (* tstep_write_mem_preservation *)
-  (forall ad v T,
-    P m t ->
-    forall_memory m (P m) ->
-    t --[EF_Write ad v T]--> t' ->
-    forall_memory m[ad <- (v, T)] (P m[ad <- (v, T)])) ->
-  (* What we want to prove: *)
-  forall m' e,
-    P m t ->
-    forall_memory m (P m) ->
-    m / t ==[e]==> m' / t' ->
-    forall_memory m' (P m').
-Proof. intros. inversion_mstep; eauto. Qed.
-
-Corollary cstep_mem_preservation (P : mem -> tm -> Prop) :
-  (* mstep_mem_preservation *)
-  (forall m m' t t' e,
-    P m t ->
-    forall_memory m (P m) ->
-    m / t ==[e]==> m' / t' ->
-    forall_memory m' (P m')) ->
-  (* What we want to prove: *)
-  forall m m' ths ths' tid e,
-    forall_threads ths (P m) ->
-    forall_memory m (P m) ->
-    m / ths ~~[tid, e]~~> m' / ths' ->
-    forall_memory m' (P m').
-Proof. intros. inversion_cstep; eauto. Qed.
-
-Corollary preservation (P : mem -> tm -> Prop) : forall m m' ths ths' tid e,
-  (* cstep_preservation *)
-  (forall_memory m (P m) ->
-   forall_threads ths (P m) ->
-   m / ths ~~[tid, e]~~> m' / ths' ->
-   forall_threads ths' (P m')) ->
-  (* cstep_mem_preservation *)
-  (forall_threads ths (P m) ->
-   forall_memory m (P m) ->
-   m / ths ~~[tid, e]~~> m' / ths' ->
-   forall_memory m' (P m')) ->
-  (* What we want to prove: *)
-  forall_program m ths (P m) ->
-  m / ths ~~[tid, e]~~> m' / ths' ->
-  forall_program m' ths' (P m').
-Proof. intros * ? ? [? ?]. intros. eauto. Qed.
 
