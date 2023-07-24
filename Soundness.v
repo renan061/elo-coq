@@ -8,6 +8,7 @@ From Elo Require Import Array.
 From Elo Require Import Map.
 From Elo Require Import Core.
 From Elo Require Import CoreExt.
+From Elo Require Import ValidAddresses.
 From Elo Require Import References.
 
 (* ------------------------------------------------------------------------- *)
@@ -233,7 +234,7 @@ Qed.
 Definition thread_types (ths : threads) (TT: list typ) :=
   #ths = #TT /\ forall i, empty |-- ths[i] is (TT[i] or <{{ Unit }}>).
 
-Local Lemma typeof_cstep_preservation : forall m m' ths ths' tid e TT,
+Local Lemma type_preservation : forall m m' ths ths' tid e TT,
   forall_threads ths (consistently_typed_references m) ->
   thread_types ths TT ->
   m / ths ~~[tid, e]~~> m' / ths' ->
@@ -258,8 +259,126 @@ Proof.
       eauto using typeof_mstep_preservation.
 Qed.
 
+(* ------------------------------------------------------------------------- *)
 
+Lemma forall_array_inversion {A} {default} : forall (P : A -> Prop) x xs,
+  forall_array default P (x :: xs) ->
+  P x /\ forall_array default P xs.
+Proof.
+  intros * H. unfold forall_array in *.
+  specialize (H 0) as H'. split; trivial.
+  intros i. specialize (H (S i)). trivial.
+Qed.
 
+Corollary forall_threads_inversion : forall (P : tm -> Prop) x xs,
+  forall_threads (x :: xs) P ->
+  P x /\ forall_threads xs P.
+Proof. eauto using forall_array_inversion. Qed.
+
+Ltac inv_forall_array H :=
+  match H with
+  | _ : forall_array _ _ (_ :: _) =>
+    eapply forall_array_inversion in H as [? ?]
+  end.
+
+Ltac inv_forall_threads H :=
+  match H with
+  | _ : forall_threads _ (_ :: _) =>
+    eapply forall_threads_inversion in H as [? ?]
+  end.
+
+Lemma forall_array_cons {A} {default} : forall (P : A -> Prop) x xs,
+  P x ->
+  forall_array default P xs ->
+  forall_array default P (x :: xs).
+Proof.
+  unfold forall_array in *. intros. destruct i; eauto.
+Qed.
+
+Lemma forall_threads_cons : forall (P : tm -> Prop) x xs,
+  P x ->
+  forall_threads xs P ->
+  forall_threads (x :: xs) P.
+Proof.
+  unfold forall_threads. eauto using forall_array_cons.
+Qed.
+
+Lemma cstep_cons : forall m m' ths ths' t tid e,
+  m / ths ~~[tid, e]~~> m' / ths' ->
+  m / (t :: ths) ~~[S tid, e]~~> m' / (t :: ths').
+Proof.
+  intros. inversion_cstep;
+  (eapply (CS_Spawn _ t') || eapply (CS_Mem _ _ t'));
+  trivial; simpl; lia.
+Qed.
+
+Theorem progress : forall m ths TT,
+  forall_threads ths (consistently_typed_references m) ->
+  (* --- *)
+  thread_types ths TT ->
+  (forall_threads ths value
+    \/ (exists  m' ths' tid e, m / ths ~~[tid, e]~~> m' / ths')).
+Proof.
+  intros * Hctr Htt. induction ths as [ | t ths IHths].
+  - left. intros [| ?]; eauto using value.
+  - inv_forall_threads Hctr.
+    destruct IHths as [? | Hcstep]; eauto. admit.
+    + assert (value t \/ ~ value t) as [? | ?] by eauto using value_dec.
+      * left. eauto using forall_threads_cons.
+      * right. shelve.
+    + right. destruct Hcstep as [? [? [? [? ?]]]]. do 4 eexists.
+      eauto using cstep_cons.
+
+  Unshelve.
+    do 2 eexists. exists 0. eexists.
+    destruct Htt as [Httlen Htt].
+    specialize (Htt 0). simpl in *.
+Abort.
+
+Theorem progress_helper : forall m t T,
+  valid_addresses m t ->
+  consistently_typed_references m t ->
+  empty |-- t is T ->
+  (value t
+    \/ (exists e m' t', m / t ==[e]==> m' / t')
+    \/ (exists block t', t --[EF_Spawn block]--> t')).
+Proof.
+  intros. induction_type; try inversion_vad; inversion_ctr;
+  try solve [left; eauto using value];
+  right;
+  try solve
+    [ destruct IHtype_of as [? | [[e [? [? ?]]] | [? [? ?]]]];
+      eauto using tstep; left;
+      try solve [ do 3 eexists; eauto using tstep, mstep
+                | exists e; do 2 eexists;
+                  destruct e; inversion_mstep; eauto using tstep, mstep
+                ]
+    ].
+  - destruct IHtype_of as [Hval | [[e [? [? ?]]] | [? [? ?]]]];
+    eauto using tstep.
+    + left. destruct t; inv_subst Hval; inversion_type. inversion_vad.
+      eauto using tstep, mstep.
+    + left. exists e. exists x. eexists.
+      destruct e; inversion_mstep; eauto using tstep, mstep.
+  - destruct IHtype_of as [Hval | [[e [? [? ?]]] | [? [? ?]]]];
+    eauto using tstep.
+    + left. destruct t; inv_subst Hval; inversion_type. inversion_vad.
+      eauto using tstep, mstep.
+    + left. exists e. exists x. eexists.
+      destruct e; inversion_mstep; eauto using tstep, mstep.
+  - destruct IHtype_of1 as [Hval1 | [[e1 [? [? ?]]] | [? [? ?]]]];
+    eauto using tstep.
+    + destruct IHtype_of2 as [Hval2 | [[e2 [? [? ?]]] | [? [? ?]]]];
+      eauto using tstep.
+      * admit.
+      * left. exists e2. exists x. eexists. 
+        destruct e2; inversion_mstep; eauto using tstep, mstep.
+    + left. exists e1. exists x. eexists. 
+      destruct e1; inversion_mstep; eauto using tstep, mstep.
+  - admit.
+  - admit.
+  - admit.
+Qed.
 
 
 
