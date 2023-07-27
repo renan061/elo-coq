@@ -15,20 +15,20 @@ From Elo Require Import References.
 (* memtyp preservation                                                       *)
 (* ------------------------------------------------------------------------- *)
 
+Reserved Notation " m 'extends' m' " (at level 20, no associativity).
+
+(* array extension for the memory *)
+Inductive extension : mem -> mem -> Prop :=
+  | extension_nil : forall m,
+    m extends nil
+
+  | extension_cons : forall m m' v v' T,
+    m extends m' ->
+    ((v, T) :: m) extends ((v', T) :: m') 
+
+  where " m 'extends' m' " := (extension m m').
+
 Module MemExtension.
-  Local Reserved Notation " m 'extends' m' " (at level 20, no associativity).
-
-  (* array extension for memory types *)
-  Inductive extension : mem -> mem -> Prop :=
-    | extension_nil : forall m,
-      m extends nil
-
-    | extension_cons : forall m m' v v' T,
-      m extends m' ->
-      ((v, T) :: m) extends ((v', T) :: m') 
-
-    where " m 'extends' m' " := (extension m m').
-
   Ltac nil_false :=
     match goal with
     F : nil extends (_ :: _) |- _ => inversion F
@@ -234,11 +234,11 @@ Qed.
 Definition thread_types (ths : threads) (TT: list typ) :=
   #ths = #TT /\ forall i, empty |-- ths[i] is (TT[i] or <{{ Unit }}>).
 
-Local Lemma type_preservation : forall m m' ths ths' tid e TT,
+Theorem type_preservation : forall m m' ths ths' tid e TT,
   forall_threads ths (consistently_typed_references m) ->
   thread_types ths TT ->
   m / ths ~~[tid, e]~~> m' / ths' ->
-  (thread_types ths' TT \/ (exists T, thread_types ths' (TT +++ T))).
+  (thread_types ths' TT \/ exists T, thread_types ths' (TT +++ T)).
 Proof.
   intros * ? [? ?]. intros. inversion_cstep.
   - right.
@@ -259,7 +259,21 @@ Proof.
       eauto using typeof_mstep_preservation.
 Qed.
 
+Theorem wtt_preservation : forall m m' ths ths' tid e TT,
+  forall_threads ths (consistently_typed_references m) ->
+  thread_types ths TT ->
+  m / ths ~~[tid, e]~~> m' / ths' ->
+  forall_threads ths' well_typed_term.
+Proof.
+  intros.
+  assert (thread_types ths' TT \/ exists T, thread_types ths' (TT +++ T))
+    as [[? ?] | [? [? ?]]] by eauto using type_preservation;
+  eexists; eauto.
+Qed.
+
 (* ------------------------------------------------------------------------- *)
+
+(*
 
 Lemma forall_array_inversion {A} {default} : forall (P : A -> Prop) x xs,
   forall_array default P (x :: xs) ->
@@ -314,7 +328,6 @@ Qed.
 
 Theorem progress : forall m ths TT,
   forall_threads ths (consistently_typed_references m) ->
-  (* --- *)
   thread_types ths TT ->
   (forall_threads ths value
     \/ (exists  m' ths' tid e, m / ths ~~[tid, e]~~> m' / ths')).
@@ -380,6 +393,7 @@ Proof.
   - admit.
 Qed.
 
+*)
 
 
 
