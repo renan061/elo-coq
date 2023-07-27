@@ -231,14 +231,16 @@ Proof.
   induction_step; intros; inversion_type; eauto.
 Qed.
 
+(*
 Definition thread_types (ths : threads) (TT: list typ) :=
   #ths = #TT /\ forall i, empty |-- ths[i] is (TT[i] or <{{ Unit }}>).
+*)
 
 Theorem type_preservation : forall m m' ths ths' tid e TT,
   forall_threads ths (consistently_typed_references m) ->
-  thread_types ths TT ->
+  forall_threads ths well_typed_term ->
   m / ths ~~[tid, e]~~> m' / ths' ->
-  (thread_types ths' TT \/ exists T, thread_types ths' (TT +++ T)).
+  forall_threads ths' well_typed_term.
 Proof.
   intros * ? [? ?]. intros. inversion_cstep.
   - right.
@@ -258,6 +260,15 @@ Proof.
     + intros i. decompose sum (lt_eq_lt_dec i tid); subst; simpl_array;
       eauto using typeof_mstep_preservation.
 Qed.
+
+(*
+
+  forall (T, i) inside ths,
+    empty |-- ths[i] is T -> empty |-- ths'[i] is T
+
+  (thread_types ths' TT \/ exists T, thread_types ths' (TT +++ T)).
+
+*)
 
 Theorem wtt_preservation : forall m m' ths ths' tid e TT,
   forall_threads ths (consistently_typed_references m) ->
