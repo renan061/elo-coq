@@ -273,8 +273,6 @@ Qed.
 
 (* ------------------------------------------------------------------------- *)
 
-(*
-
 Lemma forall_array_inversion {A} {default} : forall (P : A -> Prop) x xs,
   forall_array default P (x :: xs) ->
   P x /\ forall_array default P xs.
@@ -328,6 +326,7 @@ Qed.
 
 Theorem progress : forall m ths TT,
   forall_threads ths (consistently_typed_references m) ->
+  (* -- *)
   thread_types ths TT ->
   (forall_threads ths value
     \/ (exists  m' ths' tid e, m / ths ~~[tid, e]~~> m' / ths')).
@@ -351,12 +350,14 @@ Abort.
 Theorem progress_helper : forall m t T,
   valid_addresses m t ->
   consistently_typed_references m t ->
+  (* --- *)
   empty |-- t is T ->
   (value t
     \/ (exists e m' t', m / t ==[e]==> m' / t')
     \/ (exists block t', t --[EF_Spawn block]--> t')).
 Proof.
-  intros. induction_type; try inversion_vad; inversion_ctr;
+  intros. remember empty as Gamma.
+  induction_type; try inversion_vad; inversion_ctr;
   try solve [left; eauto using value];
   right;
   try solve
@@ -388,12 +389,12 @@ Proof.
         destruct e2; inversion_mstep; eauto using tstep, mstep.
     + left. exists e1. exists x. eexists. 
       destruct e1; inversion_mstep; eauto using tstep, mstep.
-  - admit.
+  - inversion H1.
   - admit.
   - admit.
 Qed.
 
-*)
+
 
 
 
