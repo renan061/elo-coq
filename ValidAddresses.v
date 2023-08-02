@@ -302,7 +302,7 @@ Proof.
   eauto using Nat.lt_lt_succ_r.
 Qed.
 
-Local Corollary vad_cstep_preservation : forall m m' ths ths' tid e,
+Corollary vad_cstep_preservation : forall m m' ths ths' tid e,
   forall_memory m (valid_addresses m) ->
   forall_threads ths (valid_addresses m) ->
   m / ths ~~[tid, e]~~> m' / ths' ->

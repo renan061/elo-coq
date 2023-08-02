@@ -265,7 +265,7 @@ Proof.
   rewrite Heq in *. eauto using ctr_mem_set_preservation.
 Qed.
 
-Local Corollary ctr_cstep_preservation : forall m m' ths ths' tid e,
+Corollary ctr_cstep_preservation : forall m m' ths ths' tid e,
   forall_threads ths well_typed_term ->
   forall_threads ths (valid_addresses m) ->
   forall_memory m (consistently_typed_references m) ->

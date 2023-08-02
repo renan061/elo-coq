@@ -194,42 +194,27 @@ Proof.
   inversion_clear_ctr; try inversion_nuacc; eauto using nuacc_refI.
 Qed.
 
-(*
-Local Lemma todo : forall m m' ths ths' ad tc,
-  forall_memory m value ->
-  forall_program m ths (consistently_typed_references m) ->
-  forall_program m ths (valid_addresses m) ->
-  forall_program m ths SafeSpawns ->
-  ~ access m ths[#ths] ad -> (* TODO: assert *)
-  m / ths ~~[tc]~~>* m' / ths' ->
-  access m' ths'[#ths] ad ->
-  exists T, m'[ad].typ = <{{ i&T }}>.
+Lemma memtyp_immut_then_nuacc : forall m t ad T,
+  value t ->
+  empty |-- t is <{{ Immut T }}> ->
+  ~ UnsafeAccess m t ad.
 Proof.
-  intros * Hval [? ?] [? ?] [? ?] Hnacc Hmultistep Hacc. induction_multistep.
-  - simpl_array. unfold thread_default in *. inversion_acc.
-  - do 8 auto_specialize. 
-    destruct (acc_dec m' ths'[#ths] ad).
-    + destruct IHHmultistep as [T Hmemtyp]; eauto.
-      exists T. rewrite <- Hmemtyp. eapply cstep_memtyp; eauto.
-      * admit.
-      * assert (forall_program m' ths' (valid_addresses m')) as [? ?]
-          by eauto using valid_addresses_multistep_preservation.
-        eauto using vad_then_vac, vac_length.
-    + clear IHHmultistep.
-      inversion_cstep.
-      * admit.
-      *
+  intros * Hval ? ?. destruct Hval; inversion_type; inversion_uacc.
+Qed.
 
-
-      specialize Hacc as F. contradict F.
-      eapply not_access_multistep_preservation; eauto.
-      * admit.
-      * admit.
-      * admit.
-      * admit.
-      * admit.
-Abort.
-*)
+Lemma acc_then_uacc : forall m t ad T,
+  forall_memory m value ->
+  forall_memory m (consistently_typed_references m) ->
+  consistently_typed_references m t ->
+  m[ad].typ = <{{ &T }}> ->
+  access m t ad ->
+  UnsafeAccess m t ad.
+Proof.
+  intros * ? Hmctr Hctr ? Hacc. generalize dependent T.
+  induction Hacc; intros; inversion_ctr; eauto using UnsafeAccess; exfalso.
+  - eapply memtyp_immut_then_nuacc; eauto.
+  - rewrite H0 in H4. discriminate. 
+Qed.
 
 Theorem safety : forall m m' ths ths' tid1 tid2 ad v1 v2 tc Tr,
   forall_memory m value ->
@@ -240,13 +225,15 @@ Theorem safety : forall m m' ths ths' tid1 tid2 ad v1 v2 tc Tr,
   safe_memory_sharing m ths ->
   (* --- *)
   tid1 <> tid2 ->
-  m / ths ~~[(tid1, EF_Read  ad v1   ) :: tc ++
-             (tid2, EF_Write ad v2 Tr) :: nil]~~>* m' / ths' ->
+  m / ths ~~[(tid2, EF_Read  ad v2   ) :: tc ++
+             (tid1, EF_Write ad v1 Tr) :: nil]~~>* m' / ths' ->
   False.
 Proof.
-  intros * ? [? ?] [? ?] [? ?] ? Hsms. intros. inversion_clear_multistep.
+  intros * Hmval [Hmwtt Hwtt] [Hmvad Hvad] [Hmctr Hctr] Hss Hsms Hneq ?.
+  inversion_clear_multistep.
   rename m'0 into m3. rename ths'0 into ths3.
-  assert (Hacc' : access m3 ths3[tid1] ad)
+  rename H7 into Hmultistep. rename H8 into Hcstep.
+  assert (Hacc' : access m3 ths3[tid2] ad)
     by eauto using cstep_read_requires_acc.
   match goal with
   | H1 : _ / _ ~~[ _    ]~~>* _ / _
@@ -256,18 +243,27 @@ Proof.
   end.
   eapply destruct_multistep in Hmultistep
     as [m2 [ths2 [H1_cstep H2_multistep]]].
-  assert (Huacc : UnsafeAccess m ths[tid2] ad)
+  assert (Huacc : UnsafeAccess m ths[tid1] ad)
     by eauto using cstep_write_requires_uacc.
-  destruct (acc_dec m ths[tid1] ad);
-  try solve [eapply (Hsms tid2 tid1); eauto].
-  assert (forall_threads ths (valid_accesses m))
+  destruct (acc_dec m ths[tid2] ad) as [? | Hnacc];
+  try solve [eapply (Hsms tid1 tid2); eauto].
+  assert (Hvac : forall_threads ths (valid_accesses m))
     by eauto using forall_threads_vad_then_vac.
-  assert (ad < #m) by eauto using vac_length, cstep_write_requires_uacc,
-    uacc_then_acc.
-  assert (ad < #m2) by eauto using Nat.lt_le_trans,
+  assert (Hlen1 : ad < #m)
+    by eauto using vac_length, cstep_write_requires_uacc, uacc_then_acc.
+  assert (Hlen2 : ad < #m2) by eauto using Nat.lt_le_trans,
     monotonic_nondecreasing_memory_length, multistep.
-  decompose sum (lt_eq_lt_dec tid1 (#ths)); subst.
-  - assert (tid1 < #ths2) by eauto using Nat.lt_le_trans,
+
+  move Hvac after Hvad.
+  move H3_cstep after H2_multistep. 
+  move Hacc' after Huacc.
+  move m2 at top. move m3 at top.
+  move Hneq at top.
+  move ths2 after ths. move ths3 after ths.
+
+  decompose sum (lt_eq_lt_dec tid2 (#ths)); subst.
+  (* a thread tid2 já existia quando ocorreu o WRITE *)
+  - assert (tid2 < #ths2) by eauto using Nat.lt_le_trans,
       monotonic_nondecreasing_threads_length, multistep.
     eapply (not_access_multistep_preservation m2 m3 ths2 ths3); eauto.
     + eapply memory_value_multistep_preservation; eauto using multistep.
@@ -278,19 +274,37 @@ Proof.
     + eapply safe_memory_sharing_multistep_preservation; eauto using multistep.
     + eapply (not_access_multistep_preservation m m2 ths ths2);
       eauto using multistep.
+  (* a thread tid2 não existia quand ocorreu o WRITE *)
   - assert (exists T, m[ad].typ = <{{ &T }}>) as [T Htype1]
-      by eauto using (memtyp_uacc _ ths[tid2]).
-    eapply cstep_memtyp_preservation in H1_cstep as Hext; eauto.
-    eapply well_typed_multistep_preservation in H2_multistep as [_ [_ ?]].
+      by eauto using (memtyp_uacc _ ths[tid1]). move T at top.
+    eapply memtyp_preservation in H1_cstep as Htype2; eauto.
+    rewrite Htype1 in Htype2.
+    pose proof H2_multistep as H2.
+    eapply well_typed_multistep_preservation in H2 as [_ [_ Hext]].
     + shelve.
     + eapply valid_addresses_multistep_preservation; eauto using multistep.
     + eapply well_typed_multistep_preservation; eauto using multistep.
     + eapply well_typed_multistep_preservation; eauto using multistep.
     Unshelve.
-    assert (m3 extends m) by eauto using Extension.trans.
-    assert (Htype1': m3[ad].typ = m[ad].typ) by eauto using Extension.get.
+    assert (m3[ad].typ = <{{ &T }}>). admit.
+    eapply acc_then_uacc in Hacc' as Huacc'; eauto.
+    * move Huacc' before Hacc'.
+      eapply Hsms.
+      admit.
+    * shelve.
+    * shelve.
+    * shelve.
+    (*
+    assert (m3 extends m). {
+      eapply MemExtension.trans; eauto.
+    }
+
+
+    by eauto using extension, MemExtension.trans.
+    assert (Htype1': m3[ad].typ = m[ad].typ) by eauto using MemExtension.get.
     rewrite Htype1 in Htype1'.
     admit.
+    *)
   - admit.
 Admitted.
 

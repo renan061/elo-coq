@@ -231,16 +231,14 @@ Proof.
   induction_step; intros; inversion_type; eauto.
 Qed.
 
-(*
 Definition thread_types (ths : threads) (TT: list typ) :=
   #ths = #TT /\ forall i, empty |-- ths[i] is (TT[i] or <{{ Unit }}>).
-*)
 
 Theorem type_preservation : forall m m' ths ths' tid e TT,
   forall_threads ths (consistently_typed_references m) ->
-  forall_threads ths well_typed_term ->
+  thread_types ths TT ->
   m / ths ~~[tid, e]~~> m' / ths' ->
-  forall_threads ths' well_typed_term.
+  (thread_types ths' TT \/ exists T, thread_types ths' (TT +++ T)).
 Proof.
   intros * ? [? ?]. intros. inversion_cstep.
   - right.
@@ -261,25 +259,71 @@ Proof.
       eauto using typeof_mstep_preservation.
 Qed.
 
-(*
+(* ------------------------------------------------------------------------- *)
 
-  forall (T, i) inside ths,
-    empty |-- ths[i] is T -> empty |-- ths'[i] is T
-
-  (thread_types ths' TT \/ exists T, thread_types ths' (TT +++ T)).
-
-*)
-
-Theorem wtt_preservation : forall m m' ths ths' tid e TT,
-  forall_threads ths (consistently_typed_references m) ->
-  thread_types ths TT ->
-  m / ths ~~[tid, e]~~> m' / ths' ->
-  forall_threads ths' well_typed_term.
+Theorem basic_progress : forall m t,
+  valid_addresses m t ->
+  consistently_typed_references m t ->
+  (* --- *)
+  well_typed_term t ->
+  (value t
+    \/ (exists e m' t', m / t ==[e]==> m' / t')
+    \/ (exists block t', t --[EF_Spawn block]--> t')).
 Proof.
-  intros.
-  assert (thread_types ths' TT \/ exists T, thread_types ths' (TT +++ T))
-    as [[? ?] | [? [? ?]]] by eauto using type_preservation;
-  eexists; eauto.
+  intros * ? ? [T ?]. remember empty as Gamma.
+  induction_type; try inversion_vad; inversion_ctr;
+  try solve [left; eauto using value];
+  right;
+  try solve
+    [ destruct IHtype_of as [? | [[e [? [? ?]]] | [? [? ?]]]];
+      eauto using tstep; left;
+      try solve [ do 3 eexists; eauto using tstep, mstep
+                | exists e; do 2 eexists;
+                  destruct e; inversion_mstep; eauto using tstep, mstep
+                ]
+    ].
+  - destruct IHtype_of as [Hval | [[e [? [? ?]]] | [? [? ?]]]];
+    eauto using tstep.
+    + left. destruct t; inv_subst Hval; inversion_type. inversion_vad.
+      eauto using tstep, mstep.
+    + left. exists e. exists x. eexists.
+      destruct e; inversion_mstep; eauto using tstep, mstep.
+  - destruct IHtype_of as [Hval | [[e [? [? ?]]] | [? [? ?]]]];
+    eauto using tstep.
+    + left. destruct t; inv_subst Hval; inversion_type. inversion_vad.
+      eauto using tstep, mstep.
+    + left. exists e. exists x. eexists.
+      destruct e; inversion_mstep; eauto using tstep, mstep.
+  - destruct IHtype_of1 as [Hval1 | [[e1 [? [? ?]]] | [? [? ?]]]];
+    eauto using tstep.
+    + destruct IHtype_of2 as [Hval2 | [[e2 [? [? ?]]] | [? [? ?]]]];
+      eauto using tstep.
+      * destruct Hval1; inv_subst H1_.
+        left. do 3 eexists. inversion_vad; eauto using tstep, mstep.
+      * left. exists e2. exists x. eexists. 
+        destruct e2; inversion_mstep; eauto using tstep, mstep.
+    + left. exists e1. exists x. eexists. 
+      destruct e1; inversion_mstep; eauto using tstep, mstep.
+  - inversion H1.
+  - destruct IHtype_of1 as [Hval1 | [[e1 [? [? ?]]] | [? [? ?]]]];
+    eauto using tstep.
+    + destruct IHtype_of2 as [Hval2 | [[e2 [? [? ?]]] | [? [? ?]]]];
+      eauto using tstep.
+      * destruct Hval1; inv_subst H1_.
+        left. do 3 eexists. inversion_vad; eauto using tstep, mstep.
+      * left. exists e2. exists x. eexists. 
+        destruct e2; inversion_mstep; eauto using tstep, mstep.
+    + left. exists e1. exists x. eexists. 
+      destruct e1; inversion_mstep; eauto using tstep, mstep.
+  - destruct IHtype_of1 as [Hval1 | [[e1 [? [? ?]]] | [? [? ?]]]];
+    eauto using tstep.
+    + destruct IHtype_of2 as [Hval2 | [[e2 [? [? ?]]] | [? [? ?]]]];
+      eauto using tstep.
+      * left. do 3 eexists. eauto using tstep, mstep.
+      * left. do 3 eexists. eauto using tstep, mstep.
+      * left. do 3 eexists. eauto using tstep, mstep.
+    + left. exists e1. exists x. eexists. 
+      destruct e1; inversion_mstep; eauto using tstep, mstep.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -335,129 +379,84 @@ Proof.
   trivial; simpl; lia.
 Qed.
 
-Theorem progress : forall m ths TT,
+Theorem progress : forall m ths,
+  forall_threads ths (valid_addresses m) ->
   forall_threads ths (consistently_typed_references m) ->
   (* -- *)
-  thread_types ths TT ->
+  forall_threads ths well_typed_term ->
   (forall_threads ths value
     \/ (exists  m' ths' tid e, m / ths ~~[tid, e]~~> m' / ths')).
 Proof.
-  intros * Hctr Htt. induction ths as [ | t ths IHths].
+  intros * Hvad Hctr Hwtt. induction ths as [ | t ths IHths].
   - left. intros [| ?]; eauto using value.
   - inv_forall_threads Hctr.
-    destruct IHths as [? | Hcstep]; eauto. admit.
+    destruct IHths as [? | Hcstep]; eauto.
+    + inv_forall_threads Hvad. assumption.
+    + inv_forall_threads Hwtt. assumption.
     + assert (value t \/ ~ value t) as [? | ?] by eauto using value_dec.
       * left. eauto using forall_threads_cons.
-      * right. shelve.
+      * right.
+        assert (value t
+          \/ (exists e m' t', m / t ==[e]==> m' / t')
+          \/ (exists block t', t --[EF_Spawn block]--> t'))
+          as [? | [[? [? [? ?]]] | [? [? ?]]]]. {
+            inv_forall_threads Hvad.
+            inv_forall_threads Hwtt.
+            eauto using basic_progress.
+          }
+        ** contradiction.
+        ** do 2 eexists. exists 0. eexists.
+           eapply CS_Mem; eauto using mstep. simpl. lia.
+        ** do 2 eexists. exists 0. eexists.
+           eapply CS_Spawn; eauto using tstep. simpl. lia.
     + right. destruct Hcstep as [? [? [? [? ?]]]]. do 4 eexists.
       eauto using cstep_cons.
+Qed.
 
-  Unshelve.
-    do 2 eexists. exists 0. eexists.
-    destruct Htt as [Httlen Htt].
-    specialize (Htt 0). simpl in *.
-Abort.
+(* ------------------------------------------------------------------------- *)
+(* soundness                                                                 *)
+(* ------------------------------------------------------------------------- *)
 
-Theorem progress_helper : forall m t T,
-  valid_addresses m t ->
-  consistently_typed_references m t ->
+Lemma wtt_to_TT : forall ths,
+  forall_threads ths well_typed_term ->
+  exists TT, thread_types ths TT.
+Proof.
+  intros * H. induction ths.
+  - exists nil. split; trivial.
+    intros i. simpl. destruct i; eauto using type_of.
+  - inv_forall_threads H. destruct H as [T ?].
+    destruct IHths as [TT [? ?]]; trivial.
+    exists (T :: TT). split; simpl; try lia. intros i. destruct i; trivial.
+Qed.
+
+Corollary preservation : forall m m' ths ths' tid e,
+  forall_threads ths (consistently_typed_references m) ->
+  forall_threads ths well_typed_term ->
+  m / ths ~~[tid, e]~~> m' / ths' ->
+  forall_threads ths' well_typed_term.
+Proof.
+  intros * Hctr Hwtt Hcstep.
+  eapply wtt_to_TT in Hwtt as [TT Htt].
+  assert (thread_types ths' TT \/ exists T, thread_types ths' (TT +++ T))
+    as [[? ?] | [? [? ?]]] by eauto using type_preservation;
+  eexists; eauto.
+Qed.
+
+Corollary type_soundness : forall m m' ths ths' tid e,
+  forall_memory m (valid_addresses m) ->
+  forall_memory m (consistently_typed_references m) ->
+  forall_threads ths (valid_addresses m) ->
+  forall_threads ths well_typed_term ->
+  forall_threads ths (consistently_typed_references m) ->
   (* --- *)
-  empty |-- t is T ->
-  (value t
-    \/ (exists e m' t', m / t ==[e]==> m' / t')
-    \/ (exists block t', t --[EF_Spawn block]--> t')).
+  m / ths ~~[tid, e]~~> m' / ths' ->
+  (forall_threads ths' value \/
+    exists m'' ths'' tid' e',
+    m' / ths' ~~[tid', e']~~> m'' / ths'').
 Proof.
-  intros. remember empty as Gamma.
-  induction_type; try inversion_vad; inversion_ctr;
-  try solve [left; eauto using value];
-  right;
-  try solve
-    [ destruct IHtype_of as [? | [[e [? [? ?]]] | [? [? ?]]]];
-      eauto using tstep; left;
-      try solve [ do 3 eexists; eauto using tstep, mstep
-                | exists e; do 2 eexists;
-                  destruct e; inversion_mstep; eauto using tstep, mstep
-                ]
-    ].
-  - destruct IHtype_of as [Hval | [[e [? [? ?]]] | [? [? ?]]]];
-    eauto using tstep.
-    + left. destruct t; inv_subst Hval; inversion_type. inversion_vad.
-      eauto using tstep, mstep.
-    + left. exists e. exists x. eexists.
-      destruct e; inversion_mstep; eauto using tstep, mstep.
-  - destruct IHtype_of as [Hval | [[e [? [? ?]]] | [? [? ?]]]];
-    eauto using tstep.
-    + left. destruct t; inv_subst Hval; inversion_type. inversion_vad.
-      eauto using tstep, mstep.
-    + left. exists e. exists x. eexists.
-      destruct e; inversion_mstep; eauto using tstep, mstep.
-  - destruct IHtype_of1 as [Hval1 | [[e1 [? [? ?]]] | [? [? ?]]]];
-    eauto using tstep.
-    + destruct IHtype_of2 as [Hval2 | [[e2 [? [? ?]]] | [? [? ?]]]];
-      eauto using tstep.
-      * admit.
-      * left. exists e2. exists x. eexists. 
-        destruct e2; inversion_mstep; eauto using tstep, mstep.
-    + left. exists e1. exists x. eexists. 
-      destruct e1; inversion_mstep; eauto using tstep, mstep.
-  - inversion H1.
-  - admit.
-  - admit.
+  intros * Hmvad Hmctr Hvad Hwtt Hctr Hcstep.
+  eauto using progress, preservation,
+    vad_cstep_preservation,
+    ctr_cstep_preservation.
 Qed.
-
-
-
-
-
-(*
-Ltac solve_with_steps :=
-  eexists; eexists; eexists; eauto using step, mstep.
-
-Ltac destruct_IH :=
-  match goal with
-  | IH : valid_accesses _ _ -> value _ \/ _ |- _ =>
-    destruct IH as [? | [[e [? [? ?]]] | [? [? ?]]]]; trivial
-  end.
-
-Ltac solve_mstep_progress :=
-  match goal with
-  | e : eect |- _ =>
-    try solve [solve_with_steps];
-    destruct e; inversion_mstep; try solve [solve_with_steps]
-  end.
-
-Theorem progress : forall m t T,
-  valid_accesses m t ->
-  empty |-- t is T ->
-  (value t
-    \/ (exists e m' t', m / t ==[e]==> m' / t')
-    \/ (exists block t', t --[EF_Spawn block]--> t')).
-Proof.
-  intros. induction_type; try inversion_va;
-  try solve [left; eauto using value]; right;
-  try solve [right; eauto using step];
-  try solve [left; solve_mstep_progress].
-  - destruct_IH.
-    + left. solve_with_steps.
-    + left. destruct e; inversion_mstep; solve_with_steps.
-    + right. eauto using step.
-  - destruct_IH.
-    + left. solve_with_steps.
-    + left. destruct e; inversion_mstep; solve_with_steps.
-    + right. eauto using step.
-  - destruct_IH.
-    + left. inversion H1; subst; inversion_type.
-      eexists. eexists. eexists. eauto using step, mstep, access.
-    + left. destruct e; inversion_mstep; solve_with_steps.
-    + right. eauto using step.
-  - destruct_IH.
-    + left. inversion H1; subst; inversion_type.
-      eexists. eexists. eexists. eauto using step, mstep, access.
-    + left. destruct e; inversion_mstep; solve_with_steps.
-    + right. eauto using step.
-  - shelve.
-  - shelve.
-  - shelve.
-Qed.
-*)
 

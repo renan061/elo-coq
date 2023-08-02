@@ -12,6 +12,7 @@ Ltac inv_subst_clear H := inv_subst H; clear H.
 Ltac auto_specialize :=
   match goal with
   | P : ?x, H : ?x -> _ |- _ => specialize (H P)
+  | H : ?x = ?x -> _ |- _ => specialize (H eq_refl) 
   end.
 
 Ltac inversion_subst_clear H :=
