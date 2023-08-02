@@ -3,9 +3,9 @@ From Coq Require Import Logic.Decidable.
 
 (* inversion shortcuts *)
 
-Ltac inv_subst H := inversion H; subst.
+Ltac inv H := inversion H; subst.
 
-Ltac inv_subst_clear H := inv_subst H; clear H.
+Ltac inv_clear H := inv H; clear H.
 
 (* miscellaneous utilities *)
 
@@ -14,9 +14,6 @@ Ltac auto_specialize :=
   | P : ?x, H : ?x -> _ |- _ => specialize (H P)
   | H : ?x = ?x -> _ |- _ => specialize (H eq_refl) 
   end.
-
-Ltac inversion_subst_clear H :=
-  inversion H; subst; clear H.
 
 Axiom excluded_middle : ClassicalFacts.excluded_middle.
 

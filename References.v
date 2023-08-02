@@ -67,32 +67,32 @@ Inductive consistently_typed_references (m : mem) : tm -> Prop :=
 
 Ltac inversion_ctr :=
  match goal with
- | H : consistently_typed_references _ <{ unit     }> |- _ => inv_subst H
- | H : consistently_typed_references _ <{ N _      }> |- _ => inv_subst H
- | H : consistently_typed_references _ <{ & _ :: _ }> |- _ => inv_subst H
- | H : consistently_typed_references _ <{ new _ _  }> |- _ => inv_subst H
- | H : consistently_typed_references _ <{ * _      }> |- _ => inv_subst H
- | H : consistently_typed_references _ <{ _ = _    }> |- _ => inv_subst H
- | H : consistently_typed_references _ <{ var _    }> |- _ => inv_subst H
- | H : consistently_typed_references _ <{ fn _ _ _ }> |- _ => inv_subst H
- | H : consistently_typed_references _ <{ call _ _ }> |- _ => inv_subst H
- | H : consistently_typed_references _ <{ _ ; _    }> |- _ => inv_subst H
- | H : consistently_typed_references _ <{ spawn _  }> |- _ => inv_subst H
+ | H : consistently_typed_references _ <{ unit     }> |- _ => inv H
+ | H : consistently_typed_references _ <{ N _      }> |- _ => inv H
+ | H : consistently_typed_references _ <{ & _ :: _ }> |- _ => inv H
+ | H : consistently_typed_references _ <{ new _ _  }> |- _ => inv H
+ | H : consistently_typed_references _ <{ * _      }> |- _ => inv H
+ | H : consistently_typed_references _ <{ _ = _    }> |- _ => inv H
+ | H : consistently_typed_references _ <{ var _    }> |- _ => inv H
+ | H : consistently_typed_references _ <{ fn _ _ _ }> |- _ => inv H
+ | H : consistently_typed_references _ <{ call _ _ }> |- _ => inv H
+ | H : consistently_typed_references _ <{ _ ; _    }> |- _ => inv H
+ | H : consistently_typed_references _ <{ spawn _  }> |- _ => inv H
  end.
 
 Ltac inversion_clear_ctr :=
  match goal with
- | H : consistently_typed_references _ <{ unit     }> |- _ => inv_subst_clear H
- | H : consistently_typed_references _ <{ N _      }> |- _ => inv_subst_clear H
- | H : consistently_typed_references _ <{ & _ :: _ }> |- _ => inv_subst_clear H
- | H : consistently_typed_references _ <{ new _ _  }> |- _ => inv_subst_clear H
- | H : consistently_typed_references _ <{ * _      }> |- _ => inv_subst_clear H
- | H : consistently_typed_references _ <{ _ = _    }> |- _ => inv_subst_clear H
- | H : consistently_typed_references _ <{ var _    }> |- _ => inv_subst_clear H
- | H : consistently_typed_references _ <{ fn _ _ _ }> |- _ => inv_subst_clear H
- | H : consistently_typed_references _ <{ call _ _ }> |- _ => inv_subst_clear H
- | H : consistently_typed_references _ <{ _ ; _    }> |- _ => inv_subst_clear H
- | H : consistently_typed_references _ <{ spawn _  }> |- _ => inv_subst_clear H
+ | H : consistently_typed_references _ <{ unit     }> |- _ => inv_clear H
+ | H : consistently_typed_references _ <{ N _      }> |- _ => inv_clear H
+ | H : consistently_typed_references _ <{ & _ :: _ }> |- _ => inv_clear H
+ | H : consistently_typed_references _ <{ new _ _  }> |- _ => inv_clear H
+ | H : consistently_typed_references _ <{ * _      }> |- _ => inv_clear H
+ | H : consistently_typed_references _ <{ _ = _    }> |- _ => inv_clear H
+ | H : consistently_typed_references _ <{ var _    }> |- _ => inv_clear H
+ | H : consistently_typed_references _ <{ fn _ _ _ }> |- _ => inv_clear H
+ | H : consistently_typed_references _ <{ call _ _ }> |- _ => inv_clear H
+ | H : consistently_typed_references _ <{ _ ; _    }> |- _ => inv_clear H
+ | H : consistently_typed_references _ <{ spawn _  }> |- _ => inv_clear H
  end.
 
 (* ------------------------------------------------------------------------- *)

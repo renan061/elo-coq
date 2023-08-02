@@ -8,228 +8,112 @@ From Elo Require Import CoreExt.
 From Elo Require Import AnyTerm.
 From Elo Require Import ValidAddresses.
 
-(* A term accesses an address if it refers to the address directly or 
-indirectly. Ignores <spawn> blocks. *)
-Inductive access (m : mem) : tm -> addr -> Prop :=
+
+(*
+  A term has access to an address if it refers to the address directly or 
+  indirectly.
+  
+  Ignores <spawn> blocks.
+*)
+Reserved Notation " '(' m '|' t ')' 'has_access_to' ad "
+  (at level 90, t custom elo_tm, no associativity).
+Reserved Notation " '(' m '/' t ')' 'has_access_to' ad "
+  (at level 90, no associativity).
+
+Inductive access (m : mem) : addr -> tm -> Prop :=
   | acc_mem : forall ad ad' T,
     ad <> ad' ->
-    access m m[ad'].tm ad ->
-    access m <{ &ad' :: T }> ad
+    (m /  m[ad'].tm) has_access_to ad ->
+    (m | &ad' :: T) has_access_to ad
 
-  | acc_ref : forall ad T,
-    access m <{ &ad :: T }> ad
+  | acc_ad : forall ad T,
+    (m | &ad :: T) has_access_to ad
 
   | acc_new : forall T t ad,
-    access m t ad ->
-    access m <{ new T t }> ad
+    (m | t) has_access_to ad ->
+    (m | new T t) has_access_to ad
 
   | acc_load : forall t ad,
-    access m t ad ->
-    access m <{ *t }> ad
+    (m | t) has_access_to ad ->
+    (m | *t) has_access_to ad
 
   | acc_asg1 : forall t1 t2 ad,
-    access m t1 ad ->
-    access m <{ t1 = t2 }> ad
+    (m | t1) has_access_to ad ->
+    (m | t1 = t2) has_access_to ad
 
   | acc_asg2 : forall t1 t2 ad,
-    access m t2 ad ->
-    access m <{ t1 = t2 }> ad
+    (m | t2) has_access_to ad ->
+    (m | t1 = t2) has_access_to ad
 
   | acc_fun : forall x Tx t ad,
-    access m t ad ->
-    access m <{ fn x Tx t }> ad
+    (m | t) has_access_to ad ->
+    (m | fn x Tx t) has_access_to ad
 
   | acc_call1 : forall t1 t2 ad,
-    access m t1 ad ->
-    access m <{ call t1 t2 }> ad
+    (m | t1) has_access_to ad ->
+    (m | call t1 t2) has_access_to ad
 
   | acc_call2 : forall t1 t2 ad,
-    access m t2 ad ->
-    access m <{ call t1 t2 }> ad
+    (m | t2) has_access_to ad ->
+    (m | call t1 t2) has_access_to ad
 
   | acc_seq1 : forall t1 t2 ad,
-    access m t1 ad ->
-    access m <{ t1; t2 }> ad
+    (m | t1) has_access_to ad ->
+    (m | t1; t2) has_access_to ad
 
   | acc_seq2 : forall t1 t2 ad,
-    access m t2 ad ->
-    access m <{ t1; t2 }> ad
-  .
+    (m | t2) has_access_to ad ->
+    (m | t1; t2) has_access_to ad
 
-Ltac inversion_acc :=
-  match goal with
-  | H : access _ <{ unit     }> _ |- _ => inversion H; subst
-  | H : access _ <{ N _      }> _ |- _ => inversion H; subst
-  | H : access _ <{ & _ :: _ }> _ |- _ => inversion H; subst
-  | H : access _ <{ new _ _  }> _ |- _ => inversion H; subst
-  | H : access _ <{ * _      }> _ |- _ => inversion H; subst
-  | H : access _ <{ _ = _    }> _ |- _ => inversion H; subst
-  | H : access _ <{ var _    }> _ |- _ => inversion H; subst
-  | H : access _ <{ fn _ _ _ }> _ |- _ => inversion H; subst
-  | H : access _ <{ call _ _ }> _ |- _ => inversion H; subst
-  | H : access _ <{ _ ; _    }> _ |- _ => inversion H; subst
-  | H : access _ <{ spawn _  }> _ |- _ => inversion H; subst
-  end.
+  where " '(' m '|' t ')' 'has_access_to' ad " := (access m ad t),
+        " '(' m '/' t ')' 'has_access_to' ad " := (access m ad t).
 
-Ltac inversion_clear_acc :=
-  match goal with
-  | H : access _ <{ unit     }> _ |- _ => inversion_subst_clear H
-  | H : access _ <{ N _      }> _ |- _ => inversion_subst_clear H
-  | H : access _ <{ & _ :: _ }> _ |- _ => inversion_subst_clear H
-  | H : access _ <{ new _ _  }> _ |- _ => inversion_subst_clear H
-  | H : access _ <{ * _      }> _ |- _ => inversion_subst_clear H
-  | H : access _ <{ _ = _    }> _ |- _ => inversion_subst_clear H
-  | H : access _ <{ var _    }> _ |- _ => inversion_subst_clear H
-  | H : access _ <{ fn _ _ _ }> _ |- _ => inversion_subst_clear H
-  | H : access _ <{ call _ _ }> _ |- _ => inversion_subst_clear H
-  | H : access _ <{ _ ; _    }> _ |- _ => inversion_subst_clear H
-  | H : access _ <{ spawn _  }> _ |- _ => inversion_subst_clear H
-  end.
-
-(* ------------------------------------------------------------------------- *)
-(* properties                                                                *)
-(* ------------------------------------------------------------------------- *)
-
-(* strong acc_mem *)
-Theorem acc_mem_trans : forall m t ad ad',
-  ad <> ad' ->
-  access m t ad' ->
-  access m m[ad'].tm ad ->
-  access m t ad.
-Proof.
-  intros * ? Hacc ?. induction Hacc; eauto using access.
-  destruct (Nat.eq_dec ad ad'); subst; eauto using access.
-Qed.
-
-Lemma acc_length : forall m ad ad',
-  access m m[ad'].tm ad ->
-  ad' < #m.
-Proof.
-  intros * Hacc. decompose sum (lt_eq_lt_dec ad' (#m)); subst; trivial;
-  simpl_array; try lia; inversion Hacc.
-Qed.
-
-Lemma acc_dec : forall m t ad,
-  Decidable.decidable (access m t ad).
-Proof. eauto using classic_decidable. Qed.
-
-(* ------------------------------------------------------------------------- *)
-(* not-access                                                                *)
-(* ------------------------------------------------------------------------- *)
-
-Inductive not_access (m : mem) : tm -> addr -> Prop :=
-  | nacc_unit : forall ad,
-    not_access m <{ unit }> ad
-
-  | nacc_num : forall n ad,
-    not_access m <{ N n }> ad
-
-  | nacc_ref : forall T ad ad',
-    ad <> ad' ->
-    ~ access m m[ad].tm ad' ->
-    not_access m <{ &ad :: T }> ad'
-
-  | nacc_new : forall T t ad,
-    ~ access m t ad ->
-    not_access m <{ new T t }> ad
-
-  | nacc_load : forall t ad,
-    ~ access m t ad ->
-    not_access m <{ *t }> ad
-
-  | nacc_asg : forall t1 t2 ad,
-    ~ access m t1 ad ->
-    ~ access m t2 ad ->
-    not_access m <{ t1 = t2 }> ad
-
-  | nacc_var : forall x ad,
-    not_access m <{ var x }> ad
-
-  | nacc_fun : forall x Tx t ad,
-    ~ access m t ad ->
-    not_access m <{ fn x Tx t }> ad
-
-  | nacc_call : forall t1 t2 ad,
-    ~ access m t1 ad ->
-    ~ access m t2 ad ->
-    not_access m <{ call t1 t2 }> ad
-
-  | nacc_seq : forall t1 t2 ad,
-    ~ access m t1 ad ->
-    ~ access m t2 ad ->
-    not_access m <{ t1; t2 }> ad
-
-  | nacc_spawn : forall t ad,
-    not_access m <{ spawn t }> ad
-  .
-
-Theorem nacc_iff : forall m t ad,
-  ~ access m t ad <-> not_access m t ad.
-Proof.
-  intros. split; intros Hnacc; destruct t;
-  try (eapply nacc_ref
-    || eapply nacc_asg
-    || eapply nacc_call
-    || eapply nacc_seq);
-  eauto using access, not_access;
-  intros ?; subst;
-  try (inversion_acc; inversion_clear Hnacc); eauto using access.
-  match goal with
-  | Hnacc : ~ access _ <{ & ?ad :: _ }> ?ad' |- _ =>
-    destruct (Nat.eq_dec ad ad'); subst; eauto using access
-  end.
-Qed.
-
-Ltac inversion_nacc Hnacc :=
-  eapply nacc_iff in Hnacc; inversion Hnacc; subst; eauto using access.
-
-(* ------------------------------------------------------------------------- *)
-(* valid-accesses                                                            *)
-(* ------------------------------------------------------------------------- *)
-
+(*
+  A term has valid accesses if all the addresses it has access to are within
+  the bounds of the memory.
+*)
 Definition valid_accesses (m : mem) (t : tm) :=
-  forall ad, access m t ad -> ad < #m.
-
-(* TODO vac_lt_length *)
-Lemma vac_length : forall m t ad,
-  valid_accesses m t ->
-  access m t ad ->
-  ad < #m.
-Proof.
-  intros * Hvac Hacc.
-  decompose sum (lt_eq_lt_dec ad (#m)); subst; trivial.
-  - specialize (Hvac (#m) Hacc). lia.
-  - specialize (Hvac ad Hacc). lia.
-Qed.
-
-Corollary vac_neq_length : forall m t ad,
-  valid_accesses m t ->
-  access m t ad ->
-  ad <> #m.
-Proof.
-  intros. eauto using Nat.lt_neq, vac_length.
-Qed.
-
-Lemma vac_nacc_length : forall m t,
-  valid_accesses m t ->
-  ~ access m t (#m).
-Proof.
-  intros * ? F. eapply vac_length in F; eauto. lia.
-Qed.
+  forall ad, (m | t) has_access_to ad -> ad < #m.
 
 (* ------------------------------------------------------------------------- *)
-(* inversion -- valid-accesses                                               *)
+(* hints                                                                     *)
+(* ------------------------------------------------------------------------- *)
+
+#[export] Hint Extern 4 => unfold valid_accesses : vac.
+
+(* ------------------------------------------------------------------------- *)
+(* inversion                                                                 *)
+(* ------------------------------------------------------------------------- *)
+
+Local Ltac match_acc tactic :=
+  match goal with
+  | H : (_ | unit     ) has_access_to _ |- _ => tactic H
+  | H : (_ | N _      ) has_access_to _ |- _ => tactic H
+  | H : (_ | & _ :: _ ) has_access_to _ |- _ => tactic H
+  | H : (_ | new _ _  ) has_access_to _ |- _ => tactic H
+  | H : (_ | * _      ) has_access_to _ |- _ => tactic H
+  | H : (_ | _ = _    ) has_access_to _ |- _ => tactic H
+  | H : (_ | var _    ) has_access_to _ |- _ => tactic H
+  | H : (_ | fn _ _ _ ) has_access_to _ |- _ => tactic H
+  | H : (_ | call _ _ ) has_access_to _ |- _ => tactic H
+  | H : (_ | _ ; _    ) has_access_to _ |- _ => tactic H
+  | H : (_ | spawn _  ) has_access_to _ |- _ => tactic H
+  end.
+
+Ltac inv_acc := match_acc inv.
+
+Ltac inv_clear_acc := match_acc inv_clear.
+
 (* ------------------------------------------------------------------------- *)
 
 Local Ltac solve_vac_inversion := 
   intros; unfold valid_accesses in *; try split; eauto using access.
 
-Local Lemma inv_vac_ref : forall m ad T,
+Local Lemma inv_vac_ad : forall m ad T,
   valid_accesses m <{ &ad :: T }> ->
   valid_accesses m m[ad].tm.
 Proof.
-  intros; unfold valid_accesses in *; eauto using access.
-  intros ad'. destruct (Nat.eq_dec ad ad'); subst; eauto using access.
+  intros. intros ad'. destruct (Nat.eq_dec ad ad'); subst; eauto using access.
 Qed.
 
 Local Lemma inv_vac_new : forall m t T,
@@ -262,27 +146,92 @@ Local Lemma inv_vac_seq : forall m t1 t2,
   valid_accesses m t1 /\ valid_accesses m t2.
 Proof. solve_vac_inversion. Qed.
 
-Ltac inversion_vac :=
+Ltac inv_vac :=
+ match goal with
+ | H : valid_accesses _ <{ &_ :: _  }> |- _ => eapply inv_vac_ad   in H as Hvac'
+ | H : valid_accesses _ <{ new _ _  }> |- _ => eapply inv_vac_new  in H
+ | H : valid_accesses _ <{ * _      }> |- _ => eapply inv_vac_load in H
+ | H : valid_accesses _ <{ _ = _    }> |- _ => eapply inv_vac_asg  in H as [? ?]
+ | H : valid_accesses _ <{ fn _ _ _ }> |- _ => eapply inv_vac_fun  in H
+ | H : valid_accesses _ <{ call _ _ }> |- _ => eapply inv_vac_call in H as [? ?]
+ | H : valid_accesses _ <{ _ ; _    }> |- _ => eapply inv_vac_seq  in H as [? ?]
+ end.
+
+(* ------------------------------------------------------------------------- *)
+(* basic properties                                                          *)
+(* ------------------------------------------------------------------------- *)
+
+Theorem strong_acc_mem : forall m t ad ad',
+  (m | t) has_access_to ad' ->
+  (m | (m[ad'].tm)) has_access_to ad ->
+  (m | t) has_access_to ad.
+Proof.
+  intros * Hacc ?. induction Hacc; eauto using access;
   match goal with
-  | H: valid_accesses _ <{ &_ :: _  }> |- _ => eapply inv_vac_ref  in H as Hvac'
-  | H: valid_accesses _ <{ new _ _  }> |- _ => eapply inv_vac_new  in H
-  | H: valid_accesses _ <{ * _      }> |- _ => eapply inv_vac_load in H
-  | H: valid_accesses _ <{ _ = _    }> |- _ => eapply inv_vac_asg  in H as [? ?]
-  | H: valid_accesses _ <{ fn _ _ _ }> |- _ => eapply inv_vac_fun  in H
-  | H: valid_accesses _ <{ call _ _ }> |- _ => eapply inv_vac_call in H as [? ?]
-  | H: valid_accesses _ <{ _ ; _    }> |- _ => eapply inv_vac_seq  in H as [? ?]
-  end.
+  |- (_ | & ?ad' :: _) has_access_to ?ad =>
+    destruct (nat_eq_dec ad ad'); subst
+  end;
+  eauto using access.
+Qed.
+
+Lemma acc_dec : forall m t ad,
+  Decidable.decidable ((m | t) has_access_to ad).
+Proof. eauto using classic_decidable. Qed.
+
+(* length ------------------------------------------------------------------ *)
+
+Lemma acc_length : forall m ad ad',
+  (m | (m[ad'].tm)) has_access_to ad ->
+  ad' < #m.
+Proof.
+  intros * Hacc. decompose sum (lt_eq_lt_dec ad' (#m)); subst;
+  trivial; simpl_array; inversion Hacc.
+Qed.
+
+Lemma vac_nacc_length : forall m t,
+  valid_accesses m t ->
+  ~ ((m | t) has_access_to #m).
+Proof.
+  intros * Hvac Hacc. specialize (Hvac (#m) Hacc). lia.
+Qed.
+
+(*
+TODO: remove
+
+Lemma vac_length : forall m t ad,
+  valid_accesses m t ->
+  access m t ad ->
+  ad < #m.
+Proof. eauto. Qed.
+
+Corollary vac_neq_length : forall m t ad,
+  valid_accesses m t ->
+  access m t ad ->
+  ad <> #m.
+Proof.
+  intros. eauto using Nat.lt_neq.
+Qed.
+*)
 
 (* ------------------------------------------------------------------------- *)
 (* valid-accesses derives from valid-addresses                               *)
 (* ------------------------------------------------------------------------- *)
 
 Local Lemma acc_then_hasad : forall m t ad,
-  access m t ad ->
+  (m | t) has_access_to ad ->
   t has_address ad \/ (exists ad', m[ad'].tm has_address ad).
 Proof.
   intros * Hacc. induction Hacc; try destruct IHHacc as [? | [? ?]];
   eauto using anyt, is_address.
+Qed.
+
+Lemma vad_nacc_length : forall m t,
+  forall_memory m (valid_addresses m) ->
+  valid_addresses m t ->
+  ~ ((m | t) has_access_to #m).
+Proof.
+  intros * ? Hvad Hacc. remember (#m) as ad.
+  induction Hacc; inversion_vad; eauto. lia.
 Qed.
 
 Theorem vad_then_vac : forall m t,
@@ -290,22 +239,17 @@ Theorem vad_then_vac : forall m t,
   forall_memory m (valid_addresses m) ->
   valid_accesses m t.
 Proof.
-  intros. intros ? ?. unfold forall_memory in *. unfold valid_addresses in *.
-  assert (t has_address ad \/ (exists ad', m[ad'].tm has_address ad))
-    as [? | [? ?]];
-  eauto using acc_then_hasad.
+  intros * ? Hmvad ? Hacc. autounfold with vad in Hmvad.
+  eapply acc_then_hasad in Hacc as [? | [? ?]]; eauto.
 Qed.
 
-Theorem vad_then_mem_vac : forall m t,
+Theorem vad_then_mvac : forall m t,
   valid_addresses m t ->
   forall_memory m (valid_addresses m) ->
   forall_memory m (valid_accesses m).
 Proof.
-  intros. intros ad' ? ?.
-  unfold forall_memory in *. unfold valid_addresses in *.
-  assert (m[ad'].tm has_address ad \/ (exists ad'', m[ad''].tm has_address ad))
-    as [? | [? ?]];
-  eauto using acc_then_hasad.
+  intros * ? Hmvad ? ? Hacc. autounfold with vad in Hmvad.
+  eapply acc_then_hasad in Hacc as [? | [? ?]]; eauto.
 Qed.
 
 Corollary forall_threads_vad_then_vac : forall m ths,
@@ -321,38 +265,19 @@ Qed.
 (* ------------------------------------------------------------------------- *)
 
 Lemma subst_acc : forall m x Tx t t' ad,
-  access m ([x := t'] t) ad ->
-  access m <{ call <{ fn x Tx t }> t' }> ad.
+  (m | ([x := t'] t)) has_access_to ad ->
+  (m | call <{ fn x Tx t }> t') has_access_to ad.
 Proof.
   intros. induction t; eauto using access; simpl in *;
   try (destruct String.string_dec; eauto using access);
-  inversion_clear_acc; auto_specialize; do 2 inversion_acc; eauto using access.
-Qed.
-
-Local Lemma subst_nacc' : forall m t tx ad x,
-  ~ access m t ad ->
-  ~ access m tx ad ->
-  ~ access m ([x := tx] t) ad.
-Proof.
-  intros * Hnacc ?. generalize dependent tx.
-  induction t; intros; trivial; simpl;
-  try solve [eapply nacc_iff; inversion_nacc Hnacc; eauto using not_access];
-  destruct String.string_dec; trivial.
-  inversion_nacc Hnacc. eapply nacc_iff. eauto using not_access.
-Qed.
-
-Lemma subst_nacc : forall m t tx ad x Tx,
-  ~ access m <{ fn x Tx t }> ad ->
-  ~ access m tx ad ->
-  ~ access m ([x := tx] t) ad.
-Proof.
-  intros * Hnacc ?. inversion_nacc Hnacc; eauto using subst_nacc'.
+  inv_clear_acc; auto_specialize; do 2 inv_acc; eauto using access.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
 (* properties -- memory -- add                                               *)
 (* ------------------------------------------------------------------------- *)
 
+(*
 Lemma mem_add_acc : forall m t ad vTr,
   ~ access m t (#m) ->
   access (m +++ vTr) t ad ->
@@ -373,11 +298,13 @@ Proof.
   decompose sum (lt_eq_lt_dec ad' (#m)); subst; simpl_array;
   inversion_nacc Hnacc1. eapply IHF; eapply nacc_iff; eauto using not_access.
 Qed.
+*)
 
 (* ------------------------------------------------------------------------- *)
 (* properties -- inheritance                                                 *)
 (* ------------------------------------------------------------------------- *)
 
+(*
 Lemma mem_set_acc : forall m t ad ad' vTr,
   ~ access m t ad' ->
   access m[ad' <- vTr] t ad ->
@@ -438,19 +365,21 @@ Proof.
   end;
   simpl_array; eauto using access.
 Qed.
+*)
 
 (* ------------------------------------------------------------------------- *)
 (* access properties -- inheritance                                          *)
 (* ------------------------------------------------------------------------- *)
 
 Lemma step_none_inherits_access : forall m t t' ad,
-  access m t' ad ->
+  (m | t') has_access_to ad ->
   t --[EF_None]--> t' ->
-  access m t ad.
+  (m | t) has_access_to ad.
 Proof.
-  intros. induction_step; try inversion_acc; eauto using access, subst_acc.
+  intros. induction_step; try inv_acc; eauto using access, subst_acc.
 Qed.
 
+(*
 Lemma step_alloc_inherits_acc : forall m t t' ad v Tr,
   valid_accesses m t ->
   ad <> #m ->
@@ -491,59 +420,15 @@ Lemma step_spawn_inherits_acc : forall m t t' block ad,
 Proof.
   intros. induction_step; inversion_acc; eauto using access.
 Qed.
+*)
 
 (* ------------------------------------------------------------------------- *)
 (* not-access properties -- preservation                                     *)
 (* ------------------------------------------------------------------------- *)
 
-Local Lemma step_none_nacc_preservation : forall m t t' ad,
-  ~ access m t ad ->
-  t --[EF_None]--> t' ->
-  ~ access m t' ad.
-Proof.
-  intros * Hnacc. intros. induction_step; inversion_nacc Hnacc;
-  eauto using subst_nacc; eapply nacc_iff; eauto using not_access.
-Qed.
+(*
 
-Local Lemma step_alloc_nacc_preservation : forall m t t' ad v Tr,
-  ad < #m ->
-  valid_accesses m t ->
-  ~ access m t ad ->
-  t --[EF_Alloc (#m) v Tr]--> t' ->
-  ~ access (m +++ (v, Tr)) t' ad.
-Proof.
-  intros * ? ? Hnacc. intros.
-  induction_step; inversion_vac; inversion_nacc Hnacc;
-  eapply nacc_iff; eauto using vac_nacc_length, mem_add_nacc, not_access.
-  eapply nacc_ref; eauto using not_eq_sym, Nat.lt_neq. simpl_array. simpl in *.
-  eauto using vac_nacc_length, mem_add_nacc.
-Qed.
 
-Local Lemma step_read_nacc_preservation : forall m t t' ad ad',
-  ~ access m t ad ->
-  t --[EF_Read ad' m[ad'].tm]--> t' ->
-  ~ access m t' ad.
-Proof.
-  intros * Hnacc ?. induction_step; inversion_nacc Hnacc;
-  try solve [eapply nacc_iff; eauto using not_access].
-  match goal with | H : ~ access _ _ _ |- _ => inversion_nacc H end.
-Qed.
-
-Local Lemma step_write_nacc_preservation : forall m t t' ad ad' v Tr,
-  ~ access m t ad ->
-  t --[EF_Write ad' v Tr]--> t' ->
-  ~ access m[ad' <- (v, Tr)] t' ad.
-Proof.
-  assert (forall m t t' ad ad' v Tr,
-    ~ access m t ad ->
-    t --[EF_Write ad' v Tr]--> t' ->
-    ~ access m v ad)
-    by (intros; induction_step; eauto using access).
-  (* main proof *)
-  intros * Hnacc ?. induction_step;
-  inversion_nacc Hnacc; eapply nacc_iff;
-  eauto using mem_set_nacc2, not_access.
-Qed.
 
 Corollary mstep_nacc_preservation : forall m m' t t' ad eff,
   ad < #m ->
@@ -552,19 +437,7 @@ Corollary mstep_nacc_preservation : forall m m' t t' ad eff,
   m / t ==[eff]==> m' / t' ->
   ~ access m' t' ad.
 Proof.
-  intros. inversion_mstep;
-  eauto using step_none_nacc_preservation,
-    step_alloc_nacc_preservation,
-    step_read_nacc_preservation,
-    step_write_nacc_preservation.
 Qed.
 
-Lemma step_spawn_nacc_preservation : forall m t t' block ad,
-  ~ access m t ad ->
-  t --[EF_Spawn block]--> t' ->
-  ~ access m t' ad.
-Proof.
-  intros * Hnacc. intros. induction_step; inversion_nacc Hnacc;
-  eapply nacc_iff; eauto using not_access.
-Qed.
+*)
 

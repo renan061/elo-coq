@@ -2,7 +2,7 @@
 
 COQC= coqc -Q . Elo
 
-all: soundness safety 
+all: core meta memory soundness access safety 
 
 core:
 	$(COQC) Util.v
@@ -11,21 +11,25 @@ core:
 	$(COQC) Core.v
 	$(COQC) CoreExt.v
 
-meta: core
+meta:
 	$(COQC) AnyTerm.v
 	$(COQC) Meta.v
 
-memory: meta
+memory:
 	$(COQC) ValidAddresses.v
 	$(COQC) References.v
 
-soundness: memory
+soundness:
 	$(COQC) Soundness.v
 
-safety: soundness 
+access:
 	$(COQC) Contains.v
 	$(COQC) Access.v
+	$(COQC) NotAccess.v
+	$(COQC) AccessExt.v
 	$(COQC) UnsafeAccess.v
+
+safety:
 	$(COQC) SafeSpawns.v
 	$(COQC) SMS.v
 	$(COQC) Multistep.v

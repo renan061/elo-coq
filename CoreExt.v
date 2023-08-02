@@ -104,7 +104,7 @@ Ltac inversion_mstep :=
 
 Ltac inversion_clear_mstep :=
   match goal with
-  | H : _ / _ ==[_]==> _ / _ |- _ => inversion_subst_clear H
+  | H : _ / _ ==[_]==> _ / _ |- _ => inv_clear H
   end.
 
 Ltac inversion_cstep :=
@@ -114,7 +114,7 @@ Ltac inversion_cstep :=
 
 Ltac inversion_clear_cstep :=
   match goal with
-  | H : _ / _ ~~[_, _]~~> _ / _ |- _ => inversion_subst_clear H
+  | H : _ / _ ~~[_, _]~~> _ / _ |- _ => inv_clear H
   end.
 
 Ltac induction_multistep :=
@@ -129,7 +129,7 @@ Ltac inversion_multistep :=
 
 Ltac inversion_clear_multistep :=
   match goal with
-  | H : _ / _ ~~[_]~~>* _ / _ |- _ => inversion_subst_clear H
+  | H : _ / _ ~~[_]~~>* _ / _ |- _ => inv_clear H
   end.
 
 Ltac induction_type :=
@@ -154,17 +154,17 @@ Ltac inversion_type :=
 
 Ltac inversion_clear_type :=
   match goal with
-  | H : _ |-- <{ unit     }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ N _      }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ & _ :: _ }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ new _ _  }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ * _      }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ _ = _    }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ var _    }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ fn _ _ _ }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ call _ _ }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ _ ; _    }> is _ |- _ => inversion_subst_clear H
-  | H : _ |-- <{ spawn _  }> is _ |- _ => inversion_subst_clear H
+  | H : _ |-- <{ unit     }> is _ |- _ => inv_clear H
+  | H : _ |-- <{ N _      }> is _ |- _ => inv_clear H
+  | H : _ |-- <{ & _ :: _ }> is _ |- _ => inv_clear H
+  | H : _ |-- <{ new _ _  }> is _ |- _ => inv_clear H
+  | H : _ |-- <{ * _      }> is _ |- _ => inv_clear H
+  | H : _ |-- <{ _ = _    }> is _ |- _ => inv_clear H
+  | H : _ |-- <{ var _    }> is _ |- _ => inv_clear H
+  | H : _ |-- <{ fn _ _ _ }> is _ |- _ => inv_clear H
+  | H : _ |-- <{ call _ _ }> is _ |- _ => inv_clear H
+  | H : _ |-- <{ _ ; _    }> is _ |- _ => inv_clear H
+  | H : _ |-- <{ spawn _  }> is _ |- _ => inv_clear H
   end.
 
 (* ------------------------------------------------------------------------- *)
@@ -192,4 +192,14 @@ Corollary cstep_length_tid : forall m m' ths ths' tid e,
 Proof.
   intros. inversion_cstep; trivial.
 Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* hints                                                                     *)
+(* ------------------------------------------------------------------------- *)
+
+#[export] Hint Unfold forall_memory  : fall.
+#[export] Hint Unfold forall_threads : fall.
+
+#[export] Hint Extern 4 => unfold forall_memory  : fall.
+#[export] Hint Extern 4 => unfold forall_threads : fall.
 

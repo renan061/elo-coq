@@ -70,7 +70,7 @@ Module MemExtension.
   Proof.
     intros * Hlen Hext. generalize dependent ad. generalize dependent m.
     induction m'; intros; try solve [inversion Hlen].
-    destruct m; try nil_false. inv_subst_clear Hext.
+    destruct m; try nil_false. inv_clear Hext.
     destruct ad; simpl; eauto using lt_S_n.
   Qed.
 
@@ -217,7 +217,7 @@ Proof.
   inversion_clear_mstep; try simpl_array; trivial.
   decompose sum (lt_eq_lt_dec ad' ad); subst; simpl_array; trivial.
   generalize dependent t'. remember empty as Gamma.
-  induction Htype; inv_subst HeqGamma; intros;
+  induction Htype; inv HeqGamma; intros;
   inversion_ctr; inversion_step; eauto.
   inversion_type; inversion_ctr; apply_deterministic_typing. eauto.
 Qed.
@@ -284,13 +284,13 @@ Proof.
     ].
   - destruct IHtype_of as [Hval | [[e [? [? ?]]] | [? [? ?]]]];
     eauto using tstep.
-    + left. destruct t; inv_subst Hval; inversion_type. inversion_vad.
+    + left. destruct t; inv Hval; inversion_type. inversion_vad.
       eauto using tstep, mstep.
     + left. exists e. exists x. eexists.
       destruct e; inversion_mstep; eauto using tstep, mstep.
   - destruct IHtype_of as [Hval | [[e [? [? ?]]] | [? [? ?]]]];
     eauto using tstep.
-    + left. destruct t; inv_subst Hval; inversion_type. inversion_vad.
+    + left. destruct t; inv Hval; inversion_type. inversion_vad.
       eauto using tstep, mstep.
     + left. exists e. exists x. eexists.
       destruct e; inversion_mstep; eauto using tstep, mstep.
@@ -298,7 +298,7 @@ Proof.
     eauto using tstep.
     + destruct IHtype_of2 as [Hval2 | [[e2 [? [? ?]]] | [? [? ?]]]];
       eauto using tstep.
-      * destruct Hval1; inv_subst H1_.
+      * destruct Hval1; inv H1_.
         left. do 3 eexists. inversion_vad; eauto using tstep, mstep.
       * left. exists e2. exists x. eexists. 
         destruct e2; inversion_mstep; eauto using tstep, mstep.
@@ -309,7 +309,7 @@ Proof.
     eauto using tstep.
     + destruct IHtype_of2 as [Hval2 | [[e2 [? [? ?]]] | [? [? ?]]]];
       eauto using tstep.
-      * destruct Hval1; inv_subst H1_.
+      * destruct Hval1; inv H1_.
         left. do 3 eexists. inversion_vad; eauto using tstep, mstep.
       * left. exists e2. exists x. eexists. 
         destruct e2; inversion_mstep; eauto using tstep, mstep.

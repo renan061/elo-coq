@@ -31,13 +31,13 @@ Qed.
 
 Local Ltac inversion_is_address := 
   match goal with
-  | H : is_address _ _ |- _ => inversion_subst_clear H
+  | H : is_address _ _ |- _ => inv_clear H
   end.
 
 Local Ltac inversion_has_address := 
   match goal with
   | H : _ has_address _ |- _ =>
-      inversion_subst_clear H; try inversion_is_address
+      inv_clear H; try inversion_is_address
   end.
 
 Local Hint Extern 4 =>
@@ -52,8 +52,6 @@ Local Hint Extern 4 =>
 Definition valid_addresses (m : mem) (t : tm) :=
   forall ad, t has_address ad -> ad < #m.
 
-#[export] Hint Unfold valid_addresses : core.
-
 Theorem valid_address_write : forall m t t' ad v V,
   valid_addresses m t ->
   t --[EF_Write ad v V]--> t' ->
@@ -61,58 +59,65 @@ Theorem valid_address_write : forall m t t' ad v V,
 Proof. eauto using write_requires_has_address. Qed.
 
 (* ------------------------------------------------------------------------- *)
+(* hints                                                                     *)
+(* ------------------------------------------------------------------------- *)
+
+#[export] Hint Unfold valid_addresses : vad.
+#[export] Hint Extern 4 => unfold valid_addresses : vad.
+
+(* ------------------------------------------------------------------------- *)
 (* constructors                                                              *)
 (* ------------------------------------------------------------------------- *)
 
 Local Lemma vad_unit : forall m,
   valid_addresses m <{ unit }>.
-Proof. eauto with has_address_inversion. Qed.
+Proof. eauto with has_address_inversion vad. Qed.
 
 Local Lemma vad_num : forall m n,
   valid_addresses m <{ N n }>.
-Proof. eauto with has_address_inversion. Qed.
+Proof. eauto with has_address_inversion vad. Qed.
 
 Local Lemma vad_new : forall m t T,
   valid_addresses m t ->
   valid_addresses m <{ new T t }>.
-Proof. eauto with has_address_inversion. Qed.
+Proof. eauto with has_address_inversion vad. Qed.
 
 Local Lemma vad_load : forall m t,
   valid_addresses m t ->
   valid_addresses m <{ *t }>.
-Proof. eauto with has_address_inversion. Qed.
+Proof. eauto with has_address_inversion vad. Qed.
 
 Local Lemma vad_asg : forall m t1 t2,
   valid_addresses m t1 ->
   valid_addresses m t2 ->
   valid_addresses m <{ t1 = t2 }>.
-Proof. eauto with has_address_inversion. Qed.
+Proof. eauto with has_address_inversion vad. Qed.
 
 Local Lemma vad_var : forall m x,
   valid_addresses m <{ var x }>.
-Proof. eauto with has_address_inversion. Qed.
+Proof. eauto with has_address_inversion vad. Qed.
 
 Local Lemma vad_fun : forall m x Tx t,
   valid_addresses m t ->
   valid_addresses m <{ fn x Tx t }>.
-Proof. eauto with has_address_inversion. Qed.
+Proof. eauto with has_address_inversion vad. Qed.
 
 Local Lemma vad_call : forall m t1 t2,
   valid_addresses m t1 ->
   valid_addresses m t2 ->
   valid_addresses m <{ call t1 t2 }>.
-Proof. eauto with has_address_inversion. Qed.
+Proof. eauto with has_address_inversion vad. Qed.
 
 Local Lemma vad_seq : forall m t1 t2,
   valid_addresses m t1 ->
   valid_addresses m t2 ->
   valid_addresses m <{ t1; t2 }>.
-Proof. eauto with has_address_inversion. Qed.
+Proof. eauto with has_address_inversion vad. Qed.
 
 Local Lemma vad_spawn : forall m t,
   valid_addresses m t ->
   valid_addresses m <{ spawn t }>.
-Proof. eauto with has_address_inversion. Qed.
+Proof. eauto with has_address_inversion vad. Qed.
 
 Local Hint Resolve
   vad_unit vad_num 
@@ -125,7 +130,7 @@ Local Hint Resolve
 (* ------------------------------------------------------------------------- *)
 
 Local Ltac solve_vad_inversion := 
-  intros; try split; eauto using anyt, is_address.
+  intros; try split; eauto using anyt, is_address with vad.
 
 (* vad_unit implicates nothing *)
 (* vad_num implicates nothing *)
@@ -195,8 +200,8 @@ Local Lemma vad_subst_preservation : forall m t tx x,
 Proof.
   intros. induction t; try inversion_vad; simpl; eauto with vad_constructors;
   destruct string_eq_dec; subst; trivial;
-  autounfold in *; eauto with has_address_inversion.
-Defined.
+  autounfold with vad in *; eauto with has_address_inversion.
+Qed.
 
 Local Lemma vad_mem_add_preservation : forall m t vT,
   valid_addresses m t ->
@@ -297,7 +302,7 @@ Local Lemma vad_untouched_threads_preservation : forall m m' ths tid tid' e t',
   m / ths[tid] ==[e]==> m' / t' ->
   valid_addresses m' ths[tid'].
 Proof.
-  intros. intros ? ?. autounfold in *. inversion_mstep; eauto;
+  intros. intros ? ?. autounfold with vad in *. inversion_mstep; eauto;
   (rewrite add_increments_length || rewrite set_preserves_length);
   eauto using Nat.lt_lt_succ_r.
 Qed.
@@ -326,7 +331,7 @@ Local Lemma vad_tstep_alloc_mem_preservation : forall m t t' v T,
 Proof.
   intros. intros ad.
   decompose sum (lt_eq_lt_dec ad (#m)); subst; simpl_array;
-  intros ? ?; rewrite add_increments_length; autounfold in *;
+  intros ? ?; rewrite add_increments_length; autounfold with vad in *;
   eauto using anyt_alloc_generalization, Nat.lt_lt_succ_r
         with has_address_inversion.
 Qed.
@@ -340,7 +345,7 @@ Proof.
   intros. intros ad'. 
   assert (ad < #m) by eauto using valid_address_write.
   destruct (eq_nat_dec ad ad'); subst; simpl_array;
-  intros ? ?; rewrite set_preserves_length; autounfold in *;
+  intros ? ?; rewrite set_preserves_length; autounfold with vad in *;
   eauto using anyt_write_generalization, Nat.lt_lt_succ_r.
 Qed.
 
