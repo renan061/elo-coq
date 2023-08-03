@@ -63,6 +63,7 @@ Proof. eauto using write_requires_has_address. Qed.
 (* ------------------------------------------------------------------------- *)
 
 #[export] Hint Unfold valid_addresses : vad.
+
 #[export] Hint Extern 4 => unfold valid_addresses : vad.
 
 (* ------------------------------------------------------------------------- *)

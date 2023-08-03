@@ -1,56 +1,60 @@
+From Coq Require Import Arith.Arith.
+
 From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Core.
+From Elo Require Import CoreExt.
+From Elo Require Import ValidAddresses.
 From Elo Require Import Access.
 
-Inductive not_access (m : mem) : tm -> addr -> Prop :=
-  | nacc_unit : forall ad,
-    not_access m <{ unit }> ad
+Inductive not_access (ad : addr) (m : mem) : tm -> Prop :=
+  | nacc_unit :
+    not_access ad m <{unit}>
 
-  | nacc_num : forall n ad,
-    not_access m <{ N n }> ad
+  | nacc_num : forall n,
+    not_access ad m <{N n}>
 
-  | nacc_ad : forall T ad ad',
+  | nacc_ad : forall T ad',
     ad <> ad' ->
-    ~ access m m[ad].tm ad' ->
-    not_access m <{ &ad :: T }> ad'
+    ~ access ad m (m[ad'].tm) ->
+    not_access ad m <{&ad' :: T}>
 
-  | nacc_new : forall T t ad,
-    ~ access m t ad ->
-    not_access m <{ new T t }> ad
+  | nacc_new : forall T t,
+    ~ access ad m t ->
+    not_access ad m <{new T t}>
 
-  | nacc_load : forall t ad,
-    ~ access m t ad ->
-    not_access m <{ *t }> ad
+  | nacc_load : forall t,
+    ~ access ad m t ->
+    not_access ad m <{*t}>
 
-  | nacc_asg : forall t1 t2 ad,
-    ~ access m t1 ad ->
-    ~ access m t2 ad ->
-    not_access m <{ t1 = t2 }> ad
+  | nacc_asg : forall t1 t2,
+    ~ access ad m t1 ->
+    ~ access ad m t2 ->
+    not_access ad m <{t1 = t2}>
 
-  | nacc_var : forall x ad,
-    not_access m <{ var x }> ad
+  | nacc_var : forall x,
+    not_access ad m <{var x}>
 
-  | nacc_fun : forall x Tx t ad,
-    ~ access m t ad ->
-    not_access m <{ fn x Tx t }> ad
+  | nacc_fun : forall x Tx t,
+    ~ access ad m t ->
+    not_access ad m <{fn x Tx t}>
 
-  | nacc_call : forall t1 t2 ad,
-    ~ access m t1 ad ->
-    ~ access m t2 ad ->
-    not_access m <{ call t1 t2 }> ad
+  | nacc_call : forall t1 t2,
+    ~ access ad m t1 ->
+    ~ access ad m t2 ->
+    not_access ad m <{call t1 t2}>
 
-  | nacc_seq : forall t1 t2 ad,
-    ~ access m t1 ad ->
-    ~ access m t2 ad ->
-    not_access m <{ t1; t2 }> ad
+  | nacc_seq : forall t1 t2,
+    ~ access ad m t1 ->
+    ~ access ad m t2 ->
+    not_access ad m <{t1; t2}>
 
-  | nacc_spawn : forall t ad,
-    not_access m <{ spawn t }> ad
+  | nacc_spawn : forall t,
+    not_access ad m <{spawn t}>
   .
 
 Theorem nacc_iff : forall m t ad,
-  ~ access m t ad <-> not_access m t ad.
+  ~ access ad m t <-> not_access ad m t.
 Proof.
   intros. split; intros Hnacc; destruct t;
   try (eapply nacc_ad
@@ -60,7 +64,7 @@ Proof.
   eauto using access, not_access;
   intros ?; subst; try (inv_acc; inv_clear Hnacc); eauto using access.
   match goal with
-  | Hnacc : ~ access _ <{ & ?ad :: _ }> ?ad' |- _ =>
+  | Hnacc : ~ access ?ad' _ <{& ?ad :: _}> |- _ =>
     destruct (nat_eq_dec ad ad'); subst
   end;
   eauto using access.
@@ -72,3 +76,169 @@ Qed.
 
 Ltac inv_nacc Hnacc :=
   eapply nacc_iff in Hnacc; inversion Hnacc; subst; eauto using access.
+
+(* ------------------------------------------------------------------------- *)
+(* preservation                                                              *)
+(* ------------------------------------------------------------------------- *)
+
+Local Lemma nacc_subst_preservation : forall m t tx ad x,
+  ~ access ad m t ->
+  ~ access ad m tx ->
+  ~ access ad m ([x := tx] t).
+Proof.
+  intros * Hnacc ?. generalize dependent tx.
+  induction t; intros; trivial; simpl;
+  try solve [inv_nacc Hnacc; eapply nacc_iff; eauto using not_access];
+  destruct string_eq_dec; trivial.
+  inv_nacc Hnacc. eapply nacc_iff. eauto using not_access.
+Qed.
+
+Local Lemma nacc_mem_add_preservation : forall m t ad vT,
+  ~ access (#m) m t ->
+  ~ access ad m t ->
+  ~ access ad (m +++ vT) t.
+Proof.
+  intros * Hnacc1 Hnacc2 Hacc. induction Hacc; inv_nacc Hnacc2.
+  decompose sum (lt_eq_lt_dec ad' (#m)); subst; simpl_array;
+  inv_nacc Hnacc1. eapply IHHacc; eapply nacc_iff; eauto using not_access.
+Qed.
+
+Local Lemma nacc_mem_set_preservation : forall m t ad ad' v T,
+  ~ access ad m v ->
+  ~ access ad m t ->
+  ~ access ad m[ad' <- (v, T)] t.
+Proof.
+  assert (ge_iff_le : forall m n, m >= n <-> n <= m)
+    by (intros; split; destruct n; eauto).
+  assert (forall m ad ad' v,
+    access ad m[ad' <- v] m[ad' <- v][ad'].tm -> ad' < length m). {
+      intros * H. eapply not_ge. rewrite ge_iff_le. intros ?.
+      rewrite (get_set_invalid memory_default) in H; trivial. inversion H.
+  }
+  (* main proof *)
+  intros * ? ? Hacc. remember (m[ad' <- (v, T)]) as m'.
+  induction Hacc; inv_clear Heqm'; eauto using access.
+  match goal with
+  | _ : ~ access _ _ <{ & ?ad :: _ }> |- _ => 
+    decompose sum (nat_eq_dec ad' ad); subst; try (assert (ad < #m) by eauto)
+  end;
+  simpl_array; eauto using access.
+Qed.
+
+(* alternative for mem_set ------------------------------------------------- *)
+
+Local Lemma alt_mem_set_preservation : forall m t ad ad' vT,
+  ~ access ad' m t ->
+  ~ access ad m t ->
+  ~ access ad m[ad' <- vT] t.
+Proof.
+  intros * Hnacc' Hnacc Hacc. remember (m[ad' <- vT]) as m'.
+  induction Hacc; inv_nacc Hnacc'; inv_nacc Hnacc. simpl_array. eauto.
+Qed.
+
+(* tstep ------------------------------------------------------------------- *)
+
+Local Lemma nacc_tstep_none_preservation : forall m t t' ad,
+  ~ access ad m t ->
+  t --[EF_None]--> t' ->
+  ~ access ad m t'.
+Proof.
+  intros * Hnacc. intros. induction_step; inv_nacc Hnacc;
+  try solve [eapply nacc_iff; eauto using not_access].
+  match goal with H : ~ access _ _ <{ fn _ _ _ }> |- _ => inv_nacc H end.
+  eauto using nacc_subst_preservation.
+Qed.
+
+Local Lemma nacc_tstep_alloc_preservation : forall m t t' ad v T,
+  ad < #m ->
+  forall_memory m (valid_addresses m) ->
+  valid_addresses m t ->
+  ~ access ad m t ->
+  t --[EF_Alloc (#m) v T]--> t' ->
+  ~ access ad (m +++ (v, T)) t'.
+Proof.
+  intros * ? ? ? Hnacc ?.
+  induction_step; inversion_vad; inv_nacc Hnacc; eapply nacc_iff;
+  eauto using not_access, nacc_mem_add_preservation, vad_nacc_length.
+  eapply nacc_ad. eauto using not_eq_sym, Nat.lt_neq.
+  simpl_array. eauto using nacc_mem_add_preservation, vad_nacc_length.
+Qed.
+
+Local Lemma nacc_tstep_read_preservation : forall m t t' ad ad',
+  ~ access ad m t ->
+  t --[EF_Read ad' m[ad'].tm]--> t' ->
+  ~ access ad m t'.
+Proof.
+  intros * Hnacc ?. induction_step; inv_nacc Hnacc;
+  try solve [eapply nacc_iff; eauto using not_access].
+  match goal with H : ~ access _ _ _ |- _ => inv_nacc H end.
+Qed.
+
+Local Lemma nacc_tstep_write_preservation : forall m t t' ad ad' v T,
+  ~ access ad m t ->
+  t --[EF_Write ad' v T]--> t' ->
+  ~ access ad m[ad' <- (v, T)] t'.
+Proof.
+  assert (forall m t t' ad ad' v T,
+    ~ access ad m t ->
+    t --[EF_Write ad' v T]--> t' ->
+    ~ access ad m v)
+    by (intros; induction_step; eauto using access).
+  (* main proof *)
+  intros * Hnacc ?. induction_step; inv_nacc Hnacc;
+  eapply nacc_iff; eauto using not_access, nacc_mem_set_preservation.
+Qed.
+
+Local Lemma nacc_tstep_spawn_preservation : forall m t t' block ad,
+  ~ access ad m t ->
+  t --[EF_Spawn block]--> t' ->
+  ~ access ad m t'.
+Proof.
+  intros * Hnacc ?. induction_step; inv_nacc Hnacc;
+  eapply nacc_iff; eauto using not_access.
+Qed.
+
+Local Corollary nacc_mstep_preservation : forall m m' t t' e ad,
+  ad < #m ->
+  forall_memory m (valid_addresses m) ->
+  valid_addresses m t ->
+  ~ access ad m t ->
+  m / t ==[e]==> m' / t' ->
+  ~ access ad m' t'.
+Proof.
+  intros. inversion_mstep;
+  eauto using nacc_tstep_none_preservation,
+    nacc_tstep_alloc_preservation,
+    nacc_tstep_read_preservation,
+    nacc_tstep_write_preservation.
+Qed.
+
+(* cstep ------------------------------------------------------------------- *)
+
+Local Lemma nacc_thread_default_preservation : forall m ad,
+  ~ access ad m thread_default.
+Proof.
+  intros. eapply nacc_iff. eauto using not_access.
+Qed.
+
+Local Lemma nacc_spawn_block_preservation : forall m t t' block ad,
+  ~ access ad m t ->
+  t --[EF_Spawn block]--> t' ->
+  access ad m block ->
+  exists T, m[ad].typ = <{{ i&T }}>.
+Proof.
+  (* need SafeSpawns to prove this. *)
+Abort.
+
+Local Lemma nacc_untouched_threads_preservation :
+  forall m m' ths tid tid' t' e ad,
+    forall_memory m (valid_addresses m) ->
+    forall_threads ths (valid_addresses m) ->
+    tid <> tid' ->
+    ~ access ad m ths[tid'] ->
+    m / ths[tid] ==[e]==> m' / t' ->
+    ~ access ad m' ths[tid'].
+Proof.
+  (* nees SMS to prove this. *)
+Abort.
+
