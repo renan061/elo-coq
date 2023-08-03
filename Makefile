@@ -23,11 +23,11 @@ soundness:
 	$(COQC) Soundness.v
 
 access:
-	$(COQC) Contains.v
-	$(COQC) Access.v
+	$(COQC) AccessCore.v
 	$(COQC) NotAccess.v
-	$(COQC) AccessExt.v
+	$(COQC) AccessExtra.v
 	$(COQC) UnsafeAccess.v
+	$(COQC) Access.v
 
 safety:
 	$(COQC) SafeSpawns.v

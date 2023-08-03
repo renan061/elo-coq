@@ -8,15 +8,14 @@ From Elo Require Import Core.
 From Elo Require Import CoreExt.
 From Elo Require Import Contains.
 From Elo Require Import ValidAddresses.
-From Elo Require Import Access.
 From Elo Require Import References.
-From Elo Require Import UnsafeAccess.
+From Elo Require Import Access.
 From Elo Require Import SafeSpawns.
 
 Definition safe_memory_sharing m ths := forall tid1 tid2 ad,
   tid1 <> tid2 ->
-  access m ths[tid2] ad ->
-  ~ UnsafeAccess m ths[tid1] ad.
+  access ad m ths[tid2] ->
+  ~ unsafe_access ad m ths[tid1].
 
 (* ------------------------------------------------------------------------- *)
 (* helpers                                                                   *)
@@ -38,7 +37,7 @@ Local Lemma step_write_sms_helper : forall m t ad v ths tid tid' V,
   forall_threads ths well_typed_term ->
   safe_memory_sharing m ths ->
   ths[tid] --[EF_Write ad v V]--> t ->
-  ~ access m ths[tid'] ad.
+  ~ access ad m ths[tid'].
 Proof.
   intros * Hneq Htype Hsms ? F.
   destruct (Htype tid). specialize (Hsms _ _ _ Hneq F).

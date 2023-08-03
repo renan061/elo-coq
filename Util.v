@@ -33,3 +33,11 @@ Definition nat_eq_dec := Peano_dec.eq_nat_dec.
 Definition string_eq_dec := String.string_dec.
 Definition lt_eq_lt_dec := Compare_dec.lt_eq_lt_dec.
 
+(* misc *)
+
+Lemma ge_iff_le : forall m n,
+  m >= n <-> n <= m.
+Proof.
+  intros; split; destruct n; eauto.
+Qed.
+

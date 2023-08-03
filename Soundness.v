@@ -343,16 +343,10 @@ Corollary forall_threads_inversion : forall (P : tm -> Prop) x xs,
 Proof. eauto using forall_array_inversion. Qed.
 
 Ltac inv_forall_array H :=
-  match H with
-  | _ : forall_array _ _ (_ :: _) =>
-    eapply forall_array_inversion in H as [? ?]
-  end.
+  eapply forall_array_inversion in H as [? ?].
 
 Ltac inv_forall_threads H :=
-  match H with
-  | _ : forall_threads _ (_ :: _) =>
-    eapply forall_threads_inversion in H as [? ?]
-  end.
+  eapply forall_threads_inversion in H as [? ?].
 
 Lemma forall_array_cons {A} {default} : forall (P : A -> Prop) x xs,
   P x ->

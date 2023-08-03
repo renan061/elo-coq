@@ -6,7 +6,7 @@ From Elo Require Import Array.
 From Elo Require Import Core.
 From Elo Require Import CoreExt.
 From Elo Require Import ValidAddresses.
-From Elo Require Import Access.
+From Elo Require Import AccessCore.
 From Elo Require Import NotAccess.
 
 (* ------------------------------------------------------------------------- *)
@@ -81,7 +81,7 @@ Local Lemma acc_tstep_alloc_inheritance : forall m t t' ad v T,
   access ad m t.
 Proof.
   intros. induction_step; inversion_vad; inv_acc; eauto; try lia;
-  try simpl_array; eauto using access, vad_nacc_length, acc_mem_add_inheritance.
+  try simpl_array; eauto using access, nacc_vad_length, acc_mem_add_inheritance.
 Qed.
 
 Local Lemma acc_tstep_read_inheritance : forall m t t' ad ad',
@@ -111,5 +111,21 @@ Local Lemma acc_tstep_spawn_inheritance : forall m t t' block ad,
   access ad m t.
 Proof.
   intros. induction_step; inv_acc; eauto using access.
+Qed.
+
+Local Corollary acc_mstep_inheritance : forall m m' t t' ad e,
+  ad < #m ->
+  forall_memory m (valid_addresses m) ->
+  valid_addresses m t' ->
+  (* --- *)
+  access ad m' t' ->
+  m / t ==[e]==> m' / t' ->
+  access ad m t.
+Proof.
+  intros. inversion_mstep;
+  eauto using acc_tstep_none_inheritance,
+    acc_tstep_alloc_inheritance,
+    acc_tstep_read_inheritance,
+    acc_tstep_write_inheritance.
 Qed.
 

@@ -1,11 +1,12 @@
 From Coq Require Import Arith.Arith.
+From Coq Require Import Lia.
 
 From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Core.
 From Elo Require Import CoreExt.
 From Elo Require Import ValidAddresses.
-From Elo Require Import Access.
+From Elo Require Import AccessCore.
 
 Inductive not_access (ad : addr) (m : mem) : tm -> Prop :=
   | nacc_unit :
@@ -78,6 +79,19 @@ Ltac inv_nacc Hnacc :=
   eapply nacc_iff in Hnacc; inversion Hnacc; subst; eauto using access.
 
 (* ------------------------------------------------------------------------- *)
+(* length                                                                    *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma nacc_vad_length : forall m t,
+  forall_memory m (valid_addresses m) ->
+  valid_addresses m t ->
+  ~ access (#m) m t.
+Proof.
+  intros * ? Hvad Hacc. remember (#m) as ad.
+  induction Hacc; inversion_vad; eauto. lia.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
 (* preservation                                                              *)
 (* ------------------------------------------------------------------------- *)
 
@@ -86,8 +100,7 @@ Local Lemma nacc_subst_preservation : forall m t tx ad x,
   ~ access ad m tx ->
   ~ access ad m ([x := tx] t).
 Proof.
-  intros * Hnacc ?. generalize dependent tx.
-  induction t; intros; trivial; simpl;
+  intros * Hnacc ?. induction t; simpl;
   try solve [inv_nacc Hnacc; eapply nacc_iff; eauto using not_access];
   destruct string_eq_dec; trivial.
   inv_nacc Hnacc. eapply nacc_iff. eauto using not_access.
@@ -108,20 +121,16 @@ Local Lemma nacc_mem_set_preservation : forall m t ad ad' v T,
   ~ access ad m t ->
   ~ access ad m[ad' <- (v, T)] t.
 Proof.
-  assert (ge_iff_le : forall m n, m >= n <-> n <= m)
-    by (intros; split; destruct n; eauto).
   assert (forall m ad ad' v,
     access ad m[ad' <- v] m[ad' <- v][ad'].tm -> ad' < length m). {
       intros * H. eapply not_ge. rewrite ge_iff_le. intros ?.
       rewrite (get_set_invalid memory_default) in H; trivial. inversion H.
   }
   (* main proof *)
-  intros * ? ? Hacc. remember (m[ad' <- (v, T)]) as m'.
-  induction Hacc; inv_clear Heqm'; eauto using access.
-  match goal with
-  | _ : ~ access _ _ <{ & ?ad :: _ }> |- _ => 
-    decompose sum (nat_eq_dec ad' ad); subst; try (assert (ad < #m) by eauto)
-  end;
+  intros * ? ? Hacc. induction Hacc; eauto using access.
+  match goal with _ : _ <> ?ad |- _ => rename ad into ad'' end. 
+  destruct (nat_eq_dec ad' ad''); subst;
+  try (assert (ad'' < #m) by eauto);
   simpl_array; eauto using access.
 Qed.
 
@@ -159,9 +168,9 @@ Local Lemma nacc_tstep_alloc_preservation : forall m t t' ad v T,
 Proof.
   intros * ? ? ? Hnacc ?.
   induction_step; inversion_vad; inv_nacc Hnacc; eapply nacc_iff;
-  eauto using not_access, nacc_mem_add_preservation, vad_nacc_length.
+  eauto using not_access, nacc_mem_add_preservation, nacc_vad_length.
   eapply nacc_ad. eauto using not_eq_sym, Nat.lt_neq.
-  simpl_array. eauto using nacc_mem_add_preservation, vad_nacc_length.
+  simpl_array. eauto using nacc_mem_add_preservation, nacc_vad_length.
 Qed.
 
 Local Lemma nacc_tstep_read_preservation : forall m t t' ad ad',
@@ -199,9 +208,10 @@ Proof.
 Qed.
 
 Local Corollary nacc_mstep_preservation : forall m m' t t' e ad,
-  ad < #m ->
   forall_memory m (valid_addresses m) ->
   valid_addresses m t ->
+  (* --- *)
+  ad < #m ->
   ~ access ad m t ->
   m / t ==[e]==> m' / t' ->
   ~ access ad m' t'.

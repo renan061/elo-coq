@@ -6,7 +6,6 @@ From Elo Require Import Map.
 From Elo Require Import Core.
 From Elo Require Import CoreExt.
 From Elo Require Import Access.
-From Elo Require Import UnsafeAccess.
 
 (* ------------------------------------------------------------------------- *)
 (* NotMut                                                                    *)
@@ -75,17 +74,17 @@ Ltac inversion_nomut :=
 
 Ltac inversion_clear_nomut :=
   match goal with
-  | H : NoMut <{ unit     }> |- _ => inversion_subst_clear H
-  | H : NoMut <{ N _      }> |- _ => inversion_subst_clear H
-  | H : NoMut <{ & _ :: _ }> |- _ => inversion_subst_clear H
-  | H : NoMut <{ new _ _  }> |- _ => inversion_subst_clear H
-  | H : NoMut <{ * _      }> |- _ => inversion_subst_clear H
-  | H : NoMut <{ _ = _    }> |- _ => inversion_subst_clear H
-  | H : NoMut <{ var _    }> |- _ => inversion_subst_clear H
-  | H : NoMut <{ fn _ _ _ }> |- _ => inversion_subst_clear H
-  | H : NoMut <{ call _ _ }> |- _ => inversion_subst_clear H
-  | H : NoMut <{ _ ; _    }> |- _ => inversion_subst_clear H
-  | H : NoMut <{ spawn _  }> |- _ => inversion_subst_clear H
+  | H : NoMut <{ unit     }> |- _ => inv_clear H
+  | H : NoMut <{ N _      }> |- _ => inv_clear H
+  | H : NoMut <{ & _ :: _ }> |- _ => inv_clear H
+  | H : NoMut <{ new _ _  }> |- _ => inv_clear H
+  | H : NoMut <{ * _      }> |- _ => inv_clear H
+  | H : NoMut <{ _ = _    }> |- _ => inv_clear H
+  | H : NoMut <{ var _    }> |- _ => inv_clear H
+  | H : NoMut <{ fn _ _ _ }> |- _ => inv_clear H
+  | H : NoMut <{ call _ _ }> |- _ => inv_clear H
+  | H : NoMut <{ _ ; _    }> |- _ => inv_clear H
+  | H : NoMut <{ spawn _  }> |- _ => inv_clear H
   end.
 
 Local Lemma nomut_subst : forall x t t',
@@ -165,17 +164,17 @@ Ltac inversion_ss :=
 
 Ltac inversion_clear_ss :=
   match goal with
-  | H : SafeSpawns <{ unit     }> |- _ => inversion_subst_clear H
-  | H : SafeSpawns <{ N _      }> |- _ => inversion_subst_clear H
-  | H : SafeSpawns <{ & _ :: _ }> |- _ => inversion_subst_clear H
-  | H : SafeSpawns <{ new _ _  }> |- _ => inversion_subst_clear H
-  | H : SafeSpawns <{ * _      }> |- _ => inversion_subst_clear H
-  | H : SafeSpawns <{ _ = _    }> |- _ => inversion_subst_clear H
-  | H : SafeSpawns <{ var _    }> |- _ => inversion_subst_clear H
-  | H : SafeSpawns <{ fn _ _ _ }> |- _ => inversion_subst_clear H
-  | H : SafeSpawns <{ call _ _ }> |- _ => inversion_subst_clear H
-  | H : SafeSpawns <{ _ ; _    }> |- _ => inversion_subst_clear H
-  | H : SafeSpawns <{ spawn _  }> |- _ => inversion_subst_clear H
+  | H : SafeSpawns <{ unit     }> |- _ => inv_clear H
+  | H : SafeSpawns <{ N _      }> |- _ => inv_clear H
+  | H : SafeSpawns <{ & _ :: _ }> |- _ => inv_clear H
+  | H : SafeSpawns <{ new _ _  }> |- _ => inv_clear H
+  | H : SafeSpawns <{ * _      }> |- _ => inv_clear H
+  | H : SafeSpawns <{ _ = _    }> |- _ => inv_clear H
+  | H : SafeSpawns <{ var _    }> |- _ => inv_clear H
+  | H : SafeSpawns <{ fn _ _ _ }> |- _ => inv_clear H
+  | H : SafeSpawns <{ call _ _ }> |- _ => inv_clear H
+  | H : SafeSpawns <{ _ ; _    }> |- _ => inv_clear H
+  | H : SafeSpawns <{ spawn _  }> |- _ => inv_clear H
   end.
 
 (* ------------------------------------------------------------------------- *)
@@ -245,17 +244,17 @@ Ltac inversion_hv :=
 
 Ltac inversion_clear_hv :=
   match goal with
-  | H : HasVar _ <{ unit     }> |- _ => inversion_subst_clear H
-  | H : HasVar _ <{ N _      }> |- _ => inversion_subst_clear H
-  | H : HasVar _ <{ & _ :: _ }> |- _ => inversion_subst_clear H
-  | H : HasVar _ <{ new _ _  }> |- _ => inversion_subst_clear H
-  | H : HasVar _ <{ * _      }> |- _ => inversion_subst_clear H
-  | H : HasVar _ <{ _ = _    }> |- _ => inversion_subst_clear H
-  | H : HasVar _ <{ var _    }> |- _ => inversion_subst_clear H
-  | H : HasVar _ <{ fn _ _ _ }> |- _ => inversion_subst_clear H
-  | H : HasVar _ <{ call _ _ }> |- _ => inversion_subst_clear H
-  | H : HasVar _ <{ _ ; _    }> |- _ => inversion_subst_clear H
-  | H : HasVar _ <{ spawn _  }> |- _ => inversion_subst_clear H
+  | H : HasVar _ <{ unit     }> |- _ => inv_clear H
+  | H : HasVar _ <{ N _      }> |- _ => inv_clear H
+  | H : HasVar _ <{ & _ :: _ }> |- _ => inv_clear H
+  | H : HasVar _ <{ new _ _  }> |- _ => inv_clear H
+  | H : HasVar _ <{ * _      }> |- _ => inv_clear H
+  | H : HasVar _ <{ _ = _    }> |- _ => inv_clear H
+  | H : HasVar _ <{ var _    }> |- _ => inv_clear H
+  | H : HasVar _ <{ fn _ _ _ }> |- _ => inv_clear H
+  | H : HasVar _ <{ call _ _ }> |- _ => inv_clear H
+  | H : HasVar _ <{ _ ; _    }> |- _ => inv_clear H
+  | H : HasVar _ <{ spawn _  }> |- _ => inv_clear H
   end.
 
 Lemma hasvar_dec : forall x t,
@@ -269,7 +268,7 @@ Proof.
   end;
   solve
     [ left; eauto using HasVar
-    | right; intros F; inversion_subst_clear F; eauto; contradiction
+    | right; intros F; inv_clear F; eauto; contradiction
     ].
 Qed.
 
@@ -505,9 +504,9 @@ Qed.
 
 Lemma nomut_then_nuacc: forall m t ad,
   NoMut t ->
-  UnsafeAccess m t ad ->
+  unsafe_access ad m t ->
   False.
 Proof.
-  intros * Hnm Huacc. induction Hnm; inversion_uacc; eauto.
+  intros * Hnm Huacc. induction Hnm; inv_uacc; eauto.
 Qed.
 
