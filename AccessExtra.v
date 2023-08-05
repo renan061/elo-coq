@@ -22,18 +22,23 @@ Proof.
   inv_clear_acc; auto_specialize; do 2 inv_acc; eauto using access.
 Qed.
 
-Local Lemma acc_mem_add_inheritance : forall m t ad vT,
-  ~ access (#m) m t ->
+Lemma acc_mem_add_inheritance : forall m t ad vT,
+  forall_memory m (valid_addresses m) ->
+  valid_addresses m t ->
   access ad (m +++ vT) t ->
   access ad m t.
 Proof.
-  intros * Hnacc Hacc. remember (m +++ vT) as m'.
-  induction Hacc; inv Heqm'; inv_nacc Hnacc.
+  intros * ? Hvad Hacc.
+  assert (Hnacc : ~ access (#m) m t). {
+    intros F. eapply vad_then_vac in Hvad; trivial.
+    specialize (Hvad (#m) F). lia.
+  }
+  clear Hvad. induction Hacc; inv_nacc Hnacc.
   decompose sum (lt_eq_lt_dec ad' (#m)); subst; try lia;
   simpl_array; eauto using access. simpl in *. inv_acc.
 Qed.
 
-Local Lemma acc_mem_set_inheritance : forall m t ad ad' v T,
+Lemma acc_mem_set_inheritance : forall m t ad ad' v T,
   ~ access ad m v ->
   access ad m[ad' <- (v, T)] t ->
   access ad m t.
@@ -51,7 +56,7 @@ Qed.
 
 (* alternative for mem_set ------------------------------------------------- *)
 
-Local Lemma alt_acc_mem_set_inheritance : forall m t ad ad' vT,
+Lemma alt_acc_mem_set_inheritance : forall m t ad ad' vT,
   ~ access ad' m t ->
   access ad m[ad' <- vT] t ->
   access ad m t.
@@ -63,7 +68,7 @@ Qed.
 
 (* tstep ------------------------------------------------------------------- *)
 
-Local Lemma acc_tstep_none_inheritance  : forall m t t' ad,
+Lemma acc_tstep_none_inheritance  : forall m t t' ad,
   access ad m t' ->
   t --[EF_None]--> t' ->
   access ad m t.
@@ -72,19 +77,19 @@ Proof.
   eauto using access, acc_subst_inheritance .
 Qed.
 
-Local Lemma acc_tstep_alloc_inheritance : forall m t t' ad v T,
+Lemma acc_tstep_alloc_inheritance : forall m t t' ad v T,
   ad < #m ->
   forall_memory m (valid_addresses m) ->
-  valid_addresses m t' ->
+  valid_addresses m t ->
   access ad (m +++ (v, T)) t' ->
   t --[EF_Alloc (#m) v T]--> t' ->
   access ad m t.
 Proof.
   intros. induction_step; inversion_vad; inv_acc; eauto; try lia;
-  try simpl_array; eauto using access, nacc_vad_length, acc_mem_add_inheritance.
+  try simpl_array; eauto using access, acc_mem_add_inheritance.
 Qed.
 
-Local Lemma acc_tstep_read_inheritance : forall m t t' ad ad',
+Lemma acc_tstep_read_inheritance : forall m t t' ad ad',
   access ad m t' ->
   t --[EF_Read ad' m[ad'].tm]--> t' ->
   access ad m t.
@@ -93,7 +98,7 @@ Proof.
   destruct (nat_eq_dec ad' ad); subst; eauto using access.
 Qed.
 
-Local Lemma acc_tstep_write_inheritance : forall m t t' ad ad' v T,
+Lemma acc_tstep_write_inheritance : forall m t t' ad ad' v T,
   access ad m[ad' <- (v, T)] t' ->
   t --[EF_Write ad' v T]--> t' ->
   access ad m t.
@@ -105,7 +110,7 @@ Proof.
   eauto using access.
 Qed.
 
-Local Lemma acc_tstep_spawn_inheritance : forall m t t' block ad,
+Lemma acc_tstep_spawn_inheritance : forall m t t' block ad,
   access ad m t' ->
   t --[EF_Spawn block]--> t' ->
   access ad m t.
@@ -113,11 +118,11 @@ Proof.
   intros. induction_step; inv_acc; eauto using access.
 Qed.
 
-Local Corollary acc_mstep_inheritance : forall m m' t t' ad e,
-  ad < #m ->
+Corollary acc_mstep_inheritance : forall m m' t t' ad e,
   forall_memory m (valid_addresses m) ->
-  valid_addresses m t' ->
+  valid_addresses m t ->
   (* --- *)
+  ad < #m ->
   access ad m' t' ->
   m / t ==[e]==> m' / t' ->
   access ad m t.

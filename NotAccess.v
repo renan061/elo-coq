@@ -141,8 +141,9 @@ Local Lemma alt_mem_set_preservation : forall m t ad ad' vT,
   ~ access ad m t ->
   ~ access ad m[ad' <- vT] t.
 Proof.
-  intros * Hnacc' Hnacc Hacc. remember (m[ad' <- vT]) as m'.
-  induction Hacc; inv_nacc Hnacc'; inv_nacc Hnacc. simpl_array. eauto.
+  intros * Hnacc' Hnacc Hacc.
+  induction Hacc; inv_nacc Hnacc'; inv_nacc Hnacc.
+  simpl_array. eauto.
 Qed.
 
 (* tstep ------------------------------------------------------------------- *)

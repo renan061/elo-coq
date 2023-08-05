@@ -97,6 +97,26 @@ Proof. eauto using classic_decidable. Qed.
 (* unsafe-access inheritance                                                 *)
 (* ------------------------------------------------------------------------- *)
 
+Lemma uacc_mem_add_inheritance : forall m t ad vT,
+  ~ access (#m) m t ->
+  unsafe_access ad (m +++ vT) t ->
+  unsafe_access ad m t.
+Proof.
+  intros * Hnacc Huacc. induction Huacc; subst; inv_nacc Hnacc;
+  eauto using unsafe_access.
+  eapply uacc_mem; trivial.
+  decompose sum (lt_eq_lt_dec ad' (#m)); subst; simpl_array; eauto; lia.
+Qed.
+
+Lemma uacc_mem_set_inheritance : forall m t ad ad' vT,
+  ~ access ad' m t ->
+  unsafe_access ad m[ad' <- vT] t ->
+  unsafe_access ad m t.
+Proof.
+  intros * Hnacc Huacc. induction Huacc; inv_nacc Hnacc;
+  eauto using unsafe_access. simpl_array. eauto using unsafe_access.
+Qed.
+
 Local Lemma uacc_tstep_spawn_inheritance : forall m t t' block ad,
   unsafe_access ad m t' ->
   t --[EF_Spawn block]--> t' ->
@@ -105,40 +125,16 @@ Proof.
   intros. induction_step; inv_uacc; eauto using unsafe_access.
 Qed.
 
-(*
-Local Lemma nuacc_mem_add_inheritance : forall m t ad vT,
-  ~ access (#m) m t ->
-  unsafe_access ad (m +++ vT) t ->
-  unsafe_access ad m t.
-Proof.
-  intros * Hnacc Huacc. remember (m +++ vTr) as m'.
-  induction Huacc; inversion Heqm'; subst; inversion_nacc Hnacc;
-  eauto using unsafe_access.
-  eapply uacc_mem; trivial.
-  decompose sum (lt_eq_lt_dec ad' (#m)); subst; simpl_array; eauto; lia.
-Qed.
-
-Local Lemma nuacc_mem_set_inheritance : forall m t ad ad' vTr,
-  ~ access m t ad' ->
-  unsafe_access ad m[ad' <- vTr] t ->
-  unsafe_access m t ad.
-Proof.
-  intros * Hnacc Huacc. remember (m[ad' <- vTr]) as m'.
-  induction Huacc; inversion_subst_clear Heqm'; inversion_nacc Hnacc;
-  eauto using unsafe_access. simpl_array. eauto using unsafe_access.
-Qed.
-*)
-
 (* ------------------------------------------------------------------------- *)
 (* not-unsafe-access inversion                                               *)
 (* ------------------------------------------------------------------------- *)
 
-Local Ltac solve_nuacc_inversion :=
-  intros; try (split; intros); eauto using unsafe_access.
-
-Local Lemma inv_nuacc_unit : forall m ad,
+Lemma nuacc_unit : forall m ad,
   ~ unsafe_access ad m <{unit}>.
 Proof. intros * ?. inv_uacc. Qed.
+
+Local Ltac solve_nuacc_inversion :=
+  intros; try (split; intros); eauto using unsafe_access.
 
 Local Lemma inv_nuacc_mem : forall m ad ad' T,
   ad <> ad' ->
@@ -256,7 +252,7 @@ Proof.
   inv_uacc; inv_nuacc; eauto.
 Qed.
 
-Local Lemma nuacc_mem_add_preservation  : forall m t ad vT,
+Lemma nuacc_mem_add_preservation  : forall m t ad vT,
   ~ unsafe_access (#m) m t ->
   ~ unsafe_access ad m t ->
   ~ unsafe_access ad (m +++ vT) t.
@@ -268,7 +264,7 @@ Proof.
   inv_nuacc. eauto.
 Qed.
 
-Local Lemma nuacc_mem_set_preservation : forall m t ad ad' v T,
+Lemma nuacc_mem_set_preservation : forall m t ad ad' v T,
   ~ unsafe_access ad m v ->
   ~ unsafe_access ad m t ->
   ~ unsafe_access ad m[ad' <- (v, T)] t.
@@ -286,9 +282,25 @@ Proof.
   simpl_array; eauto using unsafe_access.
 Qed.
 
+(* alternative for mem_set ------------------------------------------------- *)
+
+(* unused -- do we need alts? *)
+Local Lemma alt_nuacc_mem_set_preservation : forall m t ad ad' vT,
+  ~ unsafe_access ad' m t ->
+  ~ unsafe_access ad m t ->
+  ~ unsafe_access ad m[ad' <- vT] t.
+Proof.
+  intros * ? ? Huacc.
+  induction Huacc; inv_nuacc;
+  try solve [inv_nuacc; eauto].
+  match goal with Hneq : _ <> ?ad |- _ =>
+    destruct (nat_eq_dec ad' ad); subst
+  end; inv_nuacc. simpl_array. eauto.
+Qed.
+
 (* tstep ------------------------------------------------------------------- *)
 
-Local Lemma nuacc_tstep_none_preservation : forall m t t' ad,
+Lemma nuacc_tstep_none_preservation : forall m t t' ad,
   ~ unsafe_access ad m t ->
   t --[EF_None]--> t' ->
   ~ unsafe_access ad m t'.
@@ -298,7 +310,7 @@ Proof.
   inv_nuacc. eauto using nuacc_subst_preservation. 
 Qed.
 
-Local Lemma nuacc_tstep_alloc_preservation : forall m t t' ad v T,
+Lemma nuacc_tstep_alloc_preservation : forall m t t' ad v T,
   ad < #m ->
   forall_memory m (valid_addresses m) ->
   valid_addresses m t ->
@@ -313,7 +325,7 @@ Proof.
   eauto using nacc_vad_length, nuacc_from_nacc, nuacc_mem_add_preservation.
 Qed.
 
-Local Lemma nuacc_tstep_read_preservation : forall m t t' ad ad' T,
+Lemma nuacc_tstep_read_preservation : forall m t t' ad ad' T,
   forall_memory m value ->
   empty |-- t is T ->
   consistently_typed_references m t ->
@@ -331,7 +343,7 @@ Proof.
   eauto using nuacc_immutable_reference.
 Qed.
 
-Local Lemma nuacc_tstep_write_preservation : forall m t t' ad ad' v T,
+Lemma nuacc_tstep_write_preservation : forall m t t' ad ad' v T,
   ~ unsafe_access ad m t ->
   t --[EF_Write ad' v T]--> t' ->
   ~ unsafe_access ad m[ad' <- (v, T)] t'.
@@ -347,7 +359,7 @@ Proof.
   eapply (nuacc_mem_set_preservation _ tx _ _ v); eauto.
 Qed.
 
-Local Lemma nuacc_tstep_spawn_preservation : forall m t t' ad block,
+Lemma nuacc_tstep_spawn_preservation : forall m t t' ad block,
   ~ unsafe_access ad m t ->
   t --[EF_Spawn block]--> t' ->
   ~ unsafe_access ad m t'.
@@ -355,7 +367,7 @@ Proof.
   intros. intros ?. induction_step; try inv_nuacc; inv_uacc; eauto.
 Qed.
 
-Local Corollary nuacc_mstep_preservation : forall m m' t t' e ad T,
+Corollary nuacc_mstep_preservation : forall m m' t t' e ad T,
   forall_memory m value ->
   forall_memory m (valid_addresses m) ->
   valid_addresses m t ->
@@ -372,5 +384,48 @@ Proof.
     nuacc_tstep_alloc_preservation,
     nuacc_tstep_read_preservation,
     nuacc_tstep_write_preservation.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+(*                                                                           *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma memtyp_mstep_nuacc_then_immut : forall m m' t t' e T,
+  empty |-- t is T ->
+  (* --- *)
+  m / t ==[e]==> m' / t' ->
+  #m' > #m ->
+  ~ unsafe_access (#m) m' t' ->
+  exists Tm, m'[#m].typ = <{{i&Tm}}>.
+Proof.
+  intros * ? ? Hlen. intros. inversion_clear_mstep;
+  try rewrite set_preserves_length in Hlen; try lia.
+  simpl_array. simpl. generalize dependent T.
+  induction_step; intros; inversion_type; try inv_nuacc; eauto;
+  try match goal with
+  | _ : ?t --[_]--> _ , H : _ |-- ?t is _ |- _ =>
+    specialize (IHtstep _ H) as [? ?]; eauto
+  end.
+Qed.
+
+Lemma memtyp_mstep_uacc_then_mut : forall m m' t t' e T,
+  valid_accesses m t ->
+  empty |-- t is T ->
+  (* --- *)
+  m / t ==[e]==> m' / t' ->
+  #m' > #m ->
+  unsafe_access (#m) m' t' ->
+  exists Tm, m'[#m].typ = <{{&Tm}}>.
+Proof.
+  intros * ? ? ? Hlen. intros. inversion_clear_mstep;
+  try rewrite set_preserves_length in Hlen; try lia.
+  simpl_array. simpl. generalize dependent T.
+  induction_step; intros; inv_vac; inversion_type; try inv_clear_uacc;
+  eauto; exfalso;
+  match goal with
+  | H : valid_accesses _ ?t, _ : unsafe_access _ _ ?t |- _ =>
+    assert (~ access (#m) m t) by (intros F; specialize (H (#m) F); lia)
+  end;
+  eauto using uacc_then_acc, uacc_mem_add_inheritance.
 Qed.
 

@@ -56,6 +56,31 @@ Proof.
   intros. unfold add. rewrite last_length. reflexivity.
 Qed.
 
+Lemma add_length_neq : forall {A} (l : list A) a,
+  l <> l +++ a.
+Proof.
+  intros. unfold add. induction l.
+  - rewrite app_nil_l. discriminate.
+  - intros F. inversion F. contradiction.
+Qed.
+
+Lemma add_set_length_neq : forall {A} (l : list A) i a1 a2,
+  l[i <- a1] <> l +++ a2.
+Proof.
+  intros. intros F. remember (l[i <- a1]) as l1. remember (l +++ a2) as l2.
+  assert (Heq : #l1 = #l2) by (rewrite F; reflexivity).
+  rewrite Heql1 in Heq. rewrite set_preserves_length in Heq.
+  rewrite Heql2 in Heq. rewrite add_increments_length in Heq.
+  lia.
+Qed.
+
+Lemma add_inv_head : forall {A} (l : list A) a1 a2,
+  l +++ a1 = l +++ a2 ->
+  a1 = a2.
+Proof.
+  unfold add. intros * H. eapply app_inv_head in H. inversion H. reflexivity.
+Qed.
+
 Lemma get_default : forall {A} default (l : list A) i,
   #l <= i ->
   l[i] or default = default.

@@ -92,12 +92,12 @@ Qed.
 
 Local Lemma acc_from_mem : forall m t ad ad' v Tr,
   valid_accesses m t ->
-  ~ access m t ad ->
-  access m[ad' <- (v, Tr)] t ad ->
-  access m t ad'.
+  ~ access ad m t ->
+  access ad m[ad' <- (v, Tr)] t ->
+  access ad' m t.
 Proof.
   intros * ? Hnacc Hacc. eapply nacc_iff in Hnacc.
-  induction Hnacc; try inversion_vac; inversion_acc; try lia;
+  induction Hnacc; try inv_vac; inv_acc; try lia;
   try (destruct (acc_dec m t ad'); eauto using access);
   try (destruct (acc_dec m t1 ad'));
   try solve [
@@ -108,7 +108,7 @@ Proof.
     exfalso; eapply (mem_set_nacc1 _ _ ad ad'); eauto using vac_nacc_length
   ].
   destruct (Nat.eq_dec ad ad'); subst; eauto using access. simpl_array.
-  match goal with _ : ~ access _ _ ?ad |- _ => rename ad into ad'' end.
+  match goal with _ : ~ access ?ad _ _ |- _ => rename ad into ad'' end.
   eapply acc_mem; eauto. destruct (acc_dec m m[ad].tm ad'); trivial. exfalso.
   eapply (mem_set_nacc1 _ _ ad'' ad'); eauto using vac_nacc_length.
 Qed.

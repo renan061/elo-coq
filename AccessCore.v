@@ -1,3 +1,5 @@
+From Coq Require Import Lia.
+
 From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Core.
@@ -203,5 +205,14 @@ Corollary forall_threads_vad_then_vac : forall m ths,
   forall_threads ths (valid_accesses m).
 Proof.
   intros. intros ?. eauto using vad_then_vac.
+Qed.
+
+(* TODO *)
+
+Lemma vac_then_nacc : forall m t,
+  valid_accesses m t ->
+  ~ access (#m) m t.
+Proof.
+  intros * H F. eapply H in F; eauto. lia.
 Qed.
 
