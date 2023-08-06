@@ -284,8 +284,7 @@ Qed.
 
 (* alternative for mem_set ------------------------------------------------- *)
 
-(* unused -- do we need alts? *)
-Local Lemma alt_nuacc_mem_set_preservation : forall m t ad ad' vT,
+Lemma alt_nuacc_mem_set_preservation : forall m t ad ad' vT,
   ~ unsafe_access ad' m t ->
   ~ unsafe_access ad m t ->
   ~ unsafe_access ad m[ad' <- vT] t.

@@ -1,5 +1,6 @@
 From Coq Require Logic.ClassicalFacts.
 From Coq Require Import Logic.Decidable.
+From Coq Require Import Lia.
 
 (* inversion shortcuts *)
 
@@ -14,6 +15,11 @@ Ltac auto_specialize :=
   | P : ?x, H : ?x -> _ |- _ => specialize (H P)
   | H : ?x = ?x -> _ |- _ => specialize (H eq_refl) 
   end.
+
+#[export] Hint Extern 4 =>
+  match goal with
+  | _ : ?n < ?n |- _ => lia
+  end : core.
 
 Axiom excluded_middle : ClassicalFacts.excluded_middle.
 
