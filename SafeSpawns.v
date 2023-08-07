@@ -475,12 +475,13 @@ Proof.
 Qed.
 
 Theorem safe_spawns_preservation : forall m m' ths ths' tid eff,
-  forall_threads ths well_typed_term ->
+  forall_program m ths well_typed_term ->
+  (* --- *)
   forall_program m ths SafeSpawns ->
   m / ths ~~[tid, eff]~~> m' / ths' ->
   forall_program m' ths' SafeSpawns.
 Proof.
-  intros * Htype [? ?]. split; inversion_cstep;
+  intros * [_ Htype] [? ?]. split; inversion_cstep;
   eauto using mstep_mem_safe_spawns_preservation.
   - eapply forall_array_add; eauto using SafeSpawns, safe_spawns_for_block.
     eapply forall_array_set;
@@ -494,7 +495,7 @@ Qed.
 (*                                                                           *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma nomut_block : forall t t' block,
+Local Lemma nomut_block : forall t t' block,
   SafeSpawns t ->
   t --[EF_Spawn block]--> t' ->
   NoMut block.
@@ -502,11 +503,19 @@ Proof.
   intros. induction_step; inversion_ss; eauto.
 Qed.
 
-Lemma nomut_then_nuacc: forall m t ad,
+Local Lemma nomut_then_nuacc: forall m t ad,
   NoMut t ->
   unsafe_access ad m t ->
   False.
 Proof.
   intros * Hnm Huacc. induction Hnm; inv_uacc; eauto.
+Qed.
+
+Theorem nuacc_spawn_block : forall m t t' block ad,
+  SafeSpawns t ->
+  t --[EF_Spawn block]--> t' ->
+  ~ unsafe_access ad m block.
+Proof.
+  eauto using nomut_block, nomut_then_nuacc.
 Qed.
 

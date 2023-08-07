@@ -68,17 +68,18 @@ Inductive unsafe_access (ad : addr) (m : mem) : tm  -> Prop :=
 
 Local Ltac match_uacc tactic :=
   match goal with
-  | H : unsafe_access _ _ <{unit    }> |- _ => tactic H
-  | H : unsafe_access _ _ <{N _     }> |- _ => tactic H
-  | H : unsafe_access _ _ <{& _ :: _}> |- _ => tactic H
-  | H : unsafe_access _ _ <{new _ _ }> |- _ => tactic H
-  | H : unsafe_access _ _ <{* _     }> |- _ => tactic H
-  | H : unsafe_access _ _ <{_ = _   }> |- _ => tactic H
-  | H : unsafe_access _ _ <{var _   }> |- _ => tactic H
-  | H : unsafe_access _ _ <{fn _ _ _}> |- _ => tactic H
-  | H : unsafe_access _ _ <{call _ _}> |- _ => tactic H
-  | H : unsafe_access _ _ <{_ ; _   }> |- _ => tactic H
-  | H : unsafe_access _ _ <{spawn _ }> |- _ => tactic H
+  | H : unsafe_access _ _ thread_default |- _ => tactic H
+  | H : unsafe_access _ _ <{unit    }>   |- _ => tactic H
+  | H : unsafe_access _ _ <{N _     }>   |- _ => tactic H
+  | H : unsafe_access _ _ <{& _ :: _}>   |- _ => tactic H
+  | H : unsafe_access _ _ <{new _ _ }>   |- _ => tactic H
+  | H : unsafe_access _ _ <{* _     }>   |- _ => tactic H
+  | H : unsafe_access _ _ <{_ = _   }>   |- _ => tactic H
+  | H : unsafe_access _ _ <{var _   }>   |- _ => tactic H
+  | H : unsafe_access _ _ <{fn _ _ _}>   |- _ => tactic H
+  | H : unsafe_access _ _ <{call _ _}>   |- _ => tactic H
+  | H : unsafe_access _ _ <{_ ; _   }>   |- _ => tactic H
+  | H : unsafe_access _ _ <{spawn _ }>   |- _ => tactic H
   end.
 
 Ltac inv_uacc := match_uacc inv.
@@ -198,7 +199,7 @@ Ltac inv_nuacc :=
 
 (* unsafe-access ----------------------------------------------------------- *)
 
-Theorem uacc_soundness : forall m m' t t' ad e T,
+Local Theorem uacc_soundness : forall m m' t t' ad e T,
   ad < #m ->
   empty |-- t is T ->
   ~ unsafe_access ad m t ->
@@ -220,18 +221,17 @@ Proof.
   intros * Huacc. induction Huacc; eauto using access.
 Qed.
 
-(* not-unsafe-access ------------------------------------------------------- *)
-
-Theorem nuacc_immutable_reference : forall m ad v T,
+Theorem immutable_reference_then_nuacc : forall m ad v T,
   value v ->
-  empty |-- v is <{{ Immut T }}> ->
-  ~ unsafe_access ad m v.
+  empty |-- v is <{{Immut T}}> ->
+  unsafe_access ad m v ->
+  False.
 Proof.
   intros * Hval ? ?. destruct Hval;
   inversion_type; inv_uacc; eauto using unsafe_access.
 Qed.
 
-Lemma nuacc_from_nacc : forall m t ad,
+Local Lemma nuacc_from_nacc : forall m t ad,
   ~ access ad m t ->
   ~ unsafe_access ad m t.
 Proof.
@@ -339,7 +339,7 @@ Proof.
   eauto using unsafe_access;
   inversion_ctr;
   match goal with F : unsafe_access _ _ _[_].tm |- _ => contradict F end;
-  eauto using nuacc_immutable_reference.
+  eauto using immutable_reference_then_nuacc.
 Qed.
 
 Lemma nuacc_tstep_write_preservation : forall m t t' ad ad' v T,
@@ -366,7 +366,7 @@ Proof.
   intros. intros ?. induction_step; try inv_nuacc; inv_uacc; eauto.
 Qed.
 
-Corollary nuacc_mstep_preservation : forall m m' t t' e ad T,
+Local Corollary nuacc_mstep_preservation : forall m m' t t' e ad T,
   forall_memory m value ->
   forall_memory m (valid_addresses m) ->
   valid_addresses m t ->

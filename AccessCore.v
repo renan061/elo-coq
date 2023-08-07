@@ -89,17 +89,18 @@ Definition valid_accesses (m : mem) (t : tm) :=
 
 Local Ltac match_acc tactic :=
   match goal with
-  | H : access _ _ <{unit    }> |- _ => tactic H
-  | H : access _ _ <{N _     }> |- _ => tactic H
-  | H : access _ _ <{& _ :: _}> |- _ => tactic H
-  | H : access _ _ <{new _ _ }> |- _ => tactic H
-  | H : access _ _ <{* _     }> |- _ => tactic H
-  | H : access _ _ <{_ = _   }> |- _ => tactic H
-  | H : access _ _ <{var _   }> |- _ => tactic H
-  | H : access _ _ <{fn _ _ _}> |- _ => tactic H
-  | H : access _ _ <{call _ _}> |- _ => tactic H
-  | H : access _ _ <{_ ; _   }> |- _ => tactic H
-  | H : access _ _ <{spawn _ }> |- _ => tactic H
+  | H : access _ _ thread_default |- _ => tactic H
+  | H : access _ _ <{unit    }>   |- _ => tactic H
+  | H : access _ _ <{N _     }>   |- _ => tactic H
+  | H : access _ _ <{& _ :: _}>   |- _ => tactic H
+  | H : access _ _ <{new _ _ }>   |- _ => tactic H
+  | H : access _ _ <{* _     }>   |- _ => tactic H
+  | H : access _ _ <{_ = _   }>   |- _ => tactic H
+  | H : access _ _ <{var _   }>   |- _ => tactic H
+  | H : access _ _ <{fn _ _ _}>   |- _ => tactic H
+  | H : access _ _ <{call _ _}>   |- _ => tactic H
+  | H : access _ _ <{_ ; _   }>   |- _ => tactic H
+  | H : access _ _ <{spawn _ }>   |- _ => tactic H
   end.
 
 Ltac inv_acc := match_acc inv.

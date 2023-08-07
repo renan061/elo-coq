@@ -106,7 +106,7 @@ Proof.
   inv_nacc Hnacc. eapply nacc_iff. eauto using not_access.
 Qed.
 
-Local Lemma nacc_mem_add_preservation : forall m t ad vT,
+Lemma nacc_mem_add_preservation : forall m t ad vT,
   ~ access (#m) m t ->
   ~ access ad m t ->
   ~ access ad (m +++ vT) t.
@@ -136,7 +136,7 @@ Qed.
 
 (* alternative for mem_set ------------------------------------------------- *)
 
-Local Lemma alt_mem_set_preservation : forall m t ad ad' vT,
+Lemma alt_nacc_mem_set_preservation : forall m t ad ad' vT,
   ~ access ad' m t ->
   ~ access ad m t ->
   ~ access ad m[ad' <- vT] t.
@@ -199,7 +199,7 @@ Proof.
   eapply nacc_iff; eauto using not_access, nacc_mem_set_preservation.
 Qed.
 
-Local Lemma nacc_tstep_spawn_preservation : forall m t t' block ad,
+Lemma nacc_tstep_spawn_preservation : forall m t t' block ad,
   ~ access ad m t ->
   t --[EF_Spawn block]--> t' ->
   ~ access ad m t'.
@@ -208,7 +208,7 @@ Proof.
   eapply nacc_iff; eauto using not_access.
 Qed.
 
-Local Corollary nacc_mstep_preservation : forall m m' t t' e ad,
+Corollary nacc_mstep_preservation : forall m m' t t' e ad,
   forall_memory m (valid_addresses m) ->
   valid_addresses m t ->
   (* --- *)

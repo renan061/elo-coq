@@ -133,6 +133,12 @@ Proof.
   intros * H. rewrite set_invalid; trivial. eauto using get_default.
 Qed.
 
+Corollary get_set_invalid_eq : forall {A} default (l : list A) a,
+  l[#l <- a][#l] or default = default.
+Proof.
+  intros. assert (#l <= #l) by lia. eauto using get_set_invalid.
+Qed.
+
 Lemma get_add_eq : forall {A} default (l : list A) a,
   (l +++ a)[#l] or default = a.
 Proof.
@@ -227,6 +233,14 @@ Ltac rewrite_get_set_gt :=
     rewrite (get_set_gt d l i j a Hlen)
   end.
 
+Ltac rewrite_get_set_invalid_eq :=
+  match goal with
+  | H : context C [ ?l[(# ?l) <- ?a ][(# ?l)] or ?d ] |- _ =>
+    rewrite (get_set_invalid_eq d l a) in H
+  | |-  context C [ ?l[(# ?l) <- ?a ][(# ?l)] or ?d ] =>
+    rewrite (get_set_invalid_eq d l a)
+  end.
+
 Ltac rewrite_get_default :=
   match goal with
   | H : context C [ ?l[#?l] or ?d] |- _ => 
@@ -288,6 +302,7 @@ Ltac simpl_array :=
   || rewrite_get_set_neq
   || rewrite_get_set_lt
   || rewrite_get_set_gt
+  || rewrite_get_set_invalid_eq
   || rewrite_get_default
   || rewrite_set_invalid
   || rewrite_get_add_set
@@ -306,7 +321,7 @@ Lemma forall_array_add : forall {A} (P : A -> Prop) default l a,
   forall_array default P l ->
   forall_array default P (l +++ a).
 Proof.
-  intros; intros i. decompose sum (lt_eq_lt_dec i (#l)); subst;
+  intros ** i. decompose sum (lt_eq_lt_dec i (#l)); subst;
   simpl_array; trivial.
 Qed.
 

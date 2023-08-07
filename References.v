@@ -236,7 +236,7 @@ Proof.
   eauto using consistently_typed_references.
 Qed.
 
-Lemma ctr_spawn_block_preservation : forall m t t' block,
+Lemma ctr_spawn_block : forall m t t' block,
   consistently_typed_references m t ->
   t --[EF_Spawn block]--> t' ->
   consistently_typed_references m block.
@@ -278,7 +278,7 @@ Proof.
     ctr_tstep_spawn_preservation,
     ctr_mstep_preservation,
     ctr_thread_default_preservation,
-    ctr_spawn_block_preservation,
+    ctr_spawn_block,
     ctr_untouched_threads_preservation.
 Qed.
 
