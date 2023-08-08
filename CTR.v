@@ -80,5 +80,5 @@ Local Ltac match_ctr tactic :=
 
 Ltac inv_ctr := match_ctr inv.
 
-Ltac inv_clear_ctr := match_ctr inv_clear.
+Ltac invc_ctr := match_ctr invc.
 

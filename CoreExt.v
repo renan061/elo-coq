@@ -84,35 +84,35 @@ Ltac apply_deterministic_typing :=
 (* auxiliary tactics                                                         *)
 (* ------------------------------------------------------------------------- *)
 
-Ltac induction_step :=
+Ltac induction_tstep :=
   match goal with
   | H : _ --[?e]--> _ |- _ =>
     remember e as eff; induction H; inversion Heqeff; subst
   end.
 
-Ltac inversion_step :=
+Ltac inv_step :=
   match goal with
   | H : _ --[_]--> _ |- _ => inversion H; subst; clear H
   end.
 
-Ltac inversion_mstep :=
+Ltac inv_mstep :=
   match goal with
   | H : _ / _ ==[_]==> _ / _ |- _ => inversion H; subst
   end.
 
-Ltac inversion_clear_mstep :=
+Ltac invc_mstep :=
   match goal with
-  | H : _ / _ ==[_]==> _ / _ |- _ => inv_clear H
+  | H : _ / _ ==[_]==> _ / _ |- _ => invc H
   end.
 
-Ltac inversion_cstep :=
+Ltac inv_cstep :=
   match goal with
   | H : _ / _ ~~[_, _]~~> _ / _ |- _ => inversion H; subst
   end.
 
-Ltac inversion_clear_cstep :=
+Ltac invc_cstep :=
   match goal with
-  | H : _ / _ ~~[_, _]~~> _ / _ |- _ => inv_clear H
+  | H : _ / _ ~~[_, _]~~> _ / _ |- _ => invc H
   end.
 
 Ltac induction_multistep :=
@@ -120,14 +120,14 @@ Ltac induction_multistep :=
   | H : _ / _ ~~[_]~~>* _ / _ |- _ => induction H
   end.
 
-Ltac inversion_multistep :=
+Ltac inv_multistep :=
   match goal with
   | H : _ / _ ~~[_]~~>* _ / _ |- _ => inversion H; subst
   end.
 
-Ltac inversion_clear_multistep :=
+Ltac invc_multistep :=
   match goal with
-  | H : _ / _ ~~[_]~~>* _ / _ |- _ => inv_clear H
+  | H : _ / _ ~~[_]~~>* _ / _ |- _ => invc H
   end.
 
 Ltac induction_type :=
@@ -135,34 +135,34 @@ Ltac induction_type :=
   | H : _ |-- _ is _ |- _ => induction H
   end.
 
-Ltac inversion_type :=
+Ltac inv_type :=
   match goal with
-  | H : _ |-- <{ unit     }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ N _      }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ & _ :: _ }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ new _ _  }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ * _      }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ _ = _    }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ var _    }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ fn _ _ _ }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ call _ _ }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ _ ; _    }> is _ |- _ => inversion H; subst
-  | H : _ |-- <{ spawn _  }> is _ |- _ => inversion H; subst
+  | H : _ |-- <{ unit     }> is _ |- _ => inv H
+  | H : _ |-- <{ N _      }> is _ |- _ => inv H
+  | H : _ |-- <{ & _ :: _ }> is _ |- _ => inv H
+  | H : _ |-- <{ new _ _  }> is _ |- _ => inv H
+  | H : _ |-- <{ * _      }> is _ |- _ => inv H
+  | H : _ |-- <{ _ = _    }> is _ |- _ => inv H
+  | H : _ |-- <{ var _    }> is _ |- _ => inv H
+  | H : _ |-- <{ fn _ _ _ }> is _ |- _ => inv H
+  | H : _ |-- <{ call _ _ }> is _ |- _ => inv H
+  | H : _ |-- <{ _ ; _    }> is _ |- _ => inv H
+  | H : _ |-- <{ spawn _  }> is _ |- _ => inv H
   end.
 
-Ltac inversion_clear_type :=
+Ltac invc_type :=
   match goal with
-  | H : _ |-- <{ unit     }> is _ |- _ => inv_clear H
-  | H : _ |-- <{ N _      }> is _ |- _ => inv_clear H
-  | H : _ |-- <{ & _ :: _ }> is _ |- _ => inv_clear H
-  | H : _ |-- <{ new _ _  }> is _ |- _ => inv_clear H
-  | H : _ |-- <{ * _      }> is _ |- _ => inv_clear H
-  | H : _ |-- <{ _ = _    }> is _ |- _ => inv_clear H
-  | H : _ |-- <{ var _    }> is _ |- _ => inv_clear H
-  | H : _ |-- <{ fn _ _ _ }> is _ |- _ => inv_clear H
-  | H : _ |-- <{ call _ _ }> is _ |- _ => inv_clear H
-  | H : _ |-- <{ _ ; _    }> is _ |- _ => inv_clear H
-  | H : _ |-- <{ spawn _  }> is _ |- _ => inv_clear H
+  | H : _ |-- <{ unit     }> is _ |- _ => invc H
+  | H : _ |-- <{ N _      }> is _ |- _ => invc H
+  | H : _ |-- <{ & _ :: _ }> is _ |- _ => invc H
+  | H : _ |-- <{ new _ _  }> is _ |- _ => invc H
+  | H : _ |-- <{ * _      }> is _ |- _ => invc H
+  | H : _ |-- <{ _ = _    }> is _ |- _ => invc H
+  | H : _ |-- <{ var _    }> is _ |- _ => invc H
+  | H : _ |-- <{ fn _ _ _ }> is _ |- _ => invc H
+  | H : _ |-- <{ call _ _ }> is _ |- _ => invc H
+  | H : _ |-- <{ _ ; _    }> is _ |- _ => invc H
+  | H : _ |-- <{ spawn _  }> is _ |- _ => invc H
   end.
 
 (* ------------------------------------------------------------------------- *)
@@ -174,21 +174,21 @@ Lemma step_length_tid : forall t ths tid e,
   tid < #ths.
 Proof.
   intros. decompose sum (lt_eq_lt_dec tid (#ths)); subst; trivial;
-  simpl_array; try lia; inversion_step.
+  simpl_array; try lia; inv_step.
 Qed.
 
 Corollary mstep_length_tid : forall m m' t' ths tid e,
   m / ths[tid] ==[e]==> m' / t' ->
   tid < #ths.
 Proof.
-  intros. inversion_mstep; eauto using step_length_tid.
+  intros. inv_mstep; eauto using step_length_tid.
 Qed.
 
 Corollary cstep_length_tid : forall m m' ths ths' tid e,
   m / ths ~~[tid, e]~~> m' / ths' ->
   tid < #ths.
 Proof.
-  intros. inversion_cstep; trivial.
+  intros. inv_cstep; trivial.
 Qed.
 
 (* ------------------------------------------------------------------------- *)

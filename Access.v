@@ -99,7 +99,7 @@ Local Ltac match_acc tactic :=
 
 Ltac inv_acc := match_acc inv.
 
-Ltac inv_clear_acc := match_acc inv_clear.
+Ltac invc_acc := match_acc invc.
 
 (* ------------------------------------------------------------------------- *)
 (* valid-accesses inversion                                                  *)
@@ -160,4 +160,20 @@ Ltac inv_vac :=
   | H : valid_accesses _ <{_ ; _   }> |- _ => eapply inv_vac_seq  in H as [? ?]
   (* irrelevant for spawn *)                    
   end.
+
+(* ------------------------------------------------------------------------- *)
+(* important access property                                                 *)
+(* ------------------------------------------------------------------------- *)
+
+Theorem strong_acc_mem : forall m t ad ad',
+  access ad' m t ->
+  access ad  m (m[ad'].tm) ->
+  access ad  m t.
+Proof.
+  intros * Hacc ?. induction Hacc; eauto using access;
+  match goal with
+  |- access ?ad _ <{& ?ad' :: _}> => destruct (nat_eq_dec ad ad'); subst
+  end;
+  eauto using access.
+Qed.
 

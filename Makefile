@@ -2,7 +2,7 @@
 
 COQC= coqc -Q . Elo
 
-all: core meta memory soundness access safety 
+all: core meta definitions properties 
 
 core:
 	$(COQC) Util.v
@@ -18,7 +18,7 @@ meta:
 definitions:
 	$(COQC) ValidAddresses.v
 	$(COQC) WellTypedTerm.v
-	$(COQC) ConsistentlyTypedReferences.v
+	$(COQC) CTR.v
 	$(COQC) Access.v
 	$(COQC) NotAccess.v
 	$(COQC) UnsafeAccess.v
@@ -29,10 +29,12 @@ definitions:
 soundness:
 	$(COQC) Soundness.v
 
-preservation:
-	$(COQC) VadPreservation.v
+properties:
+	$(COQC) PropertiesVAD.v
+	$(COQC) PropertiesCTR.v
+
+todo:
 	$(COQC) WttPreservation.v
-	$(COQC) CtrPreservation.v
 	$(COQC) NaccPreservation.v
 	$(COQC) NuaccPreservation.v
 

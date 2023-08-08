@@ -37,13 +37,13 @@ Definition valid_addresses (m : mem) (t : tm) :=
 
 Local Ltac inv_isad := 
   match goal with
-  | H : is_address _ _ |- _ => inv_clear H
+  | H : is_address _ _ |- _ => invc H
   end.
 
-Local Ltac inv_hasad := 
+Ltac inv_hasad := 
   match goal with
   | H : _ has_address _ |- _ =>
-      inv_clear H; try inv_isad
+      invc H; try inv_isad
   end.
 
 (* ------------------------------------------------------------------------- *)

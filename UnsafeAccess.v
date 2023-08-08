@@ -74,7 +74,7 @@ Local Ltac match_uacc tactic :=
 
 Ltac inv_uacc := match_uacc inv.
 
-Ltac inv_clear_uacc := match_uacc inv_clear.
+Ltac invc_uacc := match_uacc invc.
 
 (* ------------------------------------------------------------------------- *)
 (* not-unsafe-access inversion                                               *)

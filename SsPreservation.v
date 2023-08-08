@@ -1,4 +1,124 @@
 
+Local Lemma nomut_subst : forall x t t',
+  no_mut t ->
+  no_mut t' ->
+  no_mut ([x := t'] t).
+Proof.
+  intros. induction t; intros;
+  inversion_nomut; eauto using no_mut;
+  simpl; destruct String.string_dec; subst; eauto using no_mut. 
+Qed.
+
+
+
+
+Lemma hasvar_dec : forall x t,
+  Decidable.decidable (has_var x t).
+Proof.
+  unfold Decidable.decidable. intros. induction t;
+  try (destruct IHt); try (destruct IHt1); try (destruct IHt2);
+  try match goal with
+    | x : id, x' : id |- _ =>
+      destruct (String.string_dec x x'); subst
+  end;
+  solve
+    [ left; eauto using has_var
+    | right; intros F; invc F; eauto; contradiction
+    ].
+Qed.
+
+Local Ltac solve_not_hasvar :=
+  intros; match goal with
+  | |- (~ has_var _ ?t) => induction t; eauto using has_var
+  end.
+
+Lemma not_hv_new : forall x t T,
+  ~ has_var x <{new T t}> -> ~ has_var x t.
+Proof. solve_not_hasvar. Qed.
+
+Lemma not_hv_load : forall x t,
+  ~ has_var x <{*t}> -> ~ has_var x t.
+Proof. solve_not_hasvar. Qed.
+
+Lemma not_hv_asg1 : forall x t1 t2,
+  ~ has_var x <{t1 = t2}> -> ~ has_var x t1.
+Proof. solve_not_hasvar. Qed.
+
+Lemma not_hv_asg2 : forall x t1 t2,
+  ~ has_var x <{t1 = t2}> -> ~ has_var x t2.
+Proof. solve_not_hasvar. Qed.
+
+Lemma not_hv_fun : forall x x' t Tx,
+  x <> x' -> ~ has_var x <{fn x' Tx t}> -> ~ has_var x t.
+Proof. solve_not_hasvar. Qed.
+
+Lemma not_hv_call1 : forall x t1 t2,
+  ~ has_var x <{call t1 t2}> -> ~ has_var x t1.
+Proof. solve_not_hasvar. Qed.
+
+Lemma not_hv_call2 : forall x t1 t2,
+  ~ has_var x <{call t1 t2}> -> ~ has_var x t2.
+Proof. solve_not_hasvar. Qed.
+
+Lemma not_hv_seq1 : forall x t1 t2,
+  ~ has_var x <{t1; t2}> -> ~ has_var x t1.
+Proof. solve_not_hasvar. Qed.
+
+Lemma not_hv_seq2 : forall x t1 t2,
+  ~ has_var x <{t1; t2}> -> ~ has_var x t2.
+Proof. solve_not_hasvar. Qed.
+
+Lemma not_hv_spawn : forall x t,
+  ~ has_var x <{spawn t}> -> ~ has_var x t.
+Proof. solve_not_hasvar. Qed.
+
+Lemma hasvar_subst : forall x t tx,
+  ~ (has_var x t) -> ([x := tx] t) = t.
+Proof.
+  intros. induction t; simpl; trivial;
+  try (destruct String.string_dec; subst; trivial);
+  solve
+    [ rewrite IHt; eauto using not_hv_new, not_hv_load, not_hv_spawn, not_hv_fun
+    | rewrite IHt1; eauto using not_hv_asg1, not_hv_call1, not_hv_seq1;
+      rewrite IHt2; eauto using not_hv_asg2, not_hv_call2, not_hv_seq2
+    | exfalso; eauto using has_var
+    ].
+Qed.
+
+Lemma hasvar_typing : forall Gamma x t T,
+  has_var x t ->
+  Gamma x = None ->
+  ~ (Gamma |-- t is T).
+Proof.
+  assert (forall Gamma x, Gamma x = None -> (safe Gamma) x = None).
+  { unfold safe. intros * H. rewrite H. reflexivity. }
+  intros * ? HGamma F. induction_type; inversion_hv; eauto.
+  - rewrite HGamma in *. discriminate.
+  - rewrite lookup_update_neq in IHF; eauto.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* Equivalence                                                               *)
+(* ------------------------------------------------------------------------- *)
+
+Local Lemma equivalence_safe : forall Gamma1 Gamma2,
+  Gamma1 === Gamma2 ->
+  safe Gamma1 === safe Gamma2.
+Proof.
+  unfold map_equivalence, safe. intros * Heq k.
+  specialize (Heq k). rewrite Heq. trivial.
+Qed.
+
+Local Lemma equivalence_typing : forall Gamma1 Gamma2 t T,
+  Gamma1 === Gamma2 ->
+  Gamma1 |-- t is T ->
+  Gamma2 |-- t is T.
+Proof.
+  intros. generalize dependent Gamma2. induction_type; intros;
+  eauto using type_of, equivalence_safe,
+    MapEquivalence.lookup, MapEquivalence.update_equivalence.
+Qed.
+
 (* ------------------------------------------------------------------------- *)
 (* SafeSpawns mstep term preservation                                        *)
 (* ------------------------------------------------------------------------- *)

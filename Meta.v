@@ -67,11 +67,11 @@ mstep_preservation:
 
 -------------------------------------------------------------------------------
 
-thread_default_preservation:
+thread_default:
   forall m,
     P m thread_default.
 
-spawn_block_preservation:
+spawn_block:
   forall m t t' block,
     P m t ->
     t --[EF_Spawn block]--> t' ->
@@ -133,27 +133,6 @@ preservation:
 
 ---------------------------------------------------------------------------- *)
 
-Ltac solve_mstep_preservation_using
-  tstep_none_preservation
-  tstep_alloc_preservation
-  tstep_read_preservation
-  tstep_write_preservation := 
-    intros; inversion_mstep;
-    eauto using tstep_none_preservation,
-                tstep_alloc_preservation,
-                tstep_read_preservation,
-                tstep_write_preservation.
-
-Ltac solve_mstep_mem_preservation_using
-  tstep_alloc_mem_preservation
-  tstep_write_mem_preservation := 
-    intros; inversion_mstep;
-    eauto using tstep_alloc_mem_preservation, tstep_write_mem_preservation.
-
-Ltac solve_cstep_mem_preservation_using
-  mstep_mem_preservation :=
-    intros; inversion_cstep; eauto using mstep_mem_preservation.
-
 Lemma cstep_preservation (P : mem -> tm -> Prop) : forall m m' ths ths' tid e,
     (* tstep_spawn_preservation *)
     (forall t t' block,
@@ -166,10 +145,10 @@ Lemma cstep_preservation (P : mem -> tm -> Prop) : forall m m' ths ths' tid e,
       P m ths[tid] ->
       m / ths[tid] ==[e]==> m' / t' ->
       P m' t') ->
-    (* thread_default_preservation *)
+    (* thread_default *)
     (forall m,
       P m thread_default) ->
-    (* spawn_block_preservation *)
+    (* spawn_block *)
     (forall t t' block,
       P m t ->
       t --[EF_Spawn block]--> t' ->
@@ -182,12 +161,11 @@ Lemma cstep_preservation (P : mem -> tm -> Prop) : forall m m' ths ths' tid e,
       m / ths[tid] ==[e]==> m' / t' ->
       P m' ths[tid']) ->
     (* What we want to prove: *)
-    forall_memory m (P m) ->
-    forall_threads ths (P m) ->
+    forall_program m ths (P m) ->
     m / ths ~~[tid, e]~~> m' / ths' ->
     forall_threads ths' (P m').
 Proof.
-  intros. inversion_cstep; intros tid'.
+  intros * ? ? ? ? ? [? ?] ?. inv_cstep; intros tid'.
   - destruct (nat_eq_dec tid' (#ths)); subst.
     + rewrite <- (set_preserves_length _ tid t'). simpl_array. eauto.
     + destruct (lt_eq_lt_dec tid' (length ths)) as [[Ha | ?] | Hb]; subst;

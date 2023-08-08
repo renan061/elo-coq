@@ -6,7 +6,7 @@ From Coq Require Import Lia.
 
 Ltac inv H := inversion H; subst.
 
-Ltac inv_clear H := inv H; clear H.
+Ltac invc H := inv H; clear H.
 
 (* miscellaneous utilities *)
 

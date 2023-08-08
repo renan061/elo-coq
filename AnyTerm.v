@@ -33,21 +33,20 @@ Inductive anyt (P : tm -> Prop) : tm -> Prop :=
 (* Since <v> is inside <t>: *)
 
 (* TODO: write_value *)
-Lemma anyt_write_generalization : forall P t t' ad v V,
+Lemma anyt_write_generalization : forall P t t' ad v T,
   anyt P v ->
-  t --[EF_Write ad v V]--> t' ->
+  t --[EF_Write ad v T]--> t' ->
   anyt P t.
 Proof.
-  intros. induction_step; eauto using anyt.
+  intros. induction_tstep; eauto using anyt.
 Qed.
 
-(* TODO: alloc_value *)
-Lemma anyt_alloc_generalization : forall P t t' ad v V,
+Lemma anyt_alloc_value_generalization : forall P t t' ad v T,
   anyt P v ->
-  t --[EF_Alloc ad v V]--> t' ->
+  t --[EF_Alloc ad v T]--> t' ->
   anyt P t.
 Proof.
-  intros. induction_step; eauto using anyt.
+  intros. induction_tstep; eauto using anyt.
 Qed.
 
 (* ------------------------------------------------------------------------- *)

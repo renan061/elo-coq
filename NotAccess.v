@@ -61,7 +61,7 @@ Proof.
     || eapply nacc_call
     || eapply nacc_seq);
   eauto using access, not_access;
-  intros ?; subst; try (inv_acc; inv_clear Hnacc); eauto using access.
+  intros ?; subst; try (inv_acc; invc Hnacc); eauto using access.
   match goal with
   | Hnacc : ~ access ?ad' _ <{& ?ad :: _}> |- _ =>
     destruct (nat_eq_dec ad ad'); subst
@@ -72,7 +72,7 @@ Qed.
 Local Ltac manual_inv_nacc Hnacc :=
   eapply nacc_iff in Hnacc; inv Hnacc; eauto using access.
 
-Local Ltac manual_inv_clear_nacc Hnacc :=
+Local Ltac manual_invc_nacc Hnacc :=
   manual_inv_nacc; clear Hnacc.
 
 Local Ltac match_nacc tactic :=
@@ -92,5 +92,5 @@ Local Ltac match_nacc tactic :=
 
 Ltac inv_nacc := match_nacc manual_inv_nacc.
 
-Ltac inv_clear_nacc := match_nacc manual_inv_clear_nacc.
+Ltac invc_nacc := match_nacc manual_invc_nacc.
 
