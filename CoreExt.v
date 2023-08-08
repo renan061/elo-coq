@@ -54,8 +54,6 @@ Definition forall_program (m : mem) (ths : threads) (P : tm -> _) : Prop :=
 
 #[export] Hint Unfold forall_program : core.
 
-Definition well_typed_term (t : tm) := exists T, empty |-- t is T.
-
 (* ------------------------------------------------------------------------- *)
 (* determinism                                                               *)
 (* ------------------------------------------------------------------------- *)

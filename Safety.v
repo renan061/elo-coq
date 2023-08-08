@@ -134,7 +134,7 @@ Qed.
 
 Local Lemma cstep_read_requires_acc : forall m m' ths ths' tid ad v,
   m / ths ~~[tid, EF_Read ad v]~~> m' / ths' ->
-  access m ths[tid] ad.
+  access ad m ths[tid].
 Proof.
   intros. inversion_clear_cstep. inversion_clear_mstep. induction_step;
   eauto using access.
@@ -143,12 +143,12 @@ Qed.
 Local Lemma cstep_write_requires_uacc : forall m m' ths ths' tid ad v Tr,
   forall_threads ths well_typed_term ->
   m / ths ~~[tid, EF_Write ad v Tr]~~> m' / ths' ->
-  UnsafeAccess m ths[tid] ad.
+  unsafe_access ad m ths[tid].
 Proof.
   intros * Htype. intros. destruct (Htype tid) as [T ?].
   inversion_clear_cstep. inversion_clear_mstep. generalize dependent T.
-  induction_step; intros; inversion_type; eauto using UnsafeAccess.
-  inversion_type. eauto using UnsafeAccess.
+  induction_step; intros; inversion_type; eauto using unsafe_access.
+  inversion_type. eauto using unsafe_access.
 Qed.
 
 (* ------------------------------------------------------------------------- *)

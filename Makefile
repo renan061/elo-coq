@@ -15,23 +15,31 @@ meta:
 	$(COQC) AnyTerm.v
 	$(COQC) Meta.v
 
-memory:
+definitions:
 	$(COQC) ValidAddresses.v
-	$(COQC) References.v
+	$(COQC) WellTypedTerm.v
+	$(COQC) ConsistentlyTypedReferences.v
+	$(COQC) Access.v
+	$(COQC) NotAccess.v
+	$(COQC) UnsafeAccess.v
+	$(COQC) SafeSpawns.v
+	$(COQC) SMS.v
+	$(COQC) Definitions.v
 
 soundness:
 	$(COQC) Soundness.v
 
+preservation:
+	$(COQC) VadPreservation.v
+	$(COQC) WttPreservation.v
+	$(COQC) CtrPreservation.v
+	$(COQC) NaccPreservation.v
+	$(COQC) NuaccPreservation.v
+
 access:
-	$(COQC) AccessCore.v
-	$(COQC) NotAccess.v
 	$(COQC) AccessExtra.v
-	$(COQC) UnsafeAccess.v
-	$(COQC) Access.v
 
 safety:
-	$(COQC) SafeSpawns.v
-	$(COQC) SMS.v
 	$(COQC) Multistep.v
 	$(COQC) Safety.v
 
