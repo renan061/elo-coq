@@ -1,6 +1,7 @@
 From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Core.
+From Elo Require Import CoreExt.
 From Elo Require Import AnyTerm.
 
 (* ------------------------------------------------------------------------- *)
@@ -53,7 +54,7 @@ Ltac inv_hasad :=
 Local Ltac solve_vad_inversion := 
   intros; try split; eauto using anyt, is_address with vad.
 
-Local Lemma inv_vad_ref : forall m ad T,
+Local Lemma inv_vad_ad : forall m ad T,
   valid_addresses m <{&ad :: T}> ->
   ad < #m.
 Proof. solve_vad_inversion. Qed.
@@ -97,7 +98,7 @@ Ltac inv_vad :=
  match goal with
  (* irrelevant for unit *)
  (* irrelevant for num  *)
- | H : valid_addresses _ <{& _ :: _}> |- _ => eapply inv_vad_ref   in H as ?
+ | H : valid_addresses _ <{& _ :: _}> |- _ => eapply inv_vad_ad    in H as ?
  | H : valid_addresses _ <{new _ _ }> |- _ => eapply inv_vad_new   in H
  | H : valid_addresses _ <{* _     }> |- _ => eapply inv_vad_load  in H
  | H : valid_addresses _ <{_ = _   }> |- _ => eapply inv_vad_asg   in H as [? ?]
@@ -175,4 +176,16 @@ Proof. solve_vad_construction. Qed.
   vad_ad vad_new vad_load vad_asg
   vad_var vad_fun vad_call vad_seq vad_spawn
   : vad.
+
+(* ------------------------------------------------------------------------- *)
+(* independent properties                                                    *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma vad_tstep_write_address_length : forall m t t' ad v T,
+  valid_addresses m t ->
+  t --[EF_Write ad v T]--> t' ->
+  ad < #m.
+Proof. 
+  intros. induction_tstep; inv_vad; eauto. inv_vad. assumption.
+Qed.
 

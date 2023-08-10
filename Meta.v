@@ -161,11 +161,12 @@ Lemma cstep_preservation (P : mem -> tm -> Prop) : forall m m' ths ths' tid e,
       m / ths[tid] ==[e]==> m' / t' ->
       P m' ths[tid']) ->
     (* What we want to prove: *)
-    forall_program m ths (P m) ->
+    forall_memory m (P m) ->
+    forall_threads ths (P m) ->
     m / ths ~~[tid, e]~~> m' / ths' ->
     forall_threads ths' (P m').
 Proof.
-  intros * ? ? ? ? ? [? ?] ?. inv_cstep; intros tid'.
+  intros. inv_cstep; intros tid'.
   - destruct (nat_eq_dec tid' (#ths)); subst.
     + rewrite <- (set_preserves_length _ tid t'). simpl_array. eauto.
     + destruct (lt_eq_lt_dec tid' (length ths)) as [[Ha | ?] | Hb]; subst;

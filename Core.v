@@ -124,9 +124,9 @@ Definition addr := nat.
 
 Inductive effect : Set :=
   | EF_None
-  | EF_Alloc (ad : addr) (v : tm) (V : typ)
+  | EF_Alloc (ad : addr) (v : tm) (T : typ)
   | EF_Read  (ad : addr) (v : tm)
-  | EF_Write (ad : addr) (v : tm) (V : typ)
+  | EF_Write (ad : addr) (v : tm) (T : typ)
   | EF_Spawn (t : tm)
   .
 

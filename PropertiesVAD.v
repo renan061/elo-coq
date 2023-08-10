@@ -169,7 +169,8 @@ Module Preservation.
   Qed.
 
   Corollary vad_cstep_preservation : forall m m' ths ths' tid e,
-    forall_program m ths (valid_addresses m) ->
+    forall_memory m (valid_addresses m) ->
+    forall_threads ths (valid_addresses m) ->
     m / ths ~~[tid, e]~~> m' / ths' ->
     forall_threads ths' (valid_addresses m').
   Proof.
@@ -213,8 +214,7 @@ Module Preservation.
         by (intros; induction_tstep; inv_vad; eauto).
     (* main proof *)
     intros ** ad'.
-    assert (ad < #m)
-      by (intros; induction_tstep; inv_vad; eauto; inv_vad; assumption).
+    assert (ad < #m) by eauto using vad_tstep_write_address_length.
     destruct (nat_eq_dec ad ad'); subst; simpl_array;
     eauto using vad_mem_set_preservation.
   Qed.
@@ -235,11 +235,12 @@ Module Preservation.
   (* cstep mem ------------------------------------------------------------- *)
 
   Corollary vad_cstep_mem_preservation : forall m m' ths ths' tid e,
-    forall_program m ths (valid_addresses m) ->
+    forall_memory m (valid_addresses m) ->
+    forall_threads ths (valid_addresses m) ->
     m / ths ~~[tid, e]~~> m' / ths' ->
     forall_memory m' (valid_addresses m').
   Proof.
-    intros * [? ?] ?. inv_cstep; eauto using vad_mstep_mem_preservation.
+    intros. inv_cstep; eauto using vad_mstep_mem_preservation.
   Qed.
 
   (* valid-addresses preservation ------------------------------------------ *)
@@ -249,6 +250,7 @@ Module Preservation.
     m / ths ~~[tid, e]~~> m' / ths' ->
     forall_program m' ths' (valid_addresses m').
   Proof.
+    intros * [? ?] **.
     eauto using vad_cstep_preservation, vad_cstep_mem_preservation.
   Qed.
 
