@@ -20,7 +20,6 @@ definitions:
 	$(COQC) WellTypedTerm.v
 	$(COQC) CTR.v
 	$(COQC) Access.v
-	$(COQC) NotAccess.v
 	$(COQC) UnsafeAccess.v
 	$(COQC) SafeSpawns.v
 	$(COQC) SMS.v
@@ -32,10 +31,10 @@ soundness:
 properties:
 	$(COQC) PropertiesVAD.v
 	$(COQC) PropertiesCTR.v
+	$(COQC) PropertiesACC.v
 
 todo:
 	$(COQC) WttPreservation.v
-	$(COQC) NaccPreservation.v
 	$(COQC) NuaccPreservation.v
 
 access:

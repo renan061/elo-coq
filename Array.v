@@ -133,6 +133,13 @@ Proof.
   intros * H. rewrite set_invalid; trivial. eauto using get_default.
 Qed.
 
+Corollary get_set_invalid_gt : forall {A} default (l : list A) i a,
+  #l < i ->
+  l[i <- a][i] or default = default.
+Proof.
+  intros. assert (#l <= i) by lia. eauto using get_set_invalid.
+Qed.
+
 Corollary get_set_invalid_eq : forall {A} default (l : list A) a,
   l[#l <- a][#l] or default = default.
 Proof.

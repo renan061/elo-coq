@@ -9,133 +9,25 @@ From Elo Require Import Meta.
 From Elo Require Import Definitions.
 
 (* ------------------------------------------------------------------------- *)
-(* misc. properties                                                          *)
+(* consistently-typed-effects                                                *)
 (* ------------------------------------------------------------------------- *)
 
-Inductive consistently_typed_effect (m : mem) : effect -> Prop :=
-  | cte_none :
-    consistently_typed_effect m EF_None
-
-  | cte_alloc : forall ad v T,
-    consistently_typed_effect m (EF_Alloc ad v T)
-
-  | cte_read : forall ad v,
-    consistently_typed_effect m (EF_Read ad v)
-
-  | cte_write : forall ad v T,
-    ad < #m ->
-    empty |-- v is T ->
-    empty |-- m[ad].tm is T ->
-    m[ad].typ = <{{&T}}> ->
-    consistently_typed_effect m (EF_Write ad v <{{&T}}>)
-
-  | cte_spawn : forall t,
-    consistently_typed_effect m (EF_Spawn t)
-  .
-
-Lemma cte_tstep_write_T : forall m t t' ad v T Tv,
-  well_typed_term t ->
-  consistently_typed_references m t ->
-  (* --- *)
-  empty |-- v is Tv ->
-  t --[EF_Write ad v T]--> t' ->
-  T = <{{&Tv}}>.
-Proof.
-  intros * [T' ?] **. generalize dependent T'.
-  induction_tstep; intros; inv_type; inv_ctr; eauto.
-  inv_type. inv_ctr. apply_deterministic_typing. eauto.
-Qed.
-
-Lemma cte_tstep_preservation : forall m t t' e,
-  valid_addresses m t ->
-  well_typed_term t ->
-  consistently_typed_references m t ->
-  (* --- *)
-  t --[e]--> t' ->
-  exists m', consistently_typed_effect m' e.
-Proof.
-  intros. destruct e;
-  try solve [exists m; eauto using consistently_typed_effect].
-  assert (ad < #m) by eauto using vad_tstep_write_address_length.
-  assert (well_typed_term v) as [Tv ?] by eauto using wtt_tstep_write_value.
-  assert (T = <{{&Tv}}>) by eauto using cte_tstep_write_T. subst.
-  exists (m[ad <- (v, <{{&Tv}}>)]).
-  eapply cte_write; eauto; try solve [simpl_array; trivial].
-  rewrite set_preserves_length. assumption.
-Qed.
-
-Lemma cte_tstep_write : forall m t t' ad v T,
+Lemma consistently_typed_write_effect : forall m t t' ad v T,
   valid_addresses m t ->
   well_typed_term t ->
   consistently_typed_references m t ->
   (* --- *)
   t --[EF_Write ad v T]--> t' ->
-  consistently_typed_effect m[ad <- (v, T)] (EF_Write ad v T).
+  exists Tv, T = <{{&Tv}}>
+          /\ empty |-- v is Tv
+          /\ empty |-- m[ad].tm is Tv
+          /\ m[ad].typ = <{{&Tv}}>.
 Proof.
-  intros.
-  assert (ad < #m) by eauto using vad_tstep_write_address_length.
-  assert (well_typed_term v) as [Tv ?] by eauto using wtt_tstep_write_value.
-  assert (T = <{{&Tv}}>) by eauto using cte_tstep_write_T. subst.
-  eapply cte_write; eauto; try solve [simpl_array; trivial].
-  rewrite set_preserves_length. assumption.
+  intros * ? Hwtt **. inversion Hwtt as [T' ?].
+  clear Hwtt. generalize dependent T'.
+  induction_tstep; intros; inv_vad; inv_type; inv_ctr; eauto.
+  inv_type. inv_ctr. eauto.
 Qed.
-
-(* ------------------------------------------------------------------------- *)
-(* TODO                                                                      *)
-(* ------------------------------------------------------------------------- *)
-
-(*
-Lemma ctr_tstep_write_consistent_memval : forall m t t' ad v T Tv,
-  well_typed_term t ->
-  consistently_typed_references m t ->
-  (* --- *)
-  empty |-- v is Tv ->
-  t --[EF_Write ad v T]--> t' ->
-  empty |-- m[ad].tm is Tv.
-Proof.
-  intros * [T' ?] **. generalize dependent T'.
-  induction_tstep; intros; inv_type; inv_ctr; eauto.
-  inv_type. inv_ctr. apply_deterministic_typing. assumption.
-Qed.
-
-Lemma ctr_tstep_write_consistent_memtyp_v : forall m t t' ad v T Tv,
-  well_typed_term t ->
-  consistently_typed_references m t ->
-  (* --- *)
-  empty |-- v is Tv ->
-  t --[EF_Write ad v T]--> t' ->
-  m[ad].typ = <{{&Tv}}>.
-Proof.
-  intros * [T' ?] **. generalize dependent T'.
-  induction_tstep; intros; inv_type; inv_ctr; eauto.
-  inv_type. inv_ctr. apply_deterministic_typing. assumption.
-Qed.
-
-Lemma ctr_tstep_write_consistent_memtyp_T : forall m t t' ad v T,
-  well_typed_term t ->
-  consistently_typed_references m t ->
-  (* --- *)
-  t --[EF_Write ad v T]--> t' ->
-  m[ad].typ = T.
-Proof.
-  intros * [T' ?] **. generalize dependent T'.
-  induction_tstep; intros; inv_type; inv_ctr; eauto.
-  inv_type. inv_ctr. assumption.
-Qed.
-
-Corollary ctr_tstep_write_consistently_typed_effect : forall m t t' ad v T Tv,
-  well_typed_term t ->
-  consistently_typed_references m t ->
-  (* --- *)
-  empty |-- v is Tv ->
-  t --[EF_Write ad v T]--> t' ->
-  T = <{{&Tv}}>.
-Proof.
-  intros. symmetry.
-  erewrite <- ctr_tstep_write_consistent_memtyp_T; eauto.
-  erewrite ctr_tstep_write_consistent_memtyp_v; eauto.
-Qed.
-*)
 
 (* ------------------------------------------------------------------------- *)
 (* preservation                                                              *)
@@ -158,6 +50,7 @@ Module Preservation.
 
   Lemma ctr_mem_add_preservation : forall m t vT,
     valid_addresses m t ->
+    (* --- *)
     consistently_typed_references m t ->
     consistently_typed_references (m +++ vT) t.
   Proof.
@@ -166,27 +59,11 @@ Module Preservation.
     (eapply ctr_adM || eapply ctr_adI); simpl_array; assumption.
   Qed.
 
-  Lemma ctr_mem_set_preservation : forall m t ad v T,
-    ad < #m ->
-    empty |-- v is T ->
-    empty |-- m[ad].tm is T ->
-    (* --- *)
-    consistently_typed_references m t ->
-    consistently_typed_references m[ad <- (v, m[ad].typ)] t.
-  Proof.
-    intros. induction t; eauto using consistently_typed_references;
-    inv_ctr; eauto using consistently_typed_references;
-    match goal with _ : _[?ad].typ = _ |- _ => rename ad into ad' end;
-    (eapply ctr_adM || eapply ctr_adI);
-    decompose sum (lt_eq_lt_dec ad' ad); subst; simpl_array;
-    trivial; apply_deterministic_typing; trivial.
-  Qed.
-
-  Lemma ctr_mem_set_preservation2 : forall m t ad v T Tv,
+  Lemma ctr_mem_set_preservation : forall m t ad v T Tv,
     ad < #m ->
     empty |-- v is Tv ->
-    empty |-- m[ad].tm is Tv ->
-    T = m[ad].typ ->
+    m[ad].typ = T ->
+    m[ad].typ = <{{&Tv}}> ->
     (* --- *)
     consistently_typed_references m t ->
     consistently_typed_references m[ad <- (v, T)] t.
@@ -194,8 +71,11 @@ Module Preservation.
     intros. induction t; eauto using consistently_typed_references;
     inv_ctr; eauto using consistently_typed_references;
     (eapply ctr_adM || eapply ctr_adI);
-    destruct (nat_eq_dec ad n); subst; simpl_array; trivial;
-    apply_deterministic_typing; trivial.
+    match goal with H1 : _[?ad1].typ = _, H2 : _[?ad2].typ = _ |- _ =>
+      destruct (nat_eq_dec ad1 ad2); subst;
+      try (rewrite H1 in H2; inv H2)
+    end;
+    simpl_array; trivial.
   Qed.
 
   (* tstep ----------------------------------------------------------------- *)
@@ -242,33 +122,15 @@ Module Preservation.
     t --[EF_Write ad v T]--> t' ->
     consistently_typed_references m[ad <- (v, T)] t'.
   Proof.
-    intros * ? Hwtt **. inversion Hwtt as [T' ?]. generalize dependent T'.
+    intros.
+    assert (ad < #m) by eauto using vad_tstep_write_address_length.
+    assert (exists Tv, T = <{{&Tv}}>
+                    /\ empty |-- v is Tv
+                    /\ empty |-- m[ad].tm is Tv
+                    /\ m[ad].typ = <{{&Tv}}>)
+      as [? [? [? [? ?]]]] by eauto using consistently_typed_write_effect.
     induction_tstep; intros; inv_vad; inv_wtt; inv_ctr;
-    eauto using consistently_typed_references.
-    - eapply 
-
-      assert (exists m', consistently_typed_effect m' (EF_Write ad v T))
-        as [? ?] by eauto using cte_tstep_preservation.
-
-
-
-
-
-    (*
-    assert (
-      T = m[ad].typ /\ exists Tv, empty |-- v is Tv /\ empty |-- m[ad].tm is Tv)
-      as [? [? [? ?]]] by admit.
-    *)
-    generalize dependent T'.
-    induction_tstep; intros; inv_vad; inv_type; inv_ctr;
-    eauto using ctr_mem_set_preservation,
-      vad_tstep_write_address_length,
-      consistently_typed_references.
-    - eapply ctr_asg.
-      + eapply IHtstep; eauto.
-      + eapply ctr_mem_set_preservation2; eauto;
-        eauto using vad_tstep_write_address_length.
-        eauto uding
+    eauto using ctr_mem_set_preservation, consistently_typed_references.
   Qed.
 
   Lemma ctr_tstep_spawn_preservation : forall m t t' block,
@@ -324,16 +186,13 @@ Module Preservation.
     m / ths[tid] ==[e]==> m' / t' ->
     consistently_typed_references m' ths[tid'].
   Proof.
-    intros * ? Htype **. destruct (Htype tid).
-    inv_mstep; eauto using ctr_mem_add_preservation.
-    match goal with
-    | _ : _ --[EF_Write _ _ ?T]--> _ |- _ =>
-      assert (
-        T = m[ad].typ /\
-        exists V, empty |-- v is V /\ empty |-- m[ad].tm is V)
-        as [Heq [? [? ?]]] by eauto using step_write_wtt
-    end.
-    rewrite Heq in *. eauto using ctr_mem_set_preservation.
+    intros. inv_mstep; eauto using ctr_mem_add_preservation.
+    assert (exists Tv, T = <{{&Tv}}>
+                    /\ empty |-- v is Tv
+                    /\ empty |-- m[ad].tm is Tv
+                    /\ m[ad].typ = <{{&Tv}}>)
+      as [? [? [? [? ?]]]] by eauto using consistently_typed_write_effect.
+    subst. eauto using ctr_mem_set_preservation.
   Qed.
 
   Corollary ctr_cstep_preservation : forall m m' ths ths' tid e,
@@ -345,8 +204,7 @@ Module Preservation.
     m / ths ~~[tid, e]~~> m' / ths' ->
     forall_threads ths' (consistently_typed_references m').
   Proof.
-    intros * ? Htype **. destruct (Htype tid).
-    eapply cstep_preservation;
+    intros. eapply cstep_preservation;
     eauto using ctr_tstep_spawn_preservation,
                 ctr_mstep_preservation,
                 ctr_thread_default,
@@ -367,7 +225,6 @@ Module Preservation.
     forall_memory (m +++ (v, T)) (consistently_typed_references (m +++ (v, T))).
   Proof.
     intros ** ad.
-    assert (well_typed_term v) as [? ?] by eauto using wtt_tstep_alloc_value.
     decompose sum (lt_eq_lt_dec ad (#m)); subst; simpl_array;
     eauto using consistently_typed_references; (* optimization *)
     eauto using ctr_mem_add_preservation, ctr_tstep_alloc_value.
@@ -383,16 +240,14 @@ Module Preservation.
    forall_memory m[ad <- (v, T)] (consistently_typed_references m[ad <- (v, T)])
    .
   Proof.
-    intros * ? [? ?] **. intros ad'.
+    intros ** ad'.
     assert (ad < #m) by eauto using vad_tstep_write_address_length.
-    match goal with
-    | _ : _ --[EF_Write _ _ ?T]--> _ |- _ =>
-      assert (
-        T = m[ad].typ /\
-        exists V, empty |-- v is V /\ empty |-- m[ad].tm is V)
-        as [? [? [? ?]]] by eauto using step_write_wtt
-    end.
-    decompose sum (lt_eq_lt_dec ad' ad); subst; simpl_array;
+    assert (exists Tv, T = <{{&Tv}}>
+                    /\ empty |-- v is Tv
+                    /\ empty |-- m[ad].tm is Tv
+                    /\ m[ad].typ = <{{&Tv}}>)
+      as [? [? [? [? ?]]]] by eauto using consistently_typed_write_effect.
+    subst. destruct (nat_eq_dec ad ad'); subst; simpl_array;
     eauto using ctr_mem_set_preservation, ctr_tstep_write_value.
   Qed.
 

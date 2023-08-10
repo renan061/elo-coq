@@ -162,7 +162,135 @@ Ltac inv_vac :=
   end.
 
 (* ------------------------------------------------------------------------- *)
-(* important access property                                                 *)
+(* not-access constructors                                                   *)
+(* ------------------------------------------------------------------------- *)
+
+Local Ltac solve_nacc_construction :=
+  intros ** ?; invc_acc; contradiction.
+
+Lemma nacc_unit : forall m ad,
+  ~ access ad m <{unit}>.
+Proof.
+  intros ** ?. inv_acc.
+Qed.
+
+Lemma nacc_num : forall m ad n,
+  ~ access ad m <{N n}>.
+Proof. solve_nacc_construction. Qed.
+
+Lemma nacc_ad : forall m ad ad' T,
+  ad <> ad' ->
+  ~ access ad m m[ad'].tm ->
+  ~ access ad m <{&ad' :: T}>.
+Proof. solve_nacc_construction. Qed.
+
+Lemma nacc_new : forall m t ad T,
+  ~ access ad m t ->
+  ~ access ad m <{new T t}>.
+Proof. solve_nacc_construction. Qed.
+
+Lemma nacc_load : forall m t ad,
+  ~ access ad m t ->
+  ~ access ad m <{*t}>.
+Proof. solve_nacc_construction. Qed.
+
+Lemma nacc_asg : forall m t1 t2 ad,
+  ~ access ad m t1 ->
+  ~ access ad m t2 ->
+  ~ access ad m <{t1 = t2}>.
+Proof. solve_nacc_construction. Qed.
+
+Lemma nacc_fun : forall m x Tx t ad,
+  ~ access ad m t ->
+  ~ access ad m <{fn x Tx t}>.
+Proof. solve_nacc_construction. Qed.
+
+Lemma nacc_call : forall m t1 t2 ad,
+  ~ access ad m t1 ->
+  ~ access ad m t2 ->
+  ~ access ad m <{call t1 t2}>.
+Proof. solve_nacc_construction. Qed.
+
+Lemma nacc_seq : forall m t1 t2 ad,
+  ~ access ad m t1 ->
+  ~ access ad m t2 ->
+  ~ access ad m <{t1; t2}>.
+Proof. solve_nacc_construction. Qed.
+
+Lemma nacc_spawn : forall m t ad,
+  ~ access ad m <{spawn t}>.
+Proof. solve_nacc_construction. Qed.
+
+#[export] Hint Resolve
+  nacc_unit nacc_num
+  nacc_ad nacc_new nacc_load nacc_asg
+  nacc_fun nacc_call
+  nacc_seq
+  nacc_spawn
+  : acc.
+
+(* ------------------------------------------------------------------------- *)
+(* not-access inversion                                                      *)
+(* ------------------------------------------------------------------------- *)
+
+Local Ltac solve_nacc_inversion := 
+  intros; try split; eauto using access.
+
+Local Lemma inv_nacc_ad : forall m ad ad' T,
+  ~ access ad m <{&ad' :: T}> ->
+  ad <> ad' /\ ~ access ad m (m[ad'].tm).
+Proof.
+  intros. assert (ad <> ad') by (intros ?; subst; eauto using access).
+  split; eauto using access.
+Qed.
+
+Local Lemma inv_nacc_new : forall m t ad T,
+  ~ access ad m <{new T t}> ->
+  ~ access ad m t.
+Proof. solve_nacc_inversion. Qed.
+
+Local Lemma inv_nacc_load : forall m t ad,
+  ~ access ad m <{*t}> ->
+  ~ access ad m t.
+Proof. solve_nacc_inversion. Qed.
+
+Local Lemma inv_nacc_asg : forall m t1 t2 ad,
+  ~ access ad m <{t1 = t2}> ->
+  ~ access ad m t1 /\ ~ access ad m t2.
+Proof. solve_nacc_inversion. Qed.
+
+Local Lemma inv_nacc_fun : forall m x Tx t ad,
+  ~ access ad m <{fn x Tx t}> ->
+  ~ access ad m t.
+Proof. solve_nacc_inversion. Qed.
+
+Local Lemma inv_nacc_call : forall m t1 t2 ad,
+  ~ access ad m <{call t1 t2}> ->
+  ~ access ad m t1 /\ ~ access ad m t2.
+Proof. solve_nacc_inversion. Qed.
+
+Local Lemma inv_nacc_seq : forall m t1 t2 ad,
+  ~ access ad m <{t1; t2}> ->
+  ~ access ad m t1 /\ ~ access ad m t2.
+Proof. solve_nacc_inversion. Qed.
+
+Ltac inv_nacc :=
+  match goal with
+  (* irrelevant for unit  *)
+  (* irrelevant for num   *)
+  | H : ~ access _ _ <{& _ :: _}> |- _ => eapply inv_nacc_ad   in H as [? ?]
+  | H : ~ access _ _ <{new _ _ }> |- _ => eapply inv_nacc_new  in H
+  | H : ~ access _ _ <{* _     }> |- _ => eapply inv_nacc_load in H
+  | H : ~ access _ _ <{_ = _   }> |- _ => eapply inv_nacc_asg  in H as [? ?]
+  (* irrelevant for var   *)                    
+  | H : ~ access _ _ <{fn _ _ _}> |- _ => eapply inv_nacc_fun  in H
+  | H : ~ access _ _ <{call _ _}> |- _ => eapply inv_nacc_call in H as [? ?]
+  | H : ~ access _ _ <{_ ; _   }> |- _ => eapply inv_nacc_seq  in H as [? ?]
+  (* irrelevant for spawn *)                    
+  end.
+
+(* ------------------------------------------------------------------------- *)
+(* independent properties                                                    *)
 (* ------------------------------------------------------------------------- *)
 
 Theorem strong_acc_mem : forall m t ad ad',
