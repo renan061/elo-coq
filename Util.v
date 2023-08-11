@@ -18,7 +18,9 @@ Ltac auto_specialize :=
 
 #[export] Hint Extern 4 =>
   match goal with
-  | _ : ?n < ?n |- _ => lia
+  | _ : ?n < ?n  |- _ => lia
+  | _ : ?n > ?n  |- _ => lia
+  | F : ?x <> ?x |- _ => contradict F; eauto
   end : core.
 
 Axiom excluded_middle : ClassicalFacts.excluded_middle.

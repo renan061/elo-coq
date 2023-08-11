@@ -1,5 +1,10 @@
 From Elo Require Import Util.
+From Elo Require Import Array.
+From Elo Require Import Map.
 From Elo Require Import Core.
+From Elo Require Import CoreExt.
+
+From Elo Require Import Access.
 
 (* ------------------------------------------------------------------------- *)
 (* unsafe-access                                                             *)
@@ -147,4 +152,50 @@ Ltac inv_nuacc :=
   | H : ~ unsafe_access _ _   <{_ ; _        }> |- _ =>
     eapply inv_nuacc_seq    in H as [? ?]
   end.
+
+(* ------------------------------------------------------------------------- *)
+(* independent properties                                                    *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma uacc_dec : forall m t ad,
+  Decidable.decidable (unsafe_access ad m t).
+Proof. eauto using classic_decidable. Qed.
+
+Theorem uacc_soundness : forall m m' t t' ad e T,
+  ad < #m ->
+  empty |-- t is T ->
+  ~ unsafe_access ad m t ->
+  m / t ==[e]==> m' / t' ->
+  m[ad].tm = m'[ad].tm.
+Proof.
+  intros. rename ad into ad'. invc_mstep; trivial.
+  - decompose sum (lt_eq_lt_dec ad' (#m)); subst; simpl_array; eauto.
+  - decompose sum (lt_eq_lt_dec ad' ad); subst; simpl_array; trivial.
+    generalize dependent T. induction_tstep; intros; inv_type; inv_nuacc; eauto.
+    inv_type. exfalso. eauto using unsafe_access.
+Qed.
+
+Theorem nuacc_from_immutable_type : forall m ad v T,
+  value v ->
+  empty |-- v is <{{Immut T}}> ->
+  unsafe_access ad m v ->
+  False.
+Proof.
+  intros * Hval **.
+  destruct Hval; inv_type; inv_uacc; eauto using unsafe_access.
+Qed.
+
+Lemma uacc_then_acc : forall m t ad,
+  unsafe_access ad m t ->
+  access ad m t.
+Proof.
+  intros * Huacc. induction Huacc; eauto using access.
+Qed.
+
+Lemma nacc_then_nuacc : forall m t ad,
+  ~ access ad m t ->
+  ~ unsafe_access ad m t.
+Proof.
+  intros * ? Huacc. induction Huacc; eauto using access.
+Qed.
 

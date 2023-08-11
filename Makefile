@@ -32,10 +32,12 @@ properties:
 	$(COQC) PropertiesVAD.v
 	$(COQC) PropertiesCTR.v
 	$(COQC) PropertiesACC.v
+	$(COQC) PropertiesUACC.v
+	$(COQC) PropertiesSS.v
+	$(COQC) PropertiesSMS.v
 
 todo:
 	$(COQC) WttPreservation.v
-	$(COQC) NuaccPreservation.v
 
 access:
 	$(COQC) AccessExtra.v

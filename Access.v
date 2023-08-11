@@ -1,6 +1,7 @@
 From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Core.
+From Elo Require Import CoreExt.
 
 (* ------------------------------------------------------------------------- *)
 (* access                                                                    *)
@@ -293,7 +294,11 @@ Ltac inv_nacc :=
 (* independent properties                                                    *)
 (* ------------------------------------------------------------------------- *)
 
-Theorem strong_acc_mem : forall m t ad ad',
+Corollary acc_dec : forall ad m t,
+  Decidable.decidable (access ad m t).
+Proof. eauto using classic_decidable. Qed.
+
+Theorem acc_mem_strong : forall m t ad ad',
   access ad' m t ->
   access ad  m (m[ad'].tm) ->
   access ad  m t.
@@ -303,5 +308,13 @@ Proof.
   |- access ?ad _ <{& ?ad' :: _}> => destruct (nat_eq_dec ad ad'); subst
   end;
   eauto using access.
+Qed.
+
+Lemma nacc_tstep_write_value : forall m t t' ad ad' v T,
+  ~ access ad m t ->
+  t --[EF_Write ad' v T]--> t' ->
+  ~ access ad m v.
+Proof.
+  intros. induction_tstep; eauto using access.
 Qed.
 

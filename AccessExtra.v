@@ -56,15 +56,7 @@ Qed.
 
 (* alternative for mem_set ------------------------------------------------- *)
 
-Lemma alt_acc_mem_set_inheritance : forall m t ad ad' vT,
-  ~ access ad' m t ->
-  access ad m[ad' <- vT] t ->
-  access ad m t.
-Proof.
-  intros * Hnacc Hacc. remember (m[ad' <- vT]) as m'.
-  induction Hacc; inv_clear Heqm'; inv_nacc Hnacc; simpl_array;
-  eauto using access.
-Qed.
+(* removed *)
 
 (* tstep ------------------------------------------------------------------- *)
 
