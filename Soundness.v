@@ -8,8 +8,10 @@ From Elo Require Import Array.
 From Elo Require Import Map.
 From Elo Require Import Core.
 From Elo Require Import CoreExt.
-From Elo Require Import ValidAddresses.
-From Elo Require Import References.
+
+From Elo Require Import Definitions.
+From Elo Require Import PropertiesVAD.
+From Elo Require Import PropertiesCTR.
 
 (* ------------------------------------------------------------------------- *)
 (* memtyp preservation                                                       *)
@@ -70,7 +72,7 @@ Module MemExtension.
   Proof.
     intros * Hlen Hext. generalize dependent ad. generalize dependent m.
     induction m'; intros; try solve [inversion Hlen].
-    destruct m; try nil_false. inv_clear Hext.
+    destruct m; try nil_false. invc Hext.
     destruct ad; simpl; eauto using lt_S_n.
   Qed.
 
@@ -90,9 +92,9 @@ Module MemExtension.
     m / t ==[e]==> m' / t' ->
     m' extends m.
   Proof.
-    intros. inversion_clear_mstep; eauto using refl, add.
-    eapply set. induction_step; intros; inversion_ctr; eauto.
-    inversion_ctr; trivial.
+    intros. invc_mstep; eauto using refl, add.
+    eapply set. induction_tstep; intros; inv_ctr; eauto.
+    inv_ctr; trivial.
   Qed.
 
   Corollary cstep_mem_extension : forall m m' ths ths' tid e,
@@ -100,7 +102,7 @@ Module MemExtension.
     m / ths ~~[tid, e]~~> m' / ths' ->
     m' extends m.
   Proof.
-    intros. inversion_cstep; eauto using refl, mstep_mem_extension.
+    intros. inv_cstep; eauto using refl, mstep_mem_extension.
   Qed.
 End MemExtension.
 
@@ -170,7 +172,7 @@ Proof.
     Gamma |-- ([x := tx] t) is T
   ). {
     unfold subst. intros ?. induction t; intros * Htype ?; 
-    try (destruct string_eq_dec); try inversion_type;
+    try (destruct string_eq_dec); try inv_type;
     eauto using type_of, context_weakening, context_weakening_empty,
       MapInclusion.update_overwrite, MapInclusion.update_permutation,
       update_safe_includes_safe_update;
@@ -180,7 +182,7 @@ Proof.
       inversion H; subst; eauto using context_weakening_empty, type_of
     end.
   }
-  intros. inversion_type. eauto.
+  intros. inv_type. eauto.
 Qed.
 
 Local Lemma typeof_tstep_spawn_preservation : forall t t' block T,
@@ -189,7 +191,7 @@ Local Lemma typeof_tstep_spawn_preservation : forall t t' block T,
   empty |-- t' is T.
 Proof.
   intros. remember empty as Gamma. generalize dependent T.
-  induction_step; intros; inversion_type; eauto using type_of.
+  induction_tstep; intros; inv_type; eauto using type_of.
 Qed.
 
 Local Lemma typeof_mstep_preservation : forall m m' t t' e T,
@@ -199,10 +201,10 @@ Local Lemma typeof_mstep_preservation : forall m m' t t' e T,
   empty |-- t' is T.
 Proof.
   intros.
-  inversion_clear_mstep; generalize dependent t'; remember empty as Gamma;
-  induction_type; intros; inversion_step; inversion_ctr;
+  invc_mstep; generalize dependent t'; remember empty as Gamma;
+  induction_type; intros; inv_step; inv_ctr;
   eauto using type_of, typeof_subst_preservation;
-  inversion_type; inversion_ctr; trivial.
+  inv_type; inv_ctr; trivial.
 Qed.
 
 Local Lemma typeof_mstep_mem_preservation : forall m m' t t' e ad T Tm,
@@ -214,12 +216,12 @@ Local Lemma typeof_mstep_mem_preservation : forall m m' t t' e ad T Tm,
   empty |-- m'[ad].tm is Tm.
 Proof.
   intros * ? ? Htype ? ?. rename ad into ad'.
-  inversion_clear_mstep; try simpl_array; trivial.
+  invc_mstep; try simpl_array; trivial.
   decompose sum (lt_eq_lt_dec ad' ad); subst; simpl_array; trivial.
   generalize dependent t'. remember empty as Gamma.
   induction Htype; inv HeqGamma; intros;
-  inversion_ctr; inversion_step; eauto.
-  inversion_type; inversion_ctr; apply_deterministic_typing. eauto.
+  try inv_ctr; inv_step; eauto.
+  inv_type; inv_ctr; apply_deterministic_typing. eauto.
 Qed.
 
 Lemma typeof_spawn_block_preservation : forall t t' block T,
@@ -228,7 +230,7 @@ Lemma typeof_spawn_block_preservation : forall t t' block T,
   exists Tb, empty |-- block is Tb.
 Proof.
   intros. remember empty as Gamma. generalize dependent T.
-  induction_step; intros; inversion_type; eauto.
+  induction_tstep; intros; inv_type; eauto.
 Qed.
 
 Definition thread_types (ths : threads) (TT: list typ) :=
@@ -240,7 +242,7 @@ Theorem type_preservation : forall m m' ths ths' tid e TT,
   m / ths ~~[tid, e]~~> m' / ths' ->
   (thread_types ths' TT \/ exists T, thread_types ths' (TT +++ T)).
 Proof.
-  intros * ? [? ?]. intros. inversion_cstep.
+  intros * ? [? ?]. intros. inv_cstep.
   - right.
     assert (exists T, empty |-- block is T) as [? ?]
         by eauto using typeof_spawn_block_preservation.
@@ -271,7 +273,7 @@ Theorem basic_progress : forall m t,
     \/ (exists block t', t --[EF_Spawn block]--> t')).
 Proof.
   intros * ? ? [T ?]. remember empty as Gamma.
-  induction_type; try inversion_vad; inversion_ctr;
+  induction_type; try inv_vad; try inv_ctr;
   try solve [left; eauto using value];
   right;
   try solve
@@ -279,42 +281,42 @@ Proof.
       eauto using tstep; left;
       try solve [ do 3 eexists; eauto using tstep, mstep
                 | exists e; do 2 eexists;
-                  destruct e; inversion_mstep; eauto using tstep, mstep
+                  destruct e; inv_mstep; eauto using tstep, mstep
                 ]
     ].
   - destruct IHtype_of as [Hval | [[e [? [? ?]]] | [? [? ?]]]];
     eauto using tstep.
-    + left. destruct t; inv Hval; inversion_type. inversion_vad.
+    + left. destruct t; inv Hval; inv_type. inv_vad.
       eauto using tstep, mstep.
     + left. exists e. exists x. eexists.
-      destruct e; inversion_mstep; eauto using tstep, mstep.
+      destruct e; inv_mstep; eauto using tstep, mstep.
   - destruct IHtype_of as [Hval | [[e [? [? ?]]] | [? [? ?]]]];
     eauto using tstep.
-    + left. destruct t; inv Hval; inversion_type. inversion_vad.
+    + left. destruct t; inv Hval; inv_type. inv_vad.
       eauto using tstep, mstep.
     + left. exists e. exists x. eexists.
-      destruct e; inversion_mstep; eauto using tstep, mstep.
+      destruct e; inv_mstep; eauto using tstep, mstep.
   - destruct IHtype_of1 as [Hval1 | [[e1 [? [? ?]]] | [? [? ?]]]];
     eauto using tstep.
     + destruct IHtype_of2 as [Hval2 | [[e2 [? [? ?]]] | [? [? ?]]]];
       eauto using tstep.
       * destruct Hval1; inv H1_.
-        left. do 3 eexists. inversion_vad; eauto using tstep, mstep.
+        left. do 3 eexists. inv_vad; eauto using tstep, mstep.
       * left. exists e2. exists x. eexists. 
-        destruct e2; inversion_mstep; eauto using tstep, mstep.
+        destruct e2; inv_mstep; eauto using tstep, mstep.
     + left. exists e1. exists x. eexists. 
-      destruct e1; inversion_mstep; eauto using tstep, mstep.
-  - inversion H1.
+      destruct e1; inv_mstep; eauto using tstep, mstep.
+  - subst. inv H1.
   - destruct IHtype_of1 as [Hval1 | [[e1 [? [? ?]]] | [? [? ?]]]];
     eauto using tstep.
     + destruct IHtype_of2 as [Hval2 | [[e2 [? [? ?]]] | [? [? ?]]]];
       eauto using tstep.
       * destruct Hval1; inv H1_.
-        left. do 3 eexists. inversion_vad; eauto using tstep, mstep.
+        left. do 3 eexists. inv_vad; eauto using tstep, mstep.
       * left. exists e2. exists x. eexists. 
-        destruct e2; inversion_mstep; eauto using tstep, mstep.
+        destruct e2; inv_mstep; eauto using tstep, mstep.
     + left. exists e1. exists x. eexists. 
-      destruct e1; inversion_mstep; eauto using tstep, mstep.
+      destruct e1; inv_mstep; eauto using tstep, mstep.
   - destruct IHtype_of1 as [Hval1 | [[e1 [? [? ?]]] | [? [? ?]]]];
     eauto using tstep.
     + destruct IHtype_of2 as [Hval2 | [[e2 [? [? ?]]] | [? [? ?]]]];
@@ -323,7 +325,7 @@ Proof.
       * left. do 3 eexists. eauto using tstep, mstep.
       * left. do 3 eexists. eauto using tstep, mstep.
     + left. exists e1. exists x. eexists. 
-      destruct e1; inversion_mstep; eauto using tstep, mstep.
+      destruct e1; inv_mstep; eauto using tstep, mstep.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -368,7 +370,7 @@ Lemma cstep_cons : forall m m' ths ths' t tid e,
   m / ths ~~[tid, e]~~> m' / ths' ->
   m / (t :: ths) ~~[S tid, e]~~> m' / (t :: ths').
 Proof.
-  intros. inversion_cstep;
+  intros. inv_cstep;
   (eapply (CS_Spawn _ t') || eapply (CS_Mem _ _ t'));
   trivial; simpl; lia.
 Qed.

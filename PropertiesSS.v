@@ -1,12 +1,39 @@
+From Elo Require Import Util.
+From Elo Require Import Array.
+From Elo Require Import Map.
+From Elo Require Import Core.
+From Elo Require Import CoreExt.
 
-Local Lemma nomut_subst : forall x t t',
+From Elo Require Import Meta.
+
+From Elo Require Import Definitions.
+
+(* ------------------------------------------------------------------------- *)
+(* safe-spawns preservation                                                  *)
+(* ------------------------------------------------------------------------- *)
+
+(* subst ------------------------------------------------------------------- *)
+
+Lemma nomut_subst : forall x t t',
   no_mut t ->
   no_mut t' ->
   no_mut ([x := t'] t).
 Proof.
-  intros. induction t; intros;
-  inversion_nomut; eauto using no_mut;
-  simpl; destruct String.string_dec; subst; eauto using no_mut. 
+  intros. induction t; eauto; simpl;
+  try destruct string_eq_dec; subst; try assumption;
+  inv_nomut; eauto using no_mut.
+Qed.
+
+Lemma hasvar_subst : forall x t tx,
+  ~ (has_var x t) -> ([x := tx] t) = t.
+Proof.
+  intros * Hnhv **. induction t; simpl; trivial;
+  try (destruct string_eq_dec; subst; trivial);
+  solve
+    [ progress (repeat match goal with H : _ -> _ = _ |- _ => rewrite H end);
+      trivial; intros ?; eauto using has_var
+    | exfalso; eauto using has_var
+    ].
 Qed.
 
 Lemma hasvar_typing : forall Gamma x t T,
@@ -14,176 +41,151 @@ Lemma hasvar_typing : forall Gamma x t T,
   Gamma x = None ->
   ~ (Gamma |-- t is T).
 Proof.
-  assert (forall Gamma x, Gamma x = None -> (safe Gamma) x = None).
-  { unfold safe. intros * H. rewrite H. reflexivity. }
-  intros * ? HGamma F. induction_type; inversion_hv; eauto.
-  - rewrite HGamma in *. discriminate.
-  - rewrite lookup_update_neq in IHF; eauto.
+  intros * ? Heq Htype.
+  induction_type; inv_hasvar; eauto using ctx_eqv_safe_lookup.
+  - rewrite Heq in *. discriminate.
+  - rewrite lookup_update_neq in IHHtype; eauto.
 Qed.
 
-(* ------------------------------------------------------------------------- *)
-(* Equivalence                                                               *)
-(* ------------------------------------------------------------------------- *)
-
-Local Lemma ctx_equivalence_safe : forall Gamma1 Gamma2,
-  Gamma1 === Gamma2 ->
-  safe Gamma1 === safe Gamma2.
-Proof.
-  unfold map_equivalence, safe. intros * Heq k.
-  specialize (Heq k). rewrite Heq. trivial.
-Qed.
-
-Local Lemma ctx_equivalence_typing : forall Gamma1 Gamma2 t T,
-  Gamma1 === Gamma2 ->
-  Gamma1 |-- t is T ->
-  Gamma2 |-- t is T.
-Proof.
-  intros. generalize dependent Gamma2. induction_type; intros;
-  eauto using type_of, equivalence_safe,
-    MapEquivalence.lookup, MapEquivalence.update_equivalence.
-Qed.
-
-(* ------------------------------------------------------------------------- *)
-(* SafeSpawns mstep term preservation                                        *)
-(* ------------------------------------------------------------------------- *)
-
-Local Lemma safe_spawns_subst : forall Gamma x t v T Tx,
+Lemma ss_subst : forall Gamma x t v T Tx,
   value v ->
   empty |-- v is Tx ->
   Gamma[x <== Tx] |-- t is T ->
-  SafeSpawns v ->
-  SafeSpawns t ->
-  SafeSpawns ([x := v] t).
+  (* --- *)
+  safe_spawns v ->
+  safe_spawns t ->
+  safe_spawns ([x := v] t).
 Proof.
-  assert (H1 : forall Gamma x T,
-    (safe Gamma[x <== <{{ &T }}>]) x = None);
-  assert (H2 : forall Gamma x T T',
-    (safe Gamma[x <== <{{ T --> T' }}>]) x = None);
-  try solve [unfold safe; intros; rewrite lookup_update_eq; reflexivity].
-  (* main proof *)
-  intros * Hvalue HtypeV HtypeT Hssv Hsst.
+  intros * Hval ? ? ? Hss.
   generalize dependent Gamma. generalize dependent T. generalize dependent Tx.
-  induction Hsst; intros; inversion_type;
-  simpl; try (destruct string_eq_dec);
-  eauto using SafeSpawns, equivalence_typing, MapEquivalence.update_permutation.
-  eapply safe_spawns_spawn. destruct (hasvar_dec x t).
+  induction Hss; intros; invc_type; try (simpl; destruct string_eq_dec);
+  eauto using safe_spawns, ctx_eqv_typing, MapEquivalence.update_permutation.
+  eapply ss_spawn. destruct (hasvar_dec x t).
   - eapply nomut_subst; trivial.
-    inversion Hvalue; subst; eauto using NoMut.
-    + inversion HtypeV; subst; eauto using NoMut.
-      exfalso. eapply hasvar_typing; eauto using H1.
-    + inversion_clear Hvalue. inversion HtypeV; subst.
-      exfalso. eapply hasvar_typing; eauto using H2. 
+    inv Hval; inv_type; eauto using no_mut;
+    exfalso; eapply hasvar_typing; eauto;
+    unfold safe; rewrite lookup_update_eq; reflexivity.
   - erewrite hasvar_subst; eauto.
 Qed.
 
-Local Lemma mstep_tm_safe_spawns_preservation : forall m m' t t' eff T,
-  empty |-- t is T ->
-  forall_memory m SafeSpawns ->
-  SafeSpawns t ->
-  m / t ==[eff]==> m' / t' ->
-  SafeSpawns t'.
-Proof.
-  intros. generalize dependent T.
-  inversion_clear_mstep; induction_step; intros;
-  try solve [inversion_type; inversion_ss; eauto using SafeSpawns].
-  do 2 (inversion_ss; inversion_type).
-  eauto using safe_spawns_subst.
-Qed.
+(* tstep ------------------------------------------------------------------- *)
 
-(* ------------------------------------------------------------------------- *)
-(* SafeSpawns mstep memory preservation                                      *)
-(* ------------------------------------------------------------------------- *)
-
-Local Lemma mem_safe_spawns_alloc : forall m t t' v V,
-  forall_memory m SafeSpawns ->
-  SafeSpawns t ->
-  t --[EF_Alloc (length m) v V]--> t' ->
-  forall_memory (m +++ (v, V)) SafeSpawns.
-Proof.
-  intros. assert (SafeSpawns v) by (induction_step; inversion_ss; eauto).
-  unfold forall_memory. eauto using forall_array_add, SafeSpawns.
-Qed.
-
-Local Lemma mem_safe_spawns_store : forall m t t' ad v V,
-  forall_memory m SafeSpawns ->
-  SafeSpawns t ->
-  t --[EF_Write ad v V]--> t' ->
-  forall_memory m[ad <- (v, V)] SafeSpawns.
-Proof.
-  intros. assert (SafeSpawns v) by (induction_step; inversion_ss; eauto).
-  unfold forall_memory. eauto using forall_array_set, SafeSpawns.
-Qed.
-
-Local Lemma mstep_mem_safe_spawns_preservation : forall m m' t t' eff,
-  forall_memory m SafeSpawns ->
-  SafeSpawns t ->
-  m / t ==[eff]==> m' / t' ->
-  forall_memory m' SafeSpawns.
-Proof.
-  intros. inversion_mstep;
-  eauto using mem_safe_spawns_alloc, mem_safe_spawns_store.
-Qed.
-
-(* ------------------------------------------------------------------------- *)
-(* SafeSpawns cstep preservation                                             *)
-(* ------------------------------------------------------------------------- *)
-
-Local Lemma nomut_then_safe_spawns : forall t,
-  NoMut t ->
-  SafeSpawns t.
-Proof.
-  intros * H. induction t; induction H; eauto using SafeSpawns.
-Qed.
-
-Local Lemma safe_spawns_for_block : forall t t' block,
-  SafeSpawns t ->
+Lemma ss_tstep_spawn_preservation : forall t t' block,
+  safe_spawns t ->
   t --[EF_Spawn block]--> t' ->
-  SafeSpawns block.
+  safe_spawns t'.
 Proof.
-  intros. induction_step; inversion_ss;
-  eauto using SafeSpawns, nomut_then_safe_spawns.
+  intros. induction_tstep; inv_ss; eauto using safe_spawns.
 Qed.
 
-Local Lemma step_safe_spawns_preservation : forall t t' block,
-  SafeSpawns t ->
+(* mstep ------------------------------------------------------------------- *)
+
+Lemma ss_mstep_preservation : forall m m' t t' e,
+  forall_memory m safe_spawns ->
+  well_typed_term t ->
+  (* --- *)
+  safe_spawns t ->
+  m / t ==[e]==> m' / t' ->
+  safe_spawns t'.
+Proof.
+  intros * ? [T ?] **. generalize dependent T.
+  invc_mstep; induction_tstep; intros;
+  inv_type; inv_ss; eauto using safe_spawns;
+  inv_type; inv_ss; eauto using ss_subst.
+Qed.
+
+(* cstep ------------------------------------------------------------------- *)
+
+Lemma ss_thread_default :
+  safe_spawns thread_default.
+Proof.
+  eauto using safe_spawns.
+Qed.
+
+Lemma ss_spawn_block : forall t t' block,
+  safe_spawns t ->
   t --[EF_Spawn block]--> t' ->
-  SafeSpawns t'.
+  safe_spawns block.
 Proof.
-  intros. induction_step; inversion_ss;
-  eauto using SafeSpawns, nomut_then_safe_spawns.
+  intros. induction_tstep; inv_ss; eauto using nomut_then_ss.
 Qed.
 
-Theorem safe_spawns_preservation : forall m m' ths ths' tid eff,
+Corollary ss_cstep_preservation : forall m m' ths ths' tid e,
+  forall_threads ths well_typed_term ->
+  (* --- *)
+  forall_memory m safe_spawns ->
+  forall_threads ths safe_spawns ->
+  m / ths ~~[tid, e]~~> m' / ths' ->
+  forall_threads ths' safe_spawns.
+Proof.
+  eauto using simple_cstep_preservation,
+    ss_tstep_spawn_preservation,
+    ss_mstep_preservation,
+    ss_thread_default,
+    ss_spawn_block.
+Qed.
+
+(* tstep mem --------------------------------------------------------------- *)
+
+Lemma ss_tstep_alloc_mem_preservation : forall m t t' v T,
+  forall_memory m safe_spawns ->
+  safe_spawns t ->
+  t --[EF_Alloc (#m) v T]--> t' ->
+  forall_memory (m +++ (v, T)) safe_spawns.
+Proof.
+  intros. unfold forall_memory.
+  eauto using forall_array_add, ss_tstep_alloc_value, safe_spawns.
+Qed.
+
+Lemma ss_tstep_write_mem_preservation : forall m t t' ad v T,
+  forall_memory m safe_spawns ->
+  safe_spawns t ->
+  t --[EF_Write ad v T]--> t' ->
+  forall_memory m[ad <- (v, T)] safe_spawns.
+Proof.
+  intros. unfold forall_memory.
+  eauto using forall_array_set, ss_tstep_write_value, safe_spawns.
+Qed.
+
+(* mstep mem --------------------------------------------------------------- *)
+
+Corollary ss_mstep_mem_preservation : forall m m' t t' e,
+  forall_memory m safe_spawns ->
+  safe_spawns t ->
+  m / t ==[e]==> m' / t' ->
+  forall_memory m' safe_spawns.
+Proof.
+  intros. inv_mstep;
+  eauto using ss_tstep_alloc_mem_preservation, ss_tstep_write_mem_preservation.
+Qed.
+
+(* safe-spawns preservation ------------------------------------------------ *)
+
+Theorem safe_spawns_preservation : forall m m' ths ths' tid e,
   forall_program m ths well_typed_term ->
   (* --- *)
-  forall_program m ths SafeSpawns ->
-  m / ths ~~[tid, eff]~~> m' / ths' ->
-  forall_program m' ths' SafeSpawns.
+  forall_program m ths safe_spawns ->
+  m / ths ~~[tid, e]~~> m' / ths' ->
+  forall_program m' ths' safe_spawns.
 Proof.
-  intros * [_ Htype] [? ?]. split; inversion_cstep;
-  eauto using mstep_mem_safe_spawns_preservation.
-  - eapply forall_array_add; eauto using SafeSpawns, safe_spawns_for_block.
-    eapply forall_array_set;
-    eauto using SafeSpawns, step_safe_spawns_preservation.
-  - eapply forall_array_set;
-    eauto using SafeSpawns. specialize (Htype tid) as [? ?].
-    eauto using mstep_tm_safe_spawns_preservation. (* performance *)
+  intros * [? ?] [? ?] **. split; inv_cstep;
+  eauto using ss_cstep_preservation, ss_mstep_mem_preservation.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(*                                                                           *)
+(* misc. properties                                                          *)
 (* ------------------------------------------------------------------------- *)
 
-Local Lemma nomut_block : forall t t' block,
-  SafeSpawns t ->
+Lemma nomut_block : forall t t' block,
+  safe_spawns t ->
   t --[EF_Spawn block]--> t' ->
-  NoMut block.
+  no_mut block.
 Proof.
-  intros. induction_step; inversion_ss; eauto.
+  intros. induction_tstep; inv_ss; eauto.
 Qed.
 
-Local Lemma nomut_then_nuacc: forall m t ad,
-  NoMut t ->
+Lemma nomut_then_nuacc: forall m t ad,
+  no_mut t ->
   unsafe_access ad m t ->
   False.
 Proof.
@@ -191,7 +193,7 @@ Proof.
 Qed.
 
 Theorem nuacc_spawn_block : forall m t t' block ad,
-  SafeSpawns t ->
+  safe_spawns t ->
   t --[EF_Spawn block]--> t' ->
   ~ unsafe_access ad m block.
 Proof.

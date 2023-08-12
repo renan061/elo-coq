@@ -179,3 +179,39 @@ Proof.
     simpl_array; eauto.
 Qed.
 
+Lemma simple_cstep_preservation (P : tm -> Prop) :
+  forall m m' ths ths' tid e,
+    (* tstep_spawn_preservation *)
+    (forall t t' block,
+      P t ->
+      t --[EF_Spawn block]--> t' ->
+      P t') ->
+    (* mstep_preservation *)
+    (forall t',
+      forall_memory m P ->
+      P ths[tid] ->
+      m / ths[tid] ==[e]==> m' / t' ->
+      P t') ->
+    (* thread_default *)
+    (P thread_default) ->
+    (* spawn_block *)
+    (forall t t' block,
+      P t ->
+      t --[EF_Spawn block]--> t' ->
+      P block) ->
+   (* What we want to prove: *)
+    forall_memory m P ->
+    forall_threads ths P ->
+    m / ths ~~[tid, e]~~> m' / ths' ->
+    forall_threads ths' P.
+Proof.
+  intros ** tid'. inv_cstep.
+  - destruct (nat_eq_dec tid' (#ths)); subst.
+    + rewrite <- (set_preserves_length _ tid t'). simpl_array. eauto.
+    + destruct (lt_eq_lt_dec tid' (length ths)) as [[Ha | ?] | Hb]; subst;
+      try lia.
+      * rewrite <- (set_preserves_length _ tid t') in Ha. simpl_array.
+        destruct (nat_eq_dec tid tid'); subst; simpl_array; eauto.
+      * rewrite <- (set_preserves_length _ tid t') in Hb. simpl_array. eauto.
+  - destruct (nat_eq_dec tid tid'); subst; simpl_array; eauto.
+Qed.

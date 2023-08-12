@@ -201,3 +201,31 @@ Qed.
 #[export] Hint Extern 4 => unfold forall_memory  : fall.
 #[export] Hint Extern 4 => unfold forall_threads : fall.
 
+(* ------------------------------------------------------------------------- *)
+(* context equivalences                                                      *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma ctx_eqv_safe : forall Gamma1 Gamma2,
+  Gamma1 === Gamma2 ->
+  safe Gamma1 === safe Gamma2.
+Proof.
+  unfold map_equivalence, safe. intros * Heq k.
+  specialize (Heq k). rewrite Heq. trivial.
+Qed.
+
+Lemma ctx_eqv_typing  : forall Gamma1 Gamma2 t T,
+  Gamma1 === Gamma2 ->
+  Gamma1 |-- t is T ->
+  Gamma2 |-- t is T.
+Proof.
+  intros. generalize dependent Gamma2. induction_type; intros;
+  eauto using type_of, ctx_eqv_safe,
+    MapEquivalence.lookup, MapEquivalence.update_equivalence.
+Qed.
+
+Lemma ctx_eqv_safe_lookup : forall Gamma x,
+  Gamma x = None ->
+  (safe Gamma) x = None.
+Proof.
+  unfold safe. intros * H. rewrite H. reflexivity.
+Qed.

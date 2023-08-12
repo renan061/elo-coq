@@ -92,7 +92,7 @@ Lemma ctr_tstep_alloc_value : forall m t t' ad v T,
   t --[EF_Alloc ad v T]--> t' ->
   consistently_typed_references m v.
 Proof.
-  intros. induction_tstep; intros; inv_ctr; eauto.
+  intros. induction_tstep; inv_ctr; eauto.
 Qed.
 
 Lemma ctr_tstep_write_value : forall m t t' ad v T,
@@ -100,6 +100,6 @@ Lemma ctr_tstep_write_value : forall m t t' ad v T,
   t --[EF_Write ad v T]--> t' ->
   consistently_typed_references m v.
 Proof.
-  intros. induction_tstep; intros; inv_ctr; eauto.
+  intros. induction_tstep; inv_ctr; eauto.
 Qed.
 

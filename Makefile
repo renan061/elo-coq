@@ -2,7 +2,7 @@
 
 COQC= coqc -Q . Elo
 
-all: core meta definitions properties 
+all: core meta definitions properties soundness safety
 
 core:
 	$(COQC) Util.v
@@ -24,9 +24,7 @@ definitions:
 	$(COQC) SafeSpawns.v
 	$(COQC) SMS.v
 	$(COQC) Definitions.v
-
-soundness:
-	$(COQC) Soundness.v
+	$(COQC) Sanity.v
 
 properties:
 	$(COQC) PropertiesVAD.v
@@ -36,11 +34,8 @@ properties:
 	$(COQC) PropertiesSS.v
 	$(COQC) PropertiesSMS.v
 
-todo:
-	$(COQC) WttPreservation.v
-
-access:
-	$(COQC) AccessExtra.v
+soundness:
+	$(COQC) Soundness.v
 
 safety:
 	$(COQC) Multistep.v
@@ -48,3 +43,4 @@ safety:
 
 clean:
 	rm -f .lia.cache .*.aux *.vo *.vok *.vos *.glob
+

@@ -1,5 +1,6 @@
 From Elo Require Import Util.
 From Elo Require Import Core.
+From Elo Require Import CoreExt.
 
 (* ------------------------------------------------------------------------- *)
 (* no-mut                                                                    *)
@@ -102,6 +103,56 @@ Inductive safe_spawns : tm -> Prop :=
   .
 
 (* ------------------------------------------------------------------------- *)
+(* has-var                                                                   *)
+(* ------------------------------------------------------------------------- *)
+
+Inductive has_var (x : id) : tm  -> Prop :=
+  | hv_new : forall T t,
+    has_var x t ->
+    has_var x <{new T t}>
+
+  | hv_load : forall t,
+    has_var x t ->
+    has_var x <{*t}>
+
+  | hv_asg1 : forall t1 t2,
+    has_var x t1 ->
+    has_var x <{t1 = t2}>
+
+  | hv_asg2 : forall t1 t2,
+    has_var x t2 ->
+    has_var x <{t1 = t2}>
+
+  | hv_var :
+    has_var x <{var x}>
+
+  | hv_fun : forall x' Tx t,
+    x <> x' ->
+    has_var x t ->
+    has_var x <{fn x' Tx t}>
+
+  | hv_call1 : forall t1 t2,
+    has_var x t1 ->
+    has_var x <{call t1 t2}>
+
+  | hv_call2 : forall t1 t2,
+    has_var x t2 ->
+    has_var x <{call t1 t2}>
+
+  | hv_seq1 : forall t1 t2,
+    has_var x t1 ->
+    has_var x <{t1; t2}>
+
+  | hv_seq2 : forall t1 t2,
+    has_var x t2 ->
+    has_var x <{t1; t2}>
+
+  | hv_spawn : forall t,
+    has_var x t ->
+    has_var x <{spawn t}>
+  .
+
+(* ------------------------------------------------------------------------- *)
 (* no-mut inversion                                                          *)
 (* ------------------------------------------------------------------------- *)
 
@@ -150,4 +201,67 @@ Local Ltac match_ss tactic :=
 Ltac inv_ss := match_ss inv.
 
 Ltac invc_ss := match_ss invc.
+
+(* ------------------------------------------------------------------------- *)
+(* has-var inversion                                                         *)
+(* ------------------------------------------------------------------------- *)
+
+Local Ltac match_hasvar tactic :=
+  match goal with
+  | H : has_var _  thread_default |- _ => tactic H
+  | H : has_var _  <{unit    }>   |- _ => tactic H
+  | H : has_var _  <{N _     }>   |- _ => tactic H
+  | H : has_var _  <{& _ :: _}>   |- _ => tactic H
+  | H : has_var _  <{new _ _ }>   |- _ => tactic H
+  | H : has_var _  <{* _     }>   |- _ => tactic H
+  | H : has_var _  <{_ = _   }>   |- _ => tactic H
+  | H : has_var ?x <{var ?x  }>   |- _ => fail
+  | H : has_var ?x <{var ?y  }>   |- _ => tactic H
+  | H : has_var _  <{fn _ _ _}>   |- _ => tactic H
+  | H : has_var _  <{call _ _}>   |- _ => tactic H
+  | H : has_var _  <{_ ; _   }>   |- _ => tactic H
+  | H : has_var _  <{spawn _ }>   |- _ => tactic H
+  end.
+
+Ltac inv_hasvar := match_hasvar inv.
+
+Ltac invc_hasvar := match_hasvar invc.
+
+(* ------------------------------------------------------------------------- *)
+(* independent properties                                                    *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma nomut_then_ss : forall t,
+  no_mut t ->
+  safe_spawns t.
+Proof.
+  intros * H. induction t; induction H; eauto using safe_spawns.
+Qed.
+
+Lemma hasvar_dec : forall x t,
+  Decidable.decidable (has_var x t).
+Proof.
+  unfold Decidable.decidable. intros. induction t;
+  try progress (repeat match goal with H : _ \/ _ |- _ => destruct H end);
+  try match goal with x' : id |- _ => destruct (string_eq_dec x x'); subst end;
+  solve [ left; eauto using has_var
+        | right; intros ?; inv_hasvar; eauto
+        ].
+Qed.
+
+Lemma ss_tstep_alloc_value : forall t t' ad v T,
+  safe_spawns t ->
+  t --[EF_Alloc ad v T]--> t' ->
+  safe_spawns v.
+Proof.
+  intros. induction_tstep; inv_ss; eauto.
+Qed.
+
+Lemma ss_tstep_write_value : forall t t' ad v T,
+  safe_spawns t ->
+  t --[EF_Write ad v T]--> t' ->
+  safe_spawns v.
+Proof.
+  intros. induction_tstep; inv_ss; eauto.
+Qed.
 

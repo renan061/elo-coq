@@ -1,24 +1,26 @@
-From Coq Require Import Arith.
+From Coq Require Import Arith.Arith.
 From Coq Require Import Lists.List.
 From Coq Require Import Lia.
 
-From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Map.
 From Elo Require Import Core.
 From Elo Require Import CoreExt.
-From Elo Require Import ValidAddresses.
-From Elo Require Import Access.
-From Elo Require Import References.
+
+From Elo Require Import Definitions.
+
+From Elo Require Import PropertiesVAD.
+From Elo Require Import PropertiesACC.
+From Elo Require Import PropertiesSS.
+From Elo Require Import PropertiesSMS.
 From Elo Require Import Soundness.
-From Elo Require Import UnsafeAccess.
-From Elo Require Import SafeSpawns.
-From Elo Require Import SMS.
 From Elo Require Import Multistep.
 
 (* ------------------------------------------------------------------------- *)
 (* mstep -- reflexive transitive closure                                     *)
 (* ------------------------------------------------------------------------- *)
+
+(* TODO: remove *)
 
 Reserved Notation "m / t '==[' tc ']==>*' m' / t'"
   (at level 40, t at next level, tc at next level,
@@ -48,9 +50,9 @@ Proof.
   assert (forall m m' eff t t',
     m / t ==[eff]==> m' / t' ->
     length m <= length m'). {
-    intros * Hmstep. inversion Hmstep; subst; try lia.
-    - rewrite add_increments_length. lia.
-    - eauto using Nat.eq_le_incl, set_preserves_length.
+    intros * Hmstep. inversion Hmstep; subst; eauto.
+    - rewrite add_increments_length. eauto.
+    - rewrite set_preserves_length. eauto.
   }
   intros * Hmmultistep. induction Hmmultistep; eauto using Nat.le_trans.
 Qed.
@@ -59,7 +61,7 @@ Lemma alloc_increments_memory_length : forall m m' t t' ad v Tr,
   m / t ==[EF_Alloc ad v Tr]==> m' / t' ->
   #m' = S (#m).
 Proof.
-  intros. inversion_mstep. eauto using add_increments_length.
+  intros. inv_mstep. eauto using add_increments_length.
 Qed.
 
 Lemma destruct_multistep' : forall tc eff m0 mF t0 tF,
@@ -123,8 +125,8 @@ Local Lemma destruct_multistep : forall tc m1 m3 ths1 ths3 tid eff,
     m2 / ths2 ~~[tc]~~>*      m3 / ths3).
 Proof.
   intros ?. induction tc; intros * Hmultistep;
-  inversion_clear_multistep.
-  - inversion_multistep. do 2 eexists. split; eauto using multistep.
+  invc_multistep.
+  - inv_multistep. do 2 eexists. split; eauto using multistep.
   - match goal with
     | Hmultistep : _ / _ ~~[ _ ]~~>* _ / _ |- _ => 
       decompose record (IHtc _ _ _ _ _ _ Hmultistep);
@@ -136,8 +138,7 @@ Local Lemma cstep_read_requires_acc : forall m m' ths ths' tid ad v,
   m / ths ~~[tid, EF_Read ad v]~~> m' / ths' ->
   access ad m ths[tid].
 Proof.
-  intros. inversion_clear_cstep. inversion_clear_mstep. induction_step;
-  eauto using access.
+  intros. invc_cstep. invc_mstep. induction_tstep; eauto using access.
 Qed.
 
 Local Lemma cstep_write_requires_uacc : forall m m' ths ths' tid ad v Tr,
@@ -146,9 +147,9 @@ Local Lemma cstep_write_requires_uacc : forall m m' ths ths' tid ad v Tr,
   unsafe_access ad m ths[tid].
 Proof.
   intros * Htype. intros. destruct (Htype tid) as [T ?].
-  inversion_clear_cstep. inversion_clear_mstep. generalize dependent T.
-  induction_step; intros; inversion_type; eauto using unsafe_access.
-  inversion_type. eauto using unsafe_access.
+  invc_cstep. invc_mstep. generalize dependent T.
+  induction_tstep; intros; inv_type; eauto using unsafe_access.
+  inv_type. eauto using unsafe_access.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -166,40 +167,40 @@ Local Lemma split_trace3 : forall m m' ths ths' tc,
 Proof.
   intros. 
   generalize dependent m'. generalize dependent ths'. 
-  induction tc; intros; inversion_multistep; try lia.
+  induction tc; intros; inv_multistep; try lia.
   rename m'0 into mA. rename ths'0 into thsA.
   specialize (IHtc thsA).
 Abort.
 
 Local Lemma spawn_sacc : forall m m' ths ths' tid ad eff,
-  forall_threads ths SafeSpawns ->
+  forall_threads ths safe_spawns ->
   m / ths ~~[tid, eff]~~> m' / ths' ->
-  access m' ths'[#ths] ad ->
-  ~ UnsafeAccess m' ths'[#ths] ad.
+  access ad m' ths'[#ths] ->
+  ~ unsafe_access ad m' ths'[#ths].
 Proof.
-  intros. inversion_clear_cstep; simpl_array; intros ?;
+  intros. invc_cstep; simpl_array; intros ?;
   eauto using nomut_then_nuacc, nomut_block.
-  unfold thread_default in *. inversion_acc.
+  unfold thread_default in *. inv_acc.
 Qed.
 
 Local Lemma memtyp_sacc : forall m t ad,
   forall_memory m value ->
   forall_memory m (consistently_typed_references m) ->
   consistently_typed_references m t ->
-  access m t ad ->
-  ~ UnsafeAccess m t ad ->
+  access ad m t ->
+  ~ unsafe_access ad m t ->
   exists T, m[ad].typ = <{{ i&T }}>.
 Proof.
   intros * ? HctrM ? Hacc Hnuacc. induction Hacc;
-  inversion_clear_ctr; try inversion_nuacc; eauto using nuacc_refI.
-Qed.
+  invc_ctr; try inv_nuacc.
+Abort.
 
 Lemma memtyp_immut_then_nuacc : forall m t ad T,
   value t ->
   empty |-- t is <{{ Immut T }}> ->
-  ~ UnsafeAccess m t ad.
+  ~ unsafe_access ad m t.
 Proof.
-  intros * Hval ? ?. destruct Hval; inversion_type; inversion_uacc.
+  intros * Hval ? ?. destruct Hval; inv_type; inv_uacc.
 Qed.
 
 Lemma acc_then_uacc : forall m t ad T,
@@ -207,33 +208,43 @@ Lemma acc_then_uacc : forall m t ad T,
   forall_memory m (consistently_typed_references m) ->
   consistently_typed_references m t ->
   m[ad].typ = <{{ &T }}> ->
-  access m t ad ->
-  UnsafeAccess m t ad.
+  access ad m t ->
+  unsafe_access ad m t .
 Proof.
   intros * ? Hmctr Hctr ? Hacc. generalize dependent T.
-  induction Hacc; intros; inversion_ctr; eauto using UnsafeAccess; exfalso.
+  induction Hacc; intros; inv_ctr; eauto using unsafe_access; exfalso.
   - eapply memtyp_immut_then_nuacc; eauto.
   - rewrite H0 in H4. discriminate. 
 Qed.
 
+(* TODO *)
+Lemma vac_length : forall m t ad,
+  valid_accesses m t ->
+  access ad m t ->
+  ad < #m.
+Proof.
+  intros * Hvac Hacc.
+  decompose sum (lt_eq_lt_dec ad (#m)); subst; trivial.
+  - specialize (Hvac (#m) Hacc). lia.
+  - specialize (Hvac ad Hacc). lia.
+Qed.
+
 Theorem safety : forall m m' ths ths' tid1 tid2 ad v1 v2 tc Tr,
-  forall_memory m value ->
-  forall_program m ths well_typed_term ->
-  forall_program m ths (valid_addresses m) ->
-  forall_program m ths (consistently_typed_references m) ->
-  forall_program m ths SafeSpawns ->
-  safe_memory_sharing m ths ->
+  valid_program m ths ->
   (* --- *)
   tid1 <> tid2 ->
   m / ths ~~[(tid2, EF_Read  ad v2   ) :: tc ++
              (tid1, EF_Write ad v1 Tr) :: nil]~~>* m' / ths' ->
   False.
 Proof.
-  intros * Hmval [Hmwtt Hwtt] [Hmvad Hvad] [Hmctr Hctr] Hss Hsms Hneq ?.
-  inversion_clear_multistep.
+  intros * Hvp Hneq Hmultistep. remember Hvp as H.
+  destruct H as [Hmval [[Hmwtt Hwtt] [[Hmvad Hvad] [[Hmctr Hctr] [Hss Hsms]]]]].
+  invc_multistep.
   rename m'0 into m3. rename ths'0 into ths3.
-  rename H7 into Hmultistep. rename H8 into Hcstep.
-  assert (Hacc' : access m3 ths3[tid2] ad)
+
+  rename H6 into Hmultistep. rename H7 into Hcstep.
+
+  assert (Hacc' : access ad m3 ths3[tid2])
     by eauto using cstep_read_requires_acc.
   match goal with
   | H1 : _ / _ ~~[ _    ]~~>* _ / _
@@ -241,14 +252,15 @@ Proof.
   |- _ =>
     rename H1 into Hmultistep; rename H2 into H3_cstep
   end.
+
   eapply destruct_multistep in Hmultistep
     as [m2 [ths2 [H1_cstep H2_multistep]]].
-  assert (Huacc : UnsafeAccess m ths[tid1] ad)
+  assert (Huacc : unsafe_access ad m ths[tid1])
     by eauto using cstep_write_requires_uacc.
-  destruct (acc_dec m ths[tid2] ad) as [? | Hnacc];
+  destruct (acc_dec ad m ths[tid2]) as [? | Hnacc];
   try solve [eapply (Hsms tid1 tid2); eauto].
   assert (Hvac : forall_threads ths (valid_accesses m))
-    by eauto using forall_threads_vad_then_vac.
+    by (intros ?; eauto using vad_then_vac).
   assert (Hlen1 : ad < #m)
     by eauto using vac_length, cstep_write_requires_uacc, uacc_then_acc.
   assert (Hlen2 : ad < #m2) by eauto using Nat.lt_le_trans,
@@ -267,88 +279,58 @@ Proof.
       monotonic_nondecreasing_threads_length, multistep.
     eapply (not_access_multistep_preservation m2 m3 ths2 ths3); eauto.
     + eapply memory_value_multistep_preservation; eauto using multistep.
-    + eapply well_typed_multistep_preservation; eauto using multistep.
     + eapply valid_addresses_multistep_preservation; eauto using multistep.
-    + eapply well_typed_multistep_preservation; eauto using multistep.
+    + eapply typing_multistep_preservation; eauto using multistep.
+    + eapply typing_multistep_preservation; eauto using multistep.
     + eapply safe_spawns_multistep_preservation; eauto using multistep.
     + eapply safe_memory_sharing_multistep_preservation; eauto using multistep.
     + eapply (not_access_multistep_preservation m m2 ths ths2);
       eauto using multistep.
   (* a thread tid2 não existia quand ocorreu o WRITE *)
-  - assert (exists T, m[ad].typ = <{{ &T }}>) as [T Htype1]
-      by eauto using (memtyp_uacc _ ths[tid1]). move T at top.
+  - assert (exists T, m[ad].typ = <{{&T}}>) as [T Htype1]
+      by (eapply (uacc_iff_memtyp_mut _ ths[tid1]); eauto using uacc_then_acc).
+    move T at top.
     eapply memtyp_preservation in H1_cstep as Htype2; eauto.
     rewrite Htype1 in Htype2.
     pose proof H2_multistep as H2.
-    eapply well_typed_multistep_preservation in H2 as [_ [_ Hext]].
+    eapply typing_multistep_preservation in H2 as [_ [_ Hext]].
     + shelve.
     + eapply valid_addresses_multistep_preservation; eauto using multistep.
-    + eapply well_typed_multistep_preservation; eauto using multistep.
-    + eapply well_typed_multistep_preservation; eauto using multistep.
+    + eapply typing_multistep_preservation; eauto using multistep.
+    + eapply typing_multistep_preservation; eauto using multistep.
     Unshelve.
     assert (m3[ad].typ = <{{ &T }}>). admit.
     eapply acc_then_uacc in Hacc' as Huacc'; eauto.
     * move Huacc' before Hacc'.
       eapply Hsms.
-      admit.
+      admit. admit. admit.
     * shelve.
     * shelve.
-    * shelve.
-    (*
-    assert (m3 extends m). {
-      eapply MemExtension.trans; eauto.
-    }
-
-
-    by eauto using extension, MemExtension.trans.
-    assert (Htype1': m3[ad].typ = m[ad].typ) by eauto using MemExtension.get.
-    rewrite Htype1 in Htype1'.
-    admit.
-    *)
   - admit.
+  (*
+  assert (m3 extends m). {
+    eapply MemExtension.trans; eauto.
+  }
+  by eauto using extension, MemExtension.trans.
+  assert (Htype1': m3[ad].typ = m[ad].typ) by eauto using MemExtension.get.
+  rewrite Htype1 in Htype1'.
+  admit.
+  *)
 Admitted.
 
 (* ------------------------------------------------------------------------- *)
 (* TODO                                                                      *)
 (* ------------------------------------------------------------------------- *)
 
-Local Lemma access_add : forall m t ad v Tr,
-  ~ access m t ad ->
-  ~ access m v ad ->
-  ~ access (m +++ (v, Tr)) t ad.
-Proof.
-  intros * HnaccT HnaccV Hacc.
-  induction Hacc; eauto using access.
-  eapply IHHacc; clear IHHacc; trivial.
-  decompose sum (lt_eq_lt_dec ad' (length m)); subst; simpl_array;
-  eauto using access. intros ?. unfold memory_default in *. simpl in *.
-  inversion_acc.
-Qed.
-
-Local Lemma not_access_stored_value : forall m t t' ad ad' v Tr,
-  ~ access m t ad ->
-  t --[EF_Write ad' v Tr]--> t' ->
-  ~ access m v ad.
-Proof.
-  intros. induction_step; eauto using access.
-Qed.
-
-Local Lemma not_access_allocated_value : forall m t t' ad ad' v Tr,
-  ~ access m t ad ->
-  t --[EF_Alloc ad' v Tr]--> t' ->
-  ~ access m v ad.
-Proof.
-  intros * Hnacc Hstep. induction_step; eauto using access.
-Qed.
-
+(*
 Lemma access_granted_by_alloc_is_memory_length : forall m t t' ad v Tr,
-  ~ access m t ad ->
+  ~ access ad m t ->
   t --[EF_Alloc (#m) v Tr]--> t' ->
-  access (m +++ (v, Tr)) t' ad ->
+  access ad (m +++ (v, Tr)) t' ->
   ad = length m.
 Proof.
   intros * Hnacc ? Hacc.
-  induction_step; inversion_nacc Hnacc; inversion_acc; eauto using access.
+  induction_tstep; inv_nacc; inv_acc; eauto using access.
   - match goal with F : access _ _ _ |- _ => contradict F end.
     simpl_array. eapply access_add; eauto.
   - do 2 auto_specialize. eapply IHstep.
@@ -395,6 +377,7 @@ Proof.
     eauto using access_needs_alloc.
     destruct Heq. eexists. left. eauto.
 Qed.
+*)
 
 (*
 
