@@ -2,6 +2,7 @@ From Coq Require Import Arith.Arith.
 From Coq Require Import Lists.List.
 From Coq Require Import Lia.
 
+From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Map.
 From Elo Require Import Core.
@@ -11,6 +12,7 @@ From Elo Require Import Definitions.
 
 From Elo Require Import PropertiesVAD.
 From Elo Require Import PropertiesACC.
+From Elo Require Import PropertiesUACC.
 From Elo Require Import PropertiesSS.
 From Elo Require Import PropertiesSMS.
 From Elo Require Import Soundness.
@@ -229,6 +231,129 @@ Proof.
   - specialize (Hvac ad Hacc). lia.
 Qed.
 
+(* ------------------------------------------------------------------------- *)
+(* TODO                                                                      *)
+(* ------------------------------------------------------------------------- *)
+
+Theorem nacc_or_safe : forall m m' ths ths' tid tid' ad e,
+  forall_memory m (valid_addresses m) ->
+  forall_threads ths (valid_addresses m) ->
+  forall_threads ths well_typed_term ->
+  forall_threads ths safe_spawns ->
+  safe_memory_sharing m ths ->
+  (* --- *)
+  ad < #m ->
+  ~ access ad m ths[tid] ->
+  m / ths ~~[tid', e]~~> m' / ths' ->
+  (~ access ad m' ths'[tid]) \/
+    (tid = #ths /\ access ad m' ths'[tid] /\ ~ unsafe_access ad m' ths'[tid]).
+Proof.
+  intros. decompose sum (lt_eq_lt_dec tid (#ths)); subst;
+  eauto using nacc_cstep_preservation.
+  - destruct (acc_dec ad m' ths'[#ths]); subst; eauto.
+    right. split; trivial. split; trivial.
+    inv_cstep; simpl_array.
+    + eauto using nuacc_spawn_block.
+    + intros ?. inv_uacc.
+  - left. inv_cstep; simpl_array.
+    + intros ?. inv_acc.
+    + destruct (nat_eq_dec tid tid'); subst; simpl_array.
+      * inv_mstep; inv_step.
+      * intros ?. inv_acc.
+Qed.
+
+Theorem nacc_or_safe_multistep : forall m m' ths ths' tid ad tc,
+  forall_memory m (valid_addresses m) ->
+  forall_threads ths (valid_addresses m) ->
+  forall_threads ths well_typed_term ->
+  forall_threads ths safe_spawns ->
+  safe_memory_sharing m ths ->
+  (* --- *)
+  ad < #m ->
+  ~ access ad m ths[tid] ->
+  m / ths ~~[tc]~~>* m' / ths' ->
+  (~ access ad m' ths'[tid]) \/
+    (access ad m' ths'[tid] /\ ~ unsafe_access ad m' ths'[tid]).
+Proof.
+  intros. induction_multistep; eauto.
+  do 7 auto_specialize.
+  decompose [and or] IHmultistep; subst; clear IHmultistep.
+  - eapply nacc_or_safe in H7 as [? | [? [? ?]]]; subst; eauto.
+    admit. admit. admit. admit. admit. admit.
+  - destruct (acc_dec ad m'' ths''[tid]); eauto.
+    right. split; trivial.
+    eapply nuacc_cstep_preservation in H7; eauto.
+    admit. admit. admit. admit. admit. admit. admit. admit.
+Admitted.
+
+Lemma something :
+  forall m1 m2 m3 m4 ths1 ths2 ths3 ths4 tid1 tid2 ad v1 v2 T tc,
+    forall_memory m1 value ->
+    forall_program m1 ths1 well_typed_term ->
+    forall_program m1 ths1 (valid_addresses m1) ->
+    forall_program m1 ths1 (consistently_typed_references m1) ->
+    forall_program m1 ths1 safe_spawns ->
+    safe_memory_sharing m1 ths1 ->
+
+    forall_threads ths1 (valid_accesses m1) ->
+
+    ad < #m1 ->
+    ~ access ad m1 ths1[tid2] ->
+    access ad m3 ths3[tid2] ->
+    unsafe_access ad m1 ths1[tid1] ->
+
+    tid1 <> tid2 ->
+    m1 / ths1 ~~[tid1, EF_Write ad v1 T]~~> m2 / ths2 ->
+    m2 / ths2 ~~[tc]~~>* m3 / ths3 ->
+    m3 / ths3 ~~[tid2, EF_Read ad v2]~~> m4 / ths4 ->
+
+    False.
+Proof.
+  intros * ? [? ?] [? ?] [? ?] [? ?] ? ? ? ? ? ? ? Hcstep1 **.
+  specialize Hcstep1 as Hsaved1.
+  eapply nacc_or_safe in Hcstep1; eauto.
+  decompose [and or] Hcstep1; subst; clear Hcstep1.
+  + specialize H15 as Hsaved2.
+    eapply nacc_or_safe_multistep in H15; eauto.
+    * destruct H15; eauto.
+      destruct H15.
+      eapply uacc_iff_memtyp_mut in H13 as [T1 F1]; eauto using uacc_then_acc.
+      eapply nuacc_iff_memtyp_immut in H18 as [T3 F3]; eauto.
+      ** eapply memory_type_multistep_preservation in Hsaved2; eauto.
+         *** rewrite Hsaved2 in F3.
+             eapply memtyp_preservation in Hsaved1; eauto.
+             rewrite Hsaved1 in F3.
+             rewrite F3 in F1. discriminate.
+         *** admit.
+         *** admit.
+         *** admit.
+         *** admit.
+      ** admit.
+      ** admit.
+      ** admit.
+    * admit.
+    * admit.
+    * admit.
+    * admit.
+    * admit.
+    * admit.
+  + eapply uacc_iff_memtyp_mut in H13 as [T1 F1]; eauto using uacc_then_acc.
+    eapply nuacc_iff_memtyp_immut in H20 as [T2 F2]; eauto.
+    * shelve. (* easy contradiction *)
+    * admit.
+    * admit.
+    * admit.
+Admitted.
+
+(*
+    ad < #m2
+    tid2 < #ths1.
+*)
+
+(* ------------------------------------------------------------------------- *)
+(* TODO                                                                      *)
+(* ------------------------------------------------------------------------- *)
+
 Theorem safety : forall m m' ths ths' tid1 tid2 ad v1 v2 tc Tr,
   valid_program m ths ->
   (* --- *)
@@ -237,15 +362,12 @@ Theorem safety : forall m m' ths ths' tid1 tid2 ad v1 v2 tc Tr,
              (tid1, EF_Write ad v1 Tr) :: nil]~~>* m' / ths' ->
   False.
 Proof.
-  intros * Hvp Hneq Hmultistep. remember Hvp as H.
+  intros * Hvp Hneq Hmultistep. specialize Hvp as H.
   destruct H as [Hmval [[Hmwtt Hwtt] [[Hmvad Hvad] [[Hmctr Hctr] [Hss Hsms]]]]].
   invc_multistep.
+
   rename m'0 into m3. rename ths'0 into ths3.
-
   rename H6 into Hmultistep. rename H7 into Hcstep.
-
-  assert (Hacc' : access ad m3 ths3[tid2])
-    by eauto using cstep_read_requires_acc.
   match goal with
   | H1 : _ / _ ~~[ _    ]~~>* _ / _
   , H2 : _ / _ ~~[ _, _ ]~~>  _ / _
@@ -253,6 +375,8 @@ Proof.
     rename H1 into Hmultistep; rename H2 into H3_cstep
   end.
 
+  assert (Hacc' : access ad m3 ths3[tid2])
+    by eauto using cstep_read_requires_acc.
   eapply destruct_multistep in Hmultistep
     as [m2 [ths2 [H1_cstep H2_multistep]]].
   assert (Huacc : unsafe_access ad m ths[tid1])
@@ -273,50 +397,8 @@ Proof.
   move Hneq at top.
   move ths2 after ths. move ths3 after ths.
 
-  decompose sum (lt_eq_lt_dec tid2 (#ths)); subst.
-  (* a thread tid2 já existia quando ocorreu o WRITE *)
-  - assert (tid2 < #ths2) by eauto using Nat.lt_le_trans,
-      monotonic_nondecreasing_threads_length, multistep.
-    eapply (not_access_multistep_preservation m2 m3 ths2 ths3); eauto.
-    + eapply memory_value_multistep_preservation; eauto using multistep.
-    + eapply valid_addresses_multistep_preservation; eauto using multistep.
-    + eapply typing_multistep_preservation; eauto using multistep.
-    + eapply typing_multistep_preservation; eauto using multistep.
-    + eapply safe_spawns_multistep_preservation; eauto using multistep.
-    + eapply safe_memory_sharing_multistep_preservation; eauto using multistep.
-    + eapply (not_access_multistep_preservation m m2 ths ths2);
-      eauto using multistep.
-  (* a thread tid2 não existia quand ocorreu o WRITE *)
-  - assert (exists T, m[ad].typ = <{{&T}}>) as [T Htype1]
-      by (eapply (uacc_iff_memtyp_mut _ ths[tid1]); eauto using uacc_then_acc).
-    move T at top.
-    eapply memtyp_preservation in H1_cstep as Htype2; eauto.
-    rewrite Htype1 in Htype2.
-    pose proof H2_multistep as H2.
-    eapply typing_multistep_preservation in H2 as [_ [_ Hext]].
-    + shelve.
-    + eapply valid_addresses_multistep_preservation; eauto using multistep.
-    + eapply typing_multistep_preservation; eauto using multistep.
-    + eapply typing_multistep_preservation; eauto using multistep.
-    Unshelve.
-    assert (m3[ad].typ = <{{ &T }}>). admit.
-    eapply acc_then_uacc in Hacc' as Huacc'; eauto.
-    * move Huacc' before Hacc'.
-      eapply Hsms.
-      admit. admit. admit.
-    * shelve.
-    * shelve.
-  - admit.
-  (*
-  assert (m3 extends m). {
-    eapply MemExtension.trans; eauto.
-  }
-  by eauto using extension, MemExtension.trans.
-  assert (Htype1': m3[ad].typ = m[ad].typ) by eauto using MemExtension.get.
-  rewrite Htype1 in Htype1'.
-  admit.
-  *)
-Admitted.
+  eapply something; eauto.
+Qed.
 
 (* ------------------------------------------------------------------------- *)
 (* TODO                                                                      *)

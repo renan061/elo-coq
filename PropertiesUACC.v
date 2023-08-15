@@ -198,6 +198,60 @@ Proof.
               nuacc_tstep_write_preservation.
 Qed.
 
+(* cstep ------------------------------------------------------------------- *)
+
+(* TODO *)
+Local Lemma uacc_tstep_write_requirement : forall m t t' ad v T,
+  well_typed_term t ->
+  t --[EF_Write ad v T]--> t' ->
+  unsafe_access ad m t.
+Proof.
+  intros * [T' ?] **. generalize dependent T'.
+  induction_tstep; intros; inv_type; eauto using unsafe_access.
+  inv_type. eauto using unsafe_access.
+Qed.
+
+(* TODO *)
+Lemma nuacc_untouched_threads_preservation : forall m m' ths tid tid' t' ad e,
+  forall_memory m (valid_addresses m) ->
+  forall_threads ths (valid_addresses m) ->
+  forall_threads ths well_typed_term ->
+  safe_memory_sharing m ths ->
+  (* --- *)
+  tid <> tid' ->
+  tid' < #ths ->
+  ~ unsafe_access ad m ths[tid'] ->
+  m / ths[tid] ==[e]==> m' / t' ->
+  ~ unsafe_access ad m' ths[tid'].
+Proof.
+  intros * ? ? ? Hsms **. rename ad into ad'. invc_mstep;
+  eauto using nuacc_mem_add_preservation, nuacc_vad_length.
+  eapply alt_nuacc_mem_set_preservation; eauto.
+  assert (unsafe_access ad m ths[tid])
+    by eauto using uacc_tstep_write_requirement.
+  intros ?. eapply (Hsms tid tid'); eauto using uacc_then_acc.
+Qed.
+
+Corollary nuacc_cstep_preservation : forall m m' ths ths' tid tid' ad e,
+  forall_memory m value ->
+  forall_memory m (valid_addresses m) ->
+  forall_threads ths (valid_addresses m) ->
+  forall_threads ths well_typed_term ->
+  forall_threads ths (consistently_typed_references m) ->
+  safe_memory_sharing m ths ->
+  (* --- *)
+  ad < #m ->
+  tid < #ths ->
+  ~ unsafe_access ad m ths[tid] ->
+  m / ths ~~[tid', e]~~> m' / ths' ->
+  ~ unsafe_access ad m' ths'[tid].
+Proof.
+  intros. invc_cstep; destruct (nat_eq_dec tid tid'); subst; simpl_array;
+  eauto using nuacc_tstep_spawn_preservation,
+              nuacc_mstep_preservation,
+              nuacc_untouched_threads_preservation.
+Qed.
+
 (* ------------------------------------------------------------------------- *)
 (* misc. properties                                                          *)
 (* ------------------------------------------------------------------------- *)
@@ -239,5 +293,73 @@ Proof.
     assert (~ access (#m) m t) by eauto using nacc_vad_length
   end;
   eauto using uacc_then_acc, uacc_mem_add_inheritance.
+Qed.
+
+(* If there is access: *)
+(* The access is unsafe if and only if the memtyp is mutable. *)
+Lemma uacc_iff_memtyp_mut : forall m t ad,
+  forall_memory m value ->
+  forall_memory m (consistently_typed_references m) ->
+  consistently_typed_references m t ->
+  access ad m t ->
+  (* --- *)
+  unsafe_access ad m t <-> (exists T, m[ad].typ = <{{&T}}>).
+Proof.
+  intros * ? ? ? Hacc. split.
+  - intros Huacc. clear Hacc. induction Huacc; inv_ctr; eauto.
+  - intros [? Heq]. induction Hacc; inv_ctr; eauto using unsafe_access.
+    + exfalso. eauto using nuacc_from_immutable_type.
+    + rewrite Heq in *. discriminate.
+Qed.
+
+(* If one access is unsafe, then all accesses are unsafe. *)
+Corollary uacc_from_association : forall m t t' ad,
+  forall_memory m value ->
+  forall_memory m (consistently_typed_references m) ->
+  consistently_typed_references m t ->
+  consistently_typed_references m t' ->
+  (* --- *)
+  access ad m t ->
+  unsafe_access ad m t' ->
+  unsafe_access ad m t.
+Proof.
+  intros.
+  eapply uacc_iff_memtyp_mut; eauto.
+  eapply uacc_iff_memtyp_mut; eauto using uacc_then_acc.
+Qed.
+
+(* If there is access: *)
+(* The access is not unsafe if and only if the memtyp is immutable. *)
+Lemma nuacc_iff_memtyp_immut : forall m t ad,
+  forall_memory m value ->
+  forall_memory m (consistently_typed_references m) ->
+  consistently_typed_references m t ->
+  access ad m t ->
+  (* --- *)
+  ~ unsafe_access ad m t <-> (exists T, m[ad].typ = <{{i&T}}>).
+Proof.
+  intros * Hval ? ? Hacc. split.
+  - intros ?. induction Hacc; invc_ctr; eauto; try inv_nuacc; eauto.
+    eapply IHHacc; eauto. intros ?. destruct (Hval ad'); inv_type; inv_uacc.
+  - intros [? Heq]. induction Hacc; intros ?; invc_ctr; inv_uacc; eauto;
+    try (eapply IHHacc; eauto using uacc_from_association).
+    rewrite Heq in *. discriminate.
+Qed.
+
+(* If one access is not unsafe, then all accesses are not unsafe. *)
+Corollary nuacc_from_association : forall m t t' ad,
+  forall_memory m value ->
+  forall_memory m (consistently_typed_references m) ->
+  consistently_typed_references m t ->
+  consistently_typed_references m t' ->
+  (* --- *)
+  access ad m t ->
+  access ad m t' ->
+  ~ unsafe_access ad m t' ->
+  ~ unsafe_access ad m t.
+Proof.
+  intros.
+  eapply nuacc_iff_memtyp_immut; eauto.
+  eapply nuacc_iff_memtyp_immut; eauto.
 Qed.
 

@@ -1,4 +1,5 @@
 From Coq Require Import Arith.Arith.
+From Coq Require Import Lia.
 
 From Elo Require Import Array.
 From Elo Require Import Core.
@@ -10,6 +11,8 @@ From Elo Require Import PropertiesVAD.
 From Elo Require Import PropertiesACC.
 From Elo Require Import PropertiesSS.
 From Elo Require Import PropertiesSMS.
+
+From Elo Require Import Soundness.
 
 (* ------------------------------------------------------------------------- *)
 (* multistep monotonic-nondecreasing                                         *)
@@ -84,6 +87,23 @@ Theorem typing_multistep_preservation : forall m m' ths ths' tc,
 Proof.
   (* TODO *)
 Admitted.
+
+Corollary memory_type_multistep_preservation : forall m m' ths ths' ad tc,
+  forall_program m ths (valid_addresses m) ->
+  forall_program m ths well_typed_term ->
+  forall_program m ths (consistently_typed_references m) ->
+  (* --- *)
+  m / ths ~~[tc]~~>* m' / ths' ->
+  ad < #m ->
+  m'[ad].typ = m[ad].typ.
+Proof.
+  intros. induction_multistep; trivial.
+  assert (forall_threads ths' (consistently_typed_references m'))
+    by (eapply typing_multistep_preservation; eauto).
+  rewrite <- IHmultistep; eauto.
+  eapply memtyp_preservation; eauto.
+  assert (#m <= #m') by eauto using monotonic_nondecreasing_memory_length. lia.
+Qed.
 
 Corollary safe_spawns_multistep_preservation : forall m m' ths ths' tc,
   forall_program m ths (valid_addresses m) ->

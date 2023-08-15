@@ -13,44 +13,6 @@ From Elo Require Import PropertiesUACC.
 From Elo Require Import PropertiesSS.
 
 (* ------------------------------------------------------------------------- *)
-(* misc. properties                                                          *)
-(* ------------------------------------------------------------------------- *)
-
-(* If there is access: *)
-(* The access is unsafe if and only if the memtyp is mutable. *)
-Lemma uacc_iff_memtyp_mut : forall m t ad,
-  forall_memory m value ->
-  forall_memory m (consistently_typed_references m) ->
-  consistently_typed_references m t ->
-  access ad m t ->
-  (* --- *)
-  unsafe_access ad m t <-> (exists T, m[ad].typ = <{{&T}}>).
-Proof.
-  intros * ? ? ? Hacc. split.
-  - intros Huacc. clear Hacc. induction Huacc; inv_ctr; eauto.
-  - intros [T Heq].
-    induction Hacc; inv_ctr; eauto using unsafe_access.
-    + exfalso. eauto using nuacc_from_immutable_type.
-    + rewrite Heq in *. discriminate.
-Qed.
-
-(* If one access is unsafe, then all accesses are unsafe. *)
-Corollary uacc_from_association : forall m t t' ad,
-  forall_memory m value ->
-  forall_memory m (consistently_typed_references m) ->
-  consistently_typed_references m t ->
-  consistently_typed_references m t' ->
-  (* --- *)
-  access ad m t ->
-  unsafe_access ad m t' ->
-  unsafe_access ad m t.
-Proof.
-  intros.
-  eapply uacc_iff_memtyp_mut; eauto.
-  eapply uacc_iff_memtyp_mut; eauto using uacc_then_acc.
-Qed.
-
-(* ------------------------------------------------------------------------- *)
 (* preservation                                                              *)
 (* ------------------------------------------------------------------------- *)
 
