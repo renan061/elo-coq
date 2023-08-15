@@ -117,7 +117,8 @@ Ltac invc_cstep :=
 
 Ltac induction_multistep :=
   match goal with
-  | H : _ / _ ~~[_]~~>* _ / _ |- _ => induction H
+  | H : _ / _ ~~[_]~~>* _ / _ |- _ =>
+    induction H as [| ? ? ? ? ? ? ? ? ? Hmultistep ? Hcstep]
   end.
 
 Ltac inv_multistep :=

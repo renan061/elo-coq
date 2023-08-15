@@ -410,6 +410,23 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
+(* preservation mem                                                          *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma wtt_cstep_mem_preservation : forall m m' ths ths' tid e,
+  forall_memory m well_typed_term ->
+  forall_threads ths well_typed_term ->
+  m / ths ~~[tid, e]~~> m' / ths' ->
+  forall_memory m' well_typed_term.
+Proof.
+  intros. invc_cstep; trivial. invc_mstep; trivial; intros ad'.
+  - decompose sum (lt_eq_lt_dec ad' (#m)); subst; simpl_array; eauto; simpl;
+    eauto using wtt_tstep_alloc_value, type_of with wtt.
+  - decompose sum (lt_eq_lt_dec ad ad'); subst; simpl_array; eauto. simpl.
+    eauto using wtt_tstep_write_value.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
 (* soundness                                                                 *)
 (* ------------------------------------------------------------------------- *)
 
@@ -425,7 +442,7 @@ Proof.
     exists (T :: TT). split; simpl; try lia. intros i. destruct i; trivial.
 Qed.
 
-Corollary preservation : forall m m' ths ths' tid e,
+Corollary wtt_cstep_preservation : forall m m' ths ths' tid e,
   forall_threads ths (consistently_typed_references m) ->
   forall_threads ths well_typed_term ->
   m / ths ~~[tid, e]~~> m' / ths' ->
@@ -436,6 +453,17 @@ Proof.
   assert (thread_types ths' TT \/ exists T, thread_types ths' (TT +++ T))
     as [[? ?] | [? [? ?]]] by eauto using type_preservation;
   eexists; eauto.
+Qed.
+
+Lemma wtt_preservation : forall m m' ths ths' tid e,
+  forall_program m ths (consistently_typed_references m) ->
+  (* --- *)
+  forall_program m ths well_typed_term ->
+  m / ths ~~[tid, e]~~> m' / ths' ->
+  forall_program m' ths' well_typed_term.
+Proof.
+  intros * [_ ?] [? ?].
+  eauto using wtt_cstep_mem_preservation, wtt_cstep_preservation.
 Qed.
 
 Corollary type_soundness : forall m m' ths ths' tid e,
@@ -451,8 +479,26 @@ Corollary type_soundness : forall m m' ths ths' tid e,
     m' / ths' ~~[tid', e']~~> m'' / ths'').
 Proof.
   intros * Hmvad Hmctr Hvad Hwtt Hctr Hcstep.
-  eauto using progress, preservation,
+  eauto using progress, wtt_cstep_preservation,
     vad_cstep_preservation,
     ctr_cstep_preservation.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* TODO                                                                      *)
+(* ------------------------------------------------------------------------- *)
+
+Theorem typing_preservation : forall m m' ths ths' tid e,
+  forall_program m ths (valid_addresses m) ->
+  (* --- *)
+  forall_program m ths well_typed_term ->
+  forall_program m ths (consistently_typed_references m) ->
+  m / ths ~~[tid, e]~~> m' / ths' ->
+  forall_program m' ths' well_typed_term /\
+  forall_program m' ths' (consistently_typed_references m').
+Proof.
+  intros * ? [? ?] [? ?]. split;
+  eauto using wtt_cstep_mem_preservation, wtt_cstep_preservation.
+  eauto 6 using ctr_preservation.
 Qed.
 

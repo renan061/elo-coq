@@ -244,7 +244,7 @@ Qed.
 
 (* valid-addresses preservation -------------------------------------------- *)
 
-Theorem valid_addresses_preservation : forall m m' ths ths' tid e,
+Theorem vad_preservation : forall m m' ths ths' tid e,
   forall_program m ths (valid_addresses m) ->
   m / ths ~~[tid, e]~~> m' / ths' ->
   forall_program m' ths' (valid_addresses m').

@@ -161,7 +161,7 @@ Qed.
 
 (* safe-spawns preservation ------------------------------------------------ *)
 
-Theorem safe_spawns_preservation : forall m m' ths ths' tid e,
+Theorem ss_preservation : forall m m' ths ths' tid e,
   forall_program m ths well_typed_term ->
   (* --- *)
   forall_program m ths safe_spawns ->

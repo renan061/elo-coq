@@ -10,6 +10,13 @@ Ltac invc H := inv H; clear H.
 
 (* miscellaneous utilities *)
 
+Ltac splits n :=
+  match n with
+  | O => fail
+  | S O => idtac
+  | S ?n' => split; [| splits n']
+  end.
+
 Ltac auto_specialize :=
   match goal with
   | P : ?x, H : ?x -> _ |- _ => specialize (H P)

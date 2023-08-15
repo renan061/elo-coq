@@ -159,7 +159,7 @@ Qed.
 
 (* safe-memory-sharing preservation ---------------------------------------- *)
 
-Theorem safe_memory_sharing_preservation : forall m m' ths ths' tid e,
+Theorem sms_preservation : forall m m' ths ths' tid e,
   forall_memory m value ->
   forall_program m ths (valid_addresses m) ->
   forall_program m ths well_typed_term ->

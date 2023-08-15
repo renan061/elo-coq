@@ -282,14 +282,13 @@ Qed.
 
 (* consistently-typed-references preservation ------------------------------ *)
 
-Theorem consistently_typed_references_preservation :
-  forall m m' ths ths' tid e,
-    forall_program m ths (valid_addresses m) ->
-    forall_program m ths well_typed_term ->
-    (* --- *)
-    forall_program m ths (consistently_typed_references m) ->
-    m / ths ~~[tid, e]~~> m' / ths' ->
-    forall_program m' ths' (consistently_typed_references m').
+Theorem ctr_preservation : forall m m' ths ths' tid e,
+  forall_program m ths (valid_addresses m) ->
+  forall_program m ths well_typed_term ->
+  (* --- *)
+  forall_program m ths (consistently_typed_references m) ->
+  m / ths ~~[tid, e]~~> m' / ths' ->
+  forall_program m' ths' (consistently_typed_references m').
 Proof.
   intros * [? ?] [_ ?] [? ?]. intros.
   eauto using ctr_cstep_preservation, ctr_cstep_mem_preservation.
