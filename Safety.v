@@ -146,7 +146,7 @@ Proof.
   assert (ad < #m2) by lia.
   specialize Hcstep1 as Hcstep1'.
   specialize Hmultistep as Hmultistep'.
-  eapply nacc_or_sacc_cstep_preservation in Hcstep1' as [? | [? [? Hnuacc]]];
+  eapply nacc_or_sacc_cstep_preservation in Hcstep1' as [? | [_ [? Hnuacc]]];
   eauto with vp.
   + eapply nacc_or_sacc_multistep_preservation
       in Hmultistep' as [? | [? Hnuacc]];
@@ -173,12 +173,12 @@ Qed.
 (* TODO                                                                      *)
 (* ------------------------------------------------------------------------- *)
 
-Theorem safety : forall m m' ths ths' tid1 tid2 ad v1 v2 tc Tr,
+Theorem safety : forall m m' ths ths' tid1 tid2 ad v1 v2 tc T,
   valid_program m ths ->
   (* --- *)
   tid1 <> tid2 ->
-  m / ths ~~[(tid2, EF_Read  ad v2   ) :: tc ++
-             (tid1, EF_Write ad v1 Tr) :: nil]~~>* m' / ths' ->
+  m / ths ~~[(tid2, EF_Read  ad v2  ) :: tc ++
+             (tid1, EF_Write ad v1 T) :: nil]~~>* m' / ths' ->
   False.
 Proof.
   intros * Hvp Hneq Hmultistep. specialize Hvp as H.
@@ -206,8 +206,6 @@ Proof.
     by (intros ?; eauto using vad_then_vac).
   assert (Hlen1 : ad < #m)
     by eauto using vac_length, cstep_write_requires_uacc, uacc_then_acc.
-  assert (Hlen2 : ad < #m2) by eauto using Nat.lt_le_trans,
-    multistep_monotonic_nondecreasing_memory_length, multistep.
 
   eapply something; eauto.
 Qed.
