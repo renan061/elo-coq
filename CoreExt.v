@@ -196,9 +196,11 @@ Qed.
 (* hints                                                                     *)
 (* ------------------------------------------------------------------------- *)
 
+#[export] Hint Unfold forall_array   : fall.
 #[export] Hint Unfold forall_memory  : fall.
 #[export] Hint Unfold forall_threads : fall.
 
+#[export] Hint Extern 4 => unfold forall_array   : fall.
 #[export] Hint Extern 4 => unfold forall_memory  : fall.
 #[export] Hint Extern 4 => unfold forall_threads : fall.
 

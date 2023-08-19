@@ -1,5 +1,5 @@
-From Coq Require Import Lists.List.
 From Coq Require Import Arith.Arith.
+From Coq Require Import Lists.List.
 From Coq Require Import Lia.
 From Coq Require Strings.String.
 
@@ -12,112 +12,6 @@ From Elo Require Import CoreExt.
 From Elo Require Import Definitions.
 From Elo Require Import PropertiesVAD.
 From Elo Require Import PropertiesCTR.
-
-(* ------------------------------------------------------------------------- *)
-(* memtyp preservation                                                       *)
-(* ------------------------------------------------------------------------- *)
-
-Reserved Notation " m 'extends' m' " (at level 20, no associativity).
-
-(* array extension for the memory *)
-Inductive extension : mem -> mem -> Prop :=
-  | extension_nil : forall m,
-    m extends nil
-
-  | extension_cons : forall m m' v v' T,
-    m extends m' ->
-    ((v, T) :: m) extends ((v', T) :: m') 
-
-  where " m 'extends' m' " := (extension m m').
-
-Module MemExtension.
-  Ltac nil_false :=
-    match goal with
-    F : nil extends (_ :: _) |- _ => inversion F
-    end.
-
-  Lemma refl : forall m,
-    m extends m.
-  Proof.
-    intros. induction m; eauto using extension.
-    match goal with |- (?vT :: _) extends _ => destruct vT end.
-    eauto using extension.
-  Qed.
-
-  Lemma trans : forall m m' m'',
-    m  extends m'  ->
-    m' extends m'' ->
-    m  extends m''.
-  Proof.
-    intros * Hext. intros. generalize dependent m''.
-    induction Hext; intros; destruct m''; eauto using extension; try nil_false.
-    match goal with
-    | H : (_ :: _) extends (_ :: _) |- _ => inversion H; subst
-    end.
-    eauto using extension.
-  Qed.
-
-  Lemma add : forall m vT,
-    (m +++ vT) extends m.
-  Proof.
-    intros. induction m; unfold add; eauto using extension. simpl in *.
-    match goal with |- (?vT :: _) extends _ => destruct vT end.
-    eauto using extension.
-  Qed.
-
-  Lemma get : forall m m' ad,
-    ad < #m' ->
-    m extends m' ->
-    m[ad].typ = m'[ad].typ.
-  Proof.
-    intros * Hlen Hext. generalize dependent ad. generalize dependent m.
-    induction m'; intros; try solve [inversion Hlen].
-    destruct m; try nil_false. invc Hext.
-    destruct ad; simpl; eauto using lt_S_n.
-  Qed.
-
-  Lemma set : forall m ad v T,
-    m[ad].typ = T -> 
-    m[ad <- (v, T)] extends m.
-  Proof.
-    intros * Heq. generalize dependent ad.
-    induction m; intros; simpl in *; eauto using extension.
-    simpl in *. destruct ad;
-    match goal with |- _ extends (?vT :: _) => destruct vT end;
-    simpl in *; subst; eauto using refl, extension.
-  Qed.
-
-  Lemma mstep_mem_extension : forall m m' t t' e,
-    consistently_typed_references m t ->
-    m / t ==[e]==> m' / t' ->
-    m' extends m.
-  Proof.
-    intros. invc_mstep; eauto using refl, add.
-    eapply set. induction_tstep; intros; inv_ctr; eauto.
-    inv_ctr; trivial.
-  Qed.
-
-  Corollary cstep_mem_extension : forall m m' ths ths' tid e,
-    forall_threads ths (consistently_typed_references m) ->
-    m / ths ~~[tid, e]~~> m' / ths' ->
-    m' extends m.
-  Proof.
-    intros. inv_cstep; eauto using refl, mstep_mem_extension.
-  Qed.
-End MemExtension.
-
-Theorem memtyp_preservation : forall m m' ths ths' tid e ad,
-  forall_threads ths (consistently_typed_references m) ->
-  m / ths ~~[tid, e]~~> m' / ths' ->
-  ad < #m ->
-  m'[ad].typ = m[ad].typ.
-Proof.
-  eauto using MemExtension.get, MemExtension.cstep_mem_extension.
-Qed.
-
-(* ------------------------------------------------------------------------- *)
-(*                                                                           *)
-(* ------------------------------------------------------------------------- *)
 
 Local Lemma safe_preserves_inclusion : forall Gamma Gamma',
   Gamma includes Gamma' ->

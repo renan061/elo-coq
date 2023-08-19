@@ -27,6 +27,7 @@ definitions:
 	$(COQC) Sanity.v
 
 properties:
+	$(COQC) MemTyp.v
 	$(COQC) PropertiesVAD.v
 	$(COQC) PropertiesCTR.v
 	$(COQC) PropertiesACC.v

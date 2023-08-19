@@ -8,6 +8,7 @@ From Elo Require Import CoreExt.
 
 From Elo Require Import Definitions.
 
+From Elo Require Import MemTyp.
 From Elo Require Import PropertiesVAD.
 From Elo Require Import PropertiesCTR.
 From Elo Require Import PropertiesACC.
@@ -72,7 +73,7 @@ Definition valid_program m ths :=
   /\ forall_program m ths safe_spawns
   /\ safe_memory_sharing m ths).
 
-Corollary vp_preservation : forall m m' ths ths' tid e,
+Local Corollary vp_cstep_preservation : forall m m' ths ths' tid e,
   valid_program m ths ->
   m / ths ~~[tid, e]~~> m' / ths' ->
   valid_program m' ths'.
@@ -87,12 +88,25 @@ Proof.
               sms_preservation.
 Qed.
 
-Corollary vp_multistep_preservation : forall m m' ths ths' tc,
+Local Corollary vp_multistep_preservation : forall m m' ths ths' tc,
   valid_program m ths ->
   m / ths ~~[tc]~~>* m' / ths' ->
   valid_program m' ths'.
 Proof.
-  intros. induction_multistep; eauto using vp_preservation.
+  intros. induction_multistep; eauto using vp_cstep_preservation .
+Qed.
+
+Corollary vp_preservation : forall m m' ths ths',
+  valid_program m ths ->
+  (
+    (exists tid e, m / ths ~~[tid, e]~~> m' / ths') \/ 
+    (exists tc, m / ths ~~[tc]~~>* m' / ths')
+  ) ->
+  valid_program m' ths'.
+Proof.
+  intros * ? [[? [? ?]] | [? ?]];
+  eauto using vp_multistep_preservation.
+  eapply vp_cstep_preservation; eauto. 
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -127,8 +141,12 @@ Corollary des_vp_mctr : forall m ths,
   valid_program m ths -> forall_memory m (consistently_typed_references m).
 Proof. solve_vp_destruction. Qed.
 
-Corollary des_vp_ctr : forall m ths,
+Corollary des_vp_ctr1 : forall m ths,
   valid_program m ths -> forall_threads ths (consistently_typed_references m).
+Proof. solve_vp_destruction. Qed.
+
+Corollary des_vp_ctr2 : forall m ths,
+  valid_program m ths -> forall tid, consistently_typed_references m ths[tid].
 Proof. solve_vp_destruction. Qed.
 
 Corollary des_vp_mss : forall m ths,
@@ -147,7 +165,7 @@ Proof. solve_vp_destruction. Qed.
   des_vp_mval
   des_vp_mwtt des_vp_wtt
   des_vp_mvad des_vp_vad
-  des_vp_mctr des_vp_ctr
+  des_vp_mctr des_vp_ctr1 des_vp_ctr2
   des_vp_mss  des_vp_ss 
   des_vp_sms
   : vp.
@@ -160,10 +178,26 @@ Corollary memtyp_multistep_preservation : forall m m' ths ths' ad tc,
   m[ad].typ = m'[ad].typ.
 Proof.
   intros. induction_multistep; trivial.
-  rewrite IHmultistep; eauto. symmetry.
-  eapply memtyp_preservation; eauto using vp_multistep_preservation with vp.
+  rewrite IHmultistep; eauto.
+  eapply memtyp_cstep_preservation;
+  eauto using vp_multistep_preservation with vp.
   assert (#m <= #m')
     by eauto using multistep_monotonic_nondecreasing_memory_length.
   lia.
+Qed.
+
+Corollary memtyp_preservation : forall m m' ths ths' ad,
+  valid_program m ths ->
+  (* --- *)
+  ad < #m ->
+  (
+    (exists tid e, m / ths ~~[tid, e]~~> m' / ths') \/ 
+    (exists tc, m / ths ~~[tc]~~>* m' / ths')
+  ) ->
+  m[ad].typ = m'[ad].typ.
+Proof.
+  intros * ? ? [[? [? ?]] | [? ?]];
+  eauto using memtyp_multistep_preservation.
+  eapply memtyp_cstep_preservation; eauto with vp. 
 Qed.
 

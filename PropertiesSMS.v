@@ -6,6 +6,7 @@ From Elo Require Import CoreExt.
 
 From Elo Require Import Definitions.
 
+From Elo Require Import MemTyp.
 From Elo Require Import PropertiesVAD.
 From Elo Require Import PropertiesCTR.
 From Elo Require Import PropertiesACC.
@@ -134,7 +135,7 @@ Proof.
   decompose sum (lt_eq_lt_dec tid1 (#ths)); subst; simpl_array;
   decompose sum (lt_eq_lt_dec tid2 (#ths)); subst; simpl_array;
   try solve [inv_step | inv_acc | intros ?; inv_uacc];
-  eauto using uacc_from_association,
+  eauto using uacc_by_association,
     nuacc_tstep_spawn_preservation,
     acc_tstep_spawn_inheritance.
 Qed.

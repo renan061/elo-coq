@@ -64,6 +64,14 @@ Inductive unsafe_access (ad : addr) (m : mem) : tm  -> Prop :=
 Definition safe_access ad m t := access ad m t /\ ~ unsafe_access ad m t.
 
 (* ------------------------------------------------------------------------- *)
+(* unfold hints                                                              *)
+(* ------------------------------------------------------------------------- *)
+
+#[export] Hint Unfold safe_access : uacc.
+
+#[export] Hint Extern 4 => unfold safe_access : uacc.
+
+(* ------------------------------------------------------------------------- *)
 (* unsafe-access inversion                                                   *)
 (* ------------------------------------------------------------------------- *)
 
@@ -196,6 +204,13 @@ Lemma uacc_then_acc : forall m t ad,
   access ad m t.
 Proof.
   intros * Huacc. induction Huacc; eauto using access.
+Qed.
+
+Corollary sacc_then_acc : forall m t ad,
+  safe_access ad m t ->
+  access ad m t.
+Proof.
+  intros * [? _]. assumption.
 Qed.
 
 Lemma nacc_then_nuacc : forall m t ad,
