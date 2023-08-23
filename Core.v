@@ -91,7 +91,7 @@ Notation "t1 ';' t2"     := (TM_Seq t1 t2)   (in custom elo_tm at level 2,
 Notation "'spawn' t"     := (TM_Spawn t)    (in custom elo_tm at level 0).
 
 Reserved Notation "'[' x ':=' tx ']' t"
-  (at level 20, x constr).
+  (at level 20, x constr, tx at next level, t at next level).
 Reserved Notation "t '--[' e ']-->' t'"
   (at level 40, e at next level, t' at next level).
 Reserved Notation "m / t '==[' e ']==>' m' / t'"
@@ -357,10 +357,10 @@ Inductive cstep :
 Definition trace := list (thread_id * effect).
 
 Inductive multistep : mem -> threads -> trace -> mem -> threads -> Prop :=
-  | cmultistep_refl: forall m ths,
-    m / ths ~~[nil]~~>* m / ths (* TODO: nil? *)
+  | multistep_refl: forall m ths,
+    m / ths ~~[nil]~~>* m / ths
 
-  | cmultistep_trans : forall m m' m'' ths ths' ths'' tc tid e,
+  | multistep_trans : forall m m' m'' ths ths' ths'' tc tid e,
     m  / ths  ~~[tc]~~>* m'  / ths'  ->
     m' / ths' ~~[tid, e]~~> m'' / ths'' ->
     m  / ths  ~~[(tid, e) :: tc]~~>* m'' / ths''

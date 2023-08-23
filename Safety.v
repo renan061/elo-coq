@@ -19,20 +19,48 @@ From Elo Require Import PropertiesSMS.
 From Elo Require Import Soundness.
 From Elo Require Import Multistep.
 
-Local Lemma destruct_multistep : forall tc m1 m3 ths1 ths3 tid eff,
-  m1 / ths1  ~~[tc ++ (tid, eff) :: nil]~~>* m3 / ths3 ->
-  (exists m2 ths2,
-    m1 / ths1 ~~[tid, eff]~~> m2 / ths2 /\
-    m2 / ths2 ~~[tc]~~>*      m3 / ths3).
+Local Lemma multistep_app : forall m1 m2 m3 ths1 ths2 ths3 tcA tcB,
+  m1 / ths1 ~~[tcA]~~>* m2 / ths2 ->
+  m2 / ths2 ~~[tcB]~~>* m3 / ths3 ->
+  m1 / ths1 ~~[tcB ++ tcA]~~>* m3 / ths3.
 Proof.
-  intros ?. induction tc; intros * Hmultistep;
-  invc_multistep.
-  - inv_multistep. do 2 eexists. split; eauto using multistep.
+  intros * ? Hmultistep. induction Hmultistep; eauto using multistep.
+Qed.
+
+Local Corollary multistep_append : forall m1 m2 m3 ths1 ths2 ths3 tid e tc,
+  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+  m2 / ths2 ~~[tc]~~>* m3 / ths3 ->
+  m1 / ths1 ~~[tc +++ (tid, e)]~~>* m3 / ths3.
+Proof.
+  eauto using multistep, multistep_app.
+Qed.
+
+Local Lemma destruct_multistep2 : forall tc m1 m3 ths1 ths3 tid e,
+  m1 / ths1  ~~[tc ++ (tid, e) :: nil]~~>* m3 / ths3 ->
+  (exists m2 ths2,
+    m1 / ths1 ~~[tid, e]~~> m2 / ths2 /\
+    m2 / ths2 ~~[tc]~~>*    m3 / ths3).
+Proof.
+  intros ?. induction tc; intros * Hmultistep; invc_multistep.
+  - inv_multistep. eauto using multistep.
   - match goal with
     | Hmultistep : _ / _ ~~[ _ ]~~>* _ / _ |- _ => 
-      decompose record (IHtc _ _ _ _ _ _ Hmultistep);
-      do 2 eexists; split; eauto using multistep
+      decompose record (IHtc _ _ _ _ _ _ Hmultistep); eauto using multistep
     end.
+Qed.
+
+Local Lemma destruct_multistep3 : forall tc m1 m4 ths1 ths4 tid1 tid2 e1 e2,
+  m1 / ths1  ~~[(tid2, e2) :: tc ++ (tid1, e1) :: nil]~~>* m4 / ths4 ->
+  (exists m2 ths2 m3 ths3,
+    m1 / ths1 ~~[tid1, e1]~~> m2 / ths2 /\
+    m2 / ths2 ~~[tc]~~>*      m3 / ths3 /\
+    m3 / ths3 ~~[tid2, e2]~~> m4 / ths4 ).
+Proof.
+  intros. invc_multistep.
+  match goal with H : _ / _ ~~[_]~~>* _ / _ |- _ =>
+    eapply destruct_multistep2 in H; decompose record H
+  end.
+  do 4 eexists. splits 3; eauto.
 Qed.
 
 Local Lemma cstep_read_requires_acc : forall m m' ths ths' tid ad v,
@@ -94,7 +122,7 @@ Proof.
     inv_cstep; simpl_array; eauto with acc. inv_mstep; inv_step.
 Qed.
 
-Theorem nacc_or_sacc_multistep_preservation : forall m m' ths ths' tid ad tc,
+Theorem nacc_or_sacc_preservation : forall m m' ths ths' tid ad tc,
   valid_program m ths ->
   (* --- *)
   ad < #m ->
@@ -120,38 +148,26 @@ Proof.
     simpl_array; inv_acc.
 Qed.
 
-Theorem safety : forall m m' ths ths' tid1 tid2 ad v1 v2 tc T,
+Theorem safety : forall m m' ths ths' tid1 tid2 ad v1 v2 tc tc' T,
   valid_program m ths ->
   (* --- *)
   tid1 <> tid2 ->
-  m / ths ~~[(tid2, EF_Read  ad v2  ) :: tc ++
-             (tid1, EF_Write ad v1 T) :: nil]~~>* m' / ths' ->
-  False.
+  m / ths ~~[tc]~~>* m' / ths' ->
+  tc <> (tid2, EF_Read ad v2) :: tc' ++ (tid1, EF_Write ad v1 T) :: nil.
 Proof.
-  intros * Hvp Hneq Hmultistep. specialize Hvp as H.
-  destruct H as [? [[? ?] [[? ?] [[? ?] [? Hsms]]]]].
-  invc_multistep.
-  (* some renamings to make the hypotheses readable *)
-  match goal with
-  | H1 : ?m / ?ths ~~[ _    ]~~>* ?m' / ?ths'
-  , H2 : _  / _    ~~[ _, _ ]~~>  _   / _
-  |- _ =>
-    rename m into m1; rename ths into ths1;
-    rename m' into m3; rename ths' into ths3;
-    eapply destruct_multistep in H1 as [m2 [ths2 [Hcstep1___ Hmultistep]]];
-    move H2 after Hmultistep; rename H2 into Hcstep2___
-  end.
+  intros * Hvp Hneq Hmultistep Heq. rewrite Heq in Hmultistep.
+  specialize Hvp as H; destruct H as [? [[? ?] [[? ?] [[? ?] [? Hsms]]]]].
+  rename m into m1. rename ths into ths1.
+  eapply destruct_multistep3 in Hmultistep
+    as [m2 [ths2 [m3 [ths3 [Hcstep1___ [Hmultistep Hcstep2___]]]]]].
   (* --- *)
   assert (Hvac : forall_threads ths1 (valid_accesses m1))
     by (intros ?; eauto using vad_then_vac).
   assert (valid_program m2 ths2) by eauto using vp_preservation. 
   assert (valid_program m3 ths3) by eauto using vp_preservation. 
   (* --- *)
-  assert (#m1 <= #m2)
-    by eauto using cstep_monotonic_nondecreasing_memory_length.
   assert (ad < #m1)
     by eauto using vac_length, cstep_write_requires_uacc, uacc_then_acc.
-  assert (ad < #m2) by lia.
   (* --- *)
   assert (Hacc : access ad m3 ths3[tid2])
     by eauto using cstep_read_requires_acc.
@@ -160,14 +176,10 @@ Proof.
   assert (Hnacc : ~ access ad m1 ths1[tid2])
     by (intros ?; eapply (Hsms tid1 tid2); eauto).
   (* --- *)
-  assert (m1[ad].typ = m2[ad].typ) as HeqA by eauto using memtyp_preservation.
-  eapply nacc_or_sacc_cstep_preservation in Hcstep1___ as [? | [_ Hsacc]];
-  eauto with vp.
-  + assert (m2[ad].typ = m3[ad].typ) as HeqB by eauto using memtyp_preservation.
-    eapply nacc_or_sacc_multistep_preservation in Hmultistep as [? | Hsacc];
-    eauto.
-    rewrite HeqB in HeqA.
-    eapply (memtyp_inconsistency m3 m1 ths3[tid2] ths1[tid1]); eauto with vp.
-  + eapply (memtyp_inconsistency m2 m1 ths2[tid2] ths1[tid1]); eauto with vp.
+  assert (H' : m1 / ths1 ~~[tc' +++ (tid1, EF_Write ad v1 T)]~~>* m3 / ths3)
+    by eauto using multistep_append.
+  assert (m1[ad].typ = m3[ad].typ) by eauto using memtyp_preservation.
+  eapply nacc_or_sacc_preservation in H' as [? | ?]; eauto with vp.
+  eapply (memtyp_inconsistency m3 m1 ths3[tid2] ths1[tid1]); eauto with vp.
 Qed.
 
