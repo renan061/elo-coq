@@ -88,100 +88,20 @@ Qed.
 (* memtyp preservation                                                       *)
 (* ------------------------------------------------------------------------- *)
 
-Module MemExt.
-  Reserved Infix "extends" (at level 20, no associativity).
-
-  Inductive extension : mem -> mem -> Prop :=
-    | extension_nil : forall m,
-      m extends nil
-
-    | extension_cons : forall m m' v v' T,
-      m extends m' ->
-      (cons (v, T) m) extends (cons (v', T) m') 
-
-    where " m 'extends' m' " := (extension m m').
-
-  Ltac nil_never_extends :=
-    match goal with
-    F : nil extends (cons _ _) |- _ => inv F
-    end.
-
-  Lemma refl : forall m,
-    m extends m.
-  Proof.
-    intros. induction m; eauto using extension.
-    match goal with |- (cons ?vT _) extends _ => destruct vT end.
-    eauto using extension.
-  Qed.
-
-  Lemma trans : forall m m' m'',
-    m  extends m'  ->
-    m' extends m'' ->
-    m  extends m''.
-  Proof.
-    intros * Hext **. generalize dependent m''.
-    induction Hext; intros; destruct m'';
-    eauto using extension; try nil_never_extends.
-    match goal with H : (cons _ _) extends (cons _ _) |- _ => inv H end.
-    eauto using extension.
-  Qed.
-
-  Lemma array_add : forall m vT,
-    (m +++ vT) extends m.
-  Proof.
-    intros. induction m; unfold Array.add; eauto using extension. simpl in *.
-    match goal with |- (cons ?vT _) extends _ => destruct vT end.
-    eauto using extension.
-  Qed.
-
-  Lemma array_get : forall m m' ad,
-    ad < #m' ->
-    m extends m' ->
-    m[ad].typ = m'[ad].typ.
-  Proof.
-    intros * Hlen Hext. generalize dependent ad. generalize dependent m.
-    induction m'; intros; try solve [inv Hlen].
-    destruct m; try nil_never_extends. invc Hext.
-    destruct ad; simpl; trivial. eauto using Arith.Lt.lt_S_n.
-  Qed.
-
-  Lemma array_set : forall m ad v T,
-    m[ad].typ = T -> 
-    m[ad <- (v, T)] extends m.
-  Proof.
-    intros. generalize dependent ad.
-    induction m; intros; eauto using extension. destruct ad;
-    match goal with |- _ extends (cons ?vT _) => destruct vT; subst end;
-    eauto using refl, extension.
-  Qed.
-
-  Lemma memext_mstep : forall m m' t t' e,
-    consistently_typed_references m t ->
-    m / t ==[e]==> m' / t' ->
-    m' extends m.
-  Proof.
-    intros. invc_mstep; eauto using refl, array_add.
-    eapply array_set. induction_tstep; intros; inv_ctr; eauto.
-    inv_ctr; trivial.
-  Qed.
-
-  Theorem memext_cstep : forall m m' ths ths' tid e,
-    forall_threads ths (consistently_typed_references m) ->
-    m / ths ~~[tid, e]~~> m' / ths' ->
-    m' extends m.
-  Proof.
-    intros. inv_cstep; eauto using refl, memext_mstep.
-  Qed.
-End MemExt.
-
 Theorem memtyp_cstep_preservation : forall m m' ths ths' tid e ad,
-  forall_threads ths (consistently_typed_references m) ->
+  consistently_typed_references m ths[tid] ->
   (* --- *)
   ad < #m ->
   m / ths ~~[tid, e]~~> m' / ths' ->
   m[ad].typ = m'[ad].typ.
 Proof.
-  symmetry. eauto using MemExt.array_get, MemExt.memext_cstep.
+  intros. invc_cstep; trivial. invc_mstep; trivial.
+  - simpl_array. trivial.
+  - match goal with |- _ = (_[?ad' <- _])[_].typ =>
+      destruct (nat_eq_dec ad ad'); subst
+    end;
+    simpl_array; trivial.
+    induction_tstep; inv_ctr; eauto. inv_ctr; eauto.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
