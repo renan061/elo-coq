@@ -6,6 +6,26 @@ From Elo Require Import CoreExt.
 From Elo Require Import Definitions.
 
 (* ------------------------------------------------------------------------- *)
+(* memtyp preservation                                                       *)
+(* ------------------------------------------------------------------------- *)
+
+Theorem memtyp_cstep_preservation : forall m m' ths ths' tid e ad,
+  consistently_typed_references m ths[tid] ->
+  (* --- *)
+  ad < #m ->
+  m / ths ~~[tid, e]~~> m' / ths' ->
+  m[ad].typ = m'[ad].typ.
+Proof.
+  intros. invc_cstep; trivial. invc_mstep; trivial.
+  - simpl_array. trivial.
+  - match goal with |- _ = (_[?ad' <- _])[_].typ =>
+      destruct (nat_eq_dec ad ad'); subst
+    end;
+    simpl_array; trivial.
+    induction_tstep; inv_ctr; eauto. inv_ctr; eauto.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
 (* memtyp & uacc/sacc                                                        *)
 (* ------------------------------------------------------------------------- *)
 
@@ -82,26 +102,6 @@ Proof.
   eapply memtyp_immut_iff_sacc; eauto.
   specialize Hsacc as Hsacc'. destruct Hsacc' as [? ?].
   eapply memtyp_immut_iff_sacc; eauto.
-Qed.
-
-(* ------------------------------------------------------------------------- *)
-(* memtyp preservation                                                       *)
-(* ------------------------------------------------------------------------- *)
-
-Theorem memtyp_cstep_preservation : forall m m' ths ths' tid e ad,
-  consistently_typed_references m ths[tid] ->
-  (* --- *)
-  ad < #m ->
-  m / ths ~~[tid, e]~~> m' / ths' ->
-  m[ad].typ = m'[ad].typ.
-Proof.
-  intros. invc_cstep; trivial. invc_mstep; trivial.
-  - simpl_array. trivial.
-  - match goal with |- _ = (_[?ad' <- _])[_].typ =>
-      destruct (nat_eq_dec ad ad'); subst
-    end;
-    simpl_array; trivial.
-    induction_tstep; inv_ctr; eauto. inv_ctr; eauto.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
