@@ -36,8 +36,8 @@ Lemma memtyp_mut_iff_uacc : forall m t ad,
   forall_memory m value ->
   forall_memory m (consistently_typed_references m) ->
   consistently_typed_references m t ->
-  access ad m t ->
   (* --- *)
+  access ad m t ->
   unsafe_access ad m t <-> (exists T, m[ad].typ = <{{&T}}>).
 Proof.
   intros * ? ? ? Hacc. split.
@@ -72,14 +72,14 @@ Lemma memtyp_immut_iff_sacc : forall m t ad,
   forall_memory m value ->
   forall_memory m (consistently_typed_references m) ->
   consistently_typed_references m t ->
-  access ad m t ->
   (* --- *)
+  access ad m t ->
   safe_access ad m t <-> (exists T, m[ad].typ = <{{i&T}}>).
 Proof.
   intros * Hval ? ? Hacc. split.
-  - intros [? ?]. induction Hacc; invc_ctr; eauto; try inv_nuacc; eauto.
-    eapply IHHacc; eauto. intros ?. destruct (Hval ad'); inv_type; inv_uacc.
-  - intros [? Heq]; split; trivial.
+  - intros [_ ?]. induction Hacc; invc_ctr; try inv_nuacc;
+    eauto using nuacc_from_immutable_type.
+  - intros [? Heq]. split; trivial.
     induction Hacc; intros ?; invc_ctr; inv_uacc; eauto;
     try (eapply IHHacc; eauto using uacc_by_association).
     rewrite Heq in *. discriminate.

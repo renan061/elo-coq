@@ -102,9 +102,7 @@ Ltac invc_uacc := match_uacc invc.
 Local Lemma inv_nuacc_ad_eq : forall m ad T,
   ~ unsafe_access ad m <{&ad :: &T}> ->
   False.
-Proof.
-  intros. eauto using unsafe_access.
-Qed.
+Proof. eauto using unsafe_access. Qed.
 
 Local Lemma inv_nuacc_ad_neq : forall m ad ad' T,
   ~ unsafe_access ad m <{&ad' :: &T}> ->
