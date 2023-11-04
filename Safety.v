@@ -75,7 +75,7 @@ Local Lemma cstep_write_requires_uacc : forall m m' ths ths' tid ad v Tr,
   m / ths ~~[tid, EF_Write ad v Tr]~~> m' / ths' ->
   unsafe_access ad m ths[tid].
 Proof.
-  intros * [T ?]. intros.
+  intros * [T ?] **.
   invc_cstep. invc_mstep. generalize dependent T.
   induction_tstep; intros; inv_type; eauto using unsafe_access.
   inv_type. eauto using unsafe_access.

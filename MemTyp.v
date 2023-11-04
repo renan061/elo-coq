@@ -40,10 +40,10 @@ Lemma memtyp_mut_iff_uacc : forall m t ad,
   access ad m t ->
   unsafe_access ad m t <-> (exists T, m[ad].typ = <{{&T}}>).
 Proof.
-  intros * ? ? ? Hacc. split.
+  intros * ? Hmctr ? Hacc. split.
   - intros Huacc. clear Hacc. induction Huacc; inv_ctr; eauto.
   - intros [? Heq]. induction Hacc; inv_ctr; eauto using unsafe_access.
-    + exfalso. eauto using nuacc_from_immutable_type.
+    + exfalso. eapply nuacc_from_immutable_type; eauto.
     + rewrite Heq in *. discriminate.
 Qed.
 
@@ -77,8 +77,7 @@ Lemma memtyp_immut_iff_sacc : forall m t ad,
   safe_access ad m t <-> (exists T, m[ad].typ = <{{i&T}}>).
 Proof.
   intros * Hval ? ? Hacc. split.
-  - intros [_ ?]. induction Hacc; invc_ctr; try inv_nuacc;
-    eauto using nuacc_from_immutable_type.
+  - intros [_ ?]. induction Hacc; inv_ctr; inv_nuacc; eauto.
   - intros [? Heq]. split; trivial.
     induction Hacc; intros ?; invc_ctr; inv_uacc; eauto;
     try (eapply IHHacc; eauto using uacc_by_association).

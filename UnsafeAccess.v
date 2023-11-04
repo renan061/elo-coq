@@ -4,6 +4,7 @@ From Elo Require Import Map.
 From Elo Require Import Core.
 From Elo Require Import CoreExt.
 
+From Elo Require Import CTR.
 From Elo Require Import Access.
 
 (* ------------------------------------------------------------------------- *)
@@ -104,12 +105,24 @@ Local Lemma inv_nuacc_ad_eq : forall m ad T,
   False.
 Proof. eauto using unsafe_access. Qed.
 
-Local Lemma inv_nuacc_ad_neq : forall m ad ad' T,
+Local Lemma inv_nuacc_ad_neqM : forall m ad ad' T,
   ~ unsafe_access ad m <{&ad' :: &T}> ->
   (ad <> ad' /\ ~ unsafe_access ad m m[ad'].tm).
 Proof.
   intros. destruct (nat_eq_dec ad ad'); subst; eauto using unsafe_access.
   exfalso. eauto using inv_nuacc_ad_eq.
+Qed.
+
+Lemma inv_nuacc_ad_neqI : forall m ad ad' T,
+  forall_memory m value ->
+  consistently_typed_references m <{&ad' :: i&T}> ->
+  (* --- *)
+  ~ unsafe_access ad m <{&ad' :: i&T}> ->
+  ~ unsafe_access ad m m[ad'].tm.
+Proof.
+  intros * Hval **. invc_ctr. intros ?.
+  specialize (Hval ad'); simpl in *.
+  destruct Hval; inv_type; inv_uacc; eauto.
 Qed.
 
 Local Ltac solve_nuacc_inversion :=
@@ -147,22 +160,27 @@ Proof. solve_nuacc_inversion. Qed.
 
 Ltac inv_nuacc :=
   match goal with
-  | H : ~ unsafe_access ?ad _ <{& ?ad  :: & _}> |- _ =>
-    eapply inv_nuacc_ad_eq  in H; solve contradiction
-  | H : ~ unsafe_access ?ad _ <{& ?ad' ::   _}> |- _ =>
-    eapply inv_nuacc_ad_neq in H as [? ?]
-  | H : ~ unsafe_access _ _   <{new _ _      }> |- _ =>
-    eapply inv_nuacc_new    in H
-  | H : ~ unsafe_access _ _   <{* _          }> |- _ =>
-    eapply inv_nuacc_load   in H
-  | H : ~ unsafe_access _ _   <{_ = _        }> |- _ =>
-    eapply inv_nuacc_asg    in H as [? ?]
-  | H : ~ unsafe_access _ _   <{fn _ _ _     }> |- _ =>
-    eapply inv_nuacc_fun    in H
-  | H : ~ unsafe_access _ _   <{call _ _     }> |- _ =>
-    eapply inv_nuacc_call   in H as [? ?]
-  | H : ~ unsafe_access _ _   <{_ ; _        }> |- _ =>
-    eapply inv_nuacc_seq    in H as [? ?]
+  | H : ~ unsafe_access ?ad _ <{& ?ad  :: & _ }> |- _ =>
+    eapply inv_nuacc_ad_eq   in H; solve contradiction
+  | H : ~ unsafe_access ?ad _ <{& ?ad' :: & _ }> |- _ =>
+    eapply inv_nuacc_ad_neqM in H as [? ?]
+  | H : ~ unsafe_access _ _   <{new _ _       }> |- _ =>
+    eapply inv_nuacc_new     in H
+  | H : ~ unsafe_access _ _   <{* _           }> |- _ =>
+    eapply inv_nuacc_load    in H
+  | H : ~ unsafe_access _ _   <{_ = _         }> |- _ =>
+    eapply inv_nuacc_asg     in H as [? ?]
+  | H : ~ unsafe_access _ _   <{fn _ _ _      }> |- _ =>
+    eapply inv_nuacc_fun     in H
+  | H : ~ unsafe_access _ _   <{call _ _      }> |- _ =>
+    eapply inv_nuacc_call    in H as [? ?]
+  | H : ~ unsafe_access _ _   <{_ ; _         }> |- _ =>
+    eapply inv_nuacc_seq     in H as [? ?]
+
+  | Hval   : forall_memory ?m value,
+    Hctr   : consistently_typed_references ?m <{& ?ad' :: (i& ?T) }>,
+    Hnuacc : ~ unsafe_access ?ad ?m <{& ?ad' :: (i& ?T) }> |- _ =>
+    eapply (inv_nuacc_ad_neqI m ad ad' T Hval Hctr) in Hnuacc
   end.
 
 (* ------------------------------------------------------------------------- *)
@@ -187,14 +205,14 @@ Proof.
     inv_type. exfalso. eauto using unsafe_access.
 Qed.
 
-Theorem nuacc_from_immutable_type : forall m ad v T,
-  value v ->
-  empty |-- v is <{{Immut T}}> ->
-  unsafe_access ad m v ->
-  False.
+Lemma nuacc_from_immutable_type : forall m ad ad' T,
+  forall_memory m value ->
+  empty |-- m[ad'].tm is <{{Immut T}}> ->
+  ~ unsafe_access ad m m[ad'].tm.
 Proof.
-  intros * Hval **.
-  destruct Hval; inv_type; inv_uacc; eauto using unsafe_access.
+  intros * Hval **. intros ?.
+  specialize (Hval ad'); simpl in *.
+  destruct Hval; inv_type; inv_uacc; eauto.
 Qed.
 
 Lemma uacc_then_acc : forall m t ad,
