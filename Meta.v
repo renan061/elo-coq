@@ -1,9 +1,6 @@
 From Coq Require Import Lia.
 
-From Elo Require Import Util.
-From Elo Require Import Array.
 From Elo Require Import Core.
-From Elo Require Import CoreExt.
 
 (* ----------------------------------------------------------------------------
 
@@ -188,7 +185,6 @@ Lemma simple_cstep_preservation (P : tm -> Prop) :
       P t') ->
     (* mstep_preservation *)
     (forall t',
-      forall_memory m P ->
       P ths[tid] ->
       m / ths[tid] ==[e]==> m' / t' ->
       P t') ->
@@ -200,7 +196,6 @@ Lemma simple_cstep_preservation (P : tm -> Prop) :
       t --[EF_Spawn block]--> t' ->
       P block) ->
    (* What we want to prove: *)
-    forall_memory m P ->
     forall_threads ths P ->
     m / ths ~~[tid, e]~~> m' / ths' ->
     forall_threads ths' P.

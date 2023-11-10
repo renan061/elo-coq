@@ -3,138 +3,38 @@ From Coq Require Import Lia.
 From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Map.
-From Elo Require Import Core.
+From Elo Require Import Sem.
 
 (* ------------------------------------------------------------------------- *)
-(* dec                                                                       *)
+(* step tactics                                                              *)
 (* ------------------------------------------------------------------------- *)
 
-Theorem value_dec : forall t,
-  value t \/ ~ value t.
-Proof.
-  intros. induction t; eauto using value; right; intros F; inversion F.
-Qed.
-
-(* ------------------------------------------------------------------------- *)
-(* eq_dec                                                                    *)
-(* ------------------------------------------------------------------------- *)
-
-Theorem ityp_eq_dec : forall (T1 T2 : ityp),
-  {T1 = T2} + {T1 <> T2}.
-Proof. intros. decide equality; eauto. Qed.
-
-Theorem typ_eq_dec : forall (T1 T2 : typ),
-  {T1 = T2} + {T1 <> T2}.
-Proof. intros. decide equality; eauto using ityp_eq_dec. Qed.
-
-Theorem tm_eq_dec : forall (t1 t2 : tm),
-  {t1 = t2} + {t1 <> t2}.
-Proof.
-  intros. decide equality; eauto using nat_eq_dec, string_eq_dec, typ_eq_dec.
-Qed.
-
-Theorem effect_eq_dec : forall (e1 e2 : effect),
-  {e1 = e2} + {e1 <> e2}.
-Proof.
-  intros. decide equality; eauto using nat_eq_dec, typ_eq_dec, tm_eq_dec.
-Qed.
-
-(* ------------------------------------------------------------------------- *)
-(* array properties                                                          *)
-(* ------------------------------------------------------------------------- *)
-
-Definition forall_memory (m : mem) (P : tm -> _) : Prop :=
-  forall_array memory_default (fun tT => P (fst tT)) m.
-
-Definition forall_threads (ths : threads) (P : tm -> _) : Prop :=
-  forall_array thread_default P ths.
-
-Definition forall_program (m : mem) (ths : threads) (P : tm -> _) : Prop :=
-  (forall_memory m P) /\ (forall_threads ths P).
-
-#[export] Hint Unfold forall_program : core.
-
-(* ------------------------------------------------------------------------- *)
-(* determinism                                                               *)
-(* ------------------------------------------------------------------------- *)
-
-Lemma deterministic_typing : forall Gamma t T1 T2,
-  Gamma |-- t is T1 ->
-  Gamma |-- t is T2 ->
-  T1 = T2.
-Proof.
-  intros * Htype1. generalize dependent T2.
-  induction Htype1; intros ? Htype2;
-  inversion Htype2; subst; eauto;
-  repeat match goal with
-  | IH : forall _, _ |-- ?t is _ -> _, H : _ |-- ?t is _ |- _ =>
-    eapply IH in H; subst
-  end;
-  congruence.
-Qed.
-
-Ltac apply_deterministic_typing :=
-  match goal with
-  | H1 : _ |-- ?t is ?T1, H2 : _ |-- ?t is ?T2 |- _ =>
-    assert (Heq : T1 = T2) by eauto using deterministic_typing; subst;
-    try (inversion Heq; subst; clear Heq)
-  end.
-
-(* ------------------------------------------------------------------------- *)
-(* auxiliary tactics                                                         *)
-(* ------------------------------------------------------------------------- *)
-
-Ltac induction_tstep :=
-  match goal with
-  | H : _ --[?e]--> _ |- _ =>
-    remember e as eff; induction H; inversion Heqeff; subst
-  end.
-
-Ltac inv_step :=
-  match goal with
-  | H : _ --[_]--> _ |- _ => inversion H; subst; clear H
-  end.
-
-Ltac inv_mstep :=
-  match goal with
-  | H : _ / _ ==[_]==> _ / _ |- _ => inversion H; subst
-  end.
+Ltac inv_tstep := match goal with H : _     --[_]-->    _     |- _ => inv H end.
+Ltac inv_mstep := match goal with H : _ / _ ==[_]==>    _ / _ |- _ => inv H end.
+Ltac inv_cstep := match goal with H : _ / _ ~~[_, _]~~> _ / _ |- _ => inv H end.
+Ltac inv_mulst := match goal with H : _ / _ ~~[_]~~>*   _ / _ |- _ => inv H end.
 
 Ltac invc_mstep :=
-  match goal with
-  | H : _ / _ ==[_]==> _ / _ |- _ => invc H
-  end.
-
-Ltac inv_cstep :=
-  match goal with
-  | H : _ / _ ~~[_, _]~~> _ / _ |- _ => inversion H; subst
-  end.
-
+  match goal with H : _ / _ ==[_]==>    _ / _ |- _ => invc H end.
 Ltac invc_cstep :=
-  match goal with
-  | H : _ / _ ~~[_, _]~~> _ / _ |- _ => invc H
+  match goal with H : _ / _ ~~[_, _]~~> _ / _ |- _ => invc H end.
+Ltac invc_mulst :=
+  match goal with H : _ / _ ~~[_]~~>*   _ / _ |- _ => invc H end.
+
+Ltac induction_tstep :=
+  match goal with H : _ --[?e]--> _ |- _ =>
+    remember e eqn:Heq; induction H; inv Heq
   end.
 
-Ltac induction_multistep :=
+Ltac induction_mulst :=
   match goal with
   | H : _ / _ ~~[_]~~>* _ / _ |- _ =>
-    induction H as [| ? ? ? ? ? ? ? ? ? Hmultistep ? Hcstep]
+    induction H as [| ? ? ? ? ? ? ? ? ? Hmulst ? Hcstep]
   end.
 
-Ltac inv_multistep :=
-  match goal with
-  | H : _ / _ ~~[_]~~>* _ / _ |- _ => inversion H; subst
-  end.
-
-Ltac invc_multistep :=
-  match goal with
-  | H : _ / _ ~~[_]~~>* _ / _ |- _ => invc H
-  end.
-
-Ltac induction_type :=
-  match goal with
-  | H : _ |-- _ is _ |- _ => induction H
-  end.
+(* ------------------------------------------------------------------------- *)
+(* type tactics                                                              *)
+(* ------------------------------------------------------------------------- *)
 
 Ltac inv_type :=
   match goal with
@@ -166,26 +66,103 @@ Ltac invc_type :=
   | H : _ |-- <{ spawn _  }> is _ |- _ => invc H
   end.
 
+Ltac induction_type :=
+  match goal with
+  | H : _ |-- _ is _ |- _ => induction H
+  end.
+
+(* ------------------------------------------------------------------------- *)
+(* dec                                                                       *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma value_dec : forall t,
+  value t \/ ~ value t.
+Proof.
+  intros. induction t; eauto using value; right; intros F; inv F.
+Qed.
+
+Lemma ityp_eq_dec : forall (T1 T2 : ityp),
+  {T1 = T2} + {T1 <> T2}.
+Proof. intros. decide equality; eauto. Qed.
+
+Lemma typ_eq_dec : forall (T1 T2 : typ),
+  {T1 = T2} + {T1 <> T2}.
+Proof. intros. decide equality; eauto using ityp_eq_dec. Qed.
+
+Lemma tm_eq_dec : forall (t1 t2 : tm),
+  {t1 = t2} + {t1 <> t2}.
+Proof.
+  intros. decide equality; eauto using nat_eq_dec, string_eq_dec, typ_eq_dec.
+Qed.
+
+Lemma eff_eq_dec : forall (e1 e2 : eff),
+  {e1 = e2} + {e1 <> e2}.
+Proof.
+  intros. decide equality; eauto using nat_eq_dec, typ_eq_dec, tm_eq_dec.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* forall properties                                                         *)
+(* ------------------------------------------------------------------------- *)
+
+Definition forall_memory (m : mem) (P : tm -> _) : Prop :=
+  forall_array memory_default (fun tT => P (fst tT)) m.
+
+Definition forall_threads (ths : threads) (P : tm -> _) : Prop :=
+  forall_array thread_default P ths.
+
+Definition forall_program (m : mem) (ths : threads) (P : tm -> _) : Prop :=
+  (forall_memory m P) /\ (forall_threads ths P).
+
+#[export] Hint Unfold forall_program : core.
+
+(* ------------------------------------------------------------------------- *)
+(* determinism                                                               *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma deterministic_typing : forall Gamma t T1 T2,
+  Gamma |-- t is T1 ->
+  Gamma |-- t is T2 ->
+  T1 = T2.
+Proof.
+  intros * Htype1. generalize dependent T2.
+  induction Htype1; intros ? Htype2; inv Htype2; eauto;
+  repeat match goal with
+  | IH : forall _, _ |-- ?t is _ -> _, H : _ |-- ?t is _ |- _ =>
+    eapply IH in H; subst
+  end;
+  congruence.
+Qed.
+
+Ltac apply_deterministic_typing :=
+  match goal with
+  | H1 : _ |-- ?t is ?T1
+  , H2 : _ |-- ?t is ?T2
+  |- _ =>
+    assert (Heq : T1 = T2) by eauto using deterministic_typing; subst;
+    try (invc Heq)
+  end.
+
 (* ------------------------------------------------------------------------- *)
 (* auxiliary lemmas                                                          *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma step_length_tid : forall t ths tid e,
+Lemma tstep_length_tid : forall t ths tid e,
   ths[tid] --[e]--> t ->
   tid < #ths.
 Proof.
   intros. decompose sum (lt_eq_lt_dec tid (#ths)); subst; trivial;
-  simpl_array; try lia; inv_step.
+  simpl_array; try lia; inv_tstep.
 Qed.
 
-Corollary mstep_length_tid : forall m m' t' ths tid e,
+Lemma mstep_length_tid : forall m m' t' ths tid e,
   m / ths[tid] ==[e]==> m' / t' ->
   tid < #ths.
 Proof.
-  intros. inv_mstep; eauto using step_length_tid.
+  intros. inv_mstep; eauto using tstep_length_tid.
 Qed.
 
-Corollary cstep_length_tid : forall m m' ths ths' tid e,
+Lemma cstep_length_tid : forall m m' ths ths' tid e,
   m / ths ~~[tid, e]~~> m' / ths' ->
   tid < #ths.
 Proof.

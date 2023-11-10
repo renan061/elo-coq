@@ -1,15 +1,11 @@
-From Elo Require Import Util.
-From Elo Require Import Array.
 From Elo Require Import Core.
-From Elo Require Import CoreExt.
-
-From Elo Require Import Definitions.
+From Elo Require Import Properties.
 
 (* ------------------------------------------------------------------------- *)
-(* memtyp preservation                                                       *)
+(* ptyp preservation                                                         *)
 (* ------------------------------------------------------------------------- *)
 
-Theorem memtyp_cstep_preservation : forall m m' ths ths' tid e ad,
+Theorem ptyp_cstep_preservation : forall m m' ths ths' tid e ad,
   consistently_typed_references m ths[tid] ->
   (* --- *)
   ad < #m ->
@@ -26,13 +22,10 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* memtyp & uacc/sacc                                                        *)
+(* ptyp & uacc/sacc                                                          *)
 (* ------------------------------------------------------------------------- *)
 
-(* If there is access:
-   The access is unsafe if and only if the memtyp is mutable.
-*)
-Lemma memtyp_mut_iff_uacc : forall m t ad,
+Lemma ptyp_mut_iff_uacc : forall m t ad,
   forall_memory m value ->
   forall_memory m (consistently_typed_references m) ->
   consistently_typed_references m t ->
@@ -47,9 +40,6 @@ Proof.
     + rewrite Heq in *. discriminate.
 Qed.
 
-(* If one access to an address is unsafe,
-   then all accesses to that address are unsafe.
-*)
 Corollary uacc_by_association : forall m t t' ad,
   forall_memory m value ->
   forall_memory m (consistently_typed_references m) ->
@@ -61,14 +51,11 @@ Corollary uacc_by_association : forall m t t' ad,
   unsafe_access ad m t.
 Proof.
   intros.
-  eapply memtyp_mut_iff_uacc; eauto.
-  eapply memtyp_mut_iff_uacc; eauto using uacc_then_acc.
+  eapply ptyp_mut_iff_uacc; eauto.
+  eapply ptyp_mut_iff_uacc; eauto using uacc_then_acc.
 Qed.
 
-(* If there is access:
-   The access is safe if and only if the memtyp is immutable.
-*)
-Lemma memtyp_immut_iff_sacc : forall m t ad,
+Lemma ptyp_immut_iff_sacc : forall m t ad,
   forall_memory m value ->
   forall_memory m (consistently_typed_references m) ->
   consistently_typed_references m t ->
@@ -84,9 +71,6 @@ Proof.
     rewrite Heq in *. discriminate.
 Qed.
 
-(* If one access to an address is safe,
-   then all accesses to that address are safe.
-*)
 Corollary sacc_by_association : forall m t t' ad,
   forall_memory m value ->
   forall_memory m (consistently_typed_references m) ->
@@ -98,16 +82,16 @@ Corollary sacc_by_association : forall m t t' ad,
   safe_access ad m t.
 Proof.
   intros * ? ? ? ? ? Hsacc.
-  eapply memtyp_immut_iff_sacc; eauto.
+  eapply ptyp_immut_iff_sacc; eauto.
   specialize Hsacc as Hsacc'. destruct Hsacc' as [? ?].
-  eapply memtyp_immut_iff_sacc; eauto.
+  eapply ptyp_immut_iff_sacc; eauto.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* memtyp inconsistency                                                      *)
+(* ptyp sacc-uacc-contradiction                                              *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma memtyp_inconsistency : forall m1 m2 t1 t2 ad,
+Lemma ptyp_sacc_uacc_contradiction : forall m1 m2 t1 t2 ad,
   forall_memory m1 value ->
   forall_memory m2 value ->
   forall_memory m1 (consistently_typed_references m1) ->
@@ -115,13 +99,14 @@ Lemma memtyp_inconsistency : forall m1 m2 t1 t2 ad,
   consistently_typed_references m1 t1 ->
   consistently_typed_references m2 t2 ->
   (* --- *)
+  m1[ad].typ = m2[ad].typ ->
   safe_access ad m1 t1 ->
   unsafe_access ad m2 t2 ->
-  m1[ad].typ <> m2[ad].typ.
+  False.
 Proof.
-  intros * ? ? ? ? ? Heq Hsacc Huacc.
-  eapply memtyp_immut_iff_sacc in Hsacc as [? Htyp1]; eauto using sacc_then_acc.
-  eapply memtyp_mut_iff_uacc   in Huacc as [? Htyp2]; eauto using uacc_then_acc.
-  rewrite Htyp1. rewrite Htyp2. discriminate.
+  intros * ? ? ? ? ? ? Heq Hsacc Huacc.
+  eapply ptyp_immut_iff_sacc in Hsacc as [? Htyp1]; eauto using sacc_then_acc.
+  eapply ptyp_mut_iff_uacc   in Huacc as [? Htyp2]; eauto using uacc_then_acc.
+  rewrite Htyp1 in Heq. rewrite Htyp2 in Heq. discriminate.
 Qed.
 
