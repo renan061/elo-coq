@@ -5,26 +5,49 @@ From Elo Require Import Lemmas.
 From Elo Require Import Inheritance.
 
 (* ------------------------------------------------------------------------- *)
+(* TODO                                                                      *)
+(* ------------------------------------------------------------------------- *)
+
+Local Lemma preservation_subst P :
+  forall m t tx x
+    `{ConsMust (P m), InvMust P m},
+    P m t ->
+    P m tx ->
+    P m ([x := tx] t).
+Proof.
+  intros. induction t; trivial; simpl; try solve [inv_must (P m); eauto_cons];
+  destruct string_eq_dec; subst; trivial. inv_must (P m). eauto_cons.
+Qed.
+
+Local Lemma preservation_mem_add P :
+  forall m t vT
+    `{ConsUnit (P (m +++ vT)),
+      ConsNum  (P (m +++ vT)),
+      ConsVar  (P (m +++ vT)),
+      ConsMust (P (m +++ vT)),
+      InvMust P m},
+    (forall ad T, P (m +++ vT) <{&ad :: T}>) ->
+    P m t ->
+    P (m +++ vT) t.
+Proof.
+  intros. induction t; trivial; try solve [inv_must (P m); eauto_cons];
+  eauto using cons_unit, cons_num, cons_var.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
 (* valid-addresses                                                           *)
 (* ------------------------------------------------------------------------- *)
 
 Module vad_preservation.
-  Local Lemma vad_subst : forall m t tx x,
-    valid_addresses m t ->
-    valid_addresses m tx ->
-    valid_addresses m ([x := tx] t).
-  Proof.
-    intros.
-    induction t; trivial; simpl; try solve [inv_vad; eauto with vad];
-    destruct string_eq_dec; subst; trivial. inv_vad. eauto with vad.
-  Qed.
-
   Local Lemma vad_mem_add : forall m t vT,
     valid_addresses m t ->
     valid_addresses (m +++ vT) t.
   Proof.
-    intros. induction t; eauto with vad; inv_vad; eauto with vad.
-    intros ? ?. inv_hasad. rewrite add_increments_length. eauto.
+    intros. 
+    eapply preservation_mem_add;
+    eauto using ConsVAD, ConsVADUnit, ConsVADNum, ConsVADVar, InvVAD.
+    intros. 
+    -
   Qed.
 
   Local Lemma vad_mem_set : forall m t ad vT,
@@ -43,7 +66,7 @@ Module vad_preservation.
     valid_addresses m t'.
   Proof.
     intros. induction_tstep; inv_vad; eauto with vad. 
-    inv_vad. eauto using vad_subst.
+    inv_vad. eauto using (preservation_subst valid_addresses), ConsVAD, InvVAD.
   Qed.
 
   Local Lemma vad_tstep_alloc_preservation : forall m t t' v T,
@@ -232,7 +255,9 @@ Module ctr_preservation.
     consistently_typed_references (m +++ vT) t.
   Proof.
     intros. induction t; eauto using consistently_typed_references;
-    inv_vad; inv_ctr; eauto using consistently_typed_references;
+    inv_vad; inv_ctr; eauto using consistently_typed_references.
+    - clear H4.
+    clear H4.
     (eapply ctr_refM || eapply ctr_refI); simpl_array; assumption.
   Qed.
 

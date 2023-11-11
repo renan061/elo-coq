@@ -1,6 +1,27 @@
 From Elo Require Import Core.
 From Elo Require Import Definitions.
 
+Class InvMust (P : mem -> tm -> Prop) (m : mem) := {
+  inv_new   : forall t T,   P m <{new T t}>    -> P m t;
+  inv_load  : forall t,     P m <{*t}>         -> P m t;
+  inv_asg   : forall t1 t2, P m <{t1 = t2}>    -> P m t1 /\ P m t2;
+  inv_fun   : forall x T t, P m <{fn x T t}>   -> P m t;
+  inv_call  : forall t1 t2, P m <{call t1 t2}> -> P m t1 /\ P m t2;
+  inv_seq   : forall t1 t2, P m <{t1; t2}>     -> P m t1 /\ P m t2;
+  inv_spawn : forall t,     P m <{spawn t}>    -> P m t;
+}.
+
+Ltac inv_must P :=
+ match goal with
+ | H : P <{new _ _ }> |- _ => eapply inv_new   in H
+ | H : P <{* _     }> |- _ => eapply inv_load  in H
+ | H : P <{_ = _   }> |- _ => eapply inv_asg   in H as [? ?]
+ | H : P <{fn _ _ _}> |- _ => eapply inv_fun   in H
+ | H : P <{call _ _}> |- _ => eapply inv_call  in H as [? ?]
+ | H : P <{_ ; _   }> |- _ => eapply inv_seq   in H as [? ?]
+ | H : P <{spawn _ }> |- _ => eapply inv_spawn in H
+ end.
+
 (* ------------------------------------------------------------------------- *)
 (* unfold hints                                                              *)
 (* ------------------------------------------------------------------------- *)
@@ -99,6 +120,16 @@ Ltac inv_vad :=
  | H : valid_addresses _ <{_ ; _   }> |- _ => eapply inv_vad_seq   in H as [? ?]
  | H : valid_addresses _ <{spawn _ }> |- _ => eapply inv_vad_spawn in H
  end.
+
+#[export] Instance InvVAD (m : mem) : InvMust valid_addresses m := {
+  inv_new   := inv_vad_new m;
+  inv_load  := inv_vad_load m;
+  inv_asg   := inv_vad_asg m;
+  inv_fun   := inv_vad_fun m;
+  inv_call  := inv_vad_call m;
+  inv_seq   := inv_vad_seq m;
+  inv_spawn := inv_vad_spawn m;
+}.
 
 (* ------------------------------------------------------------------------- *)
 (* well-typed-term inversion                                                 *)
