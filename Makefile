@@ -2,7 +2,7 @@
 
 COQC= coqc -Q . Elo
 
-all: core meta properties preservation soundness safety
+all: core properties preservation soundness safety
 
 core:
 	$(COQC) Util.v
@@ -11,9 +11,6 @@ core:
 	$(COQC) Sem.v
 	$(COQC) Ext.v
 	$(COQC) Core.v
-
-meta:
-	$(COQC) Meta.v
 
 properties:
 	$(COQC) Definitions.v
@@ -26,11 +23,6 @@ preservation:
 	$(COQC) Lemmas.v
 	$(COQC) Inheritance.v
 	$(COQC) Preservation.v
-
-# $(COQC) PropertiesVAD.v
-# $(COQC) PropertiesACC.v
-# $(COQC) PropertiesUACC.v
-# $(COQC) PropertiesSS.v
 
 soundness:
 	$(COQC) Soundness.v

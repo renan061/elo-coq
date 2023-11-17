@@ -1,20 +1,10 @@
 From Coq Require Import Arith.Arith.
 From Coq Require Import Lia.
 
-From Elo Require Import Util.
-From Elo Require Import Array.
 From Elo Require Import Core.
-From Elo Require Import CoreExt.
-
-From Elo Require Import Definitions.
-
-From Elo Require Import MemTyp.
-From Elo Require Import PropertiesVAD.
-From Elo Require Import PropertiesCTR.
-From Elo Require Import PropertiesACC.
-From Elo Require Import PropertiesSS.
-From Elo Require Import PropertiesSMS.
-
+From Elo Require Import Properties.
+From Elo Require Import PtrTyp.
+From Elo Require Import Preservation.
 From Elo Require Import Soundness.
 
 (* ------------------------------------------------------------------------- *)
@@ -34,7 +24,7 @@ Lemma multistep_monotonic_nondecreasing_memory_length: forall m m' ths ths' tc,
   m / ths ~~[tc]~~>* m' / ths' ->
   #m <= #m'.
 Proof.
-  intros. induction_multistep; trivial.
+  intros. induction_mulst; trivial.
   assert (#m' <= #m'')
     by eauto using cstep_monotonic_nondecreasing_memory_length.
   lia.
@@ -44,7 +34,7 @@ Lemma monotonic_nondecreasing_threads_length: forall m m' ths ths' tc,
   m / ths ~~[tc]~~>* m' / ths' ->
   #ths <= #ths'.
 Proof.
-  intros. induction_multistep; trivial. inv_cstep;
+  intros. induction_mulst; trivial. inv_cstep;
   try rewrite add_increments_length; rewrite set_preserves_length;
   eauto using Nat.le_trans.
 Qed.
@@ -82,10 +72,10 @@ Proof.
   decompose record Hvp. splits 6;
   eauto using mval_preservation,
               wtt_preservation,
-              vad_preservation,
-              ctr_preservation,
-              ss_preservation,
-              sms_preservation.
+              vad_preservation.vad_preservation,
+              ctr_preservation.ctr_preservation,
+              ss_preservation.ss_preservation,
+              sms_preservation.sms_preservation.
 Qed.
 
 Local Corollary vp_multistep_preservation : forall m m' ths ths' tc,
@@ -93,7 +83,7 @@ Local Corollary vp_multistep_preservation : forall m m' ths ths' tc,
   m / ths ~~[tc]~~>* m' / ths' ->
   valid_program m' ths'.
 Proof.
-  intros. induction_multistep; eauto using vp_cstep_preservation .
+  intros. induction_mulst; eauto using vp_cstep_preservation .
 Qed.
 
 Corollary vp_preservation : forall m m' ths ths',
@@ -177,10 +167,9 @@ Corollary memtyp_multistep_preservation : forall m m' ths ths' ad tc,
   m / ths ~~[tc]~~>* m' / ths' ->
   m[ad].typ = m'[ad].typ.
 Proof.
-  intros. induction_multistep; trivial.
+  intros. induction_mulst; trivial.
   rewrite IHmultistep; eauto.
-  eapply memtyp_cstep_preservation;
-  eauto using vp_multistep_preservation with vp.
+  eapply ptyp_cstep_preservation; eauto using vp_multistep_preservation with vp.
   assert (#m <= #m')
     by eauto using multistep_monotonic_nondecreasing_memory_length.
   lia.
@@ -198,6 +187,6 @@ Corollary memtyp_preservation : forall m m' ths ths' ad,
 Proof.
   intros * ? ? [[? [? ?]] | [? ?]];
   eauto using memtyp_multistep_preservation.
-  eapply memtyp_cstep_preservation; eauto with vp. 
+  eapply ptyp_cstep_preservation; eauto with vp. 
 Qed.
 

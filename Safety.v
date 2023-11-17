@@ -2,20 +2,11 @@ From Coq Require Import Arith.Arith.
 From Coq Require Import Lists.List.
 From Coq Require Import Lia.
 
-From Elo Require Import Util.
-From Elo Require Import Array.
 From Elo Require Import Map.
-From Elo Require Import Core.
-From Elo Require Import CoreExt.
-
-From Elo Require Import Definitions.
-
-From Elo Require Import MemTyp.
-From Elo Require Import PropertiesVAD.
-From Elo Require Import PropertiesACC.
-From Elo Require Import PropertiesUACC.
-From Elo Require Import PropertiesSS.
-From Elo Require Import PropertiesSMS.
+From Elo Require Import Properties.
+From Elo Require Import Lemmas.
+From Elo Require Import Preservation.
+From Elo Require Import PtrTyp.
 From Elo Require Import Soundness.
 From Elo Require Import Multistep.
 
@@ -41,8 +32,8 @@ Local Lemma destruct_multistep2 : forall tc m1 m3 ths1 ths3 tid e,
     m1 / ths1 ~~[tid, e]~~> m2 / ths2 /\
     m2 / ths2 ~~[tc]~~>*    m3 / ths3).
 Proof.
-  intros ?. induction tc; intros * Hmultistep; invc_multistep.
-  - inv_multistep. eauto using multistep.
+  intros ?. induction tc; intros * Hmultistep; invc_mulst.
+  - inv_mulst. eauto using multistep.
   - match goal with
     | Hmultistep : _ / _ ~~[ _ ]~~>* _ / _ |- _ => 
       decompose record (IHtc _ _ _ _ _ _ Hmultistep); eauto using multistep
@@ -56,7 +47,7 @@ Local Lemma destruct_multistep3 : forall tc m1 m4 ths1 ths4 tid1 tid2 e1 e2,
     m2 / ths2 ~~[tc]~~>*      m3 / ths3 /\
     m3 / ths3 ~~[tid2, e2]~~> m4 / ths4 ).
 Proof.
-  intros. invc_multistep.
+  intros. invc_mulst.
   match goal with H : _ / _ ~~[_]~~>* _ / _ |- _ =>
     eapply destruct_multistep2 in H; decompose record H
   end.
@@ -114,12 +105,12 @@ Theorem nacc_or_sacc_cstep_preservation : forall m m' ths ths' tid tid' ad e,
   (~ access ad m' ths'[tid]) \/ (tid = #ths /\ safe_access ad m' ths'[tid]).
 Proof.
   intros. decompose sum (lt_eq_lt_dec tid (#ths)); subst;
-  eauto using nacc_cstep_preservation.
+  eauto using nacc_preservation.nacc_preservation.
   - destruct (acc_dec ad m' ths'[#ths]); subst; eauto. right.
     do 2 (split; trivial). inv_cstep; simpl_array.
     eauto using nuacc_spawn_block. intros ?. inv_uacc.
   - destruct (nat_eq_dec tid tid'); subst; simpl_array;
-    inv_cstep; simpl_array; eauto with acc. inv_mstep; inv_step.
+    inv_cstep; simpl_array; eauto with acc. inv_mstep; inv_tstep.
 Qed.
 
 Theorem nacc_or_sacc_preservation : forall m m' ths ths' tid ad tc,
@@ -130,7 +121,7 @@ Theorem nacc_or_sacc_preservation : forall m m' ths ths' tid ad tc,
   m / ths ~~[tc]~~>* m' / ths' ->
   (~ access ad m' ths'[tid]) \/ (safe_access ad m' ths'[tid]).
 Proof.
-  intros * Hvp Hlt Hnacc **. induction_multistep; eauto.
+  intros * Hvp Hlt Hnacc **. induction_mulst; eauto.
   destruct (IHmultistep Hvp Hlt Hnacc) as [? | [? ?]]; subst.
   - assert (valid_program m' ths') by eauto using vp_preservation. 
     assert (#m <= #m')
@@ -143,7 +134,7 @@ Proof.
       by eauto using multistep_monotonic_nondecreasing_memory_length.
     assert (ad < #m') by lia.
     destruct (acc_dec ad m'' ths''[tid]); eauto. right. split; trivial.
-    eapply nuacc_cstep_preservation in Hcstep; eauto with vp.
+    eapply nuacc_preservation.nuacc_preservation in Hcstep; eauto with vp.
     decompose sum (lt_eq_lt_dec tid (#ths')); subst; trivial;
     simpl_array; inv_acc.
 Qed.
@@ -161,13 +152,11 @@ Proof.
   eapply destruct_multistep3 in Hmultistep
     as [m2 [ths2 [m3 [ths3 [Hcstep1___ [Hmultistep Hcstep2___]]]]]].
   (* --- *)
-  assert (Hvac : forall_threads ths1 (valid_accesses m1))
-    by (intros ?; eauto using vad_then_vac).
   assert (valid_program m2 ths2) by eauto using vp_preservation. 
   assert (valid_program m3 ths3) by eauto using vp_preservation. 
   (* --- *)
   assert (ad < #m1)
-    by eauto using vac_length, cstep_write_requires_uacc, uacc_then_acc.
+    by eauto using vad_acc, cstep_write_requires_uacc, uacc_then_acc.
   (* --- *)
   assert (Hacc : access ad m3 ths3[tid2])
     by eauto using cstep_read_requires_acc.
@@ -180,6 +169,8 @@ Proof.
     by eauto using multistep_append.
   assert (m1[ad].typ = m3[ad].typ) by eauto using memtyp_preservation.
   eapply nacc_or_sacc_preservation in H' as [? | ?]; eauto with vp.
-  eapply (memtyp_inconsistency m3 m1 ths3[tid2] ths1[tid1]); eauto with vp.
+  eapply (ptyp_sacc_uacc_contradiction m3 m1 ths3[tid2] ths1[tid1]);
+  eauto with vp.
 Qed.
+
 

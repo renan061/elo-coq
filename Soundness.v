@@ -1,17 +1,9 @@
-From Coq Require Import Arith.Arith.
 From Coq Require Import Lists.List.
 From Coq Require Import Lia.
-From Coq Require Strings.String.
 
-From Elo Require Import Util.
-From Elo Require Import Array.
-From Elo Require Import Map.
 From Elo Require Import Core.
-From Elo Require Import CoreExt.
-
-From Elo Require Import Definitions.
-From Elo Require Import PropertiesVAD.
-From Elo Require Import PropertiesCTR.
+From Elo Require Import Properties.
+From Elo Require Import Preservation.
 
 Local Lemma safe_preserves_inclusion : forall Gamma Gamma',
   Gamma includes Gamma' ->
@@ -96,7 +88,7 @@ Local Lemma typeof_mstep_preservation : forall m m' t t' e T,
 Proof.
   intros.
   invc_mstep; generalize dependent t'; remember empty as Gamma;
-  induction_type; intros; inv_step; inv_ctr;
+  induction_type; intros; inv_tstep; inv_ctr;
   eauto using type_of, typeof_subst_preservation;
   inv_type; inv_ctr; trivial.
 Qed.
@@ -114,7 +106,7 @@ Proof.
   decompose sum (lt_eq_lt_dec ad' ad); subst; simpl_array; trivial.
   generalize dependent t'. remember empty as Gamma.
   induction Htype; inv HeqGamma; intros;
-  try inv_ctr; inv_step; eauto.
+  try inv_ctr; inv_tstep; eauto.
   inv_type; inv_ctr; apply_deterministic_typing. eauto.
 Qed.
 
@@ -374,8 +366,8 @@ Corollary type_soundness : forall m m' ths ths' tid e,
 Proof.
   intros * Hmvad Hmctr Hvad Hwtt Hctr Hcstep.
   eauto using progress, wtt_cstep_preservation,
-    vad_cstep_preservation,
-    ctr_cstep_preservation.
+    vad_preservation.vad_cstep_preservation,
+    ctr_preservation.ctr_cstep_preservation.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -393,6 +385,6 @@ Theorem typing_preservation : forall m m' ths ths' tid e,
 Proof.
   intros * ? [? ?] [? ?]. split;
   eauto using wtt_cstep_mem_preservation, wtt_cstep_preservation.
-  eauto 6 using ctr_preservation.
+  eauto 6 using ctr_preservation.ctr_preservation.
 Qed.
 

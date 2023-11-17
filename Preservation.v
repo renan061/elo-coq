@@ -1,8 +1,102 @@
+From Coq Require Import Lia.
+
 From Elo Require Import Core.
-From Elo Require Import Meta.
 From Elo Require Import Properties.
+From Elo Require Import PtrTyp.
 From Elo Require Import Lemmas.
 From Elo Require Import Inheritance.
+
+Local Lemma cstep_preservation (P : mem -> tm -> Prop) :
+  forall m m' ths ths' tid e,
+    (* tstep_spawn_preservation *)
+    (forall t t' block,
+      P m t ->
+      t --[EF_Spawn block]--> t' ->
+      P m t') ->
+    (* mstep_preservation *)
+    (forall t',
+      forall_memory m (P m) ->
+      P m ths[tid] ->
+      m / ths[tid] ==[e]==> m' / t' ->
+      P m' t') ->
+    (* thread_default *)
+    (forall m,
+      P m thread_default) ->
+    (* spawn_block *)
+    (forall t t' block,
+      P m t ->
+      t --[EF_Spawn block]--> t' ->
+      P m block) ->
+    (* untouched_threads_preservation *)
+    (forall tid' t',
+      forall_threads ths (P m) ->
+      tid <> tid' ->
+      tid' < #ths ->
+      m / ths[tid] ==[e]==> m' / t' ->
+      P m' ths[tid']) ->
+    (* What we want to prove: *)
+    forall_memory m (P m) ->
+    forall_threads ths (P m) ->
+    m / ths ~~[tid, e]~~> m' / ths' ->
+    forall_threads ths' (P m').
+Proof.
+  intros. inv_cstep; intros tid'.
+  - destruct (nat_eq_dec tid' (#ths)); subst.
+    + rewrite <- (set_preserves_length _ tid t'). simpl_array. eauto.
+    + destruct (lt_eq_lt_dec tid' (length ths)) as [[Ha | ?] | Hb]; subst;
+      try lia.
+      * rewrite <- (set_preserves_length _ tid t') in Ha. simpl_array.
+        destruct (nat_eq_dec tid tid'); subst; simpl_array; eauto.
+      * rewrite <- (set_preserves_length _ tid t') in Hb. simpl_array. eauto.
+  - destruct (nat_eq_dec tid tid'); subst; simpl_array; eauto.
+    decompose sum (lt_eq_lt_dec tid' (#ths)); subst; eauto;
+    simpl_array; eauto.
+Qed.
+
+Local Lemma memoryless_cstep_preservation (P : tm -> Prop) :
+  forall m m' ths ths' tid e,
+    (* tstep_spawn_preservation *)
+    (forall t t' block,
+      P t ->
+      t --[EF_Spawn block]--> t' ->
+      P t') ->
+    (* mstep_preservation *)
+    (forall t',
+      P ths[tid] ->
+      m / ths[tid] ==[e]==> m' / t' ->
+      P t') ->
+    (* spawn_block *)
+    (forall t t' block,
+      P t ->
+      t --[EF_Spawn block]--> t' ->
+      P block) ->
+   (* What we want to prove: *)
+    forall_threads ths P ->
+    m / ths ~~[tid, e]~~> m' / ths' ->
+    forall_threads ths' P.
+Proof.
+  intros * Hspawn Hmstep Hblock Hp Hcstep tid'. inv_cstep.
+  - (* C-Spawn *)
+    destruct (lt_eq_lt_dec tid' (#ths)) as [[? | ?] | Hb]; subst; try lia.
+    + (* tid < #ths *)
+      destruct (nat_eq_dec tid tid'); subst; simpl_array.
+      * (* tid == tid' =====> P t'             *)
+        eapply (Hspawn _ t' block (Hp tid')). assumption.
+      * (* tid != tid' =====> P ths[tid']      *)
+        eapply Hp.
+    + (* tid = #ths    =====> P block          *)
+      rewrite <- (set_preserves_length _ tid t'). simpl_array.
+      eapply (Hblock _ t' _ (Hp tid)). assumption.
+    + (* tid > #ths    =====> P thread_default *)
+      rewrite <- (set_preserves_length _ tid t') in Hb. specialize (Hp (#ths)).
+      simpl_array. exact Hp.
+  - (* C-Mem *)
+    destruct (nat_eq_dec tid tid'); subst; simpl_array.
+      * (* tid == tid' =====> P t'             *)
+        eapply (Hmstep t' (Hp tid')). assumption.
+      * (* tid != tid' =====> P ths[tid']      *)
+        eapply Hp.
+Qed.
 
 (* ------------------------------------------------------------------------- *)
 (* valid-addresses                                                           *)
@@ -122,7 +216,7 @@ Module vad_preservation.
     intros. inv_mstep; eauto using vad_mem_add, vad_mem_set.
   Qed.
 
-  Local Corollary vad_cstep_preservation : forall m m' ths ths' tid e,
+  Corollary vad_cstep_preservation : forall m m' ths ths' tid e,
     forall_memory m (valid_addresses m) ->
     forall_threads ths (valid_addresses m) ->
     m / ths ~~[tid, e]~~> m' / ths' ->
@@ -345,7 +439,7 @@ Module ctr_preservation.
     eauto using consistently_typed_references.
   Qed.
 
-  Local Lemma ctr_spawn_block : forall m t t' block,
+  Lemma ctr_spawn_block : forall m t t' block,
     consistently_typed_references m t ->
     t --[EF_Spawn block]--> t' ->
     consistently_typed_references m block.
@@ -372,7 +466,7 @@ Module ctr_preservation.
     subst. eauto using ctr_mem_set.
   Qed.
 
-  Local Corollary ctr_cstep_preservation : forall m m' ths ths' tid e,
+  Corollary ctr_cstep_preservation : forall m m' ths ths' tid e,
     forall_threads ths (valid_addresses m) ->
     forall_threads ths well_typed_term ->
     (* --- *)
@@ -777,7 +871,7 @@ Module nuacc_preservation.
     eapply (nuacc_mem_set _ tx _ _ v); eauto.
   Qed.
 
-  Local Lemma nuacc_tstep_spawn_preservation : forall m t t' ad block,
+  Lemma nuacc_tstep_spawn_preservation : forall m t t' ad block,
     ~ unsafe_access ad m t ->
     t --[EF_Spawn block]--> t' ->
     ~ unsafe_access ad m t'.
@@ -974,7 +1068,7 @@ Module ss_preservation.
     m / ths ~~[tid, e]~~> m' / ths' ->
     forall_threads ths' safe_spawns.
   Proof.
-    eauto using simple_cstep_preservation,
+    eauto using memoryless_cstep_preservation,
       ss_tstep_spawn_preservation,
       ss_mstep_preservation,
       ss_thread_default,
@@ -1144,11 +1238,12 @@ Module sms_preservation.
   Proof.
     intros ** tid1 tid2 **.
     assert (~ unsafe_access ad m block) by eauto using nuacc_spawn_block.
-    assert (consistently_typed_references m block) by eauto using ctr_spawn_block.
+    assert (consistently_typed_references m block)
+      by eauto using ctr_spawn_block.
     destruct_sms ths tid tid1 tid2;
     decompose sum (lt_eq_lt_dec tid1 (#ths)); subst; simpl_array;
     decompose sum (lt_eq_lt_dec tid2 (#ths)); subst; simpl_array;
-    try solve [inv_step | inv_acc | intros ?; inv_uacc];
+    try solve [inv_tstep | inv_acc | intros ?; inv_uacc];
     eauto using uacc_by_association,
       nuacc_tstep_spawn_preservation,
       acc_tstep_spawn_inheritance.
@@ -1185,7 +1280,8 @@ Module sms_preservation.
     m / ths ~~[tid, e]~~> m' / ths' ->
     safe_memory_sharing m' ths'.
   Proof.
-    intros * ? [? ?] [_ ?] [? ?] [_ ?] **.
-    invc_cstep; eauto using sms_tstep_spawn_preservation, sms_mstep_preservation.
+    intros * ? [? ?] [_ ?] [? ?] [_ ?] **. invc_cstep;
+    eauto using sms_tstep_spawn_preservation, sms_mstep_preservation.
   Qed.
 End sms_preservation.
+
