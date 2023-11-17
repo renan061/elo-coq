@@ -188,8 +188,6 @@ Lemma simple_cstep_preservation (P : tm -> Prop) :
       P ths[tid] ->
       m / ths[tid] ==[e]==> m' / t' ->
       P t') ->
-    (* thread_default *)
-    (P thread_default) ->
     (* spawn_block *)
     (forall t t' block,
       P t ->
@@ -200,13 +198,26 @@ Lemma simple_cstep_preservation (P : tm -> Prop) :
     m / ths ~~[tid, e]~~> m' / ths' ->
     forall_threads ths' P.
 Proof.
-  intros ** tid'. inv_cstep.
-  - destruct (nat_eq_dec tid' (#ths)); subst.
-    + rewrite <- (set_preserves_length _ tid t'). simpl_array. eauto.
-    + destruct (lt_eq_lt_dec tid' (length ths)) as [[Ha | ?] | Hb]; subst;
-      try lia.
-      * rewrite <- (set_preserves_length _ tid t') in Ha. simpl_array.
-        destruct (nat_eq_dec tid tid'); subst; simpl_array; eauto.
-      * rewrite <- (set_preserves_length _ tid t') in Hb. simpl_array. eauto.
-  - destruct (nat_eq_dec tid tid'); subst; simpl_array; eauto.
+  intros * Hspawn Hmstep Hblock Hp Hcstep tid'. inv_cstep.
+  - (* C-Spawn *)
+    destruct (lt_eq_lt_dec tid' (#ths)) as [[? | ?] | Hb]; subst; try lia.
+    + (* tid < #ths *)
+      destruct (nat_eq_dec tid tid'); subst; simpl_array.
+      * (* tid == tid' =====> P t'             *)
+        eapply (Hspawn _ t' block (Hp tid')). assumption.
+      * (* tid != tid' =====> P ths[tid']      *)
+        eapply Hp.
+    + (* tid = #ths    =====> P block          *)
+      rewrite <- (set_preserves_length _ tid t'). simpl_array.
+      eapply (Hblock _ t' _ (Hp tid)). assumption.
+    + (* tid > #ths    =====> P thread_default *)
+      rewrite <- (set_preserves_length _ tid t') in Hb. specialize (Hp (#ths)).
+      simpl_array. exact Hp.
+  - (* C-Mem *)
+    destruct (nat_eq_dec tid tid'); subst; simpl_array.
+      * (* tid == tid' =====> P t'             *)
+        eapply (Hmstep t' (Hp tid')). assumption.
+      * (* tid != tid' =====> P ths[tid']      *)
+        eapply Hp.
 Qed.
+

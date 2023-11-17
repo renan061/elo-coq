@@ -208,6 +208,7 @@ Module vad_preservation.
     eauto using vad_cstep_preservation, vad_cstep_mem_preservation.
   Qed.
 End vad_preservation.
+Import vad_preservation.
 
 (* ------------------------------------------------------------------------- *)
 (* consistently-typed-references                                             *)
@@ -477,6 +478,7 @@ Module ctr_preservation.
     eauto using ctr_cstep_preservation, ctr_cstep_mem_preservation.
   Qed.
 End ctr_preservation.
+Import ctr_preservation.
 
 (* ------------------------------------------------------------------------- *)
 (* not-access                                                                *)
@@ -656,6 +658,7 @@ Module nacc_preservation.
     eauto using nacc_untouched_preservation.
   Qed.
 End nacc_preservation.
+Import nacc_preservation.
 
 (* ------------------------------------------------------------------------- *)
 (* not-unsafe-access                                                         *)
@@ -671,7 +674,7 @@ Module nuacc_preservation.
     try (destruct string_eq_dec); eauto; inv_uacc; inv_nuacc; eauto.
   Qed.
 
-  Local Lemma nuacc_mem_add : forall m t ad vT,
+  Lemma nuacc_mem_add : forall m t ad vT,
     ~ unsafe_access (#m) m t ->
     (* --- *)
     ~ unsafe_access ad m t ->
@@ -701,7 +704,7 @@ Module nuacc_preservation.
     eauto using unsafe_access.
   Qed.
 
-  Local Lemma alt_nuacc_mem_set_preservation : forall m t ad ad' vT,
+  Lemma alt_nuacc_mem_set_preservation : forall m t ad ad' vT,
     ~ unsafe_access ad' m t ->
     (* --- *)
     ~ unsafe_access ad m t ->
@@ -726,7 +729,7 @@ Module nuacc_preservation.
     contradict Huacc. eauto using nuacc_subst.
   Qed.
 
-  Local Lemma nuacc_tstep_alloc_preservation : forall m t t' ad v T,
+  Lemma nuacc_tstep_alloc_preservation : forall m t t' ad v T,
     forall_memory m (valid_addresses m) ->
     valid_addresses m t ->
     (* --- *)
@@ -741,7 +744,7 @@ Module nuacc_preservation.
     eauto using nacc_vad_length, nacc_then_nuacc, nuacc_mem_add.
   Qed.
 
-  Local Lemma nuacc_tstep_read_preservation : forall m t t' ad ad',
+  Lemma nuacc_tstep_read_preservation : forall m t t' ad ad',
     forall_memory m value ->
     well_typed_term t ->
     consistently_typed_references m t ->
@@ -758,7 +761,7 @@ Module nuacc_preservation.
     eauto using nuacc_from_immutable_type.
   Qed.
 
-  Local Lemma nuacc_tstep_write_preservation : forall m t t' ad ad' v T,
+  Lemma nuacc_tstep_write_preservation : forall m t t' ad ad' v T,
     ~ unsafe_access ad m t ->
     t --[EF_Write ad' v T]--> t' ->
     ~ unsafe_access ad m[ad' <- (v, T)] t'.
@@ -860,6 +863,7 @@ Module nuacc_preservation.
     eauto using nuacc_untouched_preservation.
   Qed.
 End nuacc_preservation.
+Import nuacc_preservation.
 
 (* ------------------------------------------------------------------------- *)
 (* safe-spawns                                                               *)
@@ -1070,8 +1074,7 @@ Module sms_preservation.
     safe_memory_sharing m ths[tid <- t].
   Proof.
     intros ** tid1 tid2 **. destruct_sms ths tid tid1 tid2; simpl_array;
-    eauto using acc_tstep_none_inheritance,
-                nuacc_preservation.nuacc_tstep_none_preservation.
+    eauto using acc_tstep_none_inheritance, nuacc_tstep_none_preservation.
   Qed.
 
   Local Lemma sms_tstep_alloc_preservation : forall m t v ths tid T,
@@ -1082,18 +1085,16 @@ Module sms_preservation.
     ths[tid] --[EF_Alloc (#m) v T]--> t ->
     safe_memory_sharing (m +++ (v, T)) ths[tid <- t].
   Proof.
-    intros ** tid1 tid2 ** Huacc.
-    assert (Hvac : forall_threads ths (valid_accesses m))
-      by (intros ?; eauto using vad_then_vac).
+    intros * ? Hvad ** tid1 tid2 ** Huacc.
     assert (forall tid, ~ unsafe_access (#m) m ths[tid])
       by eauto using nuacc_vad_length.
-    autounfold with vac in Hvac.
     eapply uacc_then_acc in Huacc as ?. contradict Huacc.
     destruct_sms ths tid tid1 tid2; simpl_array;
-    eauto 6 using nuacc_tstep_alloc_preservation,
+    eauto 6 using acc_mem_add_inheritance,
                   acc_tstep_alloc_inheritance,
-                  nuacc_mem_add_preservation,
-                  acc_mem_add_inheritance.
+                  nuacc_mem_add,
+                  nuacc_tstep_alloc_preservation,
+                  vad_acc.
   Qed.
 
   Local Lemma sms_tstep_read_preservation : forall m t ad ths tid,

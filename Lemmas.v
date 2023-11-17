@@ -35,3 +35,12 @@ Proof.
   eauto using nacc_then_nuacc, nacc_vad_length.
 Qed.
 
+Lemma vad_acc : forall m t ad,
+  forall_memory m (valid_addresses m) ->
+  valid_addresses m t ->
+  access ad m t ->
+  ad < #m.
+Proof.
+  intros * ? ? Hacc. induction Hacc; inv_vad; eauto.
+Qed.
+
