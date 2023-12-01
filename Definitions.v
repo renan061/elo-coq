@@ -1,64 +1,55 @@
 From Elo Require Import Core.
 
 (* ------------------------------------------------------------------------- *)
-(* has-address                                                               *)
-(* ------------------------------------------------------------------------- *)
-
-Reserved Notation "t 'has_address' ad" (at level 80, no associativity).
-
-Inductive has_ad : addr -> tm -> Prop :=
-  | ha_ref : forall ad T,
-    <{&ad :: T}> has_address ad
-
-  | ha_new : forall ad t T,
-    has_ad ad t ->
-    has_ad ad <{new T t}>
-
-  | ha_load : forall ad t,
-    has_ad ad t ->
-    has_ad ad <{*t}>
-
-  | ha_asg1 : forall ad t1 t2,
-    has_ad ad t1 ->
-    has_ad ad <{t1 = t2}>
-
-  | ha_asg2 : forall ad t1 t2,
-    has_ad ad t2 ->
-    has_ad ad <{t1 = t2}>
-
-  | ha_seq1 : forall ad t1 t2,
-    has_ad ad t1 ->
-    has_ad ad <{t1; t2}>
-
-  | ha_seq2 : forall ad t1 t2,
-    has_ad ad t2 ->
-    has_ad ad <{t1; t2}>
-
-  | ha_call1 : forall ad t1 t2,
-    has_ad ad t1 ->
-    has_ad ad <{call t1 t2}>
-
-  | ha_call2 : forall ad t1 t2,
-    has_ad ad t2 ->
-    has_ad ad <{call t1 t2}>
-
-  | ha_fun : forall ad x T t,
-    has_ad ad t ->
-    has_ad ad <{fn x T t}>
-
-  | ha_spawn : forall ad t,
-    has_ad ad t ->
-    has_ad ad <{spawn t}>
-
-  where "t 'has_address' ad" := (has_ad ad t).
-
-(* ------------------------------------------------------------------------- *)
 (* valid-addresses                                                           *)
 (* ------------------------------------------------------------------------- *)
 
-(* The addresses are valid if they are within the bounds of the memory. *)
-Definition valid_addresses (m : mem) (t : tm) :=
-  forall ad, t has_address ad -> ad < #m.
+(* Addresses are valid if they are within the bounds of the memory. *)
+Inductive valid_addresses (m : mem) : tm -> Prop :=
+  | vad_unit :
+    valid_addresses m <{unit}>
+
+  | vad_num : forall n,
+    valid_addresses m <{N n}>
+
+  | vad_ref : forall ad T,
+    ad < #m ->
+    valid_addresses m <{&ad :: T}>
+
+  | vad_new : forall t T,
+    valid_addresses m t ->
+    valid_addresses m <{new T t}>
+
+  | vad_load : forall t,
+    valid_addresses m t ->
+    valid_addresses m <{*t}>
+
+  | vad_asg : forall t1 t2,
+    valid_addresses m t1 ->
+    valid_addresses m t2 ->
+    valid_addresses m <{t1 = t2}>
+
+  | vad_seq : forall t1 t2,
+    valid_addresses m t1 ->
+    valid_addresses m t2 ->
+    valid_addresses m <{t1; t2}>
+
+  | vad_var : forall x,
+    valid_addresses m <{var x}>
+
+  | vad_fun : forall x T t,
+    valid_addresses m t ->
+    valid_addresses m <{fn x T t}>
+
+  | vad_call : forall t1 t2,
+    valid_addresses m t1 ->
+    valid_addresses m t2 ->
+    valid_addresses m <{call t1 t2}>
+
+  | vad_spawn : forall t,
+    valid_addresses m t ->
+    valid_addresses m <{spawn t}>
+  .
 
 (* ------------------------------------------------------------------------- *)
 (* well-typed-term                                                           *)

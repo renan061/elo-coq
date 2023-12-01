@@ -23,8 +23,7 @@ Lemma nacc_vad_length : forall m t,
   valid_addresses m t ->
   ~ access (#m) m t.
 Proof.
-  intros * ? Hvad Hacc. remember (#m) as ad.
-  induction Hacc; inv_vad; eauto. rewrite Heqad in *. eauto.
+  intros * ? Hvad Hacc. induction Hacc; inv_vad; eauto.
 Qed.
 
 Corollary nuacc_vad_length : forall m t,

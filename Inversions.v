@@ -5,100 +5,33 @@ From Elo Require Import Definitions.
 (* unfold hints                                                              *)
 (* ------------------------------------------------------------------------- *)
 
-#[export] Hint Unfold valid_addresses : vad.
 #[export] Hint Unfold well_typed_term : wtt.
-#[export] Hint Unfold valid_accesses  : vac.
 #[export] Hint Unfold safe_access     : sacc.
 
-#[export] Hint Extern 4 => unfold valid_addresses : vad.
 #[export] Hint Extern 4 => unfold well_typed_term : wtt.
-#[export] Hint Extern 4 => unfold valid_accesses  : vac.
 #[export] Hint Extern 4 => unfold safe_access     : sacc.
-
-(* ------------------------------------------------------------------------- *)
-(* has-address inversion                                                     *)
-(* ------------------------------------------------------------------------- *)
-
-Local Ltac match_hasad tactic :=
-  match goal with
-  | H : thread_default has_address _ |- _ => tactic H
-  | H : <{unit    }>   has_address _ |- _ => tactic H
-  | H : <{N _     }>   has_address _ |- _ => tactic H
-  | H : <{& _ :: _}>   has_address _ |- _ => tactic H
-  | H : <{new _ _ }>   has_address _ |- _ => tactic H
-  | H : <{* _     }>   has_address _ |- _ => tactic H
-  | H : <{_ = _   }>   has_address _ |- _ => tactic H
-  | H : <{var _   }>   has_address _ |- _ => tactic H
-  | H : <{fn _ _ _}>   has_address _ |- _ => tactic H
-  | H : <{call _ _}>   has_address _ |- _ => tactic H
-  | H : <{_ ; _   }>   has_address _ |- _ => tactic H
-  | H : <{spawn _ }>   has_address _ |- _ => tactic H
-  end.
-
-Ltac inv_hasad  := match_hasad inv.
-Ltac invc_hasad := match_hasad invc.
 
 (* ------------------------------------------------------------------------- *)
 (* valid-addresses inversion                                                 *)
 (* ------------------------------------------------------------------------- *)
 
-Local Ltac solve_vad_inversion := 
-  intros; try split; eauto using has_ad with vad.
+Local Ltac match_vad tactic :=
+  match goal with
+  (* irrelevant for unit *)
+  (* irrelevant for num  *)
+  | H : valid_addresses _ <{& _ :: _}> |- _ => tactic H
+  | H : valid_addresses _ <{new _ _ }> |- _ => tactic H
+  | H : valid_addresses _ <{* _     }> |- _ => tactic H
+  | H : valid_addresses _ <{_ = _   }> |- _ => tactic H
+  (* irrelevant for var  *)
+  | H : valid_addresses _ <{fn _ _ _}> |- _ => tactic H
+  | H : valid_addresses _ <{call _ _}> |- _ => tactic H
+  | H : valid_addresses _ <{_ ; _   }> |- _ => tactic H
+  | H : valid_addresses _ <{spawn _ }> |- _ => tactic H
+  end.
 
-Local Lemma inv_vad_ref : forall m ad T,
-  valid_addresses m <{&ad :: T}> ->
-  ad < #m.
-Proof. solve_vad_inversion. Qed.
-
-Local Lemma inv_vad_new : forall m t T,
-  valid_addresses m <{new T t}> ->
-  valid_addresses m t.
-Proof. solve_vad_inversion. Qed.
-
-Local Lemma inv_vad_load : forall m t,
-  valid_addresses m <{*t}> ->
-  valid_addresses m t.
-Proof. solve_vad_inversion. Qed.
-
-Local Lemma inv_vad_asg : forall m t1 t2,
-  valid_addresses m <{t1 = t2}> ->
-  valid_addresses m t1 /\ valid_addresses m t2.
-Proof. solve_vad_inversion. Qed.
-
-Local Lemma inv_vad_fun : forall m x Tx t,
-  valid_addresses m <{fn x Tx t}> ->
-  valid_addresses m t.
-Proof. solve_vad_inversion. Qed.
-
-Local Lemma inv_vad_call : forall m t1 t2,
-  valid_addresses m <{call t1 t2}> ->
-  valid_addresses m t1 /\ valid_addresses m t2.
-Proof. solve_vad_inversion. Qed.
-
-Local Lemma inv_vad_seq : forall m t1 t2,
-  valid_addresses m <{t1; t2}> ->
-  valid_addresses m t1 /\ valid_addresses m t2.
-Proof. solve_vad_inversion. Qed.
-
-Local Lemma inv_vad_spawn : forall m t,
-  valid_addresses m <{spawn t}> ->
-  valid_addresses m t.
-Proof. solve_vad_inversion. Qed.
-
-Ltac inv_vad :=
- match goal with
- (* irrelevant for unit *)
- (* irrelevant for num  *)
- | H : valid_addresses _ <{& _ :: _}> |- _ => eapply inv_vad_ref   in H as ?
- | H : valid_addresses _ <{new _ _ }> |- _ => eapply inv_vad_new   in H
- | H : valid_addresses _ <{* _     }> |- _ => eapply inv_vad_load  in H
- | H : valid_addresses _ <{_ = _   }> |- _ => eapply inv_vad_asg   in H as [? ?]
- (* irrelevant for var  *)
- | H : valid_addresses _ <{fn _ _ _}> |- _ => eapply inv_vad_fun   in H
- | H : valid_addresses _ <{call _ _}> |- _ => eapply inv_vad_call  in H as [? ?]
- | H : valid_addresses _ <{_ ; _   }> |- _ => eapply inv_vad_seq   in H as [? ?]
- | H : valid_addresses _ <{spawn _ }> |- _ => eapply inv_vad_spawn in H
- end.
+Ltac inv_vad  := match_vad inv.
+Ltac invc_vad := match_vad invc.
 
 (* ------------------------------------------------------------------------- *)
 (* well-typed-term inversion                                                 *)
@@ -218,66 +151,6 @@ Local Ltac match_acc tactic :=
 
 Ltac inv_acc  := match_acc inv.
 Ltac invc_acc := match_acc invc.
-
-(* ------------------------------------------------------------------------- *)
-(* valid-accesses inversion                                                  *)
-(* ------------------------------------------------------------------------- *)
-
-Local Ltac solve_vac_inversion := 
-  intros; autounfold with vac in *; try split; eauto using access.
-
-Local Lemma inv_vac_ref : forall m ad T,
-  valid_accesses m <{&ad :: T}> ->
-  ad < #m /\ valid_accesses m m[ad].tm.
-Proof.
-  solve_vac_inversion. intros ad'.
-  destruct (nat_eq_dec ad ad'); subst; eauto using access.
-Qed.
-
-Local Lemma inv_vac_new : forall m t T,
-  valid_accesses m <{new T t}> ->
-  valid_accesses m t.
-Proof. solve_vac_inversion. Qed.
-
-Local Lemma inv_vac_load : forall m t,
-  valid_accesses m <{*t}> ->
-  valid_accesses m t.
-Proof. solve_vac_inversion. Qed.
-
-Local Lemma inv_vac_asg : forall m t1 t2,
-  valid_accesses m <{t1 = t2}> ->
-  valid_accesses m t1 /\ valid_accesses m t2.
-Proof. solve_vac_inversion. Qed.
-
-Local Lemma inv_vac_fun : forall m x Tx t,
-  valid_accesses m <{fn x Tx t}> ->
-  valid_accesses m t.
-Proof. solve_vac_inversion. Qed.
-
-Local Lemma inv_vac_call : forall m t1 t2,
-  valid_accesses m <{call t1 t2}> ->
-  valid_accesses m t1 /\ valid_accesses m t2.
-Proof. solve_vac_inversion. Qed.
-
-Local Lemma inv_vac_seq : forall m t1 t2,
-  valid_accesses m <{t1; t2}> ->
-  valid_accesses m t1 /\ valid_accesses m t2.
-Proof. solve_vac_inversion. Qed.
-
-Ltac inv_vac :=
-  match goal with
-  (* irrelevant for unit  *)
-  (* irrelevant for num   *)
-  | H : valid_accesses _ <{& _ :: _}> |- _ => eapply inv_vac_ref  in H as [? ?]
-  | H : valid_accesses _ <{new _ _ }> |- _ => eapply inv_vac_new  in H
-  | H : valid_accesses _ <{* _     }> |- _ => eapply inv_vac_load in H
-  | H : valid_accesses _ <{_ = _   }> |- _ => eapply inv_vac_asg  in H as [? ?]
-  (* irrelevant for var   *)                    
-  | H : valid_accesses _ <{fn _ _ _}> |- _ => eapply inv_vac_fun  in H
-  | H : valid_accesses _ <{call _ _}> |- _ => eapply inv_vac_call in H as [? ?]
-  | H : valid_accesses _ <{_ ; _   }> |- _ => eapply inv_vac_seq  in H as [? ?]
-  (* irrelevant for spawn *)                    
-  end.
 
 (* ------------------------------------------------------------------------- *)
 (* not-access inversion                                                      *)
