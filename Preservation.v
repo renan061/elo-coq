@@ -6,6 +6,314 @@ From Elo Require Import PtrTyp.
 From Elo Require Import Lemmas.
 From Elo Require Import Inheritance.
 
+(* ------------------------------------------------------------------------- *)
+(* structural constructors                                                   *)
+(* ------------------------------------------------------------------------- *)
+
+Class StructNew (P : mem -> tm -> Prop) := {
+  cons_new : forall m t T, P m t           -> P m <{new T t}>;
+  inv_new  : forall m t T, P m <{new T t}> -> P m t;
+}.
+
+Class StructLoad (P : mem -> tm -> Prop) := {
+  cons_load : forall m t, P m t      -> P m <{*t}>;
+  inv_load  : forall m t, P m <{*t}> -> P m t;
+}.
+
+Class StructFun (P : mem -> tm -> Prop) := {
+  cons_fun : forall m x T t, P m t            -> P m <{fn x T t}>;
+  inv_fun  : forall m x T t, P m <{fn x T t}> -> P m t;
+}.
+
+Class StructSpawn (P : mem -> tm -> Prop) := {
+  cons_spawn : forall m t, P m t           -> P m <{spawn t}>;
+  inv_spawn  : forall m t, P m <{spawn t}> -> P m t;
+}.
+
+Class NeverSpawn (P : mem -> tm -> Prop) := {
+  never_spawn : forall m t, ~ P m <{spawn t}>;
+}.
+
+(* ------------------------------------------------------------------------- *)
+(* may constructors                                                          *)
+(* ------------------------------------------------------------------------- *)
+
+Class MayAsg (P : mem -> tm -> Prop) := {
+  may_cons_asg1 : forall m t1 t2, P m t1           -> P m <{t1 = t2}>;
+  may_cons_asg2 : forall m t1 t2, P m t2           -> P m <{t1 = t2}>;
+  may_inv_asg   : forall m t1 t2, P m <{t1 = t2}>  -> P m t1 \/ P m t2;
+}.
+
+Class MayCall (P : mem -> tm -> Prop) := {
+  may_cons_call1 : forall m t1 t2, P m t1             -> P m <{call t1 t2}>;
+  may_cons_call2 : forall m t1 t2, P m t2             -> P m <{call t1 t2}>;
+  may_inv_call   : forall m t1 t2, P m <{call t1 t2}> -> P m t1 \/ P m t2;
+}.
+
+Class MaySeq (P : mem -> tm -> Prop) := {
+  may_cons_seq1 : forall m t1 t2, P m t1         -> P m <{t1; t2}>;
+  may_cons_seq2 : forall m t1 t2, P m t2         -> P m <{t1; t2}>;
+  may_inv_seq   : forall m t1 t2, P m <{t1; t2}> -> P m t1 \/ P m t2;
+}.
+
+(* ------------------------------------------------------------------------- *)
+(* must constructors                                                         *)
+(* ------------------------------------------------------------------------- *)
+
+Class MustAsg (P : mem -> tm -> Prop) := {
+  must_cons_asg : forall m t1 t2, P m t1 -> P m t2 -> P m <{t1 = t2}>;
+  must_inv_asg  : forall m t1 t2, P m <{t1 = t2}>  -> P m t1 /\ P m t2;
+}.
+
+Class MustCall (P : mem -> tm -> Prop) := {
+  must_cons_call : forall m t1 t2, P m t1 -> P m t2   -> P m <{call t1 t2}>;
+  must_inv_call  : forall m t1 t2, P m <{call t1 t2}> -> P m t1 /\ P m t2;
+}.
+
+Class MustSeq (P : mem -> tm -> Prop) := {
+  must_cons_seq : forall m t1 t2, P m t1 -> P m t2 -> P m <{t1; t2}>;
+  must_inv_seq  : forall m t1 t2, P m <{t1; t2}>   -> P m t1 /\ P m t2;
+}.
+
+(* ------------------------------------------------------------------------- *)
+(* inv may-must                                                              *)
+(* ------------------------------------------------------------------------- *)
+
+Local Ltac match_inv_smm tactic :=
+  match goal with
+  | _ : StructNew   ?P, H : ?P _ <{new _ _ }> |- _ => eapply inv_new   in H
+  | _ : StructLoad  ?P, H : ?P _ <{* _     }> |- _ => eapply inv_load  in H
+  | _ : StructFun   ?P, H : ?P _ <{fn _ _ _}> |- _ => eapply inv_fun   in H
+  | _ : StructSpawn ?P, H : ?P _ <{spawn _ }> |- _ => eapply inv_spawn in H
+
+  | _ : MayAsg  ?P,
+    H : ?P _ <{_ = _   }> |- _ => eapply may_inv_asg  in H as [? | ?]
+  | _ : MayCall ?P,
+    H : ?P _ <{call _ _}> |- _ => eapply may_inv_call in H as [? | ?]
+  | _ : MaySeq  ?P,
+    H : ?P _ <{_ ; _   }> |- _ => eapply may_inv_seq  in H as [? | ?]
+
+  | _ : MustAsg  ?P,
+    H : ?P _ <{_ = _   }> |- _ => eapply must_inv_asg   in H as [? ?]
+  | _ : MustCall ?P,
+    H : ?P _ <{call _ _}> |- _ => eapply must_inv_call  in H as [? ?]
+  | _ : MustSeq  ?P,
+    H : ?P _ <{_ ; _   }> |- _ => eapply must_inv_seq   in H as [? ?]
+  end.
+
+Ltac inv_smm  := match_inv_smm inv.
+Ltac invc_smm := match_inv_smm invc.
+
+(* ------------------------------------------------------------------------- *)
+(* subst                                                                     *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma must_subst (P : mem -> tm -> Prop)
+  `{StructNew P}
+  `{StructLoad P}
+  `{MustAsg P}
+  `{StructFun P}
+  `{MustCall P}
+  `{MustSeq P}
+  `{StructSpawn P} :
+    forall m t tx x,
+      P m t ->
+      P m tx ->
+      P m ([x := tx] t).
+Proof.
+  intros. induction t; trivial; simpl; try inv_smm;
+  eauto using cons_new, cons_load, cons_spawn;
+  eauto using must_cons_asg, must_cons_call, must_cons_seq;
+  destruct string_eq_dec; subst; eauto using cons_fun.
+Qed.
+
+Lemma inv_may_not_asg (P : mem -> tm -> Prop) `{Hasg : MayAsg P} :
+  forall m t1 t2,
+    ~ P m <{ t1 = t2 }> ->
+    ~ P m t1 /\ ~ P m t2.
+Proof.
+  intros * H. split; intros ?; eapply H.
+  - eapply Hasg.(may_cons_asg1). assumption.
+  - eapply Hasg.(may_cons_asg2). assumption.
+Qed.
+
+Lemma inv_struct_not_fun (P : mem -> tm -> Prop) `{Hfun : StructFun P} :
+  forall m t x T,
+    ~ P m <{fn x T t}> ->
+    ~ P m t.
+Proof.
+  intros * H. destruct Hfun. intros ?. eauto.
+Qed.
+
+Lemma may_subst (P : mem -> tm -> Prop)
+  `{Hnew   : StructNew  P}
+  `{Hload  : StructLoad P}
+  `{Hasg   : MayAsg     P}
+  `{Hfun   : StructFun  P}
+  `{Hcall  : MayCall    P}
+  `{Hseq   : MaySeq     P}
+  `{Hspawn : NeverSpawn P} :
+    forall m t tx x,
+      ~ P m t ->
+      ~ P m tx ->
+      ~ P m ([x := tx] t).
+Proof.
+  intros. intros F. induction t; simpl in *; eauto; try inv_smm;
+  eauto using Hnew.(cons_new);
+  eauto using Hload.(cons_load);
+  eauto using Hasg.(may_cons_asg1), Hasg.(may_cons_asg2);
+  eauto using Hcall.(may_cons_call1), Hcall.(may_cons_call2);
+  eauto using Hseq.(may_cons_seq1), Hseq.(may_cons_seq2).
+  - destruct string_eq_dec; subst; eauto.
+  - destruct string_eq_dec; subst; eauto. inv_smm.
+    eauto using Hfun.(cons_fun).
+  - contradict F. eauto using Hspawn.(never_spawn).
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* must valid-addresses                                                      *)
+(* ------------------------------------------------------------------------- *)
+
+Local Ltac solve_vad :=
+  constructor; intros;
+  eauto using valid_addresses;
+  inv_vad; try split; assumption.
+
+#[export] Instance vad_must_new   : StructNew   valid_addresses.
+Proof. solve_vad. Qed.
+#[export] Instance vad_must_load  : StructLoad  valid_addresses.
+Proof. solve_vad. Qed.
+#[export] Instance vad_must_asg   : MustAsg     valid_addresses.
+Proof. solve_vad. Qed.
+#[export] Instance vad_must_fun   : StructFun   valid_addresses.
+Proof. solve_vad. Qed.
+#[export] Instance vad_must_call  : MustCall    valid_addresses.
+Proof. solve_vad. Qed.
+#[export] Instance vad_must_seq   : MustSeq     valid_addresses.
+Proof. solve_vad. Qed.
+#[export] Instance vad_must_spawn : StructSpawn valid_addresses.
+Proof. solve_vad. Qed. 
+
+(* ------------------------------------------------------------------------- *)
+(* must consistently-typed-references                                        *)
+(* ------------------------------------------------------------------------- *)
+
+Local Ltac solve_ctr :=
+  constructor; intros;
+  eauto using consistently_typed_references;
+  inv_ctr; try split; assumption.
+
+#[export] Instance ctr_must_new   : StructNew   consistently_typed_references.
+Proof. solve_ctr. Qed.
+#[export] Instance ctr_must_load  : StructLoad  consistently_typed_references.
+Proof. solve_ctr. Qed.
+#[export] Instance ctr_must_asg   : MustAsg     consistently_typed_references.
+Proof. solve_ctr. Qed.
+#[export] Instance ctr_must_fun   : StructFun   consistently_typed_references.
+Proof. solve_ctr. Qed.
+#[export] Instance ctr_must_call  : MustCall    consistently_typed_references.
+Proof. solve_ctr. Qed.
+#[export] Instance ctr_must_seq   : MustSeq     consistently_typed_references.
+Proof. solve_ctr. Qed.
+#[export] Instance ctr_must_spawn : StructSpawn consistently_typed_references.
+Proof. solve_ctr. Qed. 
+
+(* ------------------------------------------------------------------------- *)
+(* may access                                                                *)
+(* ------------------------------------------------------------------------- *)
+
+Local Ltac solve_acc :=
+  intros; constructor; intros; try (intros ?); eauto using access; inv_acc;
+  solve [assumption | left; assumption | right; assumption].
+
+#[export] Instance acc_struct_new  : forall ad, StructNew  (access ad).
+Proof. solve_acc. Qed.
+#[export] Instance acc_struct_load : forall ad, StructLoad (access ad).
+Proof. solve_acc. Qed.
+#[export] Instance acc_may_asg     : forall ad, MayAsg     (access ad).
+Proof. solve_acc. Qed.
+#[export] Instance acc_struct_fun  : forall ad, StructFun  (access ad).
+Proof. solve_acc. Qed.
+#[export] Instance acc_may_call    : forall ad, MayCall    (access ad).
+Proof. solve_acc. Qed.
+#[export] Instance acc_may_seq     : forall ad, MaySeq     (access ad).
+Proof. solve_acc. Qed.
+#[export] Instance acc_never_spawn : forall ad, NeverSpawn (access ad).
+Proof. solve_acc. Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* may unsafe-access                                                         *)
+(* ------------------------------------------------------------------------- *)
+
+Local Ltac solve_uacc :=
+  intros; constructor; intros; try (intros ?); eauto using unsafe_access;
+  inv_uacc; solve [assumption | left; assumption | right; assumption].
+
+#[export] Instance uacc_struct_new  : forall ad, StructNew  (unsafe_access ad).
+Proof. solve_uacc. Qed.
+#[export] Instance uacc_struct_load : forall ad, StructLoad (unsafe_access ad).
+Proof. solve_uacc. Qed.
+#[export] Instance uacc_may_asg     : forall ad, MayAsg     (unsafe_access ad).
+Proof. solve_uacc. Qed.
+#[export] Instance uacc_struct_fun  : forall ad, StructFun  (unsafe_access ad).
+Proof. solve_uacc. Qed.
+#[export] Instance uacc_may_call    : forall ad, MayCall    (unsafe_access ad).
+Proof. solve_uacc. Qed.
+#[export] Instance uacc_may_seq     : forall ad, MaySeq     (unsafe_access ad).
+Proof. solve_uacc. Qed.
+#[export] Instance uacc_never_spawn : forall ad, NeverSpawn (unsafe_access ad).
+Proof. solve_uacc. Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* must no-mut                                                               *)
+(* ------------------------------------------------------------------------- *)
+
+Local Ltac solve_nomut :=
+  constructor; intros;
+  eauto using no_mut;
+  inv_nomut; try split; assumption.
+
+#[export] Instance nomut_must_new   : StructNew   (fun m t => no_mut t).
+Proof. solve_nomut. Qed.
+#[export] Instance nomut_must_load  : StructLoad  (fun m t => no_mut t).
+Proof. solve_nomut. Qed.
+#[export] Instance nomut_must_asg   : MustAsg     (fun m t => no_mut t).
+Proof. solve_nomut. Qed.
+#[export] Instance nomut_must_fun   : StructFun   (fun m t => no_mut t).
+Proof. solve_nomut. Qed.
+#[export] Instance nomut_must_call  : MustCall    (fun m t => no_mut t).
+Proof. solve_nomut. Qed.
+#[export] Instance nomut_must_seq   : MustSeq     (fun m t => no_mut t).
+Proof. solve_nomut. Qed.
+#[export] Instance nomut_must_spawn : StructSpawn (fun m t => no_mut t).
+Proof. solve_nomut. Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* must safe-spawns                                                          *)
+(* ------------------------------------------------------------------------- *)
+
+Local Ltac solve_ss :=
+  constructor; intros;
+  eauto using safe_spawns;
+  inv_ss; try split; assumption.
+
+#[export] Instance ss_must_new   : StructNew   (fun _ t => safe_spawns t).
+Proof. solve_ss. Qed.
+#[export] Instance ss_must_load  : StructLoad  (fun _ t => safe_spawns t).
+Proof. solve_ss. Qed.
+#[export] Instance ss_must_asg   : MustAsg     (fun _ t => safe_spawns t).
+Proof. solve_ss. Qed.
+#[export] Instance ss_must_fun   : StructFun   (fun _ t => safe_spawns t).
+Proof. solve_ss. Qed.
+#[export] Instance ss_must_call  : MustCall    (fun _ t => safe_spawns t).
+Proof. solve_ss. Qed.
+#[export] Instance ss_must_seq   : MustSeq     (fun _ t => safe_spawns t).
+Proof. solve_ss. Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* generic preservation                                                      *)
+(* ------------------------------------------------------------------------- *)
+
 Local Lemma cstep_preservation (P : mem -> tm -> Prop) :
   forall m m' ths ths' tid e,
   (* None *)
@@ -151,17 +459,6 @@ Qed.
 (* ------------------------------------------------------------------------- *)
 
 Module vad_preservation.
-  Local Lemma vad_subst : forall m t tx x,
-    valid_addresses m t ->
-    valid_addresses m tx ->
-    valid_addresses m ([x := tx] t).
-  Proof.
-    intros.
-    induction t; trivial; simpl; try inv_vad; eauto using valid_addresses;
-    destruct string_eq_dec; subst; trivial.
-    inv_vad. eauto using valid_addresses.
-  Qed.
-
   Local Lemma vad_mem_add : forall m t vT,
     valid_addresses m t ->
     valid_addresses (m +++ vT) t.
@@ -188,7 +485,7 @@ Module vad_preservation.
     valid_addresses m t'.
   Proof.
     intros. induction_tstep; inv_vad; eauto using valid_addresses. 
-    inv_vad. eauto using vad_subst.
+    inv_vad. eauto using (must_subst valid_addresses).
   Qed.
 
   Local Lemma vad_tstep_alloc_preservation : forall m t t' v T,
@@ -338,17 +635,6 @@ Import vad_preservation.
 (* ------------------------------------------------------------------------- *)
 
 Module ctr_preservation.
-  Local Lemma ctr_subst : forall m t tx x,
-    consistently_typed_references m t ->
-    consistently_typed_references m tx ->
-    consistently_typed_references m ([x := tx] t).
-  Proof.
-    intros. induction t; trivial;
-    try solve [inv_ctr; eauto using consistently_typed_references];
-    simpl; destruct string_eq_dec; subst; trivial.
-    inv_ctr. eauto using consistently_typed_references.
-  Qed.
-
   Local Lemma ctr_mem_add : forall m t vT,
     valid_addresses m t ->
     (* --- *)
@@ -387,7 +673,7 @@ Module ctr_preservation.
     consistently_typed_references m t'.
   Proof.
     intros. induction_tstep; inv_ctr; eauto using consistently_typed_references.
-    inv_ctr. eauto using ctr_subst.
+    inv_ctr. eauto using (must_subst consistently_typed_references).
   Qed.
 
   Local Lemma ctr_tstep_alloc_preservation : forall m t t' v T,
@@ -577,16 +863,6 @@ Import ctr_preservation.
 (* ------------------------------------------------------------------------- *)
 
 Module nacc_preservation.
-  Local Lemma nacc_subst : forall m t tx ad x,
-    ~ access ad m t ->
-    ~ access ad m tx ->
-    ~ access ad m ([x := tx] t).
-  Proof.
-    intros. induction t; simpl; eauto using access;
-    try inv_nacc; eauto with acc;
-    destruct string_eq_dec; subst; eauto with acc.
-  Qed.
-
   Local Lemma nacc_mem_add : forall m t ad vT,
     ~ access (#m) m t ->
     (* --- *)
@@ -634,7 +910,7 @@ Module nacc_preservation.
     ~ access ad m t'.
   Proof.
     intros. induction_tstep; inv_nacc; eauto with acc.
-    inv_nacc. eauto using nacc_subst.
+    inv_nacc. eauto using (may_subst (access ad)).
   Qed.
 
   Local Lemma nacc_tstep_alloc_preservation : forall m t t' ad v T,
@@ -743,15 +1019,6 @@ Import nacc_preservation.
 (* ------------------------------------------------------------------------- *)
 
 Module nuacc_preservation.
-  Local Lemma nuacc_subst : forall m t tx ad x,
-    ~ unsafe_access ad m t ->
-    ~ unsafe_access ad m tx ->
-    ~ unsafe_access ad m ([x := tx] t).
-  Proof.
-    intros ** ?. induction t; eauto; simpl in *;
-    try (destruct string_eq_dec); eauto; inv_uacc; inv_nuacc; eauto.
-  Qed.
-
   Lemma nuacc_mem_add : forall m t ad vT,
     ~ unsafe_access (#m) m t ->
     (* --- *)
@@ -804,7 +1071,7 @@ Module nuacc_preservation.
   Proof.
     intros ** Huacc. induction_tstep; inv_nuacc;
     try inv_uacc; eauto. inv_nuacc.
-    contradict Huacc. eauto using nuacc_subst.
+    contradict Huacc. eauto using (may_subst (unsafe_access ad)).
   Qed.
 
   Lemma nuacc_tstep_alloc_preservation : forall m t t' ad v T,
@@ -948,18 +1215,9 @@ Import nuacc_preservation.
 (* ------------------------------------------------------------------------- *)
 
 Module ss_preservation.
-  Local Lemma nomut_subst : forall x t t',
-    no_mut t ->
-    no_mut t' ->
-    no_mut ([x := t'] t).
-  Proof.
-    intros. induction t; eauto; simpl;
-    try destruct string_eq_dec; subst; try assumption;
-    inv_nomut; eauto using no_mut.
-  Qed.
-
   Local Lemma hasvar_subst : forall x t tx,
-    ~ (has_var x t) -> ([x := tx] t) = t.
+    ~ (has_var x t) ->
+    ([x := tx] t) = t.
   Proof.
     intros * Hnhv **. induction t; simpl; trivial;
     try (destruct string_eq_dec; subst; trivial);
@@ -981,6 +1239,19 @@ Module ss_preservation.
     - rewrite lookup_update_neq in IHHtype; eauto.
   Qed.
 
+  Local Lemma nomut_safe_value : forall Gamma x t v T Tx,
+    value v ->
+    empty |-- v is Tx ->
+    safe Gamma[x <== Tx] |-- t is T ->
+    has_var x t ->
+    no_mut v.
+  Proof.
+    intros * Hval **.
+    inv Hval; inv_type; eauto using no_mut;
+    exfalso; eapply hasvar_typing; eauto;
+    unfold safe; rewrite lookup_update_eq; reflexivity.
+  Qed.
+
   Local Lemma ss_subst : forall Gamma x t v T Tx,
     value v ->
     empty |-- v is Tx ->
@@ -990,15 +1261,13 @@ Module ss_preservation.
     safe_spawns t ->
     safe_spawns ([x := v] t).
   Proof.
-    intros * Hval ? ? ? Hss.
+    intros.
     generalize dependent Gamma. generalize dependent T. generalize dependent Tx.
-    induction Hss; intros; invc_type; try (simpl; destruct string_eq_dec);
+    induction t; simpl; intros; invc_type; try inv_ss;
+    try (destruct string_eq_dec);
     eauto using safe_spawns, ctx_eqv_typing, MapEquivalence.update_permutation.
     eapply ss_spawn. destruct (hasvar_dec x t).
-    - eapply nomut_subst; trivial.
-      inv Hval; inv_type; eauto using no_mut;
-      exfalso; eapply hasvar_typing; eauto;
-      unfold safe; rewrite lookup_update_eq; reflexivity.
+    - eauto using nomut_safe_value, (must_subst (fun _ t => no_mut t) nil).
     - erewrite hasvar_subst; eauto.
   Qed.
 

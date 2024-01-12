@@ -66,3 +66,4 @@ Theorem nuacc_spawn_block : forall m t t' block ad,
 Proof.
   eauto using nomut_block, nomut_then_nuacc.
 Qed.
+
