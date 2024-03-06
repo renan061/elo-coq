@@ -22,6 +22,7 @@ preservation:
 	$(COQC) PtrTyp.v
 	$(COQC) Lemmas.v
 	$(COQC) Inheritance.v
+	$(COQC) Generic.v
 	$(COQC) Preservation.v
 
 soundness:
