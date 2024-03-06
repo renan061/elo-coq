@@ -10,81 +10,18 @@ From Elo Require Import Inheritance.
 (* ------------------------------------------------------------------------- *)
 
 Module vad_preservation.
-  Local Lemma vad_mem_add : forall m t vT,
-    valid_addresses m t ->
-    valid_addresses (m +++ vT) t.
+  Local Lemma vad_mem_add : mp_mem_add valid_addresses.
   Proof.
-    intros. induction t; eauto using valid_addresses;
+    unfold mp_mem_add. intros. induction t; eauto using valid_addresses;
     inv_vad; eauto using valid_addresses.
     eapply vad_ref. rewrite add_increments_length. eauto.
   Qed.
 
-  Local Lemma vad_mem_set : forall m t ad vT,
-    valid_addresses m t ->
-    valid_addresses m[ad <- vT] t.
+  Local Lemma vad_mem_set : mp_mem_set valid_addresses.
   Proof.
-    intros. induction t; eauto using valid_addresses;
+    unfold mp_mem_set. intros. induction t; eauto using valid_addresses;
     inv_vad; eauto using valid_addresses.
     eapply vad_ref. rewrite set_preserves_length. assumption.
-  Qed.
-
-  (* tstep ----------------------------------------------------------------- *)
-
-  Local Lemma vad_tstep_none_preservation : mp_none valid_addresses.
-  Proof.
-    unfold mp_none. intros.
-    induction_tstep; inv_vad; eauto using valid_addresses. 
-    inv_vad. eauto using (must_subst valid_addresses).
-  Qed.
-
-  Local Lemma vad_tstep_alloc_preservation : forall m t t' v T,
-    valid_addresses m t ->
-    t --[EF_Alloc (#m) v T]--> t' ->
-    valid_addresses (m +++ (v, T)) t'.
-  Proof.
-    intros. induction_tstep; inv_vad; eauto using vad_mem_add, valid_addresses.
-    eapply vad_ref. rewrite add_increments_length. eauto.
-  Qed.
-
-  Local Lemma vad_tstep_read_preservation : forall m t t' ad v,
-    valid_addresses m v ->
-    valid_addresses m t ->
-    t --[EF_Read ad v]--> t' ->
-    valid_addresses m t'.
-  Proof.
-    intros. induction_tstep; inv_vad; eauto using valid_addresses.
-  Qed.
-
-  Local Lemma vad_tstep_write_preservation : forall m t t' ad v T,
-    valid_addresses m t ->
-    t --[EF_Write ad v T]--> t' ->
-    valid_addresses m[ad <- (v, T)] t'.
-  Proof.
-    intros. induction_tstep; inv_vad; eauto using vad_mem_set, valid_addresses.
-  Qed.
-
-  Local Lemma vad_tstep_spawn_preservation : forall m t t' block,
-    valid_addresses m t ->
-    t --[EF_Spawn block]--> t' ->
-    valid_addresses m t'.
-  Proof.
-    intros. induction_tstep; inv_vad; eauto using valid_addresses.
-  Qed.
-
-  (* cstep ----------------------------------------------------------------- *)
-
-  Local Lemma vad_thread_default : forall m,
-    valid_addresses m thread_default.
-  Proof.
-    intros. eauto using valid_addresses.
-  Qed.
-
-  Local Lemma vad_spawn_block : forall m t t' block,
-    valid_addresses m t ->
-    t --[EF_Spawn block]--> t' ->
-    valid_addresses m block.
-  Proof.
-    intros. induction_tstep; inv_vad; eauto.
   Qed.
 
   Corollary vad_cstep_preservation : forall m m' ths ths' tid e,
@@ -93,29 +30,32 @@ Module vad_preservation.
     m / ths ~~[tid, e]~~> m' / ths' ->
     forall_threads ths' (valid_addresses m').
   Proof.
-    intros. eapply cstep_preservation; eauto.
-    - eauto using vad_tstep_none_preservation.
-    - eauto using vad_tstep_alloc_preservation.
-    - eauto using vad_tstep_read_preservation.
-    - eauto using vad_tstep_write_preservation.
-    - eauto using vad_tstep_spawn_preservation.
-    - eauto using vad_spawn_block.
+    intros. eapply (cstep_preservation valid_addresses); eauto.
+    - unfold mp_none. intros.
+      induction_tstep; inv_vad; eauto using valid_addresses. 
+      inv_vad. eauto using (must_subst valid_addresses).
+    - unfold mp_alloc. intros.
+      induction_tstep; inv_vad; eauto using vad_mem_add, valid_addresses.
+      eapply vad_ref. rewrite add_increments_length. eauto.
+    - unfold mp_read. intros.
+      induction_tstep; inv_vad; eauto using valid_addresses.
+    - unfold mp_write. intros.
+      induction_tstep; inv_vad; eauto using vad_mem_set, valid_addresses.
+    - unfold mp_spawn. intros. induction_tstep; inv_vad; eauto.
     - eauto using vad_mem_add.
     - eauto using vad_mem_set.
-    - eauto using vad_thread_default.
   Qed.
-
-  (* valid-addresses preservation ------------------------------------------ *)
 
   Theorem vad_preservation : forall m m' ths ths' tid e,
     forall_program m ths (valid_addresses m) ->
     m / ths ~~[tid, e]~~> m' / ths' ->
     forall_program m' ths' (valid_addresses m').
   Proof.
-    intros * [? ?] **. split; eauto using vad_cstep_preservation.
-    eapply (cstep_mem_preservation valid_addresses);
-    unfold mp_mem_add; eauto using vad_mem_add;
-    unfold mp_mem_set; eauto using vad_mem_set.
+    intros * [? ?] **.
+    eauto using vad_cstep_preservation,
+                (cstep_mem_preservation valid_addresses),
+                vad_mem_add,
+                vad_mem_set.
   Qed.
 End vad_preservation.
 Import vad_preservation.
@@ -127,7 +67,6 @@ Import vad_preservation.
 Module ctr_preservation.
   Local Lemma ctr_mem_add : forall m t vT,
     valid_addresses m t ->
-    (* --- *)
     consistently_typed_references m t ->
     consistently_typed_references (m +++ vT) t.
   Proof.
@@ -157,47 +96,13 @@ Module ctr_preservation.
 
   (* tstep ----------------------------------------------------------------- *)
 
-  Local Lemma ctr_tstep_none_preservation :
-    mp_none consistently_typed_references.
-  Proof.
-    unfold mp_none. intros.
-    induction_tstep; inv_ctr; eauto using consistently_typed_references.
-    inv_ctr. eauto using (must_subst consistently_typed_references).
-  Qed.
-
-  Local Lemma ctr_tstep_alloc_preservation : forall m t t' v T,
+  Local Lemma ctr_tstep_write_preservation : forall m t,
     valid_addresses m t ->
     well_typed_term t ->
     (* --- *)
-    consistently_typed_references m t ->
-    t --[EF_Alloc (#m) v T]--> t' ->
-    consistently_typed_references (m +++ (v, T)) t'.
+    mp_write consistently_typed_references m t.
   Proof.
-    intros * ? [T' ?] **. generalize dependent T'.
-    induction_tstep; intros; inv_vad; inv_type; inv_ctr;
-    eauto using consistently_typed_references, ctr_mem_add;
-    (eapply ctr_refM || eapply ctr_refI); simpl_array; trivial.
-  Qed.
-
-  Local Lemma ctr_tstep_read_preservation : forall m t t' ad v,
-    consistently_typed_references m v ->
-    (* --- *)
-    consistently_typed_references m t ->
-    t --[EF_Read ad v]--> t' ->
-    consistently_typed_references m t'.
-  Proof.
-    intros. induction_tstep; inv_ctr; eauto using consistently_typed_references.
-  Qed.
-
-  Local Lemma ctr_tstep_write_preservation : forall m t t' ad v T,
-    valid_addresses m t ->
-    well_typed_term t ->
-    (* --- *)
-    consistently_typed_references m t ->
-    t --[EF_Write ad v T]--> t' ->
-    consistently_typed_references m[ad <- (v, T)] t'.
-  Proof.
-    intros.
+    unfold mp_write. intros.
     assert (ad < #m) by eauto using vad_tstep_write_address_length.
     assert (exists Tv, T = <{{&Tv}}>
                     /\ empty |-- v is Tv
@@ -206,31 +111,6 @@ Module ctr_preservation.
       as [? [? [? [? ?]]]] by eauto using consistently_typed_write_effect.
     induction_tstep; intros; inv_vad; inv_wtt; inv_ctr;
     eauto using ctr_mem_set, consistently_typed_references.
-  Qed.
-
-  Local Lemma ctr_tstep_spawn_preservation : forall m t t' block,
-    consistently_typed_references m t ->
-    t --[EF_Spawn block]--> t' ->
-    consistently_typed_references m t'.
-  Proof.
-    intros. induction_tstep; inv_ctr;
-    eauto using consistently_typed_references.
-  Qed.
-
-  (* cstep ----------------------------------------------------------------- *)
-
-  Local Lemma ctr_thread_default : forall m,
-    consistently_typed_references m thread_default.
-  Proof.
-    eauto using consistently_typed_references.
-  Qed.
-
-  Lemma ctr_spawn_block : forall m t t' block,
-    consistently_typed_references m t ->
-    t --[EF_Spawn block]--> t' ->
-    consistently_typed_references m block.
-  Proof.
-    intros. induction_tstep; inv_ctr; eauto.
   Qed.
 
   Corollary ctr_cstep_preservation : forall m m' ths ths' tid e,
@@ -242,22 +122,35 @@ Module ctr_preservation.
     m / ths ~~[tid, e]~~> m' / ths' ->
     forall_threads ths' (consistently_typed_references m').
   Proof.
-    intros. eapply cstep_preservation; eauto.
-    - eauto using ctr_tstep_none_preservation.
-    - eauto using ctr_tstep_alloc_preservation.
-    - eauto using ctr_tstep_read_preservation.
+    intros * Hvad Hwtt ?.
+    eapply (cstep_preservation consistently_typed_references); eauto.
+    - unfold mp_none. intros.
+      induction_tstep; inv_ctr; eauto using consistently_typed_references.
+      inv_ctr. eauto using (must_subst consistently_typed_references).
+    - unfold mp_alloc. intros.
+      specialize (Hvad tid).
+      specialize (Hwtt tid) as [T' ?].
+      generalize dependent T'.
+      induction_tstep; intros; inv_vad; inv_type; inv_ctr;
+      eauto using consistently_typed_references, ctr_mem_add;
+      (eapply ctr_refM || eapply ctr_refI); simpl_array; trivial.
+    - unfold mp_read. intros.
+      induction_tstep; inv_ctr; eauto using consistently_typed_references.
     - eauto using ctr_tstep_write_preservation.
-    - eauto using ctr_tstep_spawn_preservation.
-    - eauto using ctr_spawn_block.
+    - unfold mp_spawn. intros. induction_tstep; inv_ctr; eauto.
     - eauto using ctr_mem_add.
     - intros * ? ? ?.
       assert (exists Tv, T = <{{&Tv}}>
                       /\ empty |-- v is Tv
                       /\ empty |-- m[ad].tm is Tv
                       /\ m[ad].typ = <{{&Tv}}>)
-      as [? [? [? [? ?]]]] by eauto using consistently_typed_write_effect.
+      as [? [? [? [? ?]]]]. {
+        eapply (consistently_typed_write_effect m ths[tid] t); eauto.
+
+      }
+
+      by eauto using consistently_typed_write_effect.
       subst. eauto using ctr_mem_set.
-    - eauto using ctr_thread_default.
   Qed.
 
   (* tstep mem ------------------------------------------------------------- *)

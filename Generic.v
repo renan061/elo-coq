@@ -13,29 +13,39 @@ Definition mp_none (P : mem -> tm -> Prop) :=
     t --[EF_None]--> t' ->
     P m t'.
 
-Definition mp_alloc (P : mem -> tm -> Prop) :=
-  forall m t t' v T,
+Definition mp_alloc (P : mem -> tm -> Prop) m t :=
+  forall t' v T,
     P m t ->
     t --[EF_Alloc (#m) v T]--> t' ->
     P (m +++ (v, T)) t'.
 
-Definition mp_read (P : mem -> tm -> Prop) :=
-  forall m t t' ad,
+Definition mp_read (P : mem -> tm -> Prop) m :=
+  forall t t' ad,
     P m t ->
     t --[EF_Read ad m[ad].tm]--> t' ->
     P m t'.
 
-Definition mp_write (P : mem -> tm -> Prop) :=
-  forall m t t' ad v T,
+Definition mp_write (P : mem -> tm -> Prop) m t :=
+  forall t' ad v T,
     P m t ->
     t --[EF_Write ad v T]--> t' ->
     P (m[ad <- (v, T)]) t'.
 
+Definition mp_spawn (P : mem -> tm -> Prop) :=
+  forall m t t' block,
+    P m t ->
+    t --[EF_Spawn block]--> t' ->
+    P m block.
+
 Definition mp_mem_add (P : mem -> tm -> Prop) :=
-  forall m t vT, P m t -> P (m +++ vT) t.
+  forall m t vT,
+    P m t ->
+    P (m +++ vT) t.
 
 Definition mp_mem_set (P : mem -> tm -> Prop) :=
-  forall m t ad vT, P m t -> P m[ad <- vT] t.
+  forall m t ad vT,
+    P m t ->
+    P m[ad <- vT] t.
 
 (* ------------------------------------------------------------------------- *)
 (* structural constructors                                                   *)
@@ -215,6 +225,8 @@ Local Ltac solve_ctr :=
   eauto using consistently_typed_references;
   inv_ctr; try split; assumption.
 
+#[export] Instance ctr_must_unit  : Unit  consistently_typed_references.
+Proof. solve_ctr. Qed.
 #[export] Instance ctr_must_new   : New   consistently_typed_references.
 Proof. solve_ctr. Qed.
 #[export] Instance ctr_must_load  : Load  consistently_typed_references.
@@ -326,91 +338,57 @@ Proof. solve_ss. Qed.
 (* generic preservation                                                      *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma cstep_preservation (P : mem -> tm -> Prop) :
-  forall m m' ths ths' tid e,
-  (* None *)
-  mp_none P ->
-  (* Alloc *)
-  (forall t' v T,
-    P m ths[tid] ->
-    ths[tid] --[EF_Alloc (#m) v T]--> t' ->
-    P (m +++ (v, T)) t'
-  ) ->
-  (* Read *)
-  (forall t' ad,
-    P m ths[tid] ->
-    ths[tid] --[EF_Read ad m[ad].tm]--> t' ->
-    P m t'
-  ) ->
-  (* Write *)
-  (forall t' ad v T,
-    P m ths[tid] ->
-    ths[tid] --[EF_Write ad v T]--> t' ->
-    P m[ad <- (v, T)] t'
-  ) ->
-  (* Spawn -- Term *)
-  (forall t' block,
-    P m ths[tid] ->
-    ths[tid] --[EF_Spawn block]--> t' ->
-    P m t'
-  ) ->
-  (* Spawn -- Block *)
-  (forall t' block,
-    P m ths[tid] ->
-    ths[tid] --[EF_Spawn block]--> t' ->
-    P m block
-  ) ->
-  (* Untouched -- Alloc *)
-  (forall tid' t ad v T,
-    P m ths[tid'] ->
-    ths[tid] --[EF_Alloc ad v T]--> t ->
-    P (m +++ (v, T)) ths[tid']
-  ) ->
-  (* Untouched -- Write *)
-  (forall tid' t ad v T,
-    ad < #m ->
-    P m ths[tid'] ->
-    ths[tid] --[EF_Write ad v T]--> t ->
-    P m[ad <- (v, T)] ths[tid']
-  ) ->
-  (* Thread Default *)
-  (forall m, P m thread_default) ->
-  (* What we want to prove: *)
-  forall_memory m (P m) ->
-  forall_threads ths (P m) ->
-  m / ths ~~[tid, e]~~> m' / ths' ->
-  forall_threads ths' (P m').
+Local Lemma tstep_spawn_preservation (P : mem -> tm -> Prop) 
+  `{Unit P} `{New P} `{Load P} `{Asg P} `{Fun P} `{Call P} `{Seq P} `{Spawn P} :
+    forall m t t' block,
+      P m t ->
+      t --[EF_Spawn block]--> t' ->
+      P m t'.
 Proof.
-  intros * Hnone Halloc Hread Hwrite Hspawn1 Hspawn2 Huntouched1 Huntouched2.
-  intros Hdefault Hmem Hths Hcstep tid'.
+  intros. induction_tstep; inv_smm;
+  eauto using Cunit, Cnew, Cload, Casg, Ccall, Cseq.
+Qed.
+
+Lemma cstep_preservation (P : mem -> tm -> Prop)
+  `{Unit P} `{New P} `{Load P} `{Asg P} `{Fun P} `{Call P} `{Seq P} `{Spawn P} :
+    forall m m' ths ths' tid e,
+      mp_none P ->
+      mp_alloc P m ths[tid] ->
+      mp_read P m ->
+      mp_write P m ths[tid] ->
+      mp_spawn P ->
+      (* Untouched -- Alloc *)
+      (forall tid' t ad v T,
+        P m ths[tid'] ->
+        ths[tid] --[EF_Alloc ad v T]--> t ->
+        P (m +++ (v, T)) ths[tid']
+      ) ->
+      (* Untouched -- Write *)
+      (forall tid' t ad v T,
+        ad < #m ->
+        P m ths[tid'] ->
+        ths[tid] --[EF_Write ad v T]--> t ->
+        P m[ad <- (v, T)] ths[tid']
+      ) ->
+      (* What we want to prove: *)
+      forall_memory m (P m) ->
+      forall_threads ths (P m) ->
+      m / ths ~~[tid, e]~~> m' / ths' ->
+      forall_threads ths' (P m').
+Proof.
+  intros * ? ? ? ? ? ? ? ? Hths ? tid'.
   inv_cstep.
   - (* C-Spawn *)
-    decompose sum (lt_eq_lt_dec tid' (#ths)); subst; try lia; simpl_array.
-    + (* tid < #ths *)
-      destruct (nat_eq_dec tid tid'); subst; simpl_array.
-      * (* tid == tid' =====> P t'             *)
-        eapply (Hspawn1 t' block (Hths tid')). assumption.
-      * (* tid != tid' =====> P ths[tid']      *)
-        eapply Hths.
-    + (* tid = #ths    =====> P block          *)
-      eapply (Hspawn2 t' _ (Hths tid)). assumption.
-    + (* tid > #ths    =====> P thread_default *)
-      eapply Hdefault.
+    decompose sum (lt_eq_lt_dec tid' (#ths)); subst;
+    try lia; simpl_array; eauto using Cunit.
+    destruct (nat_eq_dec tid tid'); subst; simpl_array; eauto.
+    eapply (tstep_spawn_preservation P _ _ t' block (Hths tid')); eauto.
   - (* C-Mem *)
     destruct (lt_eq_lt_dec tid' (#ths)) as [[? | ?] | Hgt]; subst; try lia.
-    + (* tid' < #ths *)
-      destruct (nat_eq_dec tid tid'); subst; simpl_array.
-      * (* tid' == tid =====> P t'             *)
-        inv_mstep; eauto.
-      * (* tid' != tid =====> P ths[tid']      *)
-        inv_mstep; trivial.
-        ** eapply Huntouched1; eauto.
-        ** eapply Huntouched2; eauto.
-    + (* tid' = #ths    =====> P thread_default *)
-      simpl_array. eapply Hdefault.
-    + (* tid' > #ths    =====> P thread_default *)
-      rewrite <- (set_preserves_length _ tid t') in Hgt. simpl_array.
-      eapply Hdefault.
+    + destruct (nat_eq_dec tid tid'); subst; simpl_array; inv_mstep; eauto.
+    + simpl_array. eauto using Cunit.
+    + rewrite <- (set_preserves_length _ tid t') in Hgt.
+      simpl_array. eauto using Cunit.
 Qed.
 
 Lemma memoryless_cstep_preservation (P : tm -> Prop) :
