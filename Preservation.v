@@ -51,11 +51,13 @@ Module vad_preservation.
     m / ths ~~[tid, e]~~> m' / ths' ->
     forall_program m' ths' (valid_addresses m').
   Proof.
-    intros * [? ?] **.
-    eauto using vad_cstep_preservation,
-                (cstep_mem_preservation valid_addresses),
-                vad_mem_add,
-                vad_mem_set.
+    intros * [? ?] **. split; eauto using vad_cstep_preservation.
+    eapply (cstep_mem_preservation valid_addresses); eauto using vad_mem_add.
+    - unfold mp_mem_alloc. intros ** ad.
+      decompose sum (lt_eq_lt_dec ad (#m)); subst; simpl_array;
+      eauto using (tstep_alloc_value P), Cunit.
+    - intros ** ad'. destruct (nat_eq_dec ad ad'); subst; simpl_array;
+      eauto using (tstep_write_value P).
   Qed.
 End vad_preservation.
 Import vad_preservation.
@@ -94,25 +96,6 @@ Module ctr_preservation.
     simpl_array; trivial.
   Qed.
 
-  (* tstep ----------------------------------------------------------------- *)
-
-  Local Lemma ctr_tstep_write_preservation : forall m t,
-    valid_addresses m t ->
-    well_typed_term t ->
-    (* --- *)
-    mp_write consistently_typed_references m t.
-  Proof.
-    unfold mp_write. intros.
-    assert (ad < #m) by eauto using vad_tstep_write_address_length.
-    assert (exists Tv, T = <{{&Tv}}>
-                    /\ empty |-- v is Tv
-                    /\ empty |-- m[ad].tm is Tv
-                    /\ m[ad].typ = <{{&Tv}}>)
-      as [? [? [? [? ?]]]] by eauto using consistently_typed_write_effect.
-    induction_tstep; intros; inv_vad; inv_wtt; inv_ctr;
-    eauto using ctr_mem_set, consistently_typed_references.
-  Qed.
-
   Corollary ctr_cstep_preservation : forall m m' ths ths' tid e,
     forall_threads ths (valid_addresses m) ->
     forall_threads ths well_typed_term ->
@@ -124,32 +107,42 @@ Module ctr_preservation.
   Proof.
     intros * Hvad Hwtt ?.
     eapply (cstep_preservation consistently_typed_references); eauto.
-    - unfold mp_none. intros.
+    - (* none -------------------------------------------------------------- *)
+      unfold mp_none. intros.
       induction_tstep; inv_ctr; eauto using consistently_typed_references.
       inv_ctr. eauto using (must_subst consistently_typed_references).
-    - unfold mp_alloc. intros.
-      specialize (Hvad tid).
-      specialize (Hwtt tid) as [T' ?].
+    - (* alloc ------------------------------------------------------------- *)
+      unfold mp_alloc. intros.
+      specialize (Hvad tid). specialize (Hwtt tid) as [T' ?].
       generalize dependent T'.
       induction_tstep; intros; inv_vad; inv_type; inv_ctr;
       eauto using consistently_typed_references, ctr_mem_add;
       (eapply ctr_refM || eapply ctr_refI); simpl_array; trivial.
-    - unfold mp_read. intros.
+    - (* read -------------------------------------------------------------- *)
+      unfold mp_read. intros.
       induction_tstep; inv_ctr; eauto using consistently_typed_references.
-    - eauto using ctr_tstep_write_preservation.
-    - unfold mp_spawn. intros. induction_tstep; inv_ctr; eauto.
-    - eauto using ctr_mem_add.
-    - intros * ? ? ?.
+    - (* write ------------------------------------------------------------- *)
+      unfold mp_write. intros.
+      specialize (Hvad tid). specialize (Hwtt tid). 
+      assert (ad < #m) by eauto using vad_tstep_write_address_length.
       assert (exists Tv, T = <{{&Tv}}>
                       /\ empty |-- v is Tv
                       /\ empty |-- m[ad].tm is Tv
                       /\ m[ad].typ = <{{&Tv}}>)
-      as [? [? [? [? ?]]]]. {
-        eapply (consistently_typed_write_effect m ths[tid] t); eauto.
-
-      }
-
-      by eauto using consistently_typed_write_effect.
+        as [? [? [? [? ?]]]] by eauto using consistently_typed_write_effect.
+      induction_tstep; intros; inv_vad; inv_wtt; inv_ctr;
+      eauto using ctr_mem_set, consistently_typed_references.
+    - (* spawn ------------------------------------------------------------- *)
+      unfold mp_spawn. intros. induction_tstep; inv_ctr; eauto.
+    - (* untouched alloc --------------------------------------------------- *)
+      eauto using ctr_mem_add.
+    - (* untouched write --------------------------------------------------- *)
+      intros * ? ? ?.
+      assert (exists Tv, T = <{{&Tv}}>
+                      /\ empty |-- v is Tv
+                      /\ empty |-- m[ad].tm is Tv
+                      /\ m[ad].typ = <{{&Tv}}>)
+      as [? [? [? [? ?]]]] by eauto using consistently_typed_write_effect.
       subst. eauto using ctr_mem_set.
   Qed.
 
@@ -159,9 +152,9 @@ Module ctr_preservation.
     forall_memory m (valid_addresses m) ->
     valid_addresses m t ->
     well_typed_term t ->
+    consistently_typed_references m t ->
     (* --- *)
     forall_memory m (consistently_typed_references m) ->
-    consistently_typed_references m t ->
     t --[EF_Alloc (#m) v T]--> t' ->
     forall_memory (m +++ (v, T)) (consistently_typed_references (m +++ (v, T))).
   Proof.
@@ -172,14 +165,13 @@ Module ctr_preservation.
   Qed.
 
   Local Lemma ctr_tstep_write_mem_preservation : forall m t t' ad v T,
-   valid_addresses m t ->
-   well_typed_term t ->
-   (* --- *)
-   forall_memory m (consistently_typed_references m) ->
-   consistently_typed_references m t ->
-   t --[EF_Write ad v T]--> t' ->
-   forall_memory m[ad <- (v, T)] (consistently_typed_references m[ad <- (v, T)])
-   .
+  valid_addresses m t ->
+  well_typed_term t ->
+  consistently_typed_references m t ->
+  (* --- *)
+  forall_memory m (consistently_typed_references m) ->
+  t --[EF_Write ad v T]--> t' ->
+  forall_memory m[ad <- (v, T)] (consistently_typed_references m[ad <- (v, T)]).
   Proof.
     intros ** ad'.
     assert (ad < #m) by eauto using vad_tstep_write_address_length.
@@ -192,38 +184,6 @@ Module ctr_preservation.
     eauto using ctr_mem_set, ctr_tstep_write_value.
   Qed.
 
-  (* mstep mem ------------------------------------------------------------- *)
-
-  Local Corollary ctr_mstep_mem_preservation : forall m m' t t' e,
-    well_typed_term t ->
-    valid_addresses m t ->
-    forall_memory m (valid_addresses m) ->
-    (* --- *)
-    forall_memory m (consistently_typed_references m) ->
-    consistently_typed_references m t ->
-    m / t ==[e]==> m' / t' ->
-    forall_memory m' (consistently_typed_references m').
-  Proof.
-    intros. inv_mstep;
-    eauto using ctr_tstep_alloc_mem_preservation,
-                ctr_tstep_write_mem_preservation.
-  Qed.
-
-  (* cstep mem ------------------------------------------------------------- *)
-
-  Local Corollary ctr_cstep_mem_preservation : forall m m' ths ths' tid e,
-    forall_memory m (valid_addresses m) ->
-    forall_threads ths (valid_addresses m) ->
-    forall_threads ths well_typed_term ->
-    (* --- *)
-    forall_memory m (consistently_typed_references m) ->
-    forall_threads ths (consistently_typed_references m) ->
-    m / ths ~~[tid, e]~~> m' / ths' ->
-    forall_memory m' (consistently_typed_references m').
-  Proof.
-    intros. inv_cstep; eauto using ctr_mstep_mem_preservation.
-  Qed.
-
   (* consistently-typed-references preservation ---------------------------- *)
 
   Theorem ctr_preservation : forall m m' ths ths' tid e,
@@ -234,8 +194,15 @@ Module ctr_preservation.
     m / ths ~~[tid, e]~~> m' / ths' ->
     forall_program m' ths' (consistently_typed_references m').
   Proof.
-    intros * [? ?] [_ ?] [? ?]. intros.
-    eauto using ctr_cstep_preservation, ctr_cstep_mem_preservation.
+    intros * [? ?] [_ ?] [? ?]. intros; split;
+    eauto using ctr_cstep_preservation.
+    eapply (cstep_mem_preservation consistently_typed_references); eauto.
+    - unfold mp_mem_add. intros. eapply (ctr_mem_add m); eauto.
+
+    unfold mp_mem_add. intros.
+    decompose sum (lt_eq_lt_dec ad (#m)); subst; simpl_array;
+    eauto using consistently_typed_references; (* optimization *)
+    eauto using ctr_mem_add, ctr_tstep_alloc_value.
   Qed.
 End ctr_preservation.
 Import ctr_preservation.
