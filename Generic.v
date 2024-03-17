@@ -7,57 +7,54 @@ From Elo Require Import Properties.
 (* meta-properties                                                           *)
 (* ------------------------------------------------------------------------- *)
 
-Definition mp_none (P : mem -> tm -> Prop) :=
-  forall m t t',
+Section metaproperties.
+  Variable P : mem -> tm -> Prop. 
+  Variable m : mem.
+  Variable t : tm.
+
+  Definition mp_none t' :=
     P m t ->
     t --[EF_None]--> t' ->
     P m t'.
 
-Definition mp_alloc (P : mem -> tm -> Prop) m t :=
-  forall t' v T,
+  Definition mp_alloc t' v T :=
     P m t ->
     t --[EF_Alloc (#m) v T]--> t' ->
     P (m +++ (v, T)) t'.
 
-Definition mp_read (P : mem -> tm -> Prop) m :=
-  forall t t' ad,
+  Definition mp_read t' ad :=
     P m t ->
     t --[EF_Read ad m[ad].tm]--> t' ->
     P m t'.
 
-Definition mp_write (P : mem -> tm -> Prop) m t :=
-  forall t' ad v T,
+  Definition mp_write t' ad v T :=
     P m t ->
     t --[EF_Write ad v T]--> t' ->
     P (m[ad <- (v, T)]) t'.
 
-Definition mp_spawn (P : mem -> tm -> Prop) :=
-  forall m t t' block,
+  Definition mp_spawn t' block :=
     P m t ->
     t --[EF_Spawn block]--> t' ->
     P m block.
 
-Definition mp_mem_add (P : mem -> tm -> Prop) :=
-  forall m t vT,
+  Definition mp_mem_add vT :=
     P m t ->
     P (m +++ vT) t.
 
-Definition mp_mem_set (P : mem -> tm -> Prop) :=
-  forall m t ad vT,
+  Definition mp_mem_set ad vT :=
     P m t ->
     P m[ad <- vT] t.
 
-Definition mp_mem_alloc (P : mem -> tm -> Prop) :=
-  forall m t t' v T,
+  Definition mp_mem_alloc t' v T :=
     forall_memory m (P m) ->
     t --[EF_Alloc (#m) v T]--> t' ->
     forall_memory (m +++ (v, T)) (P (m +++ (v, T))).
 
-Definition mp_mem_write (P : mem -> tm -> Prop) :=
-  forall m t t' ad v T,
+  Definition mp_mem_write t' ad v T :=
     forall_memory m (P m) ->
     t --[EF_Write ad v T]--> t' ->
     forall_memory m[ad <- (v, T)] (P m[ad <- (v, T)]).
+End metaproperties.
 
 (* ------------------------------------------------------------------------- *)
 (* structural constructors                                                   *)
@@ -364,11 +361,11 @@ Qed.
 Lemma cstep_preservation (P : mem -> tm -> Prop)
   `{Unit P} `{New P} `{Load P} `{Asg P} `{Fun P} `{Call P} `{Seq P} `{Spawn P} :
     forall m m' ths ths' tid e,
-      mp_none P ->
-      mp_alloc P m ths[tid] ->
-      mp_read P m ->
-      mp_write P m ths[tid] ->
-      mp_spawn P ->
+      (forall t,        mp_none  P m ths[tid] t)        ->
+      (forall t v T,    mp_alloc P m ths[tid] t v T)    ->
+      (forall t ad,     mp_read  P m ths[tid] t ad)     ->
+      (forall t ad v T, mp_write P m ths[tid] t ad v T) ->
+      (forall t block,  mp_spawn P m ths[tid] t block)  ->
       (* Untouched -- Alloc *)
       (forall tid' t ad v T,
         P m ths[tid'] ->
@@ -392,12 +389,13 @@ Proof.
   inv_cstep.
   - (* C-Spawn *)
     decompose sum (lt_eq_lt_dec tid' (#ths)); subst;
-    try lia; simpl_array; eauto using Cunit.
+    simpl_array; unfold mp_spawn in *; eauto using Cunit.
     destruct (nat_eq_dec tid tid'); subst; simpl_array; eauto.
     eapply (tstep_spawn_preservation P _ _ t' block (Hths tid')); eauto.
   - (* C-Mem *)
     destruct (lt_eq_lt_dec tid' (#ths)) as [[? | ?] | Hgt]; subst; try lia.
-    + destruct (nat_eq_dec tid tid'); subst; simpl_array; inv_mstep; eauto.
+    + destruct (nat_eq_dec tid tid'); subst; simpl_array;
+      inv_mstep; unfold mp_none, mp_alloc, mp_read, mp_write in *; eauto.
     + simpl_array. eauto using Cunit.
     + rewrite <- (set_preserves_length _ tid t') in Hgt.
       simpl_array. eauto using Cunit.
@@ -448,7 +446,7 @@ Proof.
         eapply Hp.
 Qed.
 
-Local Lemma tstep_alloc_value (P : mem -> tm -> Prop) 
+Lemma tstep_alloc_value (P : mem -> tm -> Prop) 
   `{New P} `{Load P} `{Asg P} `{Fun P} `{Call P} `{Seq P} `{Spawn P} :
     forall m t t' ad v T,
       P m t ->
@@ -458,7 +456,7 @@ Proof.
   intros. induction_tstep; inv_smm; eauto.
 Qed.
 
-Local Lemma tstep_write_value (P : mem -> tm -> Prop) 
+Lemma tstep_write_value (P : mem -> tm -> Prop) 
   `{New P} `{Load P} `{Asg P} `{Fun P} `{Call P} `{Seq P} `{Spawn P} :
     forall m t t' ad v T,
       P m t ->
@@ -468,44 +466,75 @@ Proof.
   intros. induction_tstep; inv_smm; eauto.
 Qed.
 
+Lemma tstep_spawn_block (P : mem -> tm -> Prop) 
+  `{New P} `{Load P} `{Asg P} `{Fun P} `{Call P} `{Seq P} `{Spawn P} :
+    forall m t t' block,
+      P m t ->
+      t --[EF_Spawn block]--> t' ->
+      P m block.
+Proof.
+  intros. induction_tstep; inv_smm; eauto.
+Qed.
+
 Local Lemma tstep_alloc_mem_preservation (P : mem -> tm -> Prop) 
   `{Unit P} `{New P} `{Load P} `{Asg P} `{Fun P} `{Call P} `{Seq P} `{Spawn P} :
     forall m t t' v T,
-      P (m +++ (v, T)) t ->
+      (forall ad, mp_mem_add P m m[ad].tm (v, T)) ->
+      mp_mem_add P m t (v, T) ->
       P m t ->
       forall_memory m (P m) ->
       t --[EF_Alloc (#m) v T]--> t' ->
       forall_memory (m +++ (v, T)) (P (m +++ (v, T))).
 Proof.
+  unfold mp_mem_add.
   intros ** ad. decompose sum (lt_eq_lt_dec ad (#m)); subst; simpl_array;
   eauto using (tstep_alloc_value P), Cunit.
-Abort.
+Qed.
 
 Local Lemma tstep_write_mem_preservation (P : mem -> tm -> Prop) 
   `{Unit P} `{New P} `{Load P} `{Asg P} `{Fun P} `{Call P} `{Seq P} `{Spawn P} :
     forall m t t' ad v T,
-      mp_mem_set P ->
+      mp_mem_set P m t ad (v, T) ->
+      (forall ad', mp_mem_set P m m[ad'].tm ad (v, T)) ->
       ad < #m ->
       P m t ->
       forall_memory m (P m) ->
       t --[EF_Write ad v T]--> t' ->
       forall_memory m[ad <- (v, T)] (P m[ad <- (v, T)]).
 Proof.
-  intros ** ad'. destruct (nat_eq_dec ad ad'); subst; simpl_array;
-  eauto using (tstep_write_value P).
+  intros ** ad'.
+  destruct (nat_eq_dec ad ad'); subst; simpl_array;
+  unfold mp_mem_set in *; eauto using (tstep_write_value P).
 Qed.
 
 Corollary cstep_mem_preservation (P : mem -> tm -> Prop) 
   `{Unit P} `{New P} `{Load P} `{Asg P} `{Fun P} `{Call P} `{Seq P} `{Spawn P} :
     forall m m' ths ths' tid e,
-      mp_mem_alloc P ->
-      mp_mem_write P ->
+      (forall v T, mp_mem_add P m ths[tid] (v, T)) ->
+      (forall ad v T, mp_mem_add P m m[ad].tm (v, T)) ->
+      (forall ad v T, mp_mem_set P m ths[tid] ad (v, T)) ->
+      (forall ad ad' v T, mp_mem_set P m m[ad'].tm ad (v, T)) ->
       forall_threads ths (P m) ->
       (* --- *)
       forall_memory m (P m) ->
       m / ths ~~[tid, e]~~> m' / ths' ->
       forall_memory m' (P m').
 Proof.
-  intros. inv_cstep; trivial. inv_mstep; eauto.
+  intros. inv_cstep; trivial. inv_mstep;
+  eauto using tstep_alloc_mem_preservation, tstep_write_mem_preservation.
 Qed.
 
+Corollary cstep_mem_preservation' (P : mem -> tm -> Prop) 
+  `{Unit P} `{New P} `{Load P} `{Asg P} `{Fun P} `{Call P} `{Seq P} `{Spawn P} :
+    forall m m' ths ths' tid e,
+      (forall t' v T, mp_mem_alloc P m ths[tid] t' v T)       ->
+      (forall t' ad v T, mp_mem_write P m ths[tid] t' ad v T) ->
+      forall_threads ths (P m) ->
+      (* --- *)
+      forall_memory m (P m) ->
+      m / ths ~~[tid, e]~~> m' / ths' ->
+      forall_memory m' (P m').
+Proof.
+  unfold mp_mem_alloc, mp_mem_write.  
+  intros. inv_cstep; trivial. inv_mstep; eauto.
+Qed.
