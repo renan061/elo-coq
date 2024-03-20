@@ -35,7 +35,7 @@ Section metaproperties.
   Definition mp_spawn m t t' block :=
     P m t ->
     t --[EF_Spawn block]--> t' ->
-    P m block.
+    P m t'.
 
   Definition mp_unt_alloc m t t' tu ad v T :=
     P m tu ->
@@ -71,7 +71,7 @@ Section metaproperties.
 End metaproperties.
 
 Ltac unfold_mp :=
-   unfold mp_none, mp_alloc, mp_read, mp_write,
+   unfold mp_none, mp_alloc, mp_read, mp_write, mp_spawn,
           mp_unt_alloc, mp_unt_write,
           mp_mem_alloc, mp_mem_write,
           mp_mem_add, mp_mem_set in *.
@@ -317,8 +317,13 @@ Proof. solve_nacc. Qed.
 Proof. solve_nacc. Qed.
 #[export] Instance nacc_must_seq    : forall ad, Seq        (not_access ad).
 Proof. solve_nacc. Qed.
-#[export] Instance nacc_never_spawn : forall ad, NeverSpawn (access ad).
-Proof. solve_nacc. Qed.
+
+#[export] Hint Resolve
+  nacc_must_unit
+  nacc_must_new nacc_must_load nacc_must_asg
+  nacc_must_fun nacc_must_call
+  nacc_must_seq
+  : nacc.
 
 (* ------------------------------------------------------------------------- *)
 (* may unsafe-access                                                         *)
@@ -415,6 +420,7 @@ Proof.
   eauto using Cunit, Cnew, Cload, Casg, Ccall, Cseq.
 Qed.
 
+(* total cstep preservation *)
 Lemma cstep_preservation (P : mem -> tm -> Prop)
   `{Unit P} `{New P} `{Load P} `{Asg P} `{Fun P} `{Call P} `{Seq P} `{Spawn P} :
     forall m m' ths ths' tid e,
@@ -445,31 +451,26 @@ Proof.
       simpl_array. eauto using Cunit.
 Qed.
 
-(*
 Lemma partial_cstep_preservation (P : mem -> tm -> Prop)
-  `{Unit P} `{New P} `{Load P} `{Asg P} `{Fun P} `{Call P} `{Seq P}
-  `{NeverSpawn P}:
+  `{Unit P} `{New P} `{Load P} `{Asg P} `{Fun P} `{Call P} `{Seq P} :
     forall m m' ths ths' tid tid' e,
       (forall t,             mp_none      P m ths[tid] t)                  ->
       (forall t v T,         mp_alloc     P m ths[tid] t v T)              ->
       (forall t ad,          mp_read      P m ths[tid] t ad)               ->
       (forall t ad v T,      mp_write     P m ths[tid] t ad v T)           ->
+      (forall t block,       mp_spawn     P m ths[tid'] t block)           ->
       (forall tid' t ad v T, mp_unt_alloc P m ths[tid'] t ths[tid] ad v T) ->
       (forall tid' t ad v T, mp_unt_write P m ths[tid'] t ths[tid] ad v T) ->
       (* What we want to prove: *)
+      tid < #ths ->
       P m ths[tid] ->
       m / ths ~~[tid', e]~~> m' / ths' ->
       P m' ths'[tid].
 Proof.
-  intros. inv_cstep.
-  - decompose sum (lt_eq_lt_dec tid (#ths)); subst; simpl_array;
-    eauto using (tstep_spawn_block_preservation P), Cunit.
-    + destruct (nat_eq_dec tid tid'); subst; simpl_array; eauto. admit.
-    +
-  - destruct (nat_eq_dec tid tid'); subst; simpl_array;
-    unfold_mp; inv_mstep; eauto.
+  unfold_mp. intros. inv_cstep;
+  destruct (nat_eq_dec tid tid'); subst; simpl_array; eauto;
+  inv_mstep; eauto.
 Qed.
-*)
 
 Lemma memoryless_cstep_preservation (P : tm -> Prop) :
   forall m m' ths ths' tid e,
@@ -597,7 +598,7 @@ Qed.
 Corollary cstep_mem_preservation' (P : mem -> tm -> Prop) 
   `{Unit P} `{New P} `{Load P} `{Asg P} `{Fun P} `{Call P} `{Seq P} `{Spawn P} :
     forall m m' ths ths' tid e,
-      (forall t' v T, mp_mem_alloc P m ths[tid] t' v T)       ->
+      (forall t' v T,    mp_mem_alloc P m ths[tid] t' v T)    ->
       (forall t' ad v T, mp_mem_write P m ths[tid] t' ad v T) ->
       forall_threads ths (P m) ->
       (* --- *)

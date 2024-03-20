@@ -64,14 +64,14 @@ Module vad_preservation.
     mp_unt_alloc valid_addresses m t t' tu ad v T.
   Proof.
     pose proof vad_mp_mem_add. unfold_mp. intros.
-    induction_tstep; eauto using valid_addresses.
+    induction_tstep; eauto.
   Qed.
 
   Local Lemma vad_mp_unt_write : forall m t t' tu ad v T,
     mp_unt_write valid_addresses m t t' tu ad v T.
   Proof.
     pose proof vad_mp_mem_set. unfold_mp. intros.
-    induction_tstep; eauto using valid_addresses.
+    induction_tstep; eauto.
   Qed.
 
   Theorem vad_cstep_preservation : forall m m' ths ths' tid e,
@@ -283,7 +283,7 @@ Module nacc_preservation.
     decompose sum (lt_eq_lt_dec ad' (#m)); subst; simpl_array; eauto.
   Qed.
 
-  Local Lemma nacc_mp_mem_set : forall m t ad ad' v T,
+  Local Lemma nacc_mp_mem_set1 : forall m t ad ad' v T,
     not_access ad m v ->
     (* --- *)
     mp_mem_set (not_access ad) m t ad' (v, T).
@@ -302,7 +302,7 @@ Module nacc_preservation.
     simpl_array; eauto using access.
   Qed.
 
-  Local Lemma alt_nacc_mp_mem_set : forall m t ad ad' vT,
+  Local Lemma nacc_mp_mem_set2 : forall m t ad ad' vT,
     ~ access ad' m t ->
     mp_mem_set (not_access ad) m t ad' vT.
   Proof.
@@ -343,10 +343,17 @@ Module nacc_preservation.
   Local Lemma nacc_mp_write : forall m t t' ad ad' v T,
     mp_write (not_access ad) m t t' ad' v T.
   Proof.
-    pose proof nacc_mp_mem_set.
+    pose proof nacc_mp_mem_set1.
     unfold not_access in *. unfold_mp. intros.
     assert (~ access ad m v) by eauto using nacc_tstep_write_value;
-    induction_tstep; inv_nacc; eauto using nacc_mp_mem_set with acc.
+    induction_tstep; inv_nacc; eauto with acc.
+  Qed.
+
+  Local Lemma nacc_mp_spawn : forall m t t' block ad,
+    mp_spawn (not_access ad) m t t' block.
+  Proof.
+    unfold not_access. unfold_mp. intros ** ?.
+    induction_tstep; try inv_nacc; inv_acc; eauto.
   Qed.
 
   Local Lemma nacc_mp_unt_alloc : forall m t t' tu ad ad' v T,
@@ -375,7 +382,7 @@ Module nacc_preservation.
     (* --- *)
     mp_unt_write (not_access ad) m t t' tu ad' v T.
   Proof.
-    pose proof alt_nacc_mp_mem_set as Hmemset.
+    pose proof nacc_mp_mem_set2 as Hmemset.
     unfold not_access in *. unfold_mp. intros * ? Hsms **.
     eapply Hmemset; eauto.
     assert (unsafe_access ad' m t)
@@ -400,42 +407,24 @@ Module nacc_preservation.
     intros. invc_mstep; eauto.
   Qed.
 
-  (* cstep ----------------------------------------------------------------- *)
-
-  Local Lemma nacc_tstep_spawn_preservation : forall m t t' block ad,
-    not_access ad m t ->
-    t --[EF_Spawn block]--> t' ->
-    not_access ad m t'.
-  Proof.
-    unfold not_access. intros ** ?.
-    induction_tstep; try inv_nacc; inv_acc; eauto.
-  Qed.
-
-  (* not-access preservation ----------------------------------------------- *)
-
   Theorem nacc_preservation : forall m m' ths ths' tid tid' ad e,
     forall_memory m (valid_addresses m) ->
     forall_threads ths (valid_addresses m) ->
     forall_threads ths well_typed_term ->
     safe_memory_sharing m ths ->
     ad < #m ->
-    tid < #ths ->
     (* --- *)
+    tid < #ths ->
     not_access ad m ths[tid] ->
     m / ths ~~[tid', e]~~> m' / ths' ->
     not_access ad m' ths'[tid].
   Proof.
-    pose proof nacc_mp_none.
-    pose proof nacc_mp_alloc.
-    pose proof nacc_mp_read.
-    pose proof nacc_mp_write.
-    pose proof nacc_mp_unt.
-    pose proof nacc_tstep_spawn_preservation.
-    unfold not_access in *. unfold_mp. intros.
-    invc_cstep.
-    - destruct (nat_eq_dec tid tid'); subst; simpl_array; eauto.
-    - destruct (nat_eq_dec tid tid'); subst; simpl_array; eauto.
-      inv_mstep; eauto.
+    pose proof nacc_mp_none.  pose proof nacc_mp_alloc.
+    pose proof nacc_mp_read.  pose proof nacc_mp_write.
+    pose proof nacc_mp_spawn. pose proof nacc_mp_unt.
+    unfold not_access in *. unfold_mp. intros. invc_cstep;
+    destruct (nat_eq_dec tid tid'); subst; simpl_array; eauto.
+    inv_mstep; eauto.
   Qed.
 End nacc_preservation.
 Import nacc_preservation.
@@ -694,7 +683,7 @@ Module ss_preservation.
     eauto using safe_spawns, ctx_eqv_typing, MapEquivalence.update_permutation.
     eapply ss_spawn. destruct (hasvar_dec x t).
     - eauto using nomut_safe_value, (must_subst (fun _ t => no_mut t) nil).
-    - erewrite hasvar_subst; eauto.
+    - erewrite hasvar_subst; assumption.
   Qed.
 
   (* tstep ----------------------------------------------------------------- *)
@@ -846,8 +835,10 @@ Module sms_preservation.
     ths[tid] --[EF_None]--> t ->
     safe_memory_sharing m ths[tid <- t].
   Proof.
-    intros ** tid1 tid2 **. destruct_sms ths tid tid1 tid2; simpl_array;
-    eauto using acc_tstep_none_inheritance, nuacc_tstep_none_preservation.
+    intros ** tid1 tid2 **. destruct_sms ths tid tid1 tid2; simpl_array.
+    - eauto using nuacc_tstep_none_preservation.
+    - eauto using acc_tstep_none_inheritance.
+    - eauto.
   Qed.
 
   Local Lemma sms_tstep_alloc_preservation : forall m t v ths tid T,
