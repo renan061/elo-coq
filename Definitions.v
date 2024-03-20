@@ -171,14 +171,6 @@ Inductive access (ad : addr) (m : mem) : tm -> Prop :=
   .
 
 (* ------------------------------------------------------------------------- *)
-(* valid-accesses                                                            *)
-(* ------------------------------------------------------------------------- *)
-
-(* TODO *)
-Definition valid_accesses (m : mem) (t : tm) :=
-  forall ad, access ad m t -> ad < #m.
-
-(* ------------------------------------------------------------------------- *)
 (* unsafe-access                                                             *)
 (* ------------------------------------------------------------------------- *)
 
@@ -393,4 +385,12 @@ Definition safe_memory_sharing m ths := forall tid1 tid2 ad,
   tid1 <> tid2 ->
   access ad m ths[tid2] ->
   ~ unsafe_access ad m ths[tid1].
+
+(* ------------------------------------------------------------------------- *)
+(* sugars                                                                    *)
+(* ------------------------------------------------------------------------- *)
+
+Definition not_access ad m t := ~ access ad m t.
+
+Definition not_unsafe_access ad m t := ~ unsafe_access ad m t.
 

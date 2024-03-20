@@ -135,11 +135,11 @@ Proof.
     eexists. split.
     + rewrite 2 add_increments_length. rewrite set_preserves_length. eauto.
     + intros i. decompose sum (lt_eq_lt_dec i (#ths)); subst; simpl_array.
-      * rewrite set_preserves_length in a0. rewrite H0 in a0.
+      * rewrite H0 in a0.
         decompose sum (lt_eq_lt_dec i tid); subst; simpl_array;
         eauto using typeof_tstep_spawn_preservation.
-      * rewrite set_preserves_length. rewrite H0. simpl_array. eauto.
-      * rewrite set_preserves_length in b. rewrite H0 in b.
+      * rewrite H0. simpl_array. eauto.
+      * rewrite H0 in b.
         simpl_array. eauto using type_of.
   - left. split.
     + rewrite set_preserves_length. trivial.

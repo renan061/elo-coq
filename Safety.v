@@ -104,8 +104,8 @@ Theorem nacc_or_sacc_cstep_preservation : forall m m' ths ths' tid tid' ad e,
   m / ths ~~[tid', e]~~> m' / ths' ->
   (~ access ad m' ths'[tid]) \/ (tid = #ths /\ safe_access ad m' ths'[tid]).
 Proof.
-  intros. decompose sum (lt_eq_lt_dec tid (#ths)); subst;
-  eauto using nacc_preservation.nacc_preservation.
+  pose proof nacc_preservation.nacc_preservation. unfold not_access in *.
+  intros. decompose sum (lt_eq_lt_dec tid (#ths)); subst; eauto.
   - destruct (acc_dec ad m' ths'[#ths]); subst; eauto. right.
     do 2 (split; trivial). inv_cstep; simpl_array.
     eauto using nuacc_spawn_block. intros ?. inv_uacc.

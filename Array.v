@@ -276,33 +276,59 @@ Ltac rewrite_set_invalid :=
     rewrite (set_invalid l i a (Nat.lt_le_incl _ _ Hlen))
   end.
 
+Lemma get_add_set_eq : forall {A} d (l : list A) i' a a',
+  (l[i' <- a'] +++ a)[#l] or d = a.
+Proof.
+  intros.
+  erewrite <- set_preserves_length. rewrite get_add_eq.
+  reflexivity.
+Qed.
+
+Lemma get_add_set_lt : forall {A} d (l : list A) i i' a a',
+  i < #l ->
+  (l[i' <- a'] +++ a)[i] or d = l[i' <- a'][i] or d.
+Proof.
+  intros. rewrite get_add_lt; trivial.
+  rewrite set_preserves_length. assumption.
+Qed.
+
+Lemma get_add_set_gt : forall {A} d (l : list A) i i' a a',
+  #l < i ->
+  (l[i' <- a'] +++ a)[i] or d = d.
+Proof.
+  intros.
+  rewrite get_add_gt; trivial. rewrite set_preserves_length.
+  assumption.
+Qed.
+
 Ltac rewrite_get_add_set :=
   match goal with
   (* eq *)
   | H : context C [ (?l[?i' <- ?a'] +++ ?a)[#?l] or ?d ] |- _ =>
-    rewrite <- (set_preserves_length _ i' a') in H
+    rewrite (get_add_set_eq d l i' a a') in H
   | |- context C [ (?l[?i' <- ?a'] +++ ?a)[#?l] or ?d ] =>
-    rewrite <- (set_preserves_length _ i' a')
+    rewrite (get_add_set_eq d l i' a a')
   (* lt *)
   | Hlen : ?i < #?l,
     H : context C [ (?l[?i' <- ?a'] +++ ?a)[?i] or ?d ]
     |- _ =>
-    rewrite <- (set_preserves_length _ i' a') in Hlen
+    rewrite (get_add_set_lt d l i i' a a' Hlen) in H
   | Hlen : ?i < #?l
     |- context C [ (?l[?i' <- ?a'] +++ ?a)[?i] or ?d ] =>
-    rewrite <- (set_preserves_length _ i' a') in Hlen
+    rewrite (get_add_set_lt d l i i' a a' Hlen)
   (* gt *)
   | Hlen : #?l < ?i,
     H : context C [ (?l[?i' <- ?a'] +++ ?a)[?i] or ?d ]
     |- _ =>
-    rewrite <- (set_preserves_length _ i' a') in Hlen
+    rewrite (get_add_set_gt d l i i' a a' Hlen) in H
   | Hlen : #?l < ?i
     |- context C [ (?l[?i' <- ?a'] +++ ?a)[?i] or ?d ] =>
-    rewrite <- (set_preserves_length _ i' a') in Hlen
+    rewrite (get_add_set_gt d l i i' a a' Hlen)
   end.
 
 Ltac simpl_array :=
-  progress (repeat (rewrite_get_add_eq
+  progress (repeat
+  (  rewrite_get_add_eq
   || rewrite_get_add_lt
   || rewrite_get_add_gt
   || rewrite_get_set_eq
@@ -314,6 +340,20 @@ Ltac simpl_array :=
   || rewrite_set_invalid
   || rewrite_get_add_set
   )).
+
+Ltac test_simpl_array :=
+  (  rewrite_get_add_eq
+  || rewrite_get_add_lt
+  || rewrite_get_add_gt
+  || rewrite_get_set_eq
+  || rewrite_get_set_neq
+  || rewrite_get_set_lt
+  || rewrite_get_set_gt
+  || rewrite_get_set_invalid_eq
+  || rewrite_get_default
+  || rewrite_set_invalid
+  || rewrite_get_add_set
+  ).
 
 (* ------------------------------------------------------------------------- *)
 (* forall                                                                    *)
