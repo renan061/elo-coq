@@ -907,7 +907,7 @@ Module sms_preservation.
     safe_memory_sharing m (ths[tid <- t] +++ block).
   Proof.
     intros ** tid1 tid2 **.
-    assert (~ unsafe_access ad m block) by eauto using nuacc_spawn_block.
+    assert (~ unsafe_access ad m block) by eauto using spawn_nuacc.
     assert (consistently_typed_references m block)
       by eauto using (tstep_spawn_block consistently_typed_references).
     destruct_sms ths tid tid1 tid2;

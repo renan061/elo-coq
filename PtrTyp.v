@@ -63,12 +63,12 @@ Lemma ptyp_immut_iff_sacc : forall m t ad,
   access ad m t ->
   safe_access ad m t <-> (exists T, m[ad].typ = <{{i&T}}>).
 Proof.
-  intros * Hval ? ? Hacc. split.
-  - intros [_ ?]. induction Hacc; inv_ctr; inv_nuacc; eauto.
-  - intros [? Heq]. split; trivial.
+  intros * Hval ? ? Hacc. split; intros [? Hx].
+  - induction Hacc; inv_ctr; inv_nuacc; eauto.
+  - split; trivial.
     induction Hacc; intros ?; invc_ctr; inv_uacc; eauto;
     try (eapply IHHacc; eauto using uacc_by_association).
-    rewrite Heq in *. discriminate.
+    rewrite Hx in *. discriminate.
 Qed.
 
 Corollary sacc_by_association : forall m t t' ad,

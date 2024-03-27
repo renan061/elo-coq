@@ -54,24 +54,6 @@ Proof.
   do 4 eexists. splits 3; eauto.
 Qed.
 
-Local Lemma cstep_read_requires_acc : forall m m' ths ths' tid ad v,
-  m / ths ~~[tid, EF_Read ad v]~~> m' / ths' ->
-  access ad m ths[tid].
-Proof.
-  intros. invc_cstep. invc_mstep. induction_tstep; eauto using access.
-Qed.
-
-Local Lemma cstep_write_requires_uacc : forall m m' ths ths' tid ad v Tr,
-  well_typed_term ths[tid] ->
-  m / ths ~~[tid, EF_Write ad v Tr]~~> m' / ths' ->
-  unsafe_access ad m ths[tid].
-Proof.
-  intros * [T ?] **.
-  invc_cstep. invc_mstep. generalize dependent T.
-  induction_tstep; intros; inv_type; eauto using unsafe_access.
-  inv_type. eauto using unsafe_access.
-Qed.
-
 (* ------------------------------------------------------------------------- *)
 (* TODO                                                                      *)
 (* ------------------------------------------------------------------------- *)
@@ -88,7 +70,7 @@ Theorem spawned_thread_nacc_or_sacc : forall m m' ths ths' tid ad e,
   ~ access ad m' ths'[#ths] \/ safe_access ad m' ths'[#ths].
 Proof.
   intros. destruct (acc_dec ad m' ths'[#ths]); subst; eauto.
-  right. split; trivial. inv_cstep; simpl_array; eauto using nuacc_spawn_block.
+  right. split; trivial. inv_cstep; simpl_array; eauto using spawn_nuacc.
   intros ?. inv_uacc.
 Qed.
 
@@ -108,7 +90,7 @@ Proof.
   intros. decompose sum (lt_eq_lt_dec tid (#ths)); subst; eauto.
   - destruct (acc_dec ad m' ths'[#ths]); subst; eauto. right.
     do 2 (split; trivial). inv_cstep; simpl_array.
-    eauto using nuacc_spawn_block. intros ?. inv_uacc.
+    eauto using spawn_nuacc. intros ?. inv_uacc.
   - destruct (nat_eq_dec tid tid'); subst; simpl_array;
     inv_cstep; simpl_array; eauto with acc. inv_mstep; inv_tstep.
 Qed.
@@ -157,12 +139,12 @@ Proof.
   assert (valid_program m3 ths3) by eauto using vp_preservation. 
   (* --- *)
   assert (ad < #m1)
-    by eauto using vad_acc, cstep_write_requires_uacc, uacc_then_acc.
+    by eauto using vad_acc, write_requires_uacc, uacc_then_acc.
   (* --- *)
   assert (Hacc : access ad m3 ths3[tid2])
-    by eauto using cstep_read_requires_acc.
+    by eauto using read_requires_acc.
   assert (Huacc : unsafe_access ad m1 ths1[tid1])
-    by eauto using cstep_write_requires_uacc.
+    by eauto using write_requires_uacc.
   assert (Hnacc : ~ access ad m1 ths1[tid2])
     by (intros ?; eapply (Hsms tid1 tid2); eauto).
   (* --- *)
@@ -193,12 +175,12 @@ Proof.
   destruct Hvp3 as [? [[? ?] [[? ?] [[? ?] [? Hsms3]]]]].
   (* --- *)
   assert (ad < #m1)
-    by eauto using vad_acc, cstep_write_requires_uacc, uacc_then_acc.
+    by eauto using vad_acc, write_requires_uacc, uacc_then_acc.
   (* --- *)
   assert (Huacc1 : unsafe_access ad m1 ths1[tid1])
-    by eauto using cstep_write_requires_uacc.
+    by eauto using write_requires_uacc.
   assert (Huacc3 : unsafe_access ad m3 ths3[tid2])
-    by (eapply cstep_write_requires_uacc; eauto; eapply des_vp_wtt; eauto).
+    by (eapply write_requires_uacc; eauto; eapply des_vp_wtt; eauto).
   assert (Hnacc : ~ access ad m1 ths1[tid2])
     by (intros ?; eapply (Hsms tid1 tid2); eauto).
   assert (Hnacc2 : ~ access ad m3 ths3[tid1])
