@@ -181,6 +181,15 @@ Module ctr_preservation.
     eauto using consistently_typed_references.
   Qed.
 
+  Lemma ctr_preservation_spawn : forall m t t' block,
+    consistently_typed_references m t ->
+    t --[EF_Spawn block]--> t' ->
+    consistently_typed_references m t'.
+  Proof.
+    intros.
+    induction_tstep; inv_ctr; eauto using consistently_typed_references.
+  Qed.
+
   Local Lemma ctr_mp_unt_alloc : forall m t t' tu ad v T,
     valid_addresses m tu ->
     (* --- *)
@@ -902,22 +911,22 @@ Module sms_preservation.
     forall_threads ths (consistently_typed_references m) ->
     forall_threads ths safe_spawns ->
     (* --- *)
+    tid < #ths ->
     safe_memory_sharing m ths ->
     ths[tid] --[EF_Spawn block]--> t ->
     safe_memory_sharing m (ths[tid <- t] +++ block).
   Proof.
     intros ** tid1 tid2 **.
-    assert (~ unsafe_access ad m block) by eauto using spawn_nuacc.
-    assert (consistently_typed_references m block)
-      by eauto using (tstep_spawn_block consistently_typed_references).
     destruct_sms ths tid tid1 tid2;
     decompose sum (lt_eq_lt_dec tid1 (#ths)); subst;
     decompose sum (lt_eq_lt_dec tid2 (#ths)); subst;
     simpl_array;
-    try solve [inv_tstep | inv_acc | intros ?; inv_uacc];
-    eauto using uacc_by_association,
-      nuacc_tstep_spawn_preservation,
-      acc_tstep_spawn_inheritance.
+    try solve [inv_tstep | inv_acc | intros ?; inv_uacc | lia];
+    eauto using nuacc_tstep_spawn_preservation, acc_tstep_spawn_inheritance;
+    assert (~ unsafe_access ad m block) by eauto using spawn_nuacc; eauto;
+    assert (consistently_typed_references m block)
+      by eauto using (tstep_spawn_block consistently_typed_references);
+    eauto using uacc_by_association, ctr_preservation_spawn.
   Qed.
 
   Local Corollary sms_mstep_preservation : forall m m' t e ths tid,
