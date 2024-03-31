@@ -2,6 +2,8 @@ From Coq Require Import Arith.Arith.
 From Coq Require Import Lists.List.
 From Coq Require Import Lia.
 
+From Elo Require Import Util.
+
 Definition add {A} (l : list A) (a : A) := l ++ (a :: nil).
 
 Definition get {A} (default : A) (l : list A) (i : nat) :=
@@ -442,4 +444,41 @@ Local Lemma test_rewrite_set_invalid : forall {A} (l : list A) i a,
   #l <= i ->
   l[i <- a] = l.
 Proof. intros. rewrite_set_invalid. reflexivity. Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* splits                                                                    *)
+(* ------------------------------------------------------------------------- *)
+
+Local Ltac sgas' l i1 i2 :=
+  destruct (nat_eq_dec i1 i2);
+  decompose sum (lt_eq_lt_dec i2 (#l));
+  subst; simpl_array; try lia.
+
+(* split get-add-set *)
+Ltac sgas :=
+  match goal with
+  | _ : context C [ (?l[?i1 <- ?a1] +++ ?a2)[?i2] or _ ] |- _ => sgas' l i1 i2
+  | |-  context C [ (?l[?i1 <- ?a1] +++ ?a2)[?i2] or _ ]      => sgas' l i1 i2
+  end.
+
+Local Ltac sgs' i1 i2 :=
+  destruct (nat_eq_dec i1 i2);
+  subst; simpl_array; try lia.
+
+(* split get-set *)
+Ltac sgs :=
+  match goal with
+  | _ : context C [ ?l[?i1 <- _][?i2] or _ ] |- _ => sgs' i1 i2
+  | |-  context C [ ?l[?i1 <- _][?i2] or _ ]      => sgs' i1 i2
+  end.
+
+Local Ltac sga' l i :=
+  decompose sum (lt_eq_lt_dec i (#l)); subst; simpl_array.
+
+(* split get-add *)
+Ltac sga :=
+  match goal with
+  | _ : context C [ (?l +++ ?a)[?i] or _ ] |- _ => sga' l i
+  | |-  context C [ (?l +++ ?a)[?i] or _ ]      => sga' l i
+  end.
 

@@ -7,94 +7,176 @@ From Elo Require Import Lemmas.
 From Elo Require Import Generic.
 From Elo Require Import Inheritance.
 
+(* simpl forall-threads *)
+Ltac simplfths := 
+  match goal with
+  | |- forall_threads _[_ <- _] _          => intros tid'; Array.sgs
+  | |- forall_threads (_[_ <- _] +++ _) _  => intros tid'; Array.sgas
+  end.
+
+Ltac split_preservation := 
+  intros;
+  match goal with
+  | H : forall_program ?m1 ?ths1 (?P ?m1),
+    _ : ?m1 / ?ths1 ~~[_, _]~~> ?m2 / ?ths2
+     |- forall_program ?m2 ?ths2 (?P ?m2) =>
+    destruct H as [Hmem Hths];
+    invc_cstep; try invc_mstep; split; trivial; try simplfths; trivial
+  | _ : ?P ?m1 ?ths1,
+    _ : ?m1 / ?ths1 ~~[_, _]~~> ?m2 / ?ths2
+     |- ?P ?m2 ?ths2 =>
+    invc_cstep; try invc_mstep
+  end.
+
 (* ------------------------------------------------------------------------- *)
 (* valid-addresses                                                           *)
 (* ------------------------------------------------------------------------- *)
 
 Module vad_preservation.
-  Local Lemma vad_mp_mem_add : forall m t vT,
-    mp_mem_add valid_addresses m t vT.
+  Local Lemma vad_mem_add : forall m t vT,
+    valid_addresses m t ->
+    valid_addresses (m +++ vT) t.
   Proof.
-    unfold_mp. intros.
+    intros.
     induction t; try inv_vad; eauto using valid_addresses.
     eapply vad_ref. rewrite add_increments_length. eauto.
   Qed.
 
-  Local Lemma vad_mp_mem_set : forall m t ad vT,
-    mp_mem_set valid_addresses m t ad vT.
+  Local Lemma vad_mem_set : forall m t ad vT,
+    valid_addresses m t ->
+    valid_addresses m[ad <- vT] t.
   Proof.
-    unfold_mp. intros.
+    intros.
     induction t; try inv_vad; eauto using valid_addresses.
     eapply vad_ref. rewrite set_preserves_length. assumption.
   Qed.
 
-  Local Lemma vad_mp_none : forall m t t',
-    mp_none valid_addresses m t t'.
+  (* ----------------------------------------------------------------------- *)
+
+  Local Lemma vad_preservation_none : forall m t1 t2,
+    valid_addresses m t1 ->
+    t1 --[EF_None]--> t2 ->
+    valid_addresses m t2.
   Proof.
-    unfold_mp. intros.
+    intros.
     induction_tstep; inv_vad; eauto using valid_addresses.
     inv_vad. eauto using (must_subst valid_addresses).
   Qed.
 
-  Local Lemma vad_mp_alloc : forall m t t' v T,
-    mp_alloc valid_addresses m t t' v T.
+  (* ----------------------------------------------------------------------- *)
+
+  Local Lemma vad_preservation_mem_alloc : forall m t1 t2 v T,
+    valid_addresses m t1 ->
+    (* --- *)
+    forall_memory m (valid_addresses m) ->
+    t1 --[EF_Alloc (#m) v T]--> t2 ->
+    forall_memory (m +++ (v, T)) (valid_addresses (m +++ (v, T))).
   Proof.
-    pose proof vad_mp_mem_add. unfold_mp. intros.
-    induction_tstep; inv_vad; eauto using valid_addresses.
+    intros.
+    induction_tstep; inv_vad; eauto. 
+    intros ad'. Array.sga; eauto using vad_mem_add, valid_addresses.
+  Qed.
+
+  Local Lemma vad_preservation_alloc : forall m t1 t2 v T,
+    valid_addresses m t1 ->
+    t1 --[EF_Alloc (#m) v T]--> t2 ->
+    valid_addresses (m +++ (v, T)) t2.
+  Proof.
+    intros.
+    induction_tstep; inv_vad; eauto using vad_mem_add, valid_addresses.
     eapply vad_ref. rewrite add_increments_length. eauto.
   Qed.
 
-  Local Lemma vad_mp_read : forall m t t' ad,
+  Local Lemma vad_preservation_unt_alloc : forall m t1 t2 t ad v T,
+    valid_addresses m t ->
+    t1 --[EF_Alloc ad v T]--> t2 ->
+    valid_addresses (m +++ (v, T)) t.
+  Proof.
+    intros. induction_tstep; eauto using vad_mem_add.
+  Qed.
+
+  (* ----------------------------------------------------------------------- *)
+
+  Local Lemma vad_preservation_read : forall m t1 t2 ad,
     forall_memory m (valid_addresses m) ->
     (* --- *)
-    mp_read valid_addresses m t t' ad.
+    valid_addresses m t1 ->
+    t1 --[EF_Read ad m[ad].tm]--> t2 ->
+    valid_addresses m t2.
   Proof.
-    unfold_mp. intros.
+    intros.
     induction_tstep; inv_vad; eauto using valid_addresses.
   Qed.
 
-  Local Lemma vad_mp_write : forall m t t' ad v T,
-    mp_write valid_addresses m t t' ad v T.
-  Proof.
-    pose proof vad_mp_mem_set. unfold_mp. intros.
-    induction_tstep; inv_vad; eauto using valid_addresses.
-  Qed.
+  (* ----------------------------------------------------------------------- *)
 
-  Local Lemma vad_mp_unt_alloc : forall m t t' tu ad v T,
-    mp_unt_alloc valid_addresses m t t' tu ad v T.
-  Proof.
-    pose proof vad_mp_mem_add. unfold_mp. intros.
-    induction_tstep; eauto.
-  Qed.
-
-  Local Lemma vad_mp_unt_write : forall m t t' tu ad v T,
-    mp_unt_write valid_addresses m t t' tu ad v T.
-  Proof.
-    pose proof vad_mp_mem_set. unfold_mp. intros.
-    induction_tstep; eauto.
-  Qed.
-
-  Theorem vad_cstep_preservation : forall m m' ths ths' tid e,
-    forall_memory m (valid_addresses m) ->
+  Local Lemma vad_preservation_mem_write : forall m t1 t2 ad v T,
+    valid_addresses m t1 ->
     (* --- *)
-    forall_threads ths (valid_addresses m) ->
-    m / ths ~~[tid, e]~~> m' / ths' ->
-    forall_threads ths' (valid_addresses m').
+    ad < #m ->
+    forall_memory m (valid_addresses m) ->
+    t1 --[EF_Write ad v T]--> t2 ->
+    forall_memory m[ad <- (v, T)] (valid_addresses m[ad <- (v, T)]).
   Proof.
-    eauto using (cstep_preservation valid_addresses),
-                vad_mp_none, vad_mp_alloc, vad_mp_read, vad_mp_write,
-                vad_mp_unt_alloc, vad_mp_unt_write.
+    intros.
+    induction_tstep; inv_vad; eauto. 
+    intros ad'. Array.sgs; eauto using vad_mem_set.
   Qed.
+
+  Local Lemma vad_preservation_write : forall m t1 t2 ad v T,
+    valid_addresses m t1 ->
+    t1 --[EF_Write ad v T]--> t2 ->
+    valid_addresses (m[ad <- (v, T)]) t2.
+  Proof.
+    intros.
+    induction_tstep; inv_vad; eauto using vad_mem_set, valid_addresses.
+  Qed.
+
+  Local Lemma vad_preservation_unt_write : forall m t1 t2 t ad v T,
+    valid_addresses m t ->
+    t1 --[EF_Write ad v T]--> t2 ->
+    valid_addresses m[ad <- (v, T)] t.
+  Proof.
+    intros. induction_tstep; eauto using vad_mem_set.
+  Qed.
+
+  (* ----------------------------------------------------------------------- *)
+
+  Local Lemma vad_preservation_spawn : forall m t1 t2 t,
+    valid_addresses m t1 ->
+    t1 --[EF_Spawn t]--> t2 ->
+    valid_addresses m t2.
+  Proof.
+    intros. induction_tstep; inv_vad; eauto using valid_addresses.
+  Qed.
+
+  Local Lemma vad_preservation_spawned : forall m t1 t2 t,
+    valid_addresses m t1 ->
+    t1 --[EF_Spawn t]--> t2 ->
+    valid_addresses m t.
+  Proof.
+    intros. induction_tstep; inv_vad; eauto.
+  Qed.
+
+  (* ----------------------------------------------------------------------- *)
 
   Theorem vad_preservation : forall m m' ths ths' tid e,
     forall_program m ths (valid_addresses m) ->
     m / ths ~~[tid, e]~~> m' / ths' ->
     forall_program m' ths' (valid_addresses m').
   Proof.
-    intros * [? ?] **. split;
-    eauto using vad_cstep_preservation,
-      (cstep_mem_preservation valid_addresses),
-      vad_mp_mem_add, vad_mp_mem_set.
+    split_preservation.
+    - eauto using vad_preservation_spawn.
+    - eauto using vad_preservation_spawned.
+    - eauto using valid_addresses.
+    - eauto using vad_preservation_mem_alloc.
+    - eauto using vad_preservation_alloc.
+    - eauto using vad_preservation_unt_alloc.
+    - eauto using vad_preservation_read.
+    - eauto using vad_preservation_mem_write.
+    - eauto using vad_preservation_write.
+    - eauto using vad_preservation_unt_write.
+    - eauto using vad_preservation_none.
   Qed.
 End vad_preservation.
 Import vad_preservation.
@@ -960,8 +1042,12 @@ Module sms_preservation.
     m / ths ~~[tid, e]~~> m' / ths' ->
     safe_memory_sharing m' ths'.
   Proof.
-    intros * ? [? ?] [_ ?] [? ?] [_ ?] **. invc_cstep;
-    eauto using sms_tstep_spawn_preservation, sms_mstep_preservation.
+    intros * ? [? ?] [_ ?] [? ?] [_ ?] **. split_preservation;
+    eauto using sms_tstep_none_preservation,
+                sms_tstep_alloc_preservation,
+                sms_tstep_read_preservation,
+                sms_tstep_write_preservation,
+                sms_tstep_spawn_preservation.
   Qed.
 End sms_preservation.
 
