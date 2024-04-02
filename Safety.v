@@ -116,7 +116,7 @@ Proof.
       by eauto using multistep_monotonic_nondecreasing_memory_length.
     assert (ad < #m') by lia.
     destruct (acc_dec ad m'' ths''[tid]); eauto. right. split; trivial.
-    eapply nuacc_preservation.nuacc_preservation in Hcstep; eauto with vp.
+    eapply nuacc_preservation in Hcstep; eauto with vp.
     decompose sum (lt_eq_lt_dec tid (#ths')); subst; trivial;
     simpl_array; inv_acc.
 Qed.
