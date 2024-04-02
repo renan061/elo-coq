@@ -30,7 +30,6 @@ Proof.
 Qed.
 
 Lemma consistently_typed_write_effect : forall m t t' ad v T,
-  valid_addresses m t ->
   well_typed_term t ->
   consistently_typed_references m t ->
   (* --- *)
@@ -40,9 +39,9 @@ Lemma consistently_typed_write_effect : forall m t t' ad v T,
           /\ empty |-- m[ad].tm is Tv
           /\ m[ad].typ = <{{&Tv}}>.
 Proof.
-  intros * ? Hwtt **. inversion Hwtt as [T' ?].
+  intros * Hwtt **. inversion Hwtt as [T' ?].
   clear Hwtt. generalize dependent T'.
-  induction_tstep; intros; inv_vad; inv_type; inv_ctr; eauto.
+  induction_tstep; intros; inv_type; inv_ctr; eauto.
   inv_type. inv_ctr. eauto.
 Qed.
 

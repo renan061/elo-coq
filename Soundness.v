@@ -316,7 +316,7 @@ Qed.
 (* soundness                                                                 *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma wtt_to_TT : forall ths,
+Local Lemma wtt_to_TT : forall ths,
   forall_threads ths well_typed_term ->
   exists TT, thread_types ths TT.
 Proof.
@@ -353,28 +353,26 @@ Proof.
 Qed.
 
 Corollary type_soundness : forall m m' ths ths' tid e,
-  forall_memory m (valid_addresses m) ->
-  forall_memory m (consistently_typed_references m) ->
-  forall_threads ths (valid_addresses m) ->
-  forall_threads ths well_typed_term ->
-  forall_threads ths (consistently_typed_references m) ->
+  forall_program m ths well_typed_term ->
+  forall_program m ths (valid_addresses m) ->
+  forall_program m ths (consistently_typed_references m) ->
   (* --- *)
   m / ths ~~[tid, e]~~> m' / ths' ->
   (forall_threads ths' value \/
     exists m'' ths'' tid' e',
     m' / ths' ~~[tid', e']~~> m'' / ths'').
 Proof.
-  intros * Hmvad Hmctr Hvad Hwtt Hctr Hcstep.
+  intros. destruct_forall_program.
   eauto using progress, wtt_cstep_preservation,
-    vad_preservation.vad_cstep_preservation,
-    ctr_preservation.ctr_cstep_preservation.
+    vad_cstep_preservation,
+    ctr_cstep_preservation.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
 (* TODO                                                                      *)
 (* ------------------------------------------------------------------------- *)
 
-Theorem typing_preservation : forall m m' ths ths' tid e,
+Local Theorem typing_preservation : forall m m' ths ths' tid e,
   forall_program m ths (valid_addresses m) ->
   (* --- *)
   forall_program m ths well_typed_term ->
@@ -385,6 +383,6 @@ Theorem typing_preservation : forall m m' ths ths' tid e,
 Proof.
   intros * ? [? ?] [? ?]. split;
   eauto using wtt_cstep_mem_preservation, wtt_cstep_preservation.
-  eauto 6 using ctr_preservation.ctr_preservation.
+  eauto 6 using ctr_preservation.
 Qed.
 

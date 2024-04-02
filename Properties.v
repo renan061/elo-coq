@@ -7,16 +7,7 @@ From Elo Require Export Constructors.
 (* misc. lemmas                                                              *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma vad_tstep_write_address_length : forall m t t' ad v T,
-  valid_addresses m t ->
-  t --[EF_Write ad v T]--> t' ->
-  ad < #m.
-Proof. 
-  intros. induction_tstep; inv_vad; eauto. inv_vad. assumption.
-Qed.
-
-(* ------------------------------------------------------------------------- *)
-
+(* TODO: remove *)
 Lemma wtt_tstep_alloc_value : forall t t' ad v T,
   well_typed_term t ->
   t --[EF_Alloc ad v T]--> t' ->
@@ -25,30 +16,13 @@ Proof.
   intros. induction_tstep; intros; inv_wtt; eauto.
 Qed.
 
+(* TODO: remove *)
 Lemma wtt_tstep_write_value : forall t t' ad v T,
   well_typed_term t ->
   t --[EF_Write ad v T]--> t' ->
   well_typed_term v.
 Proof.
   intros. induction_tstep; intros; inv_wtt; eauto.
-Qed.
-
-(* ------------------------------------------------------------------------- *)
-
-Lemma ctr_tstep_alloc_value : forall m t t' ad v T,
-  consistently_typed_references m t ->
-  t --[EF_Alloc ad v T]--> t' ->
-  consistently_typed_references m v.
-Proof.
-  intros. induction_tstep; inv_ctr; eauto.
-Qed.
-
-Lemma ctr_tstep_write_value : forall m t t' ad v T,
-  consistently_typed_references m t ->
-  t --[EF_Write ad v T]--> t' ->
-  consistently_typed_references m v.
-Proof.
-  intros. induction_tstep; inv_ctr; eauto.
 Qed.
 
 (* ------------------------------------------------------------------------- *)

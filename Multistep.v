@@ -72,8 +72,8 @@ Proof.
   decompose record Hvp. splits 6;
   eauto using mval_preservation,
               wtt_preservation,
-              vad_preservation.vad_preservation,
-              ctr_preservation.ctr_preservation,
+              vad_preservation,
+              ctr_preservation,
               ss_preservation.ss_preservation,
               sms_preservation.sms_preservation.
 Qed.
