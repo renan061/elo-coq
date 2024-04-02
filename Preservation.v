@@ -22,11 +22,20 @@ Ltac destruct_forall_program :=
 Ltac split_preservation := 
   intros;
   match goal with
+  (* vad | ctr | ss *)
   | H : forall_program ?m1 ?ths1 (?P ?m1),
     _ : ?m1 / ?ths1 ~~[_, _]~~> ?m2 / ?ths2
      |- forall_program ?m2 ?ths2 (?P ?m2) =>
     destruct_forall_program;
     invc_cstep; try invc_mstep; split; trivial; try simplfths; trivial
+  (* nacc | nuacc *)
+  | _ : ?ad  < #?m1,
+    _ : ?tid < #?ths1,
+    H : ~ ?P ?ad ?m1 ?ths1[?tid],
+    _ : ?m1 / ?ths1 ~~[?tid', _]~~> ?m2 / ?ths2
+     |- ~ ?P ?ad ?m2 ?ths2[?tid]  =>
+    invc_cstep; try invc_mstep; try simpl_array; Array.sgs; trivial
+  (* sms *)
   | _ : ?P ?m1 ?ths1,
     _ : ?m1 / ?ths1 ~~[_, _]~~> ?m2 / ?ths2
      |- ?P ?m2 ?ths2 =>
@@ -424,162 +433,158 @@ Qed.
 (* not-access                                                                *)
 (* ------------------------------------------------------------------------- *)
 
-Module nacc_preservation.
-  Local Lemma nacc_mp_mem_add : forall m t ad vT,
-    not_access (#m) m t ->
-    (* --- *)
-    mp_mem_add (not_access ad) m t vT.
-  Proof.
-    unfold mp_mem_add, not_access. intros **.
-    intros Hacc. induction Hacc; inv_nacc; inv_nacc; eauto.
-    decompose sum (lt_eq_lt_dec ad' (#m)); subst; simpl_array; eauto.
-  Qed.
+Lemma nacc_mem_add : forall m t ad vT,
+  ~ access (#m) m t ->
+  (* --- *)
+  ~ access ad m t ->
+  ~ access ad (m +++ vT) t.
+Proof.
+  intros ** Hacc.
+  induction Hacc; do 2 inv_nacc; eauto.
+  Array.sga; eauto.
+Qed.
 
-  Local Lemma nacc_mp_mem_set1 : forall m t ad ad' v T,
-    not_access ad m v ->
-    (* --- *)
-    mp_mem_set (not_access ad) m t ad' (v, T).
-  Proof.
-    assert (forall m ad ad' v,
-      access ad m[ad' <- v] m[ad' <- v][ad'].tm -> ad' < #m). {
-        intros * H. decompose sum (lt_eq_lt_dec ad' (#m)); subst; trivial;
-        simpl_array; simpl in *; inv_acc.
-    }
-    (* main proof *)
-    unfold mp_mem_set, not_access. intros. 
-    intros Hacc. induction Hacc; eauto using access.
-    match goal with _ : _ <> ?ad |- _ => rename ad into ad'' end. 
-    destruct (nat_eq_dec ad' ad''); subst;
-    try (assert (ad'' < #m) by eauto);
-    simpl_array; eauto using access.
-  Qed.
+Lemma nacc_mem_set1 : forall m t ad ad' v T,
+  ~ access ad m v ->
+  (* --- *)
+  ~ access ad m t ->
+  ~ access ad m[ad' <- (v, T)] t.
+Proof.
+  assert (forall m ad ad' v,
+    access ad m[ad' <- v] m[ad' <- v][ad'].tm -> ad' < #m). {
+      intros * H. decompose sum (lt_eq_lt_dec ad' (#m)); subst; trivial;
+      simpl_array; simpl in *; inv_acc.
+  }
+  (* main proof *)
+  intros ** Hacc. 
+  induction Hacc; eauto using access.
+  match goal with _ : _ <> ?ad |- _ => rename ad into ad'' end. 
+  destruct (nat_eq_dec ad' ad''); subst;
+  try (assert (ad'' < #m) by eauto);
+  simpl_array; eauto using access.
+Qed.
 
-  Local Lemma nacc_mp_mem_set2 : forall m t ad ad' vT,
-    ~ access ad' m t ->
-    mp_mem_set (not_access ad) m t ad' vT.
-  Proof.
-    unfold mp_mem_set, not_access. intros.
-    intros Hacc. induction Hacc; inv_nacc; inv_nacc; eauto using access.
-    simpl_array. eauto.
-  Qed.
+Lemma nacc_mem_set2 : forall m t ad ad' v T,
+  ~ access ad' m t ->
+  (* --- *)
+  ~ access ad m t ->
+  ~ access ad m[ad' <- (v, T)] t.
+Proof.
+  intros ** Hacc.
+  induction Hacc; do 2 inv_nacc; eauto using access.
+  simpl_array. eauto.
+Qed.
 
-  Local Lemma nacc_mp_none : forall m t t' ad,
-    mp_none (not_access ad) m t t'.
-  Proof.
-    unfold not_access, mp_none. intros.
-    induction_tstep; inv_nacc; eauto with acc.
-    inv_nacc. eauto using (may_subst (access ad)).
-  Qed.
+(* ------------------------------------------------------------------------- *)
 
-  Local Lemma nacc_mp_alloc : forall m t t' ad v T,
-    forall_memory m (valid_addresses m) ->
-    valid_addresses m t ->
-    ad < #m ->
-    (* --- *)
-    mp_alloc (not_access ad) m t t' v T.
-  Proof.
-    pose proof nacc_mp_mem_add.
-    unfold not_access, mp_alloc, mp_mem_add in *. intros.
-    induction_tstep; inv_vad; inv_nacc;
-    eauto using nacc_mp_mem_add, nacc_vad_length with acc.
-    eapply nacc_ref; try lia. simpl_array. eauto using nacc_vad_length.
-  Qed.
+Lemma nacc_preservation_none : forall m t1 t2 ad,
+  ~ access ad m t1 ->
+  t1 --[EF_None]--> t2 ->
+  ~ access ad m t2.
+Proof.
+  intros.
+  induction_tstep; inv_nacc; eauto with acc.
+  inv_nacc. eauto using (may_subst (access ad)).
+Qed.
 
-  Local Lemma nacc_mp_read : forall m t t' ad ad',
-    mp_read (not_access ad) m t t' ad'.
-  Proof.
-    unfold not_access, mp_read in *. intros.
-    induction_tstep; inv_nacc; eauto with acc. inv_nacc. assumption.
-  Qed.
+(* ------------------------------------------------------------------------- *)
 
-  Local Lemma nacc_mp_write : forall m t t' ad ad' v T,
-    mp_write (not_access ad) m t t' ad' v T.
-  Proof.
-    pose proof nacc_mp_mem_set1.
-    unfold not_access in *. unfold_mp. intros.
-    assert (~ access ad m v) by eauto using nacc_tstep_write_value;
-    induction_tstep; inv_nacc; eauto with acc.
-  Qed.
+Lemma nacc_preservation_alloc : forall m t1 t2 ad v T,
+  forall_memory m (valid_addresses m) ->
+  valid_addresses m t1 ->
+  (* --- *)
+  ad < #m ->
+  ~ access ad m t1 ->
+  t1 --[EF_Alloc (#m) v T]--> t2 ->
+  ~ access ad (m +++ (v, T)) t2.
+Proof.
+  intros.
+  induction_tstep; inv_vad; inv_nacc;
+  eauto using nacc_mem_add, nacc_vad_length with acc.
+  eapply nacc_ref; try lia. simpl_array.
+  eauto using nacc_mem_add, nacc_vad_length.
+Qed.
 
-  Local Lemma nacc_mp_spawn : forall m t t' block ad,
-    mp_spawn (not_access ad) m t t' block.
-  Proof.
-    unfold not_access. unfold_mp. intros ** ?.
-    induction_tstep; try inv_nacc; inv_acc; eauto.
-  Qed.
+Lemma nacc_preservation_unt_alloc : forall m t1 t2 t ad ad' v T,
+  forall_memory m (valid_addresses m) ->
+  valid_addresses m t ->
+  (* --- *)
+  ~ access ad m t ->
+  t1 --[EF_Alloc ad' v T]--> t2 ->
+  ~ access ad (m +++ (v, T)) t.
+Proof.
+  eauto using nacc_mem_add, nacc_vad_length.
+Qed.
 
-  Local Lemma nacc_mp_unt_alloc : forall m t t' tu ad ad' v T,
-    forall_memory m (valid_addresses m) ->
-    valid_addresses m tu ->
-    (* --- *)
-    mp_unt_alloc (not_access ad) m t t' tu ad' v T.
-  Proof.
-    pose proof nacc_mp_mem_add. unfold not_access in *. unfold_mp. intros.
-    eauto using nacc_vad_length.
-  Qed.
+(* ------------------------------------------------------------------------- *)
 
-  Local Lemma uacc_tstep_write_requirement : forall m t t' ad v T,
-    well_typed_term t ->
-    t --[EF_Write ad v T]--> t' ->
-    unsafe_access ad m t.
-  Proof.
-    intros * [T' ?] **. generalize dependent T'.
-    induction_tstep; intros; inv_type; eauto using unsafe_access.
-    inv_type. eauto using unsafe_access.
-  Qed.
+Lemma nacc_preservation_read : forall m t1 t2 ad ad',
+  ~ access ad m t1 ->
+  t1 --[EF_Read ad' m[ad'].tm]--> t2 ->
+  ~ access ad m t2.
+Proof.
+  intros. induction_tstep; inv_nacc; eauto with acc. inv_nacc. assumption.
+Qed.
 
-  Local Lemma nacc_mp_unt_write : forall m t t' tu ad ad' v T,
-    well_typed_term t ->
-    (access ad' m tu -> ~ unsafe_access ad' m t) ->
-    (* --- *)
-    mp_unt_write (not_access ad) m t t' tu ad' v T.
-  Proof.
-    pose proof nacc_mp_mem_set2 as Hmemset.
-    unfold not_access in *. unfold_mp. intros * ? Hsms **.
-    eapply Hmemset; eauto.
-    assert (unsafe_access ad' m t)
-      by eauto using uacc_tstep_write_requirement.
-    intros ?. eapply Hsms; eauto.
-  Qed.
+(* ------------------------------------------------------------------------- *)
 
-  Local Corollary nacc_mp_unt : forall m m' ths tid tid' t' ad e,
-    forall_memory m (valid_addresses m) ->
-    forall_threads ths (valid_addresses m) ->
-    forall_threads ths well_typed_term ->
-    safe_memory_sharing m ths ->
-    tid <> tid' ->
-    (* --- *)
-    not_access ad m ths[tid'] ->
-    m / ths[tid] ==[e]==> m' / t' ->
-    not_access ad m' ths[tid'].
-  Proof.
-    pose proof nacc_mp_unt_alloc.
-    pose proof nacc_mp_unt_write.
-    unfold not_access in *. unfold_mp.
-    intros. invc_mstep; eauto.
-  Qed.
+Lemma nacc_preservation_write : forall m t1 t2 ad ad' v T,
+  ~ access ad m t1 ->
+  t1 --[EF_Write ad' v T]--> t2 ->
+  ~ access ad (m[ad' <- (v, T)]) t2.
+Proof.
+  intros.
+  assert (~ access ad m v) by eauto using nacc_tstep_write_value;
+  induction_tstep; inv_nacc; eauto using nacc_mem_set1 with acc.
+Qed.
 
-  Theorem nacc_preservation : forall m m' ths ths' tid tid' ad e,
-    forall_memory m (valid_addresses m) ->
-    forall_threads ths (valid_addresses m) ->
-    forall_threads ths well_typed_term ->
-    safe_memory_sharing m ths ->
-    ad < #m ->
-    (* --- *)
-    tid < #ths ->
-    not_access ad m ths[tid] ->
-    m / ths ~~[tid', e]~~> m' / ths' ->
-    not_access ad m' ths'[tid].
-  Proof.
-    pose proof nacc_mp_none.  pose proof nacc_mp_alloc.
-    pose proof nacc_mp_read.  pose proof nacc_mp_write.
-    pose proof nacc_mp_spawn. pose proof nacc_mp_unt.
-    unfold not_access in *. unfold_mp. intros. invc_cstep;
-    destruct (nat_eq_dec tid tid'); subst; simpl_array; eauto.
-    inv_mstep; eauto.
-  Qed.
-End nacc_preservation.
-Import nacc_preservation.
+Lemma nacc_preservation_unt_write : forall m t1 t2 t ad ad' v T,
+  well_typed_term t1 ->
+  (access ad' m t -> ~ unsafe_access ad' m t1) ->
+  (* --- *)
+  ~ access ad m t ->
+  t1 --[EF_Write ad' v T]--> t2 ->
+  ~ access ad m[ad' <- (v, T)] t.
+Proof.
+  intros * ? Hsms **.
+  eapply nacc_mem_set2; eauto.
+  assert (unsafe_access ad' m t1) by eauto using tstep_write_requires_uacc.
+  intros ?. eapply Hsms; eauto.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+
+Lemma nacc_preservation_spawn : forall m t1 t2 t ad,
+  ~ access ad m t1 ->
+  t1 --[EF_Spawn t]--> t2 ->
+  ~ access ad m t2.
+Proof.
+  intros ** ?. induction_tstep; try inv_nacc; inv_acc; eauto.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+
+Theorem nacc_preservation : forall m1 m2 ths1 ths2 ad tid tid' e,
+  forall_memory m1 (valid_addresses m1) ->
+  forall_threads ths1 (valid_addresses m1) ->
+  forall_threads ths1 well_typed_term ->
+  safe_memory_sharing m1 ths1 ->
+  (* --- *)
+  ad < #m1 ->
+  tid < #ths1 ->
+  ~ access ad m1 ths1[tid] ->
+  m1 / ths1 ~~[tid', e]~~> m2 / ths2 ->
+  ~ access ad m2 ths2[tid].
+Proof.
+  split_preservation.
+  - eauto using nacc_preservation_spawn.
+  - eauto using nacc_preservation_alloc.
+  - eauto using nacc_preservation_unt_alloc.
+  - eauto using nacc_preservation_read.
+  - eauto using nacc_preservation_write.
+  - eauto using nacc_preservation_unt_write.
+  - eauto using nacc_preservation_none.
+Qed.
 
 (* ------------------------------------------------------------------------- *)
 (* not-unsafe-access                                                         *)
@@ -721,17 +726,6 @@ Module nuacc_preservation.
   (* cstep ----------------------------------------------------------------- *)
 
   (* TODO *)
-  Local Lemma uacc_tstep_write_requirement : forall m t t' ad v T,
-    well_typed_term t ->
-    t --[EF_Write ad v T]--> t' ->
-    unsafe_access ad m t.
-  Proof.
-    intros * [T' ?] **. generalize dependent T'.
-    induction_tstep; intros; inv_type; eauto using unsafe_access.
-    inv_type. eauto using unsafe_access.
-  Qed.
-
-  (* TODO *)
   Lemma nuacc_untouched_preservation : forall m m' ths tid tid' t' ad e,
     forall_memory m (valid_addresses m) ->
     forall_threads ths (valid_addresses m) ->
@@ -748,7 +742,7 @@ Module nuacc_preservation.
     eauto using nuacc_mem_add, nuacc_vad_length.
     eapply alt_nuacc_mem_set_preservation; eauto.
     assert (unsafe_access ad m ths[tid])
-      by eauto using uacc_tstep_write_requirement.
+      by eauto using tstep_write_requires_uacc.
     intros ?. eapply (Hsms tid tid'); eauto using uacc_then_acc.
   Qed.
 

@@ -8,13 +8,24 @@ Proof.
   intros. invc_cstep. invc_mstep. induction_tstep; eauto using access.
 Qed.
 
-Lemma write_requires_uacc : forall m m' ths ths' tid ad v Tr,
+Lemma write_requires_uacc : forall m m' ths ths' tid ad v T,
   well_typed_term ths[tid] ->
-  m / ths ~~[tid, EF_Write ad v Tr]~~> m' / ths' ->
+  m / ths ~~[tid, EF_Write ad v T]~~> m' / ths' ->
   unsafe_access ad m ths[tid].
 Proof.
-  intros * [T ?] **.
-  invc_cstep. invc_mstep. generalize dependent T.
+  intros * [T' ?] **.
+  invc_cstep. invc_mstep. generalize dependent T'.
+  induction_tstep; intros; inv_type; eauto using unsafe_access.
+  inv_type. eauto using unsafe_access.
+Qed.
+
+(* TODO *)
+Lemma tstep_write_requires_uacc : forall m t t' ad v T,
+  well_typed_term t ->
+  t --[EF_Write ad v T]--> t' ->
+  unsafe_access ad m t.
+Proof.
+  intros * [T' ?] **. generalize dependent T'.
   induction_tstep; intros; inv_type; eauto using unsafe_access.
   inv_type. eauto using unsafe_access.
 Qed.
