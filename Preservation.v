@@ -49,6 +49,22 @@ Ltac split_preservation :=
   end.
 
 (* ------------------------------------------------------------------------- *)
+(* value                                                                     *)
+(* ------------------------------------------------------------------------- *)
+
+Theorem value_preservation : forall m m' ths ths' tid e,
+  forall_memory m value ->
+  m / ths ~~[tid, e]~~> m' / ths' ->
+  forall_memory m' value.
+Proof.
+  assert (forall t t' ad v T, t --[EF_Alloc ad v T]--> t' -> value v);
+  assert (forall t t' ad v T, t --[EF_Write ad v T]--> t' -> value v);
+  try solve [intros; induction_tstep; eauto].
+  intros. inv_cstep; trivial. inv_mstep; trivial;
+  (eapply forall_array_add || eapply forall_array_set); eauto using value.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
 (* valid-addresses                                                           *)
 (* ------------------------------------------------------------------------- *)
 
@@ -897,6 +913,35 @@ Proof.
   - eauto using nuacc_preservation_write. 
   - eauto using nuacc_preservation_unt_write. 
   - eauto using nuacc_preservation_none. 
+Qed.
+
+(* unused *)
+Local Corollary nuacc_preservation_corollary_from_nacc_preservation :
+  forall m1 m2 ths1 ths2 ad tid tid' e,
+    forall_memory m1 value ->
+    forall_memory m1 (valid_addresses m1) ->
+    forall_memory m1 well_typed_term ->
+    forall_memory m1 (consistently_typed_references m1) ->
+    forall_threads ths1 (valid_addresses m1) ->
+    forall_threads ths1 well_typed_term ->
+    forall_threads ths1 (consistently_typed_references m1) ->
+    safe_memory_sharing m1 ths1 ->
+    (* --- *)
+    ad < #m1 ->
+    tid < #ths1 ->
+    ~ unsafe_access ad m1 ths1[tid] ->
+    m1 / ths1 ~~[tid', e]~~> m2 / ths2 ->
+    ~ unsafe_access ad m2 ths2[tid].
+Proof.
+  intros.
+  assert (forall_program m2 ths2 (consistently_typed_references m2))
+    as [? ?] by (eapply ctr_preservation; eauto).
+  destruct (acc_dec ad m1 ths1[tid]).
+  - intros ?.
+    assert (safe_access ad m1 ths1[tid]) by (split; eauto).
+    eapply (ptyp_sacc_uacc_contradiction m1 m2 ths1[tid] ths2[tid]);
+    eauto using value_preservation, ptyp_cstep_preservation.
+  - eauto using nacc_then_nuacc, nacc_preservation.
 Qed.
 
 (* ------------------------------------------------------------------------- *)

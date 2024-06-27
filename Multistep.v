@@ -43,18 +43,6 @@ Qed.
 (* valid-program                                                             *)
 (* ------------------------------------------------------------------------- *)
 
-Theorem mval_preservation : forall m m' ths ths' tid e,
-  forall_memory m value ->
-  m / ths ~~[tid, e]~~> m' / ths' ->
-  forall_memory m' value.
-Proof.
-  assert (forall t t' ad v T, t --[EF_Alloc ad v T]--> t' -> value v);
-  assert (forall t t' ad v T, t --[EF_Write ad v T]--> t' -> value v);
-  try solve [intros; induction_tstep; eauto].
-  intros. inv_cstep; trivial. inv_mstep; trivial;
-  (eapply forall_array_add || eapply forall_array_set); eauto using value.
-Qed.
-
 Definition valid_program m ths :=
   (  forall_memory  m value
   /\ forall_program m ths well_typed_term
@@ -70,7 +58,7 @@ Local Corollary vp_cstep_preservation : forall m m' ths ths' tid e,
 Proof.
   intros * Hvp **. unfold valid_program in Hvp.
   decompose record Hvp. splits 6;
-  eauto using mval_preservation,
+  eauto using value_preservation ,
               wtt_preservation,
               vad_preservation,
               ctr_preservation,
