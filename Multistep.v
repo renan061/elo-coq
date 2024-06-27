@@ -11,7 +11,7 @@ From Elo Require Import Soundness.
 (* monotonic-nondecreasing memory                                            *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma cstep_monotonic_nondecreasing_memory_length : forall m m' ths ths' tid e,
+Lemma cstep_nondecreasing_memory_length : forall m m' ths ths' tid e,
   m / ths ~~[tid, e]~~> m' / ths' ->
   #m <= #m'.
 Proof.
@@ -20,13 +20,13 @@ Proof.
   - rewrite set_preserves_length. lia. 
 Qed.
 
-Lemma multistep_monotonic_nondecreasing_memory_length: forall m m' ths ths' tc,
+Lemma multistep_nondecreasing_memory_length: forall m m' ths ths' tc,
   m / ths ~~[tc]~~>* m' / ths' ->
   #m <= #m'.
 Proof.
   intros. induction_mulst; trivial.
   assert (#m' <= #m'')
-    by eauto using cstep_monotonic_nondecreasing_memory_length.
+    by eauto using cstep_nondecreasing_memory_length.
   lia.
 Qed.
 
@@ -74,8 +74,8 @@ Proof.
               wtt_preservation,
               vad_preservation,
               ctr_preservation,
-              ss_preservation.ss_preservation,
-              sms_preservation.sms_preservation.
+              ss_preservation,
+              sms_preservation.
 Qed.
 
 Local Corollary vp_multistep_preservation : forall m m' ths ths' tc,
@@ -170,8 +170,7 @@ Proof.
   intros. induction_mulst; trivial.
   rewrite IHmultistep; eauto.
   eapply ptyp_cstep_preservation; eauto using vp_multistep_preservation with vp.
-  assert (#m <= #m')
-    by eauto using multistep_monotonic_nondecreasing_memory_length.
+  assert (#m <= #m') by eauto using multistep_nondecreasing_memory_length.
   lia.
 Qed.
 

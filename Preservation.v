@@ -27,7 +27,13 @@ Ltac split_preservation :=
     _ : ?m1 / ?ths1 ~~[_, _]~~> ?m2 / ?ths2
      |- forall_program ?m2 ?ths2 (?P ?m2) =>
     destruct_forall_program;
-    invc_cstep; try invc_mstep; split; trivial; try simplfths; trivial
+    invc_cstep; try invc_mstep; split; try simplfths; trivial
+  (* ss *)
+  | H : forall_program ?m1 ?ths1 ?P,
+    _ : ?m1 / ?ths1 ~~[_, _]~~> ?m2 / ?ths2
+     |- forall_program ?m2 ?ths2 ?P =>
+    destruct_forall_program;
+    invc_cstep; try invc_mstep; split; try simplfths; trivial
   (* nacc | nuacc *)
   | _ : ?ad  < #?m1,
     _ : ?tid < #?ths1,
@@ -374,8 +380,7 @@ Lemma ctr_preservation_spawn : forall m t1 t2 t,
   t1 --[EF_Spawn t]--> t2 ->
   consistently_typed_references m t2.
 Proof.
-  intros.
-  induction_tstep; inv_ctr; eauto using consistently_typed_references.
+  intros. induction_tstep; inv_ctr; eauto using consistently_typed_references.
 Qed.
 
 Lemma ctr_preservation_spawned : forall m t1 t2 t,
@@ -427,6 +432,131 @@ Proof.
   assert (forall_program m2 ths2 (consistently_typed_references m2))
     by (eapply ctr_preservation; eauto).
   destruct_forall_program. assumption.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* safe-spawns                                                               *)
+(* ------------------------------------------------------------------------- *)
+
+Local Lemma hasvar_subst : forall x t tx,
+  ~ (has_var x t) ->
+  ([x := tx] t) = t.
+Proof.
+  intros * Hnhv **. induction t; simpl; trivial;
+  try (destruct string_eq_dec; subst; trivial);
+  solve
+    [ progress (repeat match goal with H : _ -> _ = _ |- _ => rewrite H end);
+      trivial; intros ?; eauto using has_var
+    | exfalso; eauto using has_var
+    ].
+Qed.
+
+Local Lemma hasvar_typing : forall Gamma x t T,
+  has_var x t ->
+  Gamma x = None ->
+  ~ (Gamma |-- t is T).
+Proof.
+  intros * ? Heq Htype.
+  induction_type; inv_hasvar; eauto using ctx_eqv_safe_lookup.
+  - rewrite Heq in *. discriminate.
+  - rewrite lookup_update_neq in IHHtype; eauto.
+Qed.
+
+Local Lemma nomut_safe_value : forall Gamma x t v T Tx,
+  value v ->
+  empty |-- v is Tx ->
+  safe Gamma[x <== Tx] |-- t is T ->
+  has_var x t ->
+  no_mut v.
+Proof.
+  intros * Hval **.
+  inv Hval; inv_type; eauto using no_mut;
+  exfalso; eapply hasvar_typing; eauto;
+  unfold safe; rewrite lookup_update_eq; reflexivity.
+Qed.
+
+Local Lemma ss_subst : forall Gamma x t v T Tx,
+  value v ->
+  empty |-- v is Tx ->
+  Gamma[x <== Tx] |-- t is T ->
+  (* --- *)
+  safe_spawns v ->
+  safe_spawns t ->
+  safe_spawns ([x := v] t).
+Proof.
+  intros * ? ? ? ? Hss.
+  generalize dependent Gamma. generalize dependent T. generalize dependent Tx.
+  induction Hss; intros; invc_type;
+  simpl; eauto using safe_spawns;
+  try solve [destruct string_eq_dec;
+             eauto using safe_spawns,
+                         ctx_eqv_typing,
+                         MapEquivalence.update_permutation].
+  eapply ss_spawn. destruct (hasvar_dec x t).
+  - eauto using nomut_safe_value, (must_subst (fun _ t => no_mut t) nil).
+  - erewrite hasvar_subst; assumption.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+
+Lemma ss_preservation_mem_alloc : forall m t t' v T,
+  forall_memory m safe_spawns ->
+  safe_spawns t ->
+  t --[EF_Alloc (#m) v T]--> t' ->
+  forall_memory (m +++ (v, T)) safe_spawns.
+Proof.
+  intros. unfold forall_memory.
+  eauto using forall_array_add, ss_tstep_alloc_value, safe_spawns.
+Qed.
+
+Lemma ss_preservation_mem_write : forall m t t' ad v T,
+  forall_memory m safe_spawns ->
+  safe_spawns t ->
+  t --[EF_Write ad v T]--> t' ->
+  forall_memory m[ad <- (v, T)] safe_spawns.
+Proof.
+  intros. unfold forall_memory.
+  eauto using forall_array_set, ss_tstep_write_value, safe_spawns.
+Qed.
+
+Lemma ss_preservation_spawned : forall t1 t2 t,
+  safe_spawns t1 ->
+  t1 --[EF_Spawn t]--> t2 ->
+  safe_spawns t.
+Proof.
+  intros. induction_tstep; inv_ss; eauto using nomut_then_ss.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+
+Local Ltac solve_ss_preservation :=
+  match goal with
+  | H1 : forall_threads ?ths well_typed_term,
+    H2 : forall_threads ?ths safe_spawns,
+    _  : ?ths[?tid] --[_]--> _ 
+      |- _ =>
+    destruct (H1 tid) as [T' ?]; specialize (H2 tid); generalize dependent T';
+    induction_tstep; intros; inv_type; inv_ss; eauto using safe_spawns
+  end.
+
+Theorem ss_preservation : forall m1 m2 ths1 ths2 tid e,
+  forall_program m1 ths1 well_typed_term ->
+  (* --- *)
+  forall_program m1 ths1 safe_spawns ->
+  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+  forall_program m2 ths2 safe_spawns.
+Proof.
+  split_preservation.
+  - (* spawn     *) solve_ss_preservation.
+  - (* spawned   *) eauto using ss_preservation_spawned.
+  - (* unit      *) eauto using safe_spawns.
+  - (* mem_alloc *) eauto using ss_preservation_mem_alloc.
+  - (* alloc     *) solve_ss_preservation.
+  - (* read      *) solve_ss_preservation.
+  - (* mem_write *) eauto using ss_preservation_mem_write.
+  - (* write     *) solve_ss_preservation.
+  - (* none      *) solve_ss_preservation.
+                    invc_type. invc_ss. eauto using ss_subst.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -762,337 +892,167 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* safe-spawns                                                               *)
-(* ------------------------------------------------------------------------- *)
-
-Module ss_preservation.
-  Local Lemma hasvar_subst : forall x t tx,
-    ~ (has_var x t) ->
-    ([x := tx] t) = t.
-  Proof.
-    intros * Hnhv **. induction t; simpl; trivial;
-    try (destruct string_eq_dec; subst; trivial);
-    solve
-      [ progress (repeat match goal with H : _ -> _ = _ |- _ => rewrite H end);
-        trivial; intros ?; eauto using has_var
-      | exfalso; eauto using has_var
-      ].
-  Qed.
-
-  Local Lemma hasvar_typing : forall Gamma x t T,
-    has_var x t ->
-    Gamma x = None ->
-    ~ (Gamma |-- t is T).
-  Proof.
-    intros * ? Heq Htype.
-    induction_type; inv_hasvar; eauto using ctx_eqv_safe_lookup.
-    - rewrite Heq in *. discriminate.
-    - rewrite lookup_update_neq in IHHtype; eauto.
-  Qed.
-
-  Local Lemma nomut_safe_value : forall Gamma x t v T Tx,
-    value v ->
-    empty |-- v is Tx ->
-    safe Gamma[x <== Tx] |-- t is T ->
-    has_var x t ->
-    no_mut v.
-  Proof.
-    intros * Hval **.
-    inv Hval; inv_type; eauto using no_mut;
-    exfalso; eapply hasvar_typing; eauto;
-    unfold safe; rewrite lookup_update_eq; reflexivity.
-  Qed.
-
-  Local Lemma ss_subst : forall Gamma x t v T Tx,
-    value v ->
-    empty |-- v is Tx ->
-    Gamma[x <== Tx] |-- t is T ->
-    (* --- *)
-    safe_spawns v ->
-    safe_spawns t ->
-    safe_spawns ([x := v] t).
-  Proof.
-    intros.
-    generalize dependent Gamma. generalize dependent T. generalize dependent Tx.
-    induction t; simpl; intros; invc_type; try inv_ss;
-    try (destruct string_eq_dec);
-    eauto using safe_spawns, ctx_eqv_typing, MapEquivalence.update_permutation.
-    eapply ss_spawn. destruct (hasvar_dec x t).
-    - eauto using nomut_safe_value, (must_subst (fun _ t => no_mut t) nil).
-    - erewrite hasvar_subst; assumption.
-  Qed.
-
-  (* tstep ----------------------------------------------------------------- *)
-
-  Local Lemma ss_tstep_spawn_preservation : forall t t' block,
-    safe_spawns t ->
-    t --[EF_Spawn block]--> t' ->
-    safe_spawns t'.
-  Proof.
-    intros. induction_tstep; inv_ss; eauto using safe_spawns.
-  Qed.
-
-  (* mstep ----------------------------------------------------------------- *)
-
-  Local Lemma ss_mstep_preservation : forall m m' t t' e,
-    forall_memory m safe_spawns ->
-    well_typed_term t ->
-    (* --- *)
-    safe_spawns t ->
-    m / t ==[e]==> m' / t' ->
-    safe_spawns t'.
-  Proof.
-    intros * ? [T ?] **. generalize dependent T.
-    invc_mstep; induction_tstep; intros;
-    inv_type; inv_ss; eauto using safe_spawns;
-    inv_type; inv_ss; eauto using ss_subst.
-  Qed.
-
-  (* cstep ----------------------------------------------------------------- *)
-
-  Local Lemma ss_thread_default :
-    safe_spawns thread_default.
-  Proof.
-    eauto using safe_spawns.
-  Qed.
-
-  Local Lemma ss_spawn_block : forall t t' block,
-    safe_spawns t ->
-    t --[EF_Spawn block]--> t' ->
-    safe_spawns block.
-  Proof.
-    intros. induction_tstep; inv_ss; eauto using nomut_then_ss.
-  Qed.
-
-  Local Corollary ss_cstep_preservation : forall m m' ths ths' tid e,
-    forall_threads ths well_typed_term ->
-    (* --- *)
-    forall_memory m safe_spawns ->
-    forall_threads ths safe_spawns ->
-    m / ths ~~[tid, e]~~> m' / ths' ->
-    forall_threads ths' safe_spawns.
-  Proof.
-    eauto using memoryless_cstep_preservation,
-      ss_tstep_spawn_preservation,
-      ss_mstep_preservation,
-      ss_thread_default,
-      ss_spawn_block.
-  Qed.
-
-  (* tstep mem ------------------------------------------------------------- *)
-
-  Local Lemma ss_tstep_alloc_mem_preservation : forall m t t' v T,
-    forall_memory m safe_spawns ->
-    safe_spawns t ->
-    t --[EF_Alloc (#m) v T]--> t' ->
-    forall_memory (m +++ (v, T)) safe_spawns.
-  Proof.
-    intros. unfold forall_memory.
-    eauto using forall_array_add, ss_tstep_alloc_value, safe_spawns.
-  Qed.
-
-  Local Lemma ss_tstep_write_mem_preservation : forall m t t' ad v T,
-    forall_memory m safe_spawns ->
-    safe_spawns t ->
-    t --[EF_Write ad v T]--> t' ->
-    forall_memory m[ad <- (v, T)] safe_spawns.
-  Proof.
-    intros. unfold forall_memory.
-    eauto using forall_array_set, ss_tstep_write_value, safe_spawns.
-  Qed.
-
-  (* mstep mem ------------------------------------------------------------- *)
-
-  Local Corollary ss_mstep_mem_preservation : forall m m' t t' e,
-    forall_memory m safe_spawns ->
-    safe_spawns t ->
-    m / t ==[e]==> m' / t' ->
-    forall_memory m' safe_spawns.
-  Proof.
-    intros. inv_mstep;
-    eauto using ss_tstep_alloc_mem_preservation, ss_tstep_write_mem_preservation.
-  Qed.
-
-  (* safe-spawns preservation ---------------------------------------------- *)
-
-  Theorem ss_preservation : forall m m' ths ths' tid e,
-    forall_program m ths well_typed_term ->
-    (* --- *)
-    forall_program m ths safe_spawns ->
-    m / ths ~~[tid, e]~~> m' / ths' ->
-    forall_program m' ths' safe_spawns.
-  Proof.
-    intros * [? ?] [? ?] **. split; inv_cstep;
-    eauto using ss_cstep_preservation, ss_mstep_mem_preservation.
-  Qed.
-End ss_preservation.
-
-(* ------------------------------------------------------------------------- *)
 (* safe-memory-sharing                                                       *)
 (* ------------------------------------------------------------------------- *)
 
-Module sms_preservation.
-  Local Lemma step_write_sms_helper : forall m t ad v ths tid tid' T,
-    tid <> tid' ->
-    forall_threads ths well_typed_term ->
-    safe_memory_sharing m ths ->
-    ths[tid] --[EF_Write ad v T]--> t ->
-    ~ access ad m ths[tid'].
-  Proof.
-    assert (forall m t t' ad v T Te,
-      empty |-- t is T ->
-      t --[EF_Write ad v Te]--> t' ->
-      unsafe_access ad m t
-    ). {
-      intros. generalize dependent T.
-      induction_tstep; intros; inv_type; eauto using unsafe_access.
-      inv_type. eauto using unsafe_access.
-    }
-    (* main proof *)
-    intros * Hneq Htype Hsms ? Hacc.
-    destruct (Htype tid). specialize (Hsms _ _ _ Hneq Hacc); eauto.
-  Qed.
+Local Lemma step_write_sms_helper : forall m t ad v ths tid tid' T,
+  tid <> tid' ->
+  forall_threads ths well_typed_term ->
+  safe_memory_sharing m ths ->
+  ths[tid] --[EF_Write ad v T]--> t ->
+  ~ access ad m ths[tid'].
+Proof.
+  assert (forall m t t' ad v T Te,
+    empty |-- t is T ->
+    t --[EF_Write ad v Te]--> t' ->
+    unsafe_access ad m t
+  ). {
+    intros. generalize dependent T.
+    induction_tstep; intros; inv_type; eauto using unsafe_access.
+    inv_type. eauto using unsafe_access.
+  }
+  (* main proof *)
+  intros * Hneq Htype Hsms ? Hacc.
+  destruct (Htype tid). specialize (Hsms _ _ _ Hneq Hacc); eauto.
+Qed.
 
-  (* tstep ----------------------------------------------------------------- *)
+(* tstep ----------------------------------------------------------------- *)
 
-  (* Three cases:
-     - needs nuacc-tstep-preservation;
-     - needs acc-tstep-inheritance;
-     - just safe-memory-sharing.
-  *)
+(* Three cases:
+   - needs nuacc-tstep-preservation;
+   - needs acc-tstep-inheritance;
+   - just safe-memory-sharing.
+*)
 
-  Local Ltac destruct_sms ths tid tid1 tid2 :=
-    assert (Hlt : tid < #ths) by eauto using tstep_length_tid;
-    destruct (nat_eq_dec tid tid1), (nat_eq_dec tid tid2); subst;
-    try contradiction.
+Local Ltac destruct_sms ths tid tid1 tid2 :=
+  assert (Hlt : tid < #ths) by eauto using tstep_length_tid;
+  destruct (nat_eq_dec tid tid1), (nat_eq_dec tid tid2); subst;
+  try contradiction.
 
-  Local Lemma sms_tstep_none_preservation : forall m t ths tid,
-    safe_memory_sharing m ths ->
-    ths[tid] --[EF_None]--> t ->
-    safe_memory_sharing m ths[tid <- t].
-  Proof.
-    intros ** tid1 tid2 **. destruct_sms ths tid tid1 tid2; simpl_array.
-    - eauto using nuacc_preservation_none.
-    - eauto using acc_tstep_none_inheritance.
-    - eauto.
-  Qed.
+Local Lemma sms_tstep_none_preservation : forall m t ths tid,
+  safe_memory_sharing m ths ->
+  ths[tid] --[EF_None]--> t ->
+  safe_memory_sharing m ths[tid <- t].
+Proof.
+  intros ** tid1 tid2 **. destruct_sms ths tid tid1 tid2; simpl_array;
+  eauto using nuacc_preservation_none, acc_tstep_none_inheritance.
+Qed.
 
-  Local Lemma sms_tstep_alloc_preservation : forall m t v ths tid T,
-    forall_memory m (valid_addresses m) ->
-    forall_threads ths (valid_addresses m) ->
-    (* --- *)
-    safe_memory_sharing m ths ->
-    ths[tid] --[EF_Alloc (#m) v T]--> t ->
-    safe_memory_sharing (m +++ (v, T)) ths[tid <- t].
-  Proof.
-    intros * ? Hvad ** tid1 tid2 ** Huacc.
-    assert (forall tid, ~ unsafe_access (#m) m ths[tid])
-      by eauto using nuacc_vad_length.
-    eapply uacc_then_acc in Huacc as ?. contradict Huacc.
-    destruct_sms ths tid tid1 tid2; simpl_array;
-    eauto 6 using acc_mem_add_inheritance,
-                  acc_tstep_alloc_inheritance,
-                  nuacc_mem_add,
-                  nuacc_preservation_alloc,
-                  vad_acc.
-  Qed.
+Local Lemma sms_tstep_alloc_preservation : forall m t v ths tid T,
+  forall_memory m (valid_addresses m) ->
+  forall_threads ths (valid_addresses m) ->
+  (* --- *)
+  safe_memory_sharing m ths ->
+  ths[tid] --[EF_Alloc (#m) v T]--> t ->
+  safe_memory_sharing (m +++ (v, T)) ths[tid <- t].
+Proof.
+  intros * ? Hvad ** tid1 tid2 ** Huacc.
+  assert (forall tid, ~ unsafe_access (#m) m ths[tid])
+    by eauto using nuacc_vad_length.
+  eapply uacc_then_acc in Huacc as ?. contradict Huacc.
+  destruct_sms ths tid tid1 tid2; simpl_array;
+  eauto 6 using acc_mem_add_inheritance,
+                acc_tstep_alloc_inheritance,
+                nuacc_mem_add,
+                nuacc_preservation_alloc,
+                vad_acc.
+Qed.
 
-  Local Lemma sms_tstep_read_preservation : forall m t ad ths tid,
-    forall_memory m value ->
-    forall_threads ths well_typed_term ->
-    forall_threads ths (consistently_typed_references m) ->
-    (* --- *)
-    safe_memory_sharing m ths ->
-    ths[tid] --[EF_Read ad m[ad].tm]--> t ->
-    safe_memory_sharing m ths[tid <- t].
-  Proof.
-    intros * ? Hwtt ** tid1 tid2 **. destruct (Hwtt tid1).
-    destruct_sms ths tid tid1 tid2; simpl_array;
-    eauto using acc_tstep_read_inheritance, nuacc_preservation_read.
-  Qed.
+Local Lemma sms_tstep_read_preservation : forall m t ad ths tid,
+  forall_memory m value ->
+  forall_threads ths well_typed_term ->
+  forall_threads ths (consistently_typed_references m) ->
+  (* --- *)
+  safe_memory_sharing m ths ->
+  ths[tid] --[EF_Read ad m[ad].tm]--> t ->
+  safe_memory_sharing m ths[tid <- t].
+Proof.
+  intros * ? Hwtt ** tid1 tid2 **. destruct (Hwtt tid1).
+  destruct_sms ths tid tid1 tid2; simpl_array;
+  eauto using acc_tstep_read_inheritance, nuacc_preservation_read.
+Qed.
 
-  Local Lemma sms_tstep_write_preservation : forall m ths t tid ad v T,
-    forall_threads ths well_typed_term ->
-    (* --- *)
-    safe_memory_sharing m ths ->
-    ths[tid] --[EF_Write ad v T]--> t ->
-    safe_memory_sharing m[ad <- (v, T)] ths[tid <- t].
-  Proof.
-    intros ** tid1 tid2 ** Huacc.
-    eapply uacc_then_acc in Huacc as ?. contradict Huacc.
-    destruct_sms ths tid tid1 tid2; simpl_array;
-    try assert (~ access ad m ths[tid1]) by eauto using step_write_sms_helper;
-    try assert (~ access ad m ths[tid2]) by eauto using step_write_sms_helper;
-    eauto 7 using uacc_then_acc,
-      nuacc_preservation_write,
-      acc_tstep_write_inheritance,
-      nuacc_mem_set2,
-      alt_acc_mem_set_inheritance.
-  Qed.
+Local Lemma sms_tstep_write_preservation : forall m ths t tid ad v T,
+  forall_threads ths well_typed_term ->
+  (* --- *)
+  safe_memory_sharing m ths ->
+  ths[tid] --[EF_Write ad v T]--> t ->
+  safe_memory_sharing m[ad <- (v, T)] ths[tid <- t].
+Proof.
+  intros ** tid1 tid2 ** Huacc.
+  eapply uacc_then_acc in Huacc as ?. contradict Huacc.
+  destruct_sms ths tid tid1 tid2; simpl_array;
+  try assert (~ access ad m ths[tid1]) by eauto using step_write_sms_helper;
+  try assert (~ access ad m ths[tid2]) by eauto using step_write_sms_helper;
+  eauto 7 using uacc_then_acc,
+    nuacc_preservation_write,
+    acc_tstep_write_inheritance,
+    nuacc_mem_set2,
+    alt_acc_mem_set_inheritance.
+Qed.
 
-  Local Lemma sms_tstep_spawn_preservation : forall m ths t block tid,
-    forall_memory m value ->
-    forall_memory m (valid_addresses m) ->
-    forall_memory m (consistently_typed_references m) ->
-    forall_threads ths (valid_addresses m) ->
-    forall_threads ths (consistently_typed_references m) ->
-    forall_threads ths safe_spawns ->
-    (* --- *)
-    tid < #ths ->
-    safe_memory_sharing m ths ->
-    ths[tid] --[EF_Spawn block]--> t ->
-    safe_memory_sharing m (ths[tid <- t] +++ block).
-  Proof.
-    intros ** tid1 tid2 **.
-    destruct_sms ths tid tid1 tid2;
-    decompose sum (lt_eq_lt_dec tid1 (#ths)); subst;
-    decompose sum (lt_eq_lt_dec tid2 (#ths)); subst;
-    simpl_array;
-    try solve [inv_tstep | inv_acc | intros ?; inv_uacc | lia];
-    eauto using nuacc_preservation_spawn, acc_tstep_spawn_inheritance;
-    assert (~ unsafe_access ad m block) by eauto using spawn_nuacc; eauto;
-    assert (consistently_typed_references m block)
-      by eauto using (tstep_spawn_block consistently_typed_references);
-    eauto using uacc_by_association, ctr_preservation_spawn.
-  Qed.
+Local Lemma sms_tstep_spawn_preservation : forall m ths t block tid,
+  forall_memory m value ->
+  forall_memory m (valid_addresses m) ->
+  forall_memory m (consistently_typed_references m) ->
+  forall_threads ths (valid_addresses m) ->
+  forall_threads ths (consistently_typed_references m) ->
+  forall_threads ths safe_spawns ->
+  (* --- *)
+  tid < #ths ->
+  safe_memory_sharing m ths ->
+  ths[tid] --[EF_Spawn block]--> t ->
+  safe_memory_sharing m (ths[tid <- t] +++ block).
+Proof.
+  intros ** tid1 tid2 **.
+  destruct_sms ths tid tid1 tid2;
+  decompose sum (lt_eq_lt_dec tid1 (#ths)); subst;
+  decompose sum (lt_eq_lt_dec tid2 (#ths)); subst;
+  simpl_array;
+  try solve [inv_tstep | inv_acc | intros ?; inv_uacc | lia];
+  eauto using nuacc_preservation_spawn, acc_tstep_spawn_inheritance;
+  assert (~ unsafe_access ad m block) by eauto using spawn_nuacc; eauto;
+  assert (consistently_typed_references m block)
+    by eauto using (tstep_spawn_block consistently_typed_references);
+  eauto using uacc_by_association, ctr_preservation_spawn.
+Qed.
 
-  Local Corollary sms_mstep_preservation : forall m m' t e ths tid,
-    forall_memory m value ->
-    forall_memory m (valid_addresses m) ->
-    forall_threads ths (valid_addresses m) ->
-    forall_threads ths well_typed_term ->
-    forall_threads ths (consistently_typed_references m) ->
-    (* --- *)
-    safe_memory_sharing m ths ->
-    m / ths[tid] ==[e]==> m' / t ->
-    safe_memory_sharing m' ths[tid <- t].
-  Proof.
-    intros. inv_mstep;
-    eauto using sms_tstep_none_preservation,
-                sms_tstep_alloc_preservation,
-                sms_tstep_read_preservation,
-                sms_tstep_write_preservation.
-  Qed.
+Local Corollary sms_mstep_preservation : forall m m' t e ths tid,
+  forall_memory m value ->
+  forall_memory m (valid_addresses m) ->
+  forall_threads ths (valid_addresses m) ->
+  forall_threads ths well_typed_term ->
+  forall_threads ths (consistently_typed_references m) ->
+  (* --- *)
+  safe_memory_sharing m ths ->
+  m / ths[tid] ==[e]==> m' / t ->
+  safe_memory_sharing m' ths[tid <- t].
+Proof.
+  intros. inv_mstep;
+  eauto using sms_tstep_none_preservation,
+              sms_tstep_alloc_preservation,
+              sms_tstep_read_preservation,
+              sms_tstep_write_preservation.
+Qed.
 
-  (* safe-memory-sharing preservation -------------------------------------- *)
+(* safe-memory-sharing preservation -------------------------------------- *)
 
-  Theorem sms_preservation : forall m m' ths ths' tid e,
-    forall_memory m value ->
-    forall_program m ths (valid_addresses m) ->
-    forall_program m ths well_typed_term ->
-    forall_program m ths (consistently_typed_references m) ->
-    forall_program m ths safe_spawns ->
-    (* --- *)
-    safe_memory_sharing m ths ->
-    m / ths ~~[tid, e]~~> m' / ths' ->
-    safe_memory_sharing m' ths'.
-  Proof.
-    intros * ? [? ?] [_ ?] [? ?] [_ ?] **. split_preservation;
-    eauto using sms_tstep_none_preservation,
-                sms_tstep_alloc_preservation,
-                sms_tstep_read_preservation,
-                sms_tstep_write_preservation,
-                sms_tstep_spawn_preservation.
-  Qed.
-End sms_preservation.
+Theorem sms_preservation : forall m m' ths ths' tid e,
+  forall_memory m value ->
+  forall_program m ths (valid_addresses m) ->
+  forall_program m ths well_typed_term ->
+  forall_program m ths (consistently_typed_references m) ->
+  forall_program m ths safe_spawns ->
+  (* --- *)
+  safe_memory_sharing m ths ->
+  m / ths ~~[tid, e]~~> m' / ths' ->
+  safe_memory_sharing m' ths'.
+Proof.
+  intros * ? [? ?] [_ ?] [? ?] [_ ?] **. split_preservation;
+  eauto using sms_tstep_none_preservation,
+              sms_tstep_alloc_preservation,
+              sms_tstep_read_preservation,
+              sms_tstep_write_preservation,
+              sms_tstep_spawn_preservation.
+Qed.
 

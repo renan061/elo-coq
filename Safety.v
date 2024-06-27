@@ -74,7 +74,7 @@ Proof.
   intros ?. inv_uacc.
 Qed.
 
-Theorem nacc_or_sacc_cstep_preservation : forall m m' ths ths' tid tid' ad e,
+Theorem nacc_or_sacc_cstep : forall m m' ths ths' tid tid' ad e,
   forall_memory m (valid_addresses m) ->
   forall_threads ths (valid_addresses m) ->
   forall_threads ths well_typed_term ->
@@ -95,7 +95,7 @@ Proof.
     inv_cstep; simpl_array; eauto with acc. inv_mstep; inv_tstep.
 Qed.
 
-Theorem nacc_or_sacc_preservation : forall m m' ths ths' tid ad tc,
+Theorem nacc_or_sacc : forall m m' ths ths' tid ad tc,
   valid_program m ths ->
   (* --- *)
   ad < #m ->
@@ -104,18 +104,12 @@ Theorem nacc_or_sacc_preservation : forall m m' ths ths' tid ad tc,
   (~ access ad m' ths'[tid]) \/ (safe_access ad m' ths'[tid]).
 Proof.
   intros * Hvp Hlt Hnacc **. induction_mulst; eauto.
-  destruct (IHmultistep Hvp Hlt Hnacc) as [? | [? ?]]; subst.
-  - assert (valid_program m' ths') by eauto using vp_preservation. 
-    assert (#m <= #m')
-      by eauto using multistep_monotonic_nondecreasing_memory_length.
-    assert (ad < #m') by lia.
-    eapply nacc_or_sacc_cstep_preservation in Hcstep as [? | [_ ?]]; subst;
-    eauto with vp.
-  - assert (valid_program m' ths') by eauto using vp_preservation.
-    assert (#m <= #m')
-      by eauto using multistep_monotonic_nondecreasing_memory_length.
-    assert (ad < #m') by lia.
-    destruct (acc_dec ad m'' ths''[tid]); eauto. right. split; trivial.
+  assert (#m <= #m') by eauto using multistep_nondecreasing_memory_length.
+  assert (ad < #m') by lia.
+  assert (valid_program m' ths') by eauto using vp_preservation. 
+  destruct (IHmultistep Hvp Hlt Hnacc) as [? | [? ?]]; subst; clear IHmultistep.
+  - eapply nacc_or_sacc_cstep in Hcstep as [? | [_ ?]]; subst; eauto with vp.
+  - destruct (acc_dec ad m'' ths''[tid]); eauto. right. split; trivial.
     eapply nuacc_preservation in Hcstep; eauto with vp.
     decompose sum (lt_eq_lt_dec tid (#ths')); subst; trivial;
     simpl_array; inv_acc.
@@ -151,7 +145,7 @@ Proof.
   assert (H' : m1 / ths1 ~~[tc' +++ (tid1, EF_Write ad v1 T)]~~>* m3 / ths3)
     by eauto using multistep_append.
   assert (m1[ad].typ = m3[ad].typ) by eauto using memtyp_preservation.
-  eapply nacc_or_sacc_preservation in H' as [? | ?]; eauto with vp.
+  eapply nacc_or_sacc in H' as [? | ?]; eauto with vp.
   eapply (ptyp_sacc_uacc_contradiction m3 m1 ths3[tid2] ths1[tid1]);
   eauto with vp.
 Qed.
@@ -189,7 +183,7 @@ Proof.
   assert (H' : m1 / ths1 ~~[tc' +++ (tid1, EF_Write ad v1 T1)]~~>* m3 / ths3)
     by eauto using multistep_append.
   assert (m1[ad].typ = m3[ad].typ) by eauto using memtyp_preservation.
-  eapply nacc_or_sacc_preservation in H' as [? | ?];
+  eapply nacc_or_sacc in H' as [? | ?];
   eauto using uacc_then_acc.
   eapply (ptyp_sacc_uacc_contradiction m3 m1 ths3[tid2] ths1[tid1]); eauto.
 Qed.
