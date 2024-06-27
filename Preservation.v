@@ -52,6 +52,15 @@ Ltac split_preservation :=
 (* valid-addresses                                                           *)
 (* ------------------------------------------------------------------------- *)
 
+Lemma vad_subst : forall m t v x,
+  valid_addresses m v ->
+  valid_addresses m t ->
+  valid_addresses m ([x := v]t).
+Proof.
+  intros. induction t; try inv_vad; eauto using valid_addresses;
+  simpl; destruct string_eq_dec; eauto using valid_addresses.
+Qed.
+
 Lemma vad_mem_add : forall m t vT,
   valid_addresses m t ->
   valid_addresses (m +++ vT) t.
@@ -111,7 +120,7 @@ Lemma vad_preservation_unt_alloc : forall m t1 t2 t ad v T,
   t1 --[EF_Alloc ad v T]--> t2 ->
   valid_addresses (m +++ (v, T)) t.
 Proof.
-  intros. induction_tstep; eauto using vad_mem_add.
+  eauto using vad_mem_add.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -156,7 +165,7 @@ Lemma vad_preservation_unt_write : forall m t1 t2 t ad v T,
   t1 --[EF_Write ad v T]--> t2 ->
   valid_addresses m[ad <- (v, T)] t.
 Proof.
-  intros. induction_tstep; eauto using vad_mem_set.
+  eauto using vad_mem_set.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -228,14 +237,13 @@ Proof.
   (eapply ctr_refM || eapply ctr_refI); simpl_array; assumption.
 Qed.
 
-Lemma ctr_mem_set : forall m t ad v T Tv,
+Lemma ctr_mem_set : forall m t ad v T,
   ad < #m ->
-  empty |-- v is Tv ->
-  m[ad].typ = T ->
-  m[ad].typ = <{{&Tv}}> ->
+  empty |-- v is T ->
+  m[ad].typ = <{{&T}}> ->
   (* --- *)
   consistently_typed_references m t ->
-  consistently_typed_references m[ad <- (v, T)] t.
+  consistently_typed_references m[ad <- (v, <{{&T}}>)] t.
 Proof.
   intros.
   induction t; eauto using consistently_typed_references;
