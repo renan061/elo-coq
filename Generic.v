@@ -3,6 +3,8 @@ From Coq Require Import Lia.
 From Elo Require Import Core.
 From Elo Require Import Properties.
 
+(* TODO: This needs to be cleaned. We don't need this level of "genericness". *)
+
 (* ------------------------------------------------------------------------- *)
 (* meta-properties                                                           *)
 (* ------------------------------------------------------------------------- *)

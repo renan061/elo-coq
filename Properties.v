@@ -7,7 +7,7 @@ From Elo Require Export Constructors.
 (* misc. lemmas                                                              *)
 (* ------------------------------------------------------------------------- *)
 
-(* TODO: remove *)
+(* TODO: move *)
 Lemma wtt_tstep_alloc_value : forall t t' ad v T,
   well_typed_term t ->
   t --[EF_Alloc ad v T]--> t' ->
@@ -16,7 +16,7 @@ Proof.
   intros. induction_tstep; intros; inv_wtt; eauto.
 Qed.
 
-(* TODO: remove *)
+(* TODO: move *)
 Lemma wtt_tstep_write_value : forall t t' ad v T,
   well_typed_term t ->
   t --[EF_Write ad v T]--> t' ->

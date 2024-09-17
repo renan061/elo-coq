@@ -130,13 +130,6 @@ Module MapInclusion.
     rewrite (H1 k v); trivial. rewrite (H2 k v); trivial.
   Qed.
 
-  Lemma antisym : forall {A} (m1 m2 : map A),
-    m1 includes m2 ->
-    m2 includes m1 ->
-    m1 = m2.
-  Proof.
-  Abort.
-
   Lemma update_inclusion : forall {A} (m m' : map A) k v,
     m includes m' ->
     m[k <== v] includes m'[k <== v].

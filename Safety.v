@@ -58,6 +58,22 @@ Qed.
 (* TODO                                                                      *)
 (* ------------------------------------------------------------------------- *)
 
+Theorem nacc_preservation_multistep : forall m m' ths ths' tid ad tc,
+  valid_program m ths ->
+  (* --- *)
+  ad < #m ->
+  tid < #ths ->
+  ~ access ad m ths[tid] ->
+  m / ths ~~[tc]~~>* m' / ths' ->
+  ~ access ad m' ths'[tid].
+Proof.
+  intros. induction_mulst; eauto.
+  assert (#m   <= #m')   by eauto using multistep_nondecreasing_memory_length.
+  assert (#ths <= #ths') by eauto using multistep_nondecreasing_threads_length.
+  assert (valid_program m' ths') by eauto using vp_preservation.
+  eapply nacc_preservation in Hcstep; eauto with vp; try lia.
+Qed.
+
 Theorem spawned_thread_nacc_or_sacc : forall m m' ths ths' tid ad e,
   forall_memory m (valid_addresses m) ->
   forall_threads ths (valid_addresses m) ->
@@ -86,12 +102,15 @@ Theorem nacc_or_sacc_cstep : forall m m' ths ths' tid tid' ad e,
   m / ths ~~[tid', e]~~> m' / ths' ->
   (~ access ad m' ths'[tid]) \/ (tid = #ths /\ safe_access ad m' ths'[tid]).
 Proof.
-  pose proof nacc_preservation.
   intros. decompose sum (lt_eq_lt_dec tid (#ths)); subst; eauto.
-  - destruct (acc_dec ad m' ths'[#ths]); subst; eauto. right.
-    do 2 (split; trivial). inv_cstep; simpl_array.
-    eauto using spawn_nuacc. intros ?. inv_uacc.
-  - destruct (nat_eq_dec tid tid'); subst; simpl_array;
+  - (* tid < #ths *)
+    eauto using nacc_preservation.
+  - (* tid = #ths *)
+    destruct (acc_dec ad m' ths'[#ths]); subst; eauto.
+    right. split; trivial.
+    inv_cstep; simpl_array; eauto using spawn_sacc. inv_acc.
+  - (* tid > #ths *)
+    destruct (nat_eq_dec tid tid'); subst; simpl_array;
     inv_cstep; simpl_array; eauto with acc. inv_mstep; inv_tstep.
 Qed.
 
@@ -186,5 +205,53 @@ Proof.
   eapply nacc_or_sacc in H' as [? | ?];
   eauto using uacc_then_acc.
   eapply (ptyp_sacc_uacc_contradiction m3 m1 ths3[tid2] ths1[tid1]); eauto.
+Qed.
+
+(* TODO Need to clean this proof. *)
+Theorem safety_read_write :
+  forall m m' ths ths' tid1 tid2 ad v1 v2 tc tc' T,
+    valid_program m ths ->
+    (* --- *)
+    tid1 <> tid2 ->
+    m / ths ~~[tc]~~>* m' / ths' ->
+    tc <> (tid2, EF_Write ad v2 T) :: tc' ++ (tid1, EF_Read ad v1) :: nil.
+Proof.
+  intros * Hvp Hneq Hmultistep Heq. rewrite Heq in Hmultistep.
+  specialize Hvp as H; destruct H as [_ [[_ ?] [[? ?] [[_ _] [_ Hsms]]]]].
+  rename m into m1. rename ths into ths1.
+  eapply destruct_multistep3 in Hmultistep
+    as [m2 [ths2 [m3 [ths3 [Hcstep1___ [Hmultistep Hcstep2___]]]]]].
+  (* --- *)
+  assert (Hvp2 : valid_program m2 ths2) by eauto using vp_preservation. 
+  assert (Hvp3 : valid_program m3 ths3) by eauto using vp_preservation. 
+  (* --- *)
+  assert (ad < #m1) by eauto using vad_acc, read_requires_acc.
+  (* --- *)
+  assert (Huacc3 : unsafe_access ad m3 ths3[tid2])
+    by (eapply des_vp_wtt in Hvp3; eauto using write_requires_uacc).
+  (* --- *)
+  assert (Hdec : Decidable.decidable (unsafe_access ad m1 ths1[tid1]))
+    by eauto using uacc_dec.
+  destruct Hdec as [Huacc' | Hnuacc'].
+  - destruct Hvp3 as [? [[? ?] [[? ?] [[? ?] [? Hsms3]]]]].
+    assert (Hnacc : ~ access ad m1 ths1[tid2])
+      by (intros ?; eapply (Hsms tid1 tid2); eauto).
+    assert (Hnacc2 : ~ access ad m3 ths3[tid1])
+      by (intros ?; eapply (Hsms3 tid2 tid1); eauto).
+    assert (H' : m1 / ths1 ~~[tc' +++ (tid1, EF_Read ad v1)]~~>* m3 / ths3)
+      by eauto using multistep_append.
+    assert (m1[ad].typ = m3[ad].typ) by eauto using memtyp_preservation.
+    eapply nacc_or_sacc in H' as [? | ?];
+    eauto using uacc_then_acc.
+    eapply (ptyp_sacc_uacc_contradiction m3 m3 ths3[tid2] ths3[tid2]);
+    eauto with vp.
+  - assert (Hacc : access ad m1 ths1[tid1])
+      by eauto using read_requires_acc.
+    assert (Hsacc : safe_access ad m1 ths1[tid1]) by (split; eauto).
+    assert (H' : m1 / ths1 ~~[tc' +++ (tid1, EF_Read ad v1)]~~>* m3 / ths3)
+        by eauto using multistep_append.
+    assert (m1[ad].typ = m3[ad].typ) by eauto using memtyp_preservation.
+    eapply (ptyp_sacc_uacc_contradiction m1 m3 ths1[tid1] ths3[tid2]);
+    eauto with vp.
 Qed.
 

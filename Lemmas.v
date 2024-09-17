@@ -40,6 +40,16 @@ Proof.
   inv_uacc; eauto.
 Qed.
 
+Corollary spawn_sacc : forall m t t' block ad,
+  safe_spawns t ->
+  (* --- *)
+  t --[EF_Spawn block]--> t' ->
+  access ad m block ->
+  safe_access ad m block.
+Proof.
+  intros. split; eauto using spawn_nuacc.
+Qed.
+
 Lemma consistently_typed_write_effect : forall m t t' ad v T,
   well_typed_term t ->
   consistently_typed_references m t ->

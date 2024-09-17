@@ -1062,7 +1062,7 @@ Proof.
   decompose sum (lt_eq_lt_dec tid1 (#ths)); subst;
   decompose sum (lt_eq_lt_dec tid2 (#ths)); subst;
   simpl_array;
-  try solve [inv_tstep | inv_acc | intros ?; inv_uacc | lia];
+  try solve [lia | inv_acc | intros ?; inv_uacc];
   eauto using nuacc_preservation_spawn, acc_tstep_spawn_inheritance;
   assert (~ unsafe_access ad m block) by eauto using spawn_nuacc; eauto;
   assert (consistently_typed_references m block)

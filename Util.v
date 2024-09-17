@@ -23,9 +23,6 @@ Ltac auto_specialize :=
   | H : ?x = ?x -> _ |- _ => specialize (H eq_refl) 
   end.
 
-(* not working... *)
-Ltac deplete tactic := progress (repeat tactic).
-
 #[export] Hint Extern 4 =>
   match goal with
   | _ : ?n < ?n  |- _ => lia

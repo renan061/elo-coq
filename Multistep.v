@@ -8,7 +8,7 @@ From Elo Require Import Preservation.
 From Elo Require Import Soundness.
 
 (* ------------------------------------------------------------------------- *)
-(* monotonic-nondecreasing memory                                            *)
+(* monotonic-nondecreasing                                                   *)
 (* ------------------------------------------------------------------------- *)
 
 Lemma cstep_nondecreasing_memory_length : forall m m' ths ths' tid e,
@@ -30,7 +30,7 @@ Proof.
   lia.
 Qed.
 
-Lemma monotonic_nondecreasing_threads_length: forall m m' ths ths' tc,
+Lemma multistep_nondecreasing_threads_length: forall m m' ths ths' tc,
   m / ths ~~[tc]~~>* m' / ths' ->
   #ths <= #ths'.
 Proof.

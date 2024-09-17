@@ -8,13 +8,13 @@ From Elo Require Import Lemmas.
 
 (* mem & subst ------------------------------------------------------------- *)
 
-Lemma acc_subst_inheritance : forall m x Tx t t' ad,
+Local Lemma acc_subst_inheritance : forall m x Tx t t' ad,
   access ad m ([x := t'] t) ->
   access ad m <{call <{fn x Tx t}> t'}>.
 Proof.
   intros. induction t; eauto using access; simpl in *;
   try (destruct string_eq_dec; eauto using access);
-  invc_acc; auto_specialize; do 2 inv_acc; eauto using access.
+  invc_acc; auto_specialize; do 2 (invc_acc; eauto using access).
 Qed.
 
 Lemma acc_mem_add_inheritance : forall m t ad vT,
@@ -64,8 +64,8 @@ Lemma acc_tstep_none_inheritance  : forall m t t' ad,
   t --[EF_None]--> t' ->
   access ad m t.
 Proof.
-  intros. induction_tstep; eauto using access, acc_subst_inheritance;
-  inv_acc; eauto using access.
+  intros.
+  induction_tstep; try inv_acc; eauto using access, acc_subst_inheritance.
 Qed.
 
 Lemma acc_tstep_alloc_inheritance : forall m t t' ad v T,

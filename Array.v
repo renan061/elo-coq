@@ -23,8 +23,10 @@ Fixpoint set {A} (l : list A) (i : nat) (a : A) : list A :=
 (* notations                                                                 *)
 (* ------------------------------------------------------------------------- *)
 
-Notation "# l" := (length l) (at level 15).
-Notation " l +++ a " := (add l a) (at level 50).
+Notation "# l" := (length l)
+  (at level 15).
+Notation " l +++ a " := (add l a)
+  (at level 50).
 Notation " l '[' i ']' 'or' default " := (get default l i)
   (at level 9, i at next level).
 Notation " l '[' i <- a ']' " := (set l i a)
