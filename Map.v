@@ -42,17 +42,17 @@ Qed.
 (* equivalence                                                               *)
 (* ------------------------------------------------------------------------- *)
 
-Definition map_equivalence {A} (m1 m2 : map A) :=
+Definition map_eqv {A} (m1 m2 : map A) :=
   forall k, m1 k = m2 k.
 
-Notation " m1 === m2 " := (map_equivalence m1 m2)
+Notation " m1 === m2 " := (map_eqv m1 m2)
   (at level 70, no associativity).
 
-Module MapEquivalence.
+Module MapEqv.
   Lemma refl : forall {A} (m : map A),
     m === m.
   Proof.
-    unfold map_equivalence. intros. eauto.
+    unfold map_eqv. intros. eauto.
   Qed.
 
   Lemma trans : forall {A} (m1 m2 m3 : map A),
@@ -60,7 +60,7 @@ Module MapEquivalence.
     m2 === m3 ->
     m1 === m3.
   Proof.
-    unfold map_equivalence. intros * H1 H2 ?.
+    unfold map_eqv. intros * H1 H2 ?.
     rewrite (H1 _). rewrite (H2 _). trivial.
   Qed.
 
@@ -68,7 +68,7 @@ Module MapEquivalence.
     m1 === m2 ->
     m2 === m1.
   Proof.
-    unfold map_equivalence. intros. eauto.
+    unfold map_eqv. intros. eauto.
   Qed.
 
   Lemma lookup : forall {A} (m1 m2 : map A) k v,
@@ -79,11 +79,11 @@ Module MapEquivalence.
     intros * Heq ?. specialize (Heq k). inversion Heq. trivial.
   Qed.
 
-  Lemma update_equivalence : forall {A} (m1 m2 : map A) k v,
+  Lemma update_eqv : forall {A} (m1 m2 : map A) k v,
     m1 === m2 ->
     m1[k <== v] === m2[k <== v].
   Proof.
-    unfold map_equivalence, update, update'. intros.
+    unfold map_eqv, update, update'. intros.
     destruct string_dec; trivial.
   Qed.
 
@@ -91,7 +91,7 @@ Module MapEquivalence.
     k1 <> k2 ->
     m[k1 <== v1][k2 <== v2] === m[k2 <== v2][k1 <== v1].
   Proof.
-    unfold map_equivalence, update, update'. intros.
+    unfold map_eqv, update, update'. intros.
     do 2 (destruct string_dec; subst); trivial.
     contradiction.
   Qed.
@@ -99,10 +99,10 @@ Module MapEquivalence.
   Lemma update_overwrite : forall {A} (m : map A) k v v',
     m[k <== v] === m[k <== v'][k <== v].
   Proof.
-    unfold map_equivalence, update, update'. intros.
+    unfold map_eqv, update, update'. intros.
     destruct string_dec; intros; trivial.
   Qed.
-End MapEquivalence.
+End MapEqv.
 
 (* ------------------------------------------------------------------------- *)
 (* inclusion                                                                 *)

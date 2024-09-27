@@ -23,6 +23,12 @@ Ltac auto_specialize :=
   | H : ?x = ?x -> _ |- _ => specialize (H eq_refl) 
   end.
 
+Ltac clean :=
+  match goal with
+  | H1 : ?H, H2 : ?H |- _ => clear H1
+  | H  : ?a = ?a     |- _ => clear H
+  end.
+
 #[export] Hint Extern 4 =>
   match goal with
   | _ : ?n < ?n  |- _ => lia
@@ -45,7 +51,7 @@ From Coq Require Arith.Peano_dec.
 From Coq Require Strings.String.
 
 Definition nat_eq_dec := Peano_dec.eq_nat_dec.
-Definition string_eq_dec := String.string_dec.
+Definition str_eq_dec := String.string_dec.
 Definition lt_eq_lt_dec := Compare_dec.lt_eq_lt_dec.
 
 (* misc *)

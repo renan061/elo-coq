@@ -1,3 +1,5 @@
+From Coq Require Import Lia.
+
 From Elo Require Import Core.
 From Elo Require Import Definitions.
 
@@ -12,53 +14,12 @@ From Elo Require Import Definitions.
 #[export] Hint Extern 4 => unfold safe_access     : sacc.
 
 (* ------------------------------------------------------------------------- *)
-(* valid-addresses inversion                                                 *)
-(* ------------------------------------------------------------------------- *)
-
-Local Ltac match_vad tactic :=
-  match goal with
-  (* irrelevant for unit *)
-  (* irrelevant for num  *)
-  | H : valid_addresses _ <{& _ :: _}> |- _ => tactic H
-  | H : valid_addresses _ <{new _ _ }> |- _ => tactic H
-  | H : valid_addresses _ <{* _     }> |- _ => tactic H
-  | H : valid_addresses _ <{_ = _   }> |- _ => tactic H
-  (* irrelevant for var  *)
-  | H : valid_addresses _ <{fn _ _ _}> |- _ => tactic H
-  | H : valid_addresses _ <{call _ _}> |- _ => tactic H
-  | H : valid_addresses _ <{_ ; _   }> |- _ => tactic H
-  | H : valid_addresses _ <{spawn _ }> |- _ => tactic H
-  end.
-
-Ltac inv_vad  := match_vad inv.
-Ltac invc_vad := match_vad invc.
-
-(* ------------------------------------------------------------------------- *)
 (* well-typed-term inversion                                                 *)
 (* ------------------------------------------------------------------------- *)
 
 Local Ltac solve_wtt_inversion := 
-  intros * [? ?]; try split; inv_type; try discriminate; eauto; eexists; eauto.
-
-Local Lemma inv_wtt_ref : forall ad T,
-  well_typed_term <{&ad :: T}> ->
-  (exists T', T = <{{&T'}}>) \/ (exists T', T = <{{i&T'}}>).
-Proof. solve_wtt_inversion. Qed.
-
-Local Lemma inv_wtt_new : forall t T,
-  well_typed_term <{new T t}> ->
-  well_typed_term t.
-Proof. solve_wtt_inversion. Qed.
-
-Local Lemma inv_wtt_load : forall t,
-  well_typed_term <{*t}> ->
-  well_typed_term t.
-Proof. solve_wtt_inversion. Qed.
-
-Local Lemma inv_wtt_asg : forall t1 t2,
-  well_typed_term <{t1 = t2}> ->
-  well_typed_term t1 /\ well_typed_term t2.
-Proof. solve_wtt_inversion. Qed.
+  intros * [? ?]; try split;
+  inv_typeof; try discriminate; eauto; eexists; eauto.
 
 Local Lemma inv_wtt_var : forall x,
   well_typed_term <{var x}> ->
@@ -75,9 +36,41 @@ Local Lemma inv_wtt_call : forall t1 t2,
   well_typed_term t1 /\ well_typed_term t2.
 Proof. solve_wtt_inversion. Qed.
 
-Local Lemma inv_wtt_seq : forall t1 t2,
-  well_typed_term <{t1; t2}> ->
+Local Lemma inv_wtt_ref : forall ad T,
+  well_typed_term <{&ad : T}> ->
+    (exists T', T = `r&T'`) \/
+    (exists T', T = `x&T'`) \/
+    (exists T', T = `w&T'`).
+Proof. solve_wtt_inversion. Qed.
+
+Local Lemma inv_wtt_new : forall t T,
+  well_typed_term <{new t : T}> ->
+  well_typed_term t.
+Proof. solve_wtt_inversion. Qed.
+
+Local Lemma inv_wtt_load : forall t,
+  well_typed_term <{*t}> ->
+  well_typed_term t.
+Proof. solve_wtt_inversion. Qed.
+
+Local Lemma inv_wtt_asg : forall t1 t2,
+  well_typed_term <{t1 := t2}> ->
   well_typed_term t1 /\ well_typed_term t2.
+Proof. solve_wtt_inversion. Qed.
+
+Local Lemma inv_wtt_acq : forall t1 t2,
+  well_typed_term <{acq t1 t2}> ->
+  well_typed_term t1 /\ well_typed_term t2.
+Proof. solve_wtt_inversion. Qed.
+
+Local Lemma inv_wtt_cr : forall ad t,
+  well_typed_term <{cr ad t}> ->
+  well_typed_term t.
+Proof. solve_wtt_inversion. Qed.
+
+Local Lemma inv_wtt_ptm : forall otid t,
+  well_typed_term <{ptm otid t}> ->
+  well_typed_term t.
 Proof. solve_wtt_inversion. Qed.
 
 Local Lemma inv_wtt_spawn : forall t,
@@ -85,72 +78,211 @@ Local Lemma inv_wtt_spawn : forall t,
   well_typed_term t.
 Proof. solve_wtt_inversion. Qed.
 
+Local Notation wtt := (well_typed_term ).
+
 Ltac inv_wtt :=
   match goal with
   (* irrelevant for unit *)
   (* irrelevant for num  *)
-  | H : well_typed_term <{& _ :: _}> |- _ =>
-      eapply inv_wtt_ref   in H as [[? ?] | [? ?]]
-  | H : well_typed_term <{new _ _ }> |- _ =>
-      eapply inv_wtt_new   in H
-  | H : well_typed_term <{* _     }> |- _ =>
-      eapply inv_wtt_load  in H
-  | H : well_typed_term <{_ = _   }> |- _ =>
-      eapply inv_wtt_asg   in H as [? ?]
-  | H : well_typed_term <{fn _ _ _}> |- _ =>
-      eapply inv_wtt_fun   in H as [? ?]
-  | H : well_typed_term <{call _ _}> |- _ =>
-      eapply inv_wtt_call  in H as [? ?]
-  | H : well_typed_term <{_ ; _   }> |- _ =>
-      eapply inv_wtt_seq   in H as [? ?]
-  | H : well_typed_term <{spawn _ }> |- _ =>
-      eapply inv_wtt_spawn in H
+  | H : wtt <{var _    }> |- _ => eapply inv_wtt_var   in H; contradiction
+  | H : wtt <{fn _ _ _ }> |- _ => eapply inv_wtt_fun   in H as [? ?]
+  | H : wtt <{call _ _ }> |- _ => eapply inv_wtt_call  in H as [? ?]
+  | H : wtt <{& _ : _  }> |- _ => eapply inv_wtt_ref   in H as [[? ?] | [? ?]]
+  | H : wtt <{new _ : _}> |- _ => eapply inv_wtt_new   in H
+  | H : wtt <{* _      }> |- _ => eapply inv_wtt_load  in H
+  | H : wtt <{_ := _   }> |- _ => eapply inv_wtt_asg   in H as [? ?]
+  | H : wtt <{acq _ _  }> |- _ => eapply inv_wtt_acq   in H as [? ?]
+  | H : wtt <{cr _ _   }> |- _ => eapply inv_wtt_cr    in H
+  | H : wtt <{ptm _ _  }> |- _ => eapply inv_wtt_ptm   in H
+  | H : wtt <{spawn _  }> |- _ => eapply inv_wtt_spawn in H
   end.
+
+(* ------------------------------------------------------------------------- *)
+(* valid-addresses inversion                                                 *)
+(* ------------------------------------------------------------------------- *)
+
+Local Ltac _vad tt :=
+  match goal with
+  (* irrelevant for unit, nat, and var *)
+  | H : valid_addresses _ <{fn _ _ _ }> |- _ => tt H
+  | H : valid_addresses _ <{call _ _ }> |- _ => tt H
+  | H : valid_addresses _ <{& _ : _  }> |- _ => tt H
+  | H : valid_addresses _ <{new _ : _}> |- _ => tt H
+  | H : valid_addresses _ <{* _      }> |- _ => tt H
+  | H : valid_addresses _ <{_ := _   }> |- _ => tt H
+  | H : valid_addresses _ <{acq _ _  }> |- _ => tt H
+  | H : valid_addresses _ <{cr _ _   }> |- _ => tt H
+  | H : valid_addresses _ <{ptm _ _  }> |- _ => tt H
+  | H : valid_addresses _ <{spawn _  }> |- _ => tt H
+  end.
+
+Ltac inv_vad  := _vad inv.
+Ltac invc_vad := _vad invc.
 
 (* ------------------------------------------------------------------------- *)
 (* consistently-typed-references inversion                                   *)
 (* ------------------------------------------------------------------------- *)
 
-Local Ltac match_ctr tactic :=
+Local Ltac _ctr tt :=
   match goal with
-  (* irrelevant for unit *)
-  (* irrelevant for num  *)
-  | H : consistently_typed_references _ <{& _ :: _}> |- _ => tactic H
-  | H : consistently_typed_references _ <{new _ _ }> |- _ => tactic H
-  | H : consistently_typed_references _ <{* _     }> |- _ => tactic H
-  | H : consistently_typed_references _ <{_ = _   }> |- _ => tactic H
-  (* irrelevant for var  *)
-  | H : consistently_typed_references _ <{fn _ _ _}> |- _ => tactic H
-  | H : consistently_typed_references _ <{call _ _}> |- _ => tactic H
-  | H : consistently_typed_references _ <{_ ; _   }> |- _ => tactic H
-  | H : consistently_typed_references _ <{spawn _ }> |- _ => tactic H
+  (* irrelevant for unit, nat, and var *)
+  | H : consistently_typed_references _ <{fn _ _ _ }> |- _ => tt H
+  | H : consistently_typed_references _ <{call _ _ }> |- _ => tt H
+  | H : consistently_typed_references _ <{& _ : _  }> |- _ => tt H
+  | H : consistently_typed_references _ <{new _ : _}> |- _ => tt H
+  | H : consistently_typed_references _ <{* _      }> |- _ => tt H
+  | H : consistently_typed_references _ <{_ := _   }> |- _ => tt H
+  | H : consistently_typed_references _ <{acq _ _  }> |- _ => tt H
+  | H : consistently_typed_references _ <{cr _ _   }> |- _ => tt H
+  | H : consistently_typed_references _ <{ptm _ _  }> |- _ => tt H
+  | H : consistently_typed_references _ <{spawn _  }> |- _ => tt H
   end.
 
-Ltac inv_ctr  := match_ctr inv.
-Ltac invc_ctr := match_ctr invc.
+Ltac inv_ctr  := _ctr inv.
+Ltac invc_ctr := _ctr invc.
+
+(*
 
 (* ------------------------------------------------------------------------- *)
-(* access inversion                                                          *)
+(* inversions -- access & write-access                                       *)
 (* ------------------------------------------------------------------------- *)
 
-Local Ltac match_acc tactic :=
+Local Ltac _accs P tt :=
   match goal with
-  | H : access _ _ thread_default |- _ => tactic H
-  | H : access _ _ <{unit    }>   |- _ => tactic H
-  | H : access _ _ <{N _     }>   |- _ => tactic H
-  | H : access _ _ <{& _ :: _}>   |- _ => tactic H
-  | H : access _ _ <{new _ _ }>   |- _ => tactic H
-  | H : access _ _ <{* _     }>   |- _ => tactic H
-  | H : access _ _ <{_ = _   }>   |- _ => tactic H
-  | H : access _ _ <{var _   }>   |- _ => tactic H
-  | H : access _ _ <{fn _ _ _}>   |- _ => tactic H
-  | H : access _ _ <{call _ _}>   |- _ => tactic H
-  | H : access _ _ <{_ ; _   }>   |- _ => tactic H
-  | H : access _ _ <{spawn _ }>   |- _ => tactic H
+  | H : P _ _ <{unit    }>   |- _ => tt H
+  | H : P _ _ <{nat _   }>   |- _ => tt H
+  | H : P _ _ <{var _   }>   |- _ => tt H
+  | H : P _ _ <{fn _ _ _}>   |- _ => tt H
+  | H : P _ _ <{call _ _}>   |- _ => tt H
+  | H : P _ _ <{& _ :: _}>   |- _ => tt H
+  | H : P _ _ <{new _ _ }>   |- _ => tt H
+  | H : P _ _ <{* _     }>   |- _ => tt H
+  | H : P _ _ <{_ = _   }>   |- _ => tt H
+  | H : P _ _ <{acq _  _}>   |- _ => tt H
+  | H : P _ _ <{cr _ _  }>   |- _ => tt H
+  | H : P _ _ <{ptm _ _ }>   |- _ => tt H
+  | H : P _ _ <{spawn _ }>   |- _ => tt H
   end.
 
-Ltac inv_acc  := match_acc inv.
-Ltac invc_acc := match_acc invc.
+Ltac inv_acc  := _accs access inv.
+Ltac invc_acc := _accs access invc.
+
+Ltac inv_wacc  := _accs write_access invc.
+Ltac invc_wacc := _accs write_access invc.
+
+(* ------------------------------------------------------------------------- *)
+(* not-write-access inversion                                                *)
+(* ------------------------------------------------------------------------- *)
+
+Local Lemma inv_nwacc_ref_eq : forall m ad T,
+  ~ unsafe_access ad m <{&ad :: &T}> ->
+  False.
+Proof. eauto using unsafe_access. Qed.
+
+Local Lemma inv_nuacc_ref_neqM : forall m ad ad' T,
+  ~ unsafe_access ad m <{&ad' :: &T}> ->
+  (ad <> ad' /\ ~ unsafe_access ad m m[ad'].tm).
+Proof.
+  intros. destruct (nat_eq_dec ad ad'); subst; eauto using unsafe_access.
+  exfalso. eauto using inv_nuacc_ref_eq.
+Qed.
+
+Lemma inv_nuacc_ref_neqI : forall m ad ad' T,
+  forall_memory m value ->
+  consistently_typed_references m <{&ad' :: i&T}> ->
+  (* --- *)
+  ~ unsafe_access ad m <{&ad' :: i&T}> ->
+  ~ unsafe_access ad m m[ad'].tm.
+Proof.
+  intros * Hval **. invc_ctr. intros ?.
+  specialize (Hval ad'); simpl in *.
+  destruct Hval; inv_type; inv_uacc; eauto.
+Qed.
+
+Local Ltac solve_nuacc_inversion :=
+  intros; try (split; intros); eauto using unsafe_access.
+
+Local Ltac solve_nwacc_inversion :=
+  intros; try (split; intros); eauto using write_access.
+
+Local Lemma inv_nwacc_fun : forall m t ad x Tx,
+  ~ write_access ad m <{fn x Tx t}> ->
+  ~ write_access ad m t.
+Proof. solve_nwacc_inversion. Qed.
+
+Local Lemma inv_nwacc_call : forall m t1 t2 ad,
+  ~ write_access ad m <{call t1 t2}> ->
+  ~ write_access ad m t1 /\ ~ write_access ad m t2.
+Proof. solve_nwacc_inversion. Qed.
+
+Local Lemma inv_nwacc_ref : forall m ad T,
+  ~ write_access ad m <{&ad :: u&T}> ->
+  False.
+Proof. solve_nwacc_inversion. Qed.
+
+Local Lemma inv_nwacc_new : forall m t ad T,
+  ~ write_access ad m <{new T t}> ->
+  ~ write_access ad m t.
+Proof. solve_nwacc_inversion. Qed.
+
+Local Lemma inv_nwacc_load : forall m t ad,
+  ~ write_access ad m <{*t}> ->
+  ~ write_access ad m t.
+Proof. solve_nwacc_inversion. Qed.
+
+Local Lemma inv_nwacc_asg : forall m t1 t2 ad,
+  ~ write_access ad m <{t1 = t2}> ->
+  ~ write_access ad m t1 /\ ~ write_access ad m t2.
+Proof. solve_nwacc_inversion. Qed.
+
+Local Lemma inv_nwacc_acq : forall m t1 t2 ad,
+  ~ write_access ad m <{acq t1 t2}> ->
+  ~ write_access ad m t1 /\ ~ write_access ad m t2.
+Proof. solve_nwacc_inversion. Qed.
+
+Local Lemma inv_nwacc_cr : forall m t ad ad',
+  ~ write_access ad m <{cr ad' t}> ->
+  ~ write_access ad m t.
+Proof. solve_nwacc_inversion. Qed.
+
+Local Lemma inv_nwacc_ptm : forall m t ad tid,
+  ~ write_access ad m <{ptm tid t}> ->
+  ~ write_access ad m t.
+Proof. solve_nwacc_inversion. Qed.
+
+Local Notation wacc := (write_access).
+
+Ltac inv_nwacc :=
+  match goal with
+  | H : ~ wacc _ _ <{unit    }> |- _ => clear H
+  | H : ~ wacc _ _ <{nat _   }> |- _ => clear H
+  | H : ~ wacc _ _ <{var _   }> |- _ => clear H
+  | H : ~ wacc _ _ <{fn _ _ _}> |- _ => eapply inv_nwacc_fun  in H
+  | H : ~ wacc _ _ <{call _ _}> |- _ => eapply inv_nwacc_call in H as [? ?]
+  | H : ~ wacc _ _ <{new _ _ }> |- _ => eapply inv_nwacc_new  in H
+  | H : ~ wacc _ _ <{* _     }> |- _ => eapply inv_nwacc_load in H
+  | H : ~ wacc _ _ <{_ = _   }> |- _ => eapply inv_nwacc_asg  in H as [? ?]
+  | H : ~ wacc _ _ <{acq _ _ }> |- _ => eapply inv_nwacc_acq  in H as [? ?]
+  | H : ~ wacc _ _ <{cr _ _  }> |- _ => eapply inv_nwacc_cr   in H
+  | H : ~ wacc _ _ <{ptm _ _ }> |- _ => eapply inv_nwacc_ptm  in H
+
+  | H : ~ wacc ?ad _ <{& ?ad :: u&_}>   |- _ => eapply inv_nwacc_ref in H;
+                                                solve contradiction
+  end.
+
+Ltac inv_nuacc :=
+  match goal with
+  | H : ~ unsafe_access ?ad _ <{& ?ad  :: & _ }> |- _ =>
+    eapply inv_nuacc_ref_eq   in H; solve contradiction
+  | H : ~ unsafe_access ?ad _ <{& ?ad' :: & _ }> |- _ =>
+    eapply inv_nuacc_ref_neqM in H as [? ?]
+  | H : ~ unsafe_access _ _   <{new _ _       }> |- _ =>
+
+  | Hval   : forall_memory ?m value,
+    Hctr   : consistently_typed_references ?m <{& ?ad' :: (i& ?T) }>,
+    Hnuacc : ~ unsafe_access ?ad ?m <{& ?ad' :: (i& ?T) }> |- _ =>
+    eapply (inv_nuacc_ref_neqI m ad ad' T Hval Hctr) in Hnuacc
+  end.
 
 (* ------------------------------------------------------------------------- *)
 (* not-access inversion                                                      *)
@@ -213,136 +345,26 @@ Ltac inv_nacc :=
   end.
 
 (* ------------------------------------------------------------------------- *)
-(* unsafe-access inversion                                                   *)
-(* ------------------------------------------------------------------------- *)
-
-Local Ltac match_uacc tactic :=
-  match goal with
-  | H : unsafe_access _ _ thread_default |- _ => tactic H
-  | H : unsafe_access _ _ <{unit    }>   |- _ => tactic H
-  | H : unsafe_access _ _ <{N _     }>   |- _ => tactic H
-  | H : unsafe_access _ _ <{& _ :: _}>   |- _ => tactic H
-  | H : unsafe_access _ _ <{new _ _ }>   |- _ => tactic H
-  | H : unsafe_access _ _ <{* _     }>   |- _ => tactic H
-  | H : unsafe_access _ _ <{_ = _   }>   |- _ => tactic H
-  | H : unsafe_access _ _ <{var _   }>   |- _ => tactic H
-  | H : unsafe_access _ _ <{fn _ _ _}>   |- _ => tactic H
-  | H : unsafe_access _ _ <{call _ _}>   |- _ => tactic H
-  | H : unsafe_access _ _ <{_ ; _   }>   |- _ => tactic H
-  | H : unsafe_access _ _ <{spawn _ }>   |- _ => tactic H
-  end.
-
-Ltac inv_uacc  := match_uacc inv.
-Ltac invc_uacc := match_uacc invc.
-
-(* ------------------------------------------------------------------------- *)
-(* not-unsafe-access inversion                                               *)
-(* ------------------------------------------------------------------------- *)
-
-Local Lemma inv_nuacc_ref_eq : forall m ad T,
-  ~ unsafe_access ad m <{&ad :: &T}> ->
-  False.
-Proof. eauto using unsafe_access. Qed.
-
-Local Lemma inv_nuacc_ref_neqM : forall m ad ad' T,
-  ~ unsafe_access ad m <{&ad' :: &T}> ->
-  (ad <> ad' /\ ~ unsafe_access ad m m[ad'].tm).
-Proof.
-  intros. destruct (nat_eq_dec ad ad'); subst; eauto using unsafe_access.
-  exfalso. eauto using inv_nuacc_ref_eq.
-Qed.
-
-Lemma inv_nuacc_ref_neqI : forall m ad ad' T,
-  forall_memory m value ->
-  consistently_typed_references m <{&ad' :: i&T}> ->
-  (* --- *)
-  ~ unsafe_access ad m <{&ad' :: i&T}> ->
-  ~ unsafe_access ad m m[ad'].tm.
-Proof.
-  intros * Hval **. invc_ctr. intros ?.
-  specialize (Hval ad'); simpl in *.
-  destruct Hval; inv_type; inv_uacc; eauto.
-Qed.
-
-Local Ltac solve_nuacc_inversion :=
-  intros; try (split; intros); eauto using unsafe_access.
-
-Local Lemma inv_nuacc_new : forall m t ad T,
-  ~ unsafe_access ad m <{new T t}> ->
-  ~ unsafe_access ad m t.
-Proof. solve_nuacc_inversion. Qed.
-
-Local Lemma inv_nuacc_load : forall m t ad,
-  ~ unsafe_access ad m <{*t}> ->
-  ~ unsafe_access ad m t.
-Proof. solve_nuacc_inversion. Qed.
-
-Local Lemma inv_nuacc_asg : forall m t1 t2 ad,
-  ~ unsafe_access ad m <{t1 = t2}> ->
-  ~ unsafe_access ad m t1 /\ ~ unsafe_access ad m t2.
-Proof. solve_nuacc_inversion. Qed.
-
-Local Lemma inv_nuacc_fun : forall m t ad x Tx,
-  ~ unsafe_access ad m <{fn x Tx t}> ->
-  ~ unsafe_access ad m t.
-Proof. solve_nuacc_inversion. Qed.
-
-Local Lemma inv_nuacc_call : forall m t1 t2 ad,
-  ~ unsafe_access ad m <{call t1 t2}> ->
-  ~ unsafe_access ad m t1 /\ ~ unsafe_access ad m t2.
-Proof. solve_nuacc_inversion. Qed.
-
-Local Lemma inv_nuacc_seq : forall m t1 t2 ad,
-  ~ unsafe_access ad m <{t1; t2}> ->
-  ~ unsafe_access ad m t1 /\ ~ unsafe_access ad m t2.
-Proof. solve_nuacc_inversion. Qed.
-
-Ltac inv_nuacc :=
-  match goal with
-  | H : ~ unsafe_access ?ad _ <{& ?ad  :: & _ }> |- _ =>
-    eapply inv_nuacc_ref_eq   in H; solve contradiction
-  | H : ~ unsafe_access ?ad _ <{& ?ad' :: & _ }> |- _ =>
-    eapply inv_nuacc_ref_neqM in H as [? ?]
-  | H : ~ unsafe_access _ _   <{new _ _       }> |- _ =>
-    eapply inv_nuacc_new     in H
-  | H : ~ unsafe_access _ _   <{* _           }> |- _ =>
-    eapply inv_nuacc_load    in H
-  | H : ~ unsafe_access _ _   <{_ = _         }> |- _ =>
-    eapply inv_nuacc_asg     in H as [? ?]
-  | H : ~ unsafe_access _ _   <{fn _ _ _      }> |- _ =>
-    eapply inv_nuacc_fun     in H
-  | H : ~ unsafe_access _ _   <{call _ _      }> |- _ =>
-    eapply inv_nuacc_call    in H as [? ?]
-  | H : ~ unsafe_access _ _   <{_ ; _         }> |- _ =>
-    eapply inv_nuacc_seq     in H as [? ?]
-
-  | Hval   : forall_memory ?m value,
-    Hctr   : consistently_typed_references ?m <{& ?ad' :: (i& ?T) }>,
-    Hnuacc : ~ unsafe_access ?ad ?m <{& ?ad' :: (i& ?T) }> |- _ =>
-    eapply (inv_nuacc_ref_neqI m ad ad' T Hval Hctr) in Hnuacc
-  end.
-
-(* ------------------------------------------------------------------------- *)
 (* no-mut inversion                                                          *)
 (* ------------------------------------------------------------------------- *)
 
-Local Ltac match_nomut tactic :=
+Local Ltac match_nomut tt :=
   match goal with
   (* irrelevant for unit      *)
   (* irrelevant for num       *)
-  | H : no_mut <{& _ :: Unit     }> |- _ => tactic H
-  | H : no_mut <{& _ :: Num      }> |- _ => tactic H
+  | H : no_mut <{& _ :: Unit     }> |- _ => tt H
+  | H : no_mut <{& _ :: Num      }> |- _ => tt H
   (* irrelevant if &ad :: i&T *)
-  | H : no_mut <{& _ :: & _      }> |- _ => tactic H
-  | H : no_mut <{& _ :: (_ --> _)}> |- _ => tactic H
-  | H : no_mut <{new _ _         }> |- _ => tactic H
-  | H : no_mut <{* _             }> |- _ => tactic H
-  | H : no_mut <{_ = _           }> |- _ => tactic H
+  | H : no_mut <{& _ :: & _      }> |- _ => tt H
+  | H : no_mut <{& _ :: (_ --> _)}> |- _ => tt H
+  | H : no_mut <{new _ _         }> |- _ => tt H
+  | H : no_mut <{* _             }> |- _ => tt H
+  | H : no_mut <{_ = _           }> |- _ => tt H
   (* irrelevant for var       *)
-  | H : no_mut <{fn _ _ _        }> |- _ => tactic H
-  | H : no_mut <{call _ _        }> |- _ => tactic H
-  | H : no_mut <{_ ; _           }> |- _ => tactic H
-  | H : no_mut <{spawn _         }> |- _ => tactic H
+  | H : no_mut <{fn _ _ _        }> |- _ => tt H
+  | H : no_mut <{call _ _        }> |- _ => tt H
+  | H : no_mut <{_ ; _           }> |- _ => tt H
+  | H : no_mut <{spawn _         }> |- _ => tt H
   end.
 
 Ltac inv_nomut  := match_nomut inv.
@@ -352,19 +374,19 @@ Ltac invc_nomut := match_nomut invc.
 (* safe-spawns inversion                                                     *)
 (* ------------------------------------------------------------------------- *)
 
-Local Ltac match_ss tactic :=
+Local Ltac match_ss tt :=
   match goal with
   (* irrelevant for unit *)
   (* irrelevant for num  *)
   (* irrelevant for ad   *)
-  | H : safe_spawns <{new _ _ }> |- _ => tactic H
-  | H : safe_spawns <{* _     }> |- _ => tactic H
-  | H : safe_spawns <{_ = _   }> |- _ => tactic H
+  | H : safe_spawns <{new _ _ }> |- _ => tt H
+  | H : safe_spawns <{* _     }> |- _ => tt H
+  | H : safe_spawns <{_ = _   }> |- _ => tt H
   (* irrelevant for var  *)
-  | H : safe_spawns <{fn _ _ _}> |- _ => tactic H
-  | H : safe_spawns <{call _ _}> |- _ => tactic H
-  | H : safe_spawns <{_ ; _   }> |- _ => tactic H
-  | H : safe_spawns <{spawn _ }> |- _ => tactic H
+  | H : safe_spawns <{fn _ _ _}> |- _ => tt H
+  | H : safe_spawns <{call _ _}> |- _ => tt H
+  | H : safe_spawns <{_ ; _   }> |- _ => tt H
+  | H : safe_spawns <{spawn _ }> |- _ => tt H
   end.
 
 Ltac inv_ss  := match_ss inv.
@@ -374,23 +396,24 @@ Ltac invc_ss := match_ss invc.
 (* has-var inversion                                                         *)
 (* ------------------------------------------------------------------------- *)
 
-Local Ltac match_hasvar tactic :=
+Local Ltac match_hasvar tt :=
   match goal with
-  | H : has_var _  thread_default |- _ => tactic H
-  | H : has_var _  <{unit    }>   |- _ => tactic H
-  | H : has_var _  <{N _     }>   |- _ => tactic H
-  | H : has_var _  <{& _ :: _}>   |- _ => tactic H
-  | H : has_var _  <{new _ _ }>   |- _ => tactic H
-  | H : has_var _  <{* _     }>   |- _ => tactic H
-  | H : has_var _  <{_ = _   }>   |- _ => tactic H
+  | H : has_var _  thread_default |- _ => tt H
+  | H : has_var _  <{unit    }>   |- _ => tt H
+  | H : has_var _  <{N _     }>   |- _ => tt H
+  | H : has_var _  <{& _ :: _}>   |- _ => tt H
+  | H : has_var _  <{new _ _ }>   |- _ => tt H
+  | H : has_var _  <{* _     }>   |- _ => tt H
+  | H : has_var _  <{_ = _   }>   |- _ => tt H
   | H : has_var ?x <{var ?x  }>   |- _ => fail
-  | H : has_var ?x <{var ?y  }>   |- _ => tactic H
-  | H : has_var _  <{fn _ _ _}>   |- _ => tactic H
-  | H : has_var _  <{call _ _}>   |- _ => tactic H
-  | H : has_var _  <{_ ; _   }>   |- _ => tactic H
-  | H : has_var _  <{spawn _ }>   |- _ => tactic H
+  | H : has_var ?x <{var ?y  }>   |- _ => tt H
+  | H : has_var _  <{fn _ _ _}>   |- _ => tt H
+  | H : has_var _  <{call _ _}>   |- _ => tt H
+  | H : has_var _  <{_ ; _   }>   |- _ => tt H
+  | H : has_var _  <{spawn _ }>   |- _ => tt H
   end.
 
 Ltac inv_hasvar  := match_hasvar inv.
 Ltac invc_hasvar := match_hasvar invc.
+*)
 

@@ -1,3 +1,6 @@
+From Coq Require Import Lia.
+From Coq Require Import Lists.List.
+
 From Elo Require Import Core.
 
 (* ------------------------------------------------------------------------- *)
@@ -16,30 +19,8 @@ Inductive valid_addresses (m : mem) : tm -> Prop :=
   | vad_unit :
     valid_addresses m <{unit}>
 
-  | vad_num : forall n,
-    valid_addresses m <{N n}>
-
-  | vad_ref : forall ad T,
-    ad < #m ->
-    valid_addresses m <{&ad :: T}>
-
-  | vad_new : forall t T,
-    valid_addresses m t ->
-    valid_addresses m <{new T t}>
-
-  | vad_load : forall t,
-    valid_addresses m t ->
-    valid_addresses m <{*t}>
-
-  | vad_asg : forall t1 t2,
-    valid_addresses m t1 ->
-    valid_addresses m t2 ->
-    valid_addresses m <{t1 = t2}>
-
-  | vad_seq : forall t1 t2,
-    valid_addresses m t1 ->
-    valid_addresses m t2 ->
-    valid_addresses m <{t1; t2}>
+  | vad_nat : forall n,
+    valid_addresses m <{nat n}>
 
   | vad_var : forall x,
     valid_addresses m <{var x}>
@@ -52,6 +33,36 @@ Inductive valid_addresses (m : mem) : tm -> Prop :=
     valid_addresses m t1 ->
     valid_addresses m t2 ->
     valid_addresses m <{call t1 t2}>
+
+  | vad_ref : forall ad T,
+    ad < #m ->
+    valid_addresses m <{&ad : T}>
+
+  | vad_new : forall t T,
+    valid_addresses m t ->
+    valid_addresses m <{new t : T}>
+
+  | vad_load : forall t,
+    valid_addresses m t ->
+    valid_addresses m <{*t}>
+
+  | vad_asg : forall t1 t2,
+    valid_addresses m t1 ->
+    valid_addresses m t2 ->
+    valid_addresses m <{t1 := t2}>
+
+  | vad_acq : forall t1 t2,
+    valid_addresses m t1 ->
+    valid_addresses m t2 ->
+    valid_addresses m <{acq t1 t2}>
+
+  | vad_cr : forall ad t,
+    valid_addresses m t ->
+    valid_addresses m <{cr ad t}>
+
+  | vad_ptm : forall tid t,
+    valid_addresses m t ->
+    valid_addresses m <{ptm tid t}>
 
   | vad_spawn : forall t,
     valid_addresses m t ->
@@ -66,31 +77,8 @@ Inductive consistently_typed_references (m : mem) : tm -> Prop :=
   | ctr_unit :
     consistently_typed_references m <{unit}> 
 
-  | ctr_num : forall n,
-    consistently_typed_references m <{N n}>
-
-  | ctr_refM : forall T ad,
-    empty |-- m[ad].tm is T ->
-    m[ad].typ = <{{ &T }}> ->
-    consistently_typed_references m <{&ad :: &T}>
-
-  | ctr_refI : forall T ad,
-    empty |-- m[ad].tm is <{{ Immut T }}> ->
-    m[ad].typ = <{{ i&T }}> ->
-    consistently_typed_references m <{&ad :: i&T}>
-
-  | ctr_new : forall T t,
-    consistently_typed_references m t ->
-    consistently_typed_references m <{new T t}> 
-
-  | ctr_load : forall t,
-    consistently_typed_references m t ->
-    consistently_typed_references m <{*t}> 
-
-  | ctr_asg : forall t1 t2,
-    consistently_typed_references m t1 ->
-    consistently_typed_references m t2 ->
-    consistently_typed_references m <{t1 = t2}> 
+  | ctr_nat : forall n,
+    consistently_typed_references m <{nat n}>
 
   | ctr_var : forall x,
     consistently_typed_references m <{var x}>
@@ -104,10 +92,46 @@ Inductive consistently_typed_references (m : mem) : tm -> Prop :=
     consistently_typed_references m t2 ->
     consistently_typed_references m <{call t1 t2}> 
 
-  | ctr_seq : forall t1 t2,
+  | ctr_refR : forall T ad,
+    empty |-- m[ad].tm is `Safe T` ->
+    m[ad].ty = `r&T` ->
+    consistently_typed_references m <{&ad : r&T}>
+
+  | ctr_refX : forall T ad,
+    empty |-- m[ad].tm is T ->
+    m[ad].ty = `x&T` ->
+    consistently_typed_references m <{&ad : x&T}>
+
+  | ctr_refW : forall T ad,
+    empty |-- m[ad].tm is T ->
+    m[ad].ty = `w&T` ->
+    consistently_typed_references m <{&ad : w&T}>
+
+  | ctr_new : forall T t,
+    consistently_typed_references m t ->
+    consistently_typed_references m <{new t : T}> 
+
+  | ctr_load : forall t,
+    consistently_typed_references m t ->
+    consistently_typed_references m <{*t}> 
+
+  | ctr_asg : forall t1 t2,
     consistently_typed_references m t1 ->
     consistently_typed_references m t2 ->
-    consistently_typed_references m <{t1; t2}>
+    consistently_typed_references m <{t1 := t2}> 
+
+  | ctr_acq : forall t1 t2,
+    consistently_typed_references m t1 ->
+    consistently_typed_references m t2 ->
+    consistently_typed_references m <{acq t1 t2}>
+
+  | ctr_cr : forall ad t,
+    consistently_typed_references m t ->
+    consistently_typed_references m <{cr ad t}>
+
+  | ctr_ptm : forall tid t,
+    consistently_typed_references m t ->
+    consistently_typed_references m <{ptm tid t}>
 
   | ctr_spawn : forall t,
     consistently_typed_references m t ->
@@ -118,37 +142,8 @@ Inductive consistently_typed_references (m : mem) : tm -> Prop :=
 (* access                                                                    *)
 (* ------------------------------------------------------------------------- *)
 
-(*
-  A term has access to an address if it refers to the address directly or 
-  indirectly.
-  
-  Ignores <spawn> blocks.
-*)
+(* Ignores <spawn> blocks. *)
 Inductive access (ad : addr) (m : mem) : tm -> Prop :=
-  | acc_mem : forall ad' T,
-    ad <> ad' ->
-    access ad m m[ad'].tm ->
-    access ad m <{&ad' :: T}>
-
-  | acc_ref : forall T,
-    access ad m <{&ad :: T}>
-
-  | acc_new : forall T t,
-    access ad m t ->
-    access ad m <{new T t}>
-
-  | acc_load : forall t,
-    access ad m t ->
-    access ad m <{*t}>
-
-  | acc_asg1 : forall t1 t2,
-    access ad m t1 ->
-    access ad m <{t1 = t2}>
-
-  | acc_asg2 : forall t1 t2,
-    access ad m t2 ->
-    access ad m <{t1 = t2}>
-
   | acc_fun : forall x Tx t,
     access ad m t ->
     access ad m <{fn x Tx t}>
@@ -161,236 +156,364 @@ Inductive access (ad : addr) (m : mem) : tm -> Prop :=
     access ad m t2 ->
     access ad m <{call t1 t2}>
 
-  | acc_seq1 : forall t1 t2,
-    access ad m t1 ->
-    access ad m <{t1; t2}>
+  | acc_mem : forall ad' T,
+    ad <> ad' ->
+    access ad m m[ad'].tm ->
+    access ad m <{&ad' : T}>
 
-  | acc_seq2 : forall t1 t2,
+  | acc_ref : forall T,
+    access ad m <{&ad : T}>
+
+  | acc_new : forall T t,
+    access ad m t ->
+    access ad m <{new t : T}>
+
+  | acc_load : forall t,
+    access ad m t ->
+    access ad m <{*t}>
+
+  | acc_asg1 : forall t1 t2,
+    access ad m t1 ->
+    access ad m <{t1 := t2}>
+
+  | acc_asg2 : forall t1 t2,
     access ad m t2 ->
-    access ad m <{t1; t2}>
+    access ad m <{t1 := t2}>
+
+  | acc_acq1 : forall t1 t2,
+    access ad m t1 ->
+    access ad m <{acq t1 t2}>
+
+  | acc_acq2 : forall t1 t2,
+    access ad m t2 ->
+    access ad m <{acq t1 t2}>
+
+  | acc_cr : forall ad' t,
+    access ad m t ->
+    access ad m <{cr ad' t}>
+
+  | acc_ptm : forall tid t,
+    access ad m t ->
+    access ad m <{ptm tid t}>
   .
 
 (* ------------------------------------------------------------------------- *)
-(* unsafe-access                                                             *)
+(* write-access                                                              *)
 (* ------------------------------------------------------------------------- *)
 
-(* There is a mutable pointer to <ad> in the term. *)
-Inductive unsafe_access (ad : addr) (m : mem) : tm  -> Prop :=
-  | uacc_mem : forall ad' T,
+(*
+  The term can write to the address without need for synchronization.
+  (It may not need synchronization because it already synchronized.)
+*)
+Inductive write_access (ad : addr) (m : mem) : tm  -> Prop :=
+  | wacc_fun : forall x Tx t,
+    write_access ad m t ->
+    write_access ad m <{fn x Tx t}>
+
+  | wacc_call1 : forall t1 t2,
+    write_access ad m t1 ->
+    write_access ad m <{call t1 t2}>
+
+  | wacc_call2 : forall t1 t2,
+    write_access ad m t2 ->
+    write_access ad m <{call t1 t2}>
+
+  | wacc_mem : forall ad' T,
     ad <> ad' ->
-    unsafe_access ad m (m[ad'].tm) ->
-    unsafe_access ad m <{&ad' :: &T}>
+    write_access ad m (m[ad'].tm) ->
+    write_access ad m <{&ad' : w&T}>
 
-  | uacc_ref : forall T,
-    unsafe_access ad m <{&ad :: &T}>
+  | wacc_ref : forall T,
+    write_access ad m <{&ad : w&T}>
 
-  | uacc_new : forall T t,
-    unsafe_access ad m t ->
-    unsafe_access ad m <{new T t}>
+  | wacc_new : forall T t,
+    write_access ad m t ->
+    write_access ad m <{new t : T}>
 
-  | uacc_load : forall t,
-    unsafe_access ad m t ->
-    unsafe_access ad m <{*t}>
+  | wacc_load : forall t,
+    write_access ad m t ->
+    write_access ad m <{*t}>
 
-  | uacc_asg1 : forall t1 t2,
-    unsafe_access ad m t1 ->
-    unsafe_access ad m <{t1 = t2}>
+  | wacc_asg1 : forall t1 t2,
+    write_access ad m t1 ->
+    write_access ad m <{t1 := t2}>
 
-  | uacc_asg2 : forall t1 t2,
-    unsafe_access ad m t2 ->
-    unsafe_access ad m <{t1 = t2}>
+  | wacc_asg2 : forall t1 t2,
+    write_access ad m t2 ->
+    write_access ad m <{t1 := t2}>
 
-  | uacc_fun : forall x Tx t,
-    unsafe_access ad m t ->
-    unsafe_access ad m <{fn x Tx t}>
+  | wacc_acq1 : forall t1 t2,
+    write_access ad m t1 ->
+    write_access ad m <{acq t1 t2}>
 
-  | uacc_call1 : forall t1 t2,
-    unsafe_access ad m t1 ->
-    unsafe_access ad m <{call t1 t2}>
+  | wacc_acq2 : forall t1 t2,
+    write_access ad m t2 ->
+    write_access ad m <{acq t1 t2}>
 
-  | uacc_call2 : forall t1 t2,
-    unsafe_access ad m t2 ->
-    unsafe_access ad m <{call t1 t2}>
+  | wacc_cr : forall ad' t,
+    write_access ad m t ->
+    write_access ad m <{cr ad' t}>
 
-  | uacc_seq1 : forall t1 t2,
-    unsafe_access ad m t1 ->
-    unsafe_access ad m <{t1; t2}>
-
-  | uacc_seq2 : forall t1 t2,
-    unsafe_access ad m t2 ->
-    unsafe_access ad m <{t1; t2}>
+  | wacc_ptm : forall tid t,
+    write_access ad m t ->
+    write_access ad m <{ptm tid t}>
   .
 
 (* ------------------------------------------------------------------------- *)
 (* safe-access                                                               *)
 (* ------------------------------------------------------------------------- *)
 
-Definition safe_access ad m t := access ad m t /\ ~ unsafe_access ad m t.
+Definition safe_access ad m t := access ad m t /\ ~ write_access ad m t.
 
 (* ------------------------------------------------------------------------- *)
-(* no-mut                                                                    *)
+(* safe-term                                                                 *)
 (* ------------------------------------------------------------------------- *)
 
-(* A term is no-mut if it has no mutable references. *)
-Inductive no_mut : tm -> Prop :=
-  | nomut_unit :
-    no_mut <{unit}>
+(* A safe term has no "write" references. *)
+Inductive safe_term : tm -> Prop :=
+  | safe_term_unit :
+    safe_term <{unit}>
 
-  | nomut_num : forall n,
-    no_mut <{N n}>
+  | safe_term_nat : forall n,
+    safe_term <{nat n}>
 
-  | nomut_ref : forall ad T,
-    no_mut <{&ad :: i&T}>
+  | safe_term_var : forall x,
+    safe_term <{var x}>
 
-  | nomut_new : forall T t,
-    no_mut t ->
-    no_mut <{new T t}>
+  | safe_term_fun : forall x Tx t,
+    safe_term t ->
+    safe_term <{fn x Tx t}>
 
-  | nomut_load : forall t,
-    no_mut t ->
-    no_mut <{*t}>
+  | safe_term_call : forall t1 t2,
+    safe_term t1 ->
+    safe_term t2 ->
+    safe_term <{call t1 t2}>
 
-  | nomut_asg : forall t1 t2,
-    no_mut t1 ->
-    no_mut t2 ->
-    no_mut <{t1 = t2}>
+  | safe_term_refR : forall ad T,
+    safe_term <{&ad : r&T}>
 
-  | nomut_var : forall x,
-    no_mut <{var x}>
+  | safe_term_refX : forall ad T,
+    safe_term <{&ad : x&T}>
 
-  | nomut_fun : forall x Tx t,
-    no_mut t ->
-    no_mut <{fn x Tx t}>
+  | safe_term_new : forall T t,
+    safe_term t ->
+    safe_term <{new t : T}>
 
-  | nomut_call : forall t1 t2,
-    no_mut t1 ->
-    no_mut t2 ->
-    no_mut <{call t1 t2}>
+  | safe_term_load : forall t,
+    safe_term t ->
+    safe_term <{*t}>
 
-  | nomut_seq : forall t1 t2,
-    no_mut t1 ->
-    no_mut t2 ->
-    no_mut <{t1; t2}>
+  | safe_term_asg : forall t1 t2,
+    safe_term t1 ->
+    safe_term t2 ->
+    safe_term <{t1 := t2}>
 
-  | nomut_spawn : forall t,
-    no_mut t ->
-    no_mut <{spawn t}>
+  | safe_term_acq : forall t1 t2,
+    safe_term t1 ->
+    safe_term t2 ->
+    safe_term <{acq t1 t2}>
+
+  | safe_term_cr : forall ad t,
+    safe_term t ->
+    safe_term <{cr ad t}>
+
+  | safe_term_ptm : forall tid t,
+    safe_term t ->
+    safe_term <{ptm tid t}>
+
+  | safe_term_spawn : forall t,
+    safe_term t ->
+    safe_term <{spawn t}>
   .
 
 (* ------------------------------------------------------------------------- *)
-(* safe-spawns                                                               *)
+(* safe-boundaries                                                           *)
 (* ------------------------------------------------------------------------- *)
 
-(* A term has safe spawns if all of its spawns have no mutable references. *)
-Inductive safe_spawns : tm -> Prop :=
-  | ss_unit :
-      safe_spawns <{unit}>
+(* A term is safely bounded if ... *)
+Inductive safe_boundaries : tm -> Prop :=
+  | safe_boundaries_unit :
+    safe_boundaries <{unit}>
 
-  | ss_num : forall n,
-      safe_spawns <{N n}>
+  | safe_boundaries_nat : forall n,
+    safe_boundaries <{nat n}>
 
-  | ss_ref : forall ad T,
-      safe_spawns <{&ad :: T}>
+  | safe_boundaries_var : forall x,
+    safe_boundaries <{var x}>
 
-  | ss_new : forall T t,
-      safe_spawns t ->
-      safe_spawns <{new T t}>
+  | safe_boundaries_fun : forall x Tx t,
+    safe_boundaries t ->
+    safe_boundaries <{fn x Tx t}>
 
-  | ss_load : forall t,
-      safe_spawns t ->
-      safe_spawns <{*t}>
+  | safe_boundaries_call : forall t1 t2,
+    safe_boundaries t1 ->
+    safe_boundaries t2 ->
+    safe_boundaries <{call t1 t2}>
 
-  | ss_asg : forall t1 t2,
-      safe_spawns t1 ->
-      safe_spawns t2 ->
-      safe_spawns <{t1 = t2}>
+  | safe_boundaries_ref : forall ad T,
+    safe_boundaries <{&ad : T}>
 
-  | ss_var : forall x,
-      safe_spawns <{var x}>
+  | safe_boundaries_new : forall T t,
+    safe_boundaries t ->
+    safe_boundaries <{new t : T}>
 
-  | ss_fun : forall x Tx t,
-      safe_spawns t ->
-      safe_spawns <{fn x Tx t}>
+  | safe_boundaries_load : forall t,
+    safe_boundaries t ->
+    safe_boundaries <{*t}>
 
-  | ss_call : forall t1 t2,
-      safe_spawns t1 ->
-      safe_spawns t2 ->
-      safe_spawns <{call t1 t2}>
+  | safe_boundaries_asg : forall t1 t2,
+    safe_boundaries t1 ->
+    safe_boundaries t2 ->
+    safe_boundaries <{t1 := t2}>
 
-  | ss_seq : forall t1 t2,
-      safe_spawns t1 ->
-      safe_spawns t2 ->
-      safe_spawns <{t1; t2}>
+  | safe_boundaries_acq1 : forall t1 t2,
+    ~ value t2 ->
+    safe_boundaries t1 ->
+    safe_boundaries t2 ->
+    safe_boundaries <{acq t1 t2}>
 
-  | ss_spawn : forall t,
-      no_mut t ->
-      safe_spawns <{spawn t}>
+  | safe_boundaries_acq2 : forall t1 t2,
+    value t2 ->
+    safe_term t2 ->
+    safe_boundaries <{acq t1 t2}>
+
+  | safe_boundaries_cr1 : forall ad t,
+    ~ value t ->
+    safe_boundaries t ->
+    safe_boundaries <{cr ad t}>
+
+  | safe_boundaries_cr2 : forall ad t,
+    value t ->
+    safe_term t ->
+    safe_boundaries <{cr ad t}>
+
+  | safe_boundaries_ptm : forall tid t,
+    safe_boundaries t ->
+    safe_boundaries <{ptm tid t}>
+
+  | safe_boundaries_spawn : forall t,
+    safe_term t ->
+    safe_boundaries <{spawn t}>
   .
 
 (* ------------------------------------------------------------------------- *)
 (* has-var                                                                   *)
 (* ------------------------------------------------------------------------- *)
 
-Inductive has_var (x : id) : tm  -> Prop :=
-  | hv_new : forall T t,
-    has_var x t ->
-    has_var x <{new T t}>
+Inductive hasvar (x : id) : tm  -> Prop :=
+  | hasvar_new : forall T t,
+    hasvar x t ->
+    hasvar x <{new t : T}>
 
-  | hv_load : forall t,
-    has_var x t ->
-    has_var x <{*t}>
+  | hasvar_load : forall t,
+    hasvar x t ->
+    hasvar x <{*t}>
 
-  | hv_asg1 : forall t1 t2,
-    has_var x t1 ->
-    has_var x <{t1 = t2}>
+  | hasvar_asg1 : forall t1 t2,
+    hasvar x t1 ->
+    hasvar x <{t1 := t2}>
 
-  | hv_asg2 : forall t1 t2,
-    has_var x t2 ->
-    has_var x <{t1 = t2}>
+  | hasvar_asg2 : forall t1 t2,
+    hasvar x t2 ->
+    hasvar x <{t1 := t2}>
 
-  | hv_var :
-    has_var x <{var x}>
+  | hasvar_var :
+    hasvar x <{var x}>
 
-  | hv_fun : forall x' Tx t,
+  | hasvar_fun : forall x' Tx t,
     x <> x' ->
-    has_var x t ->
-    has_var x <{fn x' Tx t}>
+    hasvar x t ->
+    hasvar x <{fn x' Tx t}>
 
-  | hv_call1 : forall t1 t2,
-    has_var x t1 ->
-    has_var x <{call t1 t2}>
+  | hasvar_call1 : forall t1 t2,
+    hasvar x t1 ->
+    hasvar x <{call t1 t2}>
 
-  | hv_call2 : forall t1 t2,
-    has_var x t2 ->
-    has_var x <{call t1 t2}>
+  | hasvar_call2 : forall t1 t2,
+    hasvar x t2 ->
+    hasvar x <{call t1 t2}>
 
-  | hv_seq1 : forall t1 t2,
-    has_var x t1 ->
-    has_var x <{t1; t2}>
+  | hasvar_acq1 : forall t1 t2,
+    hasvar x t1 ->
+    hasvar x <{acq t1 t2}>
 
-  | hv_seq2 : forall t1 t2,
-    has_var x t2 ->
-    has_var x <{t1; t2}>
+  | hasvar_acq2 : forall t1 t2,
+    hasvar x t2 ->
+    hasvar x <{acq t1 t2}>
 
-  | hv_spawn : forall t,
-    has_var x t ->
-    has_var x <{spawn t}>
+  | hasvar_cr : forall ad t,
+    hasvar x t ->
+    hasvar x <{cr ad t}>
+
+  | hasvar_ptm : forall tid t,
+    hasvar x t ->
+    hasvar x <{ptm tid t}>
+
+  | hasvar_spawn : forall t,
+    hasvar x t ->
+    hasvar x <{spawn t}>
   .
 
 (* ------------------------------------------------------------------------- *)
-(* safe-memory-sharing                                                       *)
+(* happens-before                                                            *)
 (* ------------------------------------------------------------------------- *)
 
-Definition safe_memory_sharing m ths := forall tid1 tid2 ad,
+Notation " tc '[' ev '].tid' " := (fst (tc[ev] or tc_default))
+  (at level 9, ev at next level).
+
+Notation " tc '[' ev '].eff' " := (snd (tc[ev] or tc_default))
+  (at level 9, ev at next level).
+
+Reserved Notation "evA '<<' evB 'in' tc" (at level 50).
+
+Inductive happens_before (tc : trace) : nat -> nat -> Prop :=
+  | hb_thread : forall evA evB,
+    evA < evB ->
+    tc[evA].tid = tc[evB].tid ->
+    evA << evB in tc
+
+  | hb_sync : forall evA evB tidA tidB ad t,
+    evA < evB ->
+    tc[evA].eff = e_rel tidA ad ->
+    tc[evB].eff = e_acq tidB ad t ->
+    evA << evB in tc
+
+  | hb_spawn : forall evA evB tid t,
+    evA < evB ->
+    tc[evA].eff = e_spawn tid t ->
+    tc[evB].tid = tid ->
+    evA << evB in tc
+
+  | hb_trans : forall evA evB evC,
+    evA << evB in tc ->
+    evB << evC in tc ->
+    evA << evC in tc
+
+  where "evA '<<' evB 'in' tc" := (happens_before tc evA evB).
+
+(*
+(* ------------------------------------------------------------------------- *)
+(* TODO                                                                      *)
+(* ------------------------------------------------------------------------- *)
+
+(* ad guards ad' in m *)
+Definition guards ad ad' m := exists T,
+  m[ad].ty = `x&T` /\ write_access ad' m m[ad].tm.
+
+Definition guard_exclusivity m := forall ad1 ad2 ad,
+  ad1 <> ad2 ->
+  guards ad1 ad m ->
+  ~ guards ad2 ad m.
+
+Definition safe_memory_sharing1 m ths := forall tid1 tid2 ad,
   tid1 <> tid2 ->
+  write_access ad m ths[tid1] ->
+  ~ write_access ad m ths[tid2].
+
+Definition safe_memory_sharing2 m ths := forall tid1 tid2 ad T,
+  tid1 <> tid2 ->
+  access ad m ths[tid1] ->
   access ad m ths[tid2] ->
-  ~ unsafe_access ad m ths[tid1].
-
-(* ------------------------------------------------------------------------- *)
-(* sugars                                                                    *)
-(* ------------------------------------------------------------------------- *)
-
-Definition not_access ad m t := ~ access ad m t.
-
-Definition not_unsafe_access ad m t := ~ unsafe_access ad m t.
-
+  m[ad].ty = `w&T` ->
+  exists ad', guards ad' ad m.
+*)

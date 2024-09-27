@@ -1,6 +1,8 @@
-From Elo Require Export Core.
 From Elo Require Export Definitions.
 From Elo Require Export Inversions.
+(* From Elo Require Export Constructors. *)
+
+(*
 From Elo Require Export Constructors.
 
 (* ------------------------------------------------------------------------- *)
@@ -141,4 +143,4 @@ Lemma ss_tstep_write_value : forall t t' ad v T,
 Proof.
   intros. induction_tstep; inv_ss; eauto.
 Qed.
-
+*)
