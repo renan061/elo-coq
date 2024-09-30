@@ -10,15 +10,16 @@ Theorem ptyp_cstep_preservation : forall m m' ths ths' tid e ad,
   (* --- *)
   ad < #m ->
   m / ths ~~[tid, e]~~> m' / ths' ->
-  m[ad].typ = m'[ad].typ.
+  m[ad].ty = m'[ad].ty.
 Proof.
   intros. invc_cstep; trivial. invc_mstep; trivial.
   - simpl_array. trivial.
-  - match goal with |- _ = (_[?ad' <- _])[_].typ =>
+  - match goal with |- _ = (_[?ad' <- _])[_].ty =>
       destruct (nat_eq_dec ad ad'); subst
     end;
     simpl_array; trivial.
-    induction_tstep; inv_ctr; eauto. inv_ctr; eauto.
+    ind_tstep; inv_ctr; eauto. inv_ctr; eauto.
+  - .
 Qed.
 
 (* ------------------------------------------------------------------------- *)

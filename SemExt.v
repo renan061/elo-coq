@@ -187,3 +187,14 @@ Proof.
   unfold safe. intros * H. rewrite H. reflexivity.
 Qed.
 
+(* ------------------------------------------------------------------------- *)
+
+Lemma empty_eq_safe_empty :
+  empty = safe empty.
+Proof. eauto. Qed.
+
+#[export] Hint Extern 4 =>
+  match goal with
+  | H : safe empty |-- _ is _ |- _ => rewrite empty_eq_safe_empty in H
+  | _ : _ |- safe empty |-- _ is _ => rewrite empty_eq_safe_empty
+  end : core.

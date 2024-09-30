@@ -177,6 +177,18 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
+(* length hint                                                               *)
+(* ------------------------------------------------------------------------- *)
+
+Ltac simpl_lengths :=
+  match goal with
+  | H : context C [ #(_ +++ _) ] |- _ => rewrite add_increments_length in H
+  | _ : _ |- context C [ #(_ +++ _) ] => rewrite add_increments_length
+  | H : context C [ #(_[_ <- _]) ] |- _ => rewrite set_preserves_length in H
+  | _ : _ |- context C [ #(_[_ <- _]) ] => rewrite set_preserves_length
+  end.
+
+(* ------------------------------------------------------------------------- *)
 (* rewrites & simpl                                                          *)
 (* ------------------------------------------------------------------------- *)
 

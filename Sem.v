@@ -400,7 +400,7 @@ Inductive mstep : mem -> tm -> eff -> mem -> tm -> Prop :=
     m[ad].tm = tm_ptm (Some tid) te ->
     m[ad].ty = T ->
     t --[e_rel tid ad]--> t' ->
-    m / t ==[e_rel tid ad]==> m[ad <- (tm_ptm None te, T)] / t'
+    m / t ==[e_rel tid ad]==> m[ad <- (<{ptm None te}>, T)] / t'
 
   where "m / t '==[' e ']==>' m' / t'" := (mstep m t e m' t').
 

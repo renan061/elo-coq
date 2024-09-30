@@ -2,7 +2,7 @@
 
 COQC= coqc -Q . Elo
 
-all: core properties preservation
+all: core properties
 
 core:
 	$(COQC) Util.v
@@ -13,10 +13,16 @@ core:
 	$(COQC) Core.v
 
 properties:
-	$(COQC) Definitions.v
-	$(COQC) Inversions.v
+	$(COQC) Preservation_.v
+	$(COQC) WellTypedTerm.v
+	$(COQC) ValidPointerTypes.v
+	$(COQC) ValidAddresses.v
+	$(COQC) ValidReferences.v
+	# $(COQC) CTR.v
+	# $(COQC) Definitions.v
+	# $(COQC) Inversions.v
 	# $(COQC) Constructors.v
-	$(COQC) Properties.v
+	# $(COQC) Properties.v
 
 preservation:
 	$(COQC) SimpleLemmas.v
