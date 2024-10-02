@@ -62,11 +62,6 @@ Local Lemma inv_wtt_cr : forall ad t,
   well_typed_term t.
 Proof. solve_wtt_inversion. Qed.
 
-Local Lemma inv_wtt_ptm : forall otid t,
-  well_typed_term <{ptm otid t}> ->
-  well_typed_term t.
-Proof. solve_wtt_inversion. Qed.
-
 Local Lemma inv_wtt_spawn : forall t,
   well_typed_term <{spawn t}> ->
   well_typed_term t.
@@ -86,7 +81,6 @@ Ltac invc_wtt :=
   | H : wtt <{_ := _   }> |- _ => eapply inv_wtt_asg   in H as [? ?]
   | H : wtt <{acq _ _  }> |- _ => eapply inv_wtt_acq   in H as [? ?]
   | H : wtt <{cr _ _   }> |- _ => eapply inv_wtt_cr    in H
-  | H : wtt <{ptm _ _  }> |- _ => eapply inv_wtt_ptm   in H
   | H : wtt <{spawn _  }> |- _ => eapply inv_wtt_spawn in H
   end.
 

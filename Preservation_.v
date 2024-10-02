@@ -2,8 +2,8 @@ From Elo Require Import Core.
 
 Ltac simpl_forall := 
   match goal with
-  | |- forall_threads _[_ <- _] _          => intros tid'; Array.sgs
-  | |- forall_threads (_[_ <- _] +++ _) _  => intros tid'; Array.sgas
+  | |- forall_threads _[_ <- _] _          => intros tid'; sigma; omicron
+  | |- forall_threads (_[_ <- _] +++ _) _  => intros tid'; sigma; omicron
   end.
 
 Ltac destruct_forall_program :=

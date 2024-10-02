@@ -5,7 +5,7 @@ From Elo Require Import Core.
 From Elo Require Import WellTypedTerm.
 
 (* ------------------------------------------------------------------------- *)
-(* well-typed-memory                                                         *)
+(* valid-pointer-types                                                       *)
 (* ------------------------------------------------------------------------- *)
 
 Reserved Notation " T1 '~>' T2  " (at level 80, no associativity).
@@ -23,7 +23,7 @@ Inductive points_to_type : ty -> ty -> Prop :=
   where "T1 ~> T2" := (points_to_type T1 T2).
 
 Definition valid_pointer_types (m : mem) :=
-  forall ad T, ad < #m -> empty |-- m[ad].tm is T -> m[ad].ty ~> T.
+  forall ad T, ad < #m -> empty |-- m[ad].t is T -> m[ad].T ~> T.
 
 (* ------------------------------------------------------------------------- *)
 (* preservation                                                              *)
@@ -59,6 +59,7 @@ Proof.
   subst. eauto using points_to_type.
 Qed.
 
+(*
 Local Lemma vpt_acq_rel : forall m otid ad t T,
   valid_pointer_types m ->
   empty |-- t is T ->
@@ -70,20 +71,20 @@ Proof.
   eapply Hvpt; trivial.
   rewrite Heq. eauto using type_of.
 Qed.
+*)
 
 (* ------------------------------------------------------------------------- *)
 
-Lemma vpt_preservation_alloc : forall m t1 t2 t T,
+Lemma vpt_preservation_alloc : forall m t1 t2 t T X,
   well_typed_term t1 ->
   (* --- *)
   valid_pointer_types m ->
   t1 --[e_alloc (#m) t T]--> t2 ->
-  valid_pointer_types (m +++ (t, T)).
+  valid_pointer_types (m +++ (t, T, X)).
 Proof.
   intros * [T' ?] **. generalize dependent T'.
   ind_tstep; intros; invc_typeof; eauto;
-  intros ? ? ? ?; Array.sga; simpl in *; eauto; Array.simpl_lengths; try lia;
-  try invc_typeof;
+  intros ? ? ? ?; omicron; try lia; try invc_typeof;
   eauto using deterministic_R, deterministic_X, deterministic_W.
 Qed.
 
@@ -92,42 +93,37 @@ Lemma vpt_preservation_write : forall m t1 t2 ad t T,
   (* --- *)
   valid_pointer_types m ->
   t1 --[e_write ad t T]--> t2 ->
-  valid_pointer_types m[ad <- (t, T)].
+  valid_pointer_types m[ad.tT <- t T].
 Proof.
   intros * [T' ?] **. generalize dependent T'.
   ind_tstep; intros; invc_typeof; eauto.
   intros ? ? ? ?. invc_typeof. 
-  Array.simpl_lengths. Array.sgs; eauto using deterministic_W.
+  omicron; eauto using deterministic_W.
 Qed.
 
-Lemma vpt_preservation_acq : forall m t1 t2 otid1 otid2 tid ad t,
+Lemma vpt_preservation_acq : forall m t1 t2 tid ad X,
   well_typed_term t1 ->
   (* --- *)
-  m[ad].tm = <{ptm otid1 t}> ->
   valid_pointer_types m ->
-  t1 --[e_acq tid ad t]--> t2 ->
-  valid_pointer_types m[ad <- (<{ptm otid2 t}>, m[ad].ty)].
+  t1 --[e_acq tid ad m[ad].t]--> t2 ->
+  valid_pointer_types m[ad.X <- X].
 Proof.
   intros * [T' ?] **. generalize dependent T'.
   ind_tstep; intros; invc_typeof; eauto.
   intros ? ? ? ?. repeat invc_typeof.
-  Array.simpl_lengths. Array.sgs; eauto.
-  simpl in *. invc_typeof. eauto using vpt_acq_rel.
+  omicron; eauto.
 Qed.
 
-Lemma vpt_preservation_rel : forall m t1 t2 otid1 otid2 tid ad t,
+Lemma vpt_preservation_rel : forall m t1 t2 tid ad X,
   well_typed_term t1 ->
   (* --- *)
-  m[ad].tm = <{ptm otid1 t}> ->
   valid_pointer_types m ->
   t1 --[e_rel tid ad]--> t2 ->
-  valid_pointer_types m[ad <- (<{ptm otid2 t}>, m[ad].ty)].
+  valid_pointer_types m[ad.X <- X].
 Proof.
   intros * [T' ?] **. generalize dependent T'.
   ind_tstep; intros; invc_typeof; eauto.
-  intros ? ? ? ?.
-  Array.simpl_lengths. Array.sgs; eauto.
-  simpl in *. invc_typeof. eauto using vpt_acq_rel.
+  intros ? ? ? ?. omicron; eauto.
 Qed.
 
 (* ------------------------------------------------------------------------- *)

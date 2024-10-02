@@ -22,7 +22,6 @@ Ltac _typeof tt :=
   | H : _ |-- <{_ := _   }> is _ |- _ => tt H
   | H : _ |-- <{acq _ _  }> is _ |- _ => tt H
   | H : _ |-- <{cr _ _   }> is _ |- _ => tt H
-  | H : _ |-- <{ptm _ _  }> is _ |- _ => tt H
   | H : _ |-- <{spawn _  }> is _ |- _ => tt H
   end.
 
@@ -80,9 +79,7 @@ Qed.
 Lemma tm_eq_dec : forall (t1 t2 : tm),
   {t1 = t2} + {t1 <> t2}.
 Proof.
-  intros.
-  decide equality; eauto using nat_eq_dec, str_eq_dec, typ_eq_dec.
-  decide equality. eauto using nat_eq_dec.
+  intros. decide equality; eauto using nat_eq_dec, str_eq_dec, typ_eq_dec.
 Qed.
 
 Lemma eff_eq_dec : forall (e1 e2 : eff),
@@ -96,7 +93,7 @@ Qed.
 (* ------------------------------------------------------------------------- *)
 
 Definition forall_memory (m : mem) (P : tm -> _) : Prop :=
-  forall_array mem_default (fun tT => P (fst tT)) m.
+  forall_array cell_default (fun cell => P (cell.t)) m.
 
 Definition forall_threads (ths : threads) (P : tm -> _) : Prop :=
   forall_array tm_default P ths.
@@ -141,7 +138,7 @@ Lemma tstep_tid_bound : forall t ths tid e,
   ths[tid] --[e]--> t ->
   tid < #ths.
 Proof.
-  intros. decompose sum (lt_eq_lt_dec tid (#ths)); subst; trivial; simpl_array;
+  intros. decompose sum (lt_eq_lt_dec tid (#ths)); subst; trivial; Array.sigma;
   solve [lia | inv_tstep].
 Qed.
 

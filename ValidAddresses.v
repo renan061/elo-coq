@@ -53,10 +53,6 @@ Inductive valid_addresses (m : mem) : tm -> Prop :=
     valid_addresses m t ->
     valid_addresses m <{cr ad t}>
 
-  | vad_ptm : forall tid t,
-    valid_addresses m t ->
-    valid_addresses m <{ptm tid t}>
-
   | vad_spawn : forall t,
     valid_addresses m t ->
     valid_addresses m <{spawn t}>
@@ -77,7 +73,6 @@ Local Ltac _vad tt :=
   | H : valid_addresses _ <{_ := _   }> |- _ => tt H
   | H : valid_addresses _ <{acq _ _  }> |- _ => tt H
   | H : valid_addresses _ <{cr _ _   }> |- _ => tt H
-  | H : valid_addresses _ <{ptm _ _  }> |- _ => tt H
   | H : valid_addresses _ <{spawn _  }> |- _ => tt H
   end.
 
@@ -98,34 +93,24 @@ Proof.
   simpl; destruct str_eq_dec; eauto using valid_addresses.
 Qed.
 
-Lemma vad_mem_add : forall m t tT,
+Lemma vad_mem_add : forall m t c,
   valid_addresses m t ->
-  valid_addresses (m +++ tT) t.
+  valid_addresses (m +++ c) t.
 Proof.
   intros.
   induction t; try invc_vad; eauto using valid_addresses.
-  - eapply vad_ref. Array.simpl_lengths. eauto.
-  - eapply vad_cr; eauto. Array.simpl_lengths. eauto.
+  - eapply vad_ref. sigma. eauto.
+  - eapply vad_cr; eauto. sigma. eauto.
 Qed.
 
-Lemma vad_mem_set : forall m t ad tT,
+Lemma vad_mem_set : forall m t ad c,
   valid_addresses m t ->
-  valid_addresses m[ad <- tT] t.
+  valid_addresses m[ad <- c] t.
 Proof.
   intros.
   induction t; try inv_vad; eauto using valid_addresses.
-  - eapply vad_ref. Array.simpl_lengths. eauto.
-  - eapply vad_cr; eauto. Array.simpl_lengths. eauto.
-Qed.
-
-Lemma vad_mem_ptm : forall m otid1 otid2 ad t T,
-  forall_memory m (valid_addresses m) ->
-  m[ad].tm = <{ptm otid1 t}> ->
-  valid_addresses m[ad <- (<{ptm otid2 t}>, T)] t.
-Proof.
-  intros * Hmvad Hptm.
-  specialize (Hmvad ad). simpl in Hmvad.
-  rewrite Hptm in Hmvad. invc_vad. eauto using vad_mem_set.
+  - eapply vad_ref. sigma. eauto.
+  - eapply vad_cr; eauto. sigma. eauto.
 Qed.
 
 (* none -------------------------------------------------------------------- *)
@@ -142,35 +127,33 @@ Qed.
 
 (* alloc ------------------------------------------------------------------- *)
 
-Lemma vad_preservation_mem_alloc : forall m t1 t2 t T,
+Lemma vad_preservation_mem_alloc : forall m t1 t2 t T X,
   valid_addresses m t1 ->
   (* --- *)
   forall_memory m (valid_addresses m) ->
   t1 --[e_alloc (#m) t T]--> t2 ->
-  forall_memory (m +++ (t, T)) (valid_addresses (m +++ (t, T))).
+  forall_memory (m +++ (t, T, X)) (valid_addresses (m +++ (t, T, X))).
 Proof.
   intros.
   ind_tstep; inv_vad; eauto;
-  intros ?; Array.sga; eauto using vad_mem_add, valid_addresses.
+  intros ?; omicron; eauto using vad_mem_add, valid_addresses.
 Qed.
 
-Lemma vad_preservation_alloc : forall m t1 t2 t T,
+Lemma vad_preservation_alloc : forall m t1 t2 t T X,
   valid_addresses m t1 ->
   t1 --[e_alloc (#m) t T]--> t2 ->
-  valid_addresses (m +++ (t, T)) t2.
+  valid_addresses (m +++ (t, T, X)) t2.
 Proof.
   intros.
   ind_tstep; inv_vad; eauto using vad_mem_add, valid_addresses.
-  - eapply vad_ref; Array.simpl_lengths; eauto.
-  - eapply vad_ref; Array.simpl_lengths; eauto.
-  - eapply vad_ref; Array.simpl_lengths; eauto.
-  - eapply vad_cr; eauto. Array.simpl_lengths; eauto.
+  - eapply vad_ref. sigma. eauto.
+  - eapply vad_cr; eauto. sigma. eauto.
 Qed.
 
-Lemma vad_preservation_unt_alloc : forall m t1 t2 t ad te T,
-  valid_addresses m t ->
-  t1 --[e_alloc ad te T]--> t2 ->
-  valid_addresses (m +++ (te, T)) t.
+Lemma vad_preservation_unt_alloc : forall m t1 t2 tu ad t T X,
+  valid_addresses m tu ->
+  t1 --[e_alloc ad t T]--> t2 ->
+  valid_addresses (m +++ (t, T, X)) tu.
 Proof.
   eauto using vad_mem_add.
 Qed.
@@ -181,7 +164,7 @@ Lemma vad_preservation_read : forall m t1 t2 ad,
   forall_memory m (valid_addresses m) ->
   (* --- *)
   valid_addresses m t1 ->
-  t1 --[e_read ad m[ad].tm]--> t2 ->
+  t1 --[e_read ad m[ad].t]--> t2 ->
   valid_addresses m t2.
 Proof.
   intros.
@@ -190,126 +173,97 @@ Qed.
 
 (* write ------------------------------------------------------------------- *)
 
-Lemma vad_preservation_mem_write : forall m t1 t2 ad te T,
+Lemma vad_preservation_mem_write : forall m t1 t2 ad t T,
   valid_addresses m t1 ->
   (* --- *)
-  ad < #m ->
   forall_memory m (valid_addresses m) ->
-  t1 --[e_write ad te T]--> t2 ->
-  forall_memory m[ad <- (te, T)] (valid_addresses m[ad <- (te, T)]).
+  t1 --[e_write ad t T]--> t2 ->
+  forall_memory m[ad.tT <- t T] (valid_addresses m[ad.tT <- t T]).
 Proof.
   intros.
-  ind_tstep; inv_vad; eauto. 
-  intros ad'. Array.sgs; eauto using vad_mem_set.
+  ind_tstep; invc_vad; eauto. 
+  intros ?. invc_vad. omicron; eauto using vad_mem_set.
 Qed.
 
 Lemma vad_preservation_write : forall m t1 t2 ad t T,
   valid_addresses m t1 ->
   t1 --[e_write ad t T]--> t2 ->
-  valid_addresses (m[ad <- (t, T)]) t2.
+  valid_addresses (m[ad.tT <- t T]) t2.
 Proof.
   intros.
   ind_tstep; inv_vad; eauto using vad_mem_set, valid_addresses.
-  eapply vad_cr; eauto. Array.simpl_lengths. trivial.
+  eapply vad_cr; eauto. sigma. trivial.
 Qed.
 
 Lemma vad_preservation_unt_write : forall m t1 t2 tu ad t T,
   valid_addresses m tu ->
   t1 --[e_write ad t T]--> t2 ->
-  valid_addresses m[ad <- (t, T)] tu.
+  valid_addresses m[ad.tT <- t T] tu.
 Proof.
   eauto using vad_mem_set.
 Qed.
 
 (* acq --------------------------------------------------------------------- *)
 
-Lemma vad_preservation_mem_acq : forall m1 m2 t1 t2 otid1 otid2 t tid ad T,
-  valid_addresses m1 t1 ->
+Lemma vad_preservation_mem_acq : forall m t1 t2 tid ad X,
+  ad < #m ->
   (* --- *)
-  ad < #m1 ->
-  m1[ad].tm = <{ptm otid1 t}> ->
-  m2 = m1[ad <- (<{ptm otid2 t}>, T)] ->
-  (* --- *)
-  forall_memory m1 (valid_addresses m1) ->
-  t1 --[e_acq tid ad t]--> t2 ->
-  forall_memory m2 (valid_addresses m2).
+  forall_memory m (valid_addresses m) ->
+  t1 --[e_acq tid ad m[ad].t]--> t2 ->
+  forall_memory m[ad.X <- X] (valid_addresses m[ad.X <- X]).
 Proof.
-  intros.
-  ind_tstep; invc_vad; eauto. 
-  intros ad'. Array.sgs; eauto using vad_mem_set, vad_mem_ptm, valid_addresses.
+  intros. intros ?. 
+  omicron; eauto using vad_mem_set.
 Qed.
 
-Lemma vad_preservation_acq : forall m t1 t2 otid1 otid2 t tid ad T,
+Lemma vad_preservation_acq : forall m t1 t2 tid ad X,
   forall_memory m (valid_addresses m) ->
-  (* --- *)
-  ad < #m ->
-  m[ad].tm = <{ptm otid1 t}> ->
   (* --- *)
   valid_addresses m t1 ->
-  t1 --[e_acq tid ad t]--> t2 ->
-  valid_addresses m[ad <- (<{ptm otid2 t}>, T)] t2.
+  t1 --[e_acq tid ad m[ad].t]--> t2 ->
+  valid_addresses m[ad.X <- X] t2.
 Proof.
   intros.
-  ind_tstep; inv_vad; eauto using vad_mem_set, valid_addresses;
-  repeat invc_vad; eapply vad_cr;
-  eauto using vad_subst, vad_mem_set, vad_mem_ptm;
-  Array.simpl_lengths; eauto.
+  ind_tstep; invc_vad; eauto using vad_mem_set, valid_addresses;
+  repeat invc_vad; eapply vad_cr; eauto using vad_subst, vad_mem_set;
+  sigma; assumption.
 Qed.
 
-Lemma vad_preservation_unt_acq : forall m t1 t2 tu otid1 otid2 t tid ad T,
-  forall_memory m (valid_addresses m) ->
-  (* --- *)
-  ad < #m ->
-  m[ad].tm = <{ptm otid1 t}> ->
-  (* --- *)
+Lemma vad_preservation_unt_acq : forall m t1 t2 tu t tid ad X,
   valid_addresses m tu ->
   t1 --[e_acq tid ad t]--> t2 ->
-  valid_addresses m[ad <- (<{ptm otid2 t}>, T)] tu.
+  valid_addresses m[ad.X <- X] tu.
 Proof.
   eauto using vad_mem_set.
 Qed.
 
 (* rel --------------------------------------------------------------------- *)
 
-Lemma vad_preservation_mem_rel : forall m m' t1 t2 otid1 otid2 t tid ad T,
-  valid_addresses m t1 ->
-  (* --- *)
+Lemma vad_preservation_mem_rel : forall m t1 t2 tid ad X,
   ad < #m ->
-  m[ad].tm = <{ptm otid1 t}> ->
-  m' = m[ad <- (<{ptm otid2 t}>, T)] ->
   (* --- *)
   forall_memory m (valid_addresses m) ->
   t1 --[e_rel tid ad]--> t2 ->
-  forall_memory m' (valid_addresses m').
+  forall_memory m[ad.X <- X] (valid_addresses m[ad.X <- X]).
 Proof.
-  intros. ind_tstep; invc_vad; eauto. 
-  intros ?. Array.sgs; eauto using vad_mem_set, vad_mem_ptm, valid_addresses.
+  intros ** ?.
+  omicron; eauto using vad_mem_set, valid_addresses.
 Qed.
 
-Lemma vad_preservation_rel : forall m t1 t2 otid1 otid2 t tid ad T,
-  forall_memory m (valid_addresses m) ->
-  (* --- *)
-  ad < #m ->
-  m[ad].tm = <{ptm otid1 t}> ->
-  (* --- *)
+Lemma vad_preservation_rel : forall m t1 t2 tid ad X,
   valid_addresses m t1 ->
   t1 --[e_rel tid ad]--> t2 ->
-  valid_addresses m[ad <- (<{ptm otid2 t}>, T)] t2.
+  valid_addresses m[ad.X <- X] t2.
 Proof.
   intros.
   ind_tstep; inv_vad; eauto using vad_mem_set, valid_addresses.
-  eapply vad_cr; eauto. Array.simpl_lengths; trivial.
+  eapply vad_cr; eauto. sigma. trivial.
 Qed.
 
-Lemma vad_preservation_unt_rel : forall m t1 t2 tu otid1 otid2 t tid ad T,
-  forall_memory m (valid_addresses m) ->
-  (* --- *)
-  ad < #m ->
-  m[ad].tm = <{ptm otid1 t}> ->
-  (* --- *)
+Lemma vad_preservation_unt_rel : forall m t1 t2 tu tid ad X,
   valid_addresses m tu ->
   t1 --[e_rel tid ad]--> t2 ->
-  valid_addresses m[ad <- (<{ptm otid2 t}>, T)] tu.
+  valid_addresses m[ad.X <- X] tu.
 Proof.
   eauto using vad_mem_set.
 Qed.
