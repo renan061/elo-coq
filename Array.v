@@ -6,8 +6,7 @@ From Elo Require Import Util.
 
 Definition add {A} (l : list A) (a : A) := l ++ (a :: nil).
 
-Definition get {A} (default : A) (l : list A) (i : nat) :=
-  nth i l default.
+Definition get {A} (default : A) (l : list A) (i : nat) := nth i l default.
 
 Fixpoint set {A} (l : list A) (i : nat) (a : A) : list A :=
   match l with
@@ -27,10 +26,10 @@ Notation "# l" := (length l)
   (at level 15).
 Notation " l +++ a " := (add l a)
   (at level 50).
-Notation " l '[' i ']' 'or' default " := (get default l i)
+Notation " l '[' i ']' 'or' d " := (get d l i)
   (at level 9, i at next level).
-Notation " l '[' i <- a ']' " := (set l i a)
-  (at level 9, i at next level, a at next level).
+Notation " l '[' i '<-' a ']' " := (set l i a)
+  (at level 9, i at next level).
 
 (* ------------------------------------------------------------------------- *)
 (* length                                                                    *)
@@ -45,8 +44,7 @@ Qed.
 Lemma set_preserves_length : forall {A} (l : list A) i a,
   #l[i <- a] = #l.
 Proof.
-  intros ?. induction l; trivial.
-  destruct i; simpl; eauto.
+  intros ?. induction l; trivial. destruct i; simpl; eauto.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -80,23 +78,23 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
-Lemma get_default_eq : forall {A} default (l : list A),
-  l[#l] or default = default.
+Lemma get_default_eq : forall {A} d (l : list A),
+  l[#l] or d = d.
 Proof.
   intros. induction l; eauto.
 Qed.
 
-Lemma get_default_gt : forall {A} default (l : list A) i,
+Lemma get_default_gt : forall {A} d (l : list A) i,
   #l < i ->
-  l[i] or default = default.
+  l[i] or d = d.
 Proof.
   intros * Hgt. generalize dependent i. induction l; intros;
   destruct i; eauto using lt_S_n; inv Hgt.
 Qed.
 
-Lemma get_default_ge : forall {A} default (l : list A) i,
+Lemma get_default_ge : forall {A} d (l : list A) i,
   #l <= i ->
-  l[i] or default = default.
+  l[i] or d = d.
 Proof.
   intros * Hge. eapply le_lt_or_eq in Hge as [? | ?]; subst;
   eauto using get_default_eq, get_default_gt.
@@ -104,15 +102,15 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
-Lemma add_get_eq : forall {A} default (l : list A) a,
-  (l +++ a)[#l] or default = a.
+Lemma add_get_eq : forall {A} d (l : list A) a,
+  (l +++ a)[#l] or d = a.
 Proof.
   intros. induction l; eauto.
 Qed.
 
-Lemma add_get_lt : forall {A} default (l : list A) i a,
+Lemma add_get_lt : forall {A} d (l : list A) i a,
   i < #l ->
-  (l +++ a)[i] or default = l[i] or default.
+  (l +++ a)[i] or d = l[i] or d.
 Proof.
   intros. generalize dependent i. induction l; intros ?.
   - intros H. destruct i; inversion H.
@@ -120,9 +118,9 @@ Proof.
     eapply PeanoNat.Nat.succ_lt_mono in H. eauto.
 Qed.
 
-Lemma add_get_gt : forall {A} default (l : list A) i a,
+Lemma add_get_gt : forall {A} d (l : list A) i a,
   #l < i ->
-  (l +++ a)[i] or default = default.
+  (l +++ a)[i] or d = d.
 Proof.
   intros. generalize dependent i. induction l; intros ? H;
   destruct i; try solve [inversion H].
@@ -132,18 +130,18 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
-Lemma set_get_eq : forall {A} default (l : list A) i a,
+Lemma set_get_eq : forall {A} d (l : list A) i a,
   i < #l ->
-  l[i <- a][i] or default = a.
+  l[i <- a][i] or d = a.
 Proof.
   intros ? ? l. induction l as [| ? ? IH]; intros * Hlen;
   try solve [inversion Hlen]. destruct i; unfold get; trivial.
   simpl in Hlen. rewrite <- Nat.succ_lt_mono in Hlen. eapply IH. assumption.
 Qed.
 
-Lemma set_get_neq : forall {A} default (l : list A) i j a,
+Lemma set_get_neq : forall {A} d (l : list A) i j a,
   i <> j ->
-  l[j <- a][i] or default = l[i] or default.
+  l[j <- a][i] or d = l[i] or d.
 Proof.
   intros ? ? l.
   induction l as [| x xs IH]; intros * H; trivial.
@@ -151,38 +149,38 @@ Proof.
   simpl. eauto using PeanoNat.Nat.succ_inj_wd_neg.
 Qed.
 
-Lemma set_get_lt : forall {A} default (l : list A) i j a,
+Lemma set_get_lt : forall {A} d (l : list A) i j a,
   i < j ->
-  l[j <- a][i] or default = l[i] or default.
+  l[j <- a][i] or d = l[i] or d.
 Proof.
   intros. eapply set_get_neq. lia. 
 Qed.
 
-Lemma set_get_gt : forall {A} default (l : list A) i j a,
+Lemma set_get_gt : forall {A} d (l : list A) i j a,
   j < i ->
-  l[j <- a][i] or default = l[i] or default.
+  l[j <- a][i] or d = l[i] or d.
 Proof.
   intros. eapply set_get_neq. lia.
 Qed.
 
-Lemma set_get_invalid : forall {A} default (l : list A) i a,
-  #l <= i ->
-  l[i <- a][i] or default = default.
+Corollary set_get_invalid_eq : forall {A} d (l : list A) i a,
+  l[i <- a][#l] or d = d.
 Proof.
-  intros * H. rewrite set_invalid_ge; trivial. eauto using get_default_ge.
+  intros. rewrite <- (set_preserves_length l i a). eauto using get_default_eq.
 Qed.
 
-Corollary set_get_invalid_gt : forall {A} default (l : list A) i a,
+Corollary set_get_invalid_gt : forall {A} d (l : list A) i j a,
   #l < i ->
-  l[i <- a][i] or default = default.
+  l[j <- a][i] or d = d.
 Proof.
-  intros. assert (#l <= i) by lia. eauto using set_get_invalid.
+  intros. eapply get_default_gt. rewrite set_preserves_length. assumption.
 Qed.
 
-Corollary set_get_invalid_eq : forall {A} default (l : list A) a,
-  l[#l <- a][#l] or default = default.
+Corollary set_get_invalid_ge : forall {A} d (l : list A) i j a,
+  #l <= i ->
+  l[j <- a][i] or d = d.
 Proof.
-  intros. assert (#l <= #l) by lia. eauto using set_get_invalid.
+  intros. eapply get_default_ge. rewrite set_preserves_length. assumption.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -232,10 +230,8 @@ Ltac sigma_once :=
   (* get -- l[i]                              *)
   (* ---------------------------------------- *)
   (* get (i == #l) *)
-  | H : context C [ ?l[#?l] or ?d] |- _ => 
-    rewrite (get_default_eq d l) in H
-  | |-  context C [ ?l[#?l] or ?d] => 
-    rewrite (get_default_eq d l)
+  | H : context C [ ?l[#?l] or ?d] |- _ => rewrite (get_default_eq d l) in H
+  | |-  context C [ ?l[#?l] or ?d]      => rewrite (get_default_eq d l)
   (* get (i > #l) *)
   | Hlen : #?l < ?i, H : context C [ ?l[?i] or ?d] |- _ => 
     rewrite (get_default_gt d l i Hlen) in H
@@ -250,10 +246,8 @@ Ltac sigma_once :=
   (* set -- l[i <- a]                         *)
   (* ---------------------------------------- *)
   (* set (i == #l) *)
-  | H : context C [ ?l[?i <- ?a] ] |- _ => 
-    rewrite (set_invalid_eq l) in H
-  | |-  context C [ ?l[?i <- ?a] ] => 
-    rewrite (set_invalid_eq l)
+  | H : context C [ ?l[?i <- ?a] ] |- _ => rewrite (set_invalid_eq l) in H
+  | |-  context C [ ?l[?i <- ?a] ]      => rewrite (set_invalid_eq l)
   (* set (i > #l) *)
   | Hlen : #?l < ?i, H : context C [ ?l[?i <- ?a] ] |- _ => 
     rewrite (set_invalid_gt l i a Hlen) in H
@@ -283,7 +277,7 @@ Ltac sigma_once :=
   | Hlen : #?l < ?i  |-  context C [ (?l +++ ?a)[?i] or ?d ] =>
     rewrite (add_get_gt d l i a Hlen)
   (* ---------------------------------------- *)
-  (* set-get -- l[i <- a][i]                  *)
+  (* set-get -- l[j <- a][i]                  *)
   (* ---------------------------------------- *)
   (* set-get (i < #l and i == j) *)
   | Hlen : ?i < #?l, H : context C [ ?l[?i <- ?a ][?i] or ?d ] |- _ =>
@@ -309,11 +303,11 @@ Ltac sigma_once :=
     rewrite (set_get_gt d l i j a Hlen) in H
   | Hlen : ?j < ?i  |-  context C [ ?l[?j <- ?a ][?i] or ?d ] =>
     rewrite (set_get_gt d l i j a Hlen)
-  (* set-get (i == #l) *) (* TODO *)
-  | H : context C [ ?l[(# ?l) <- ?a ][(# ?l)] or ?d ] |- _ =>
-    rewrite (set_get_invalid_eq d l a) in H
-  | |-  context C [ ?l[(# ?l) <- ?a ][(# ?l)] or ?d ] =>
-    rewrite (set_get_invalid_eq d l a)
+  (* set-get (i == #l) *)
+  | H : context C [ ?l[?j <- ?a ][(# ?l)] or ?d ] |- _ =>
+    rewrite (set_get_invalid_eq d l j a) in H
+  | |-  context C [ ?l[?j <- ?a ][(# ?l)] or ?d ] =>
+    rewrite (set_get_invalid_eq d l j a)
   (* ---------------------------------------- *)
   (* set-add-get -- l[i' <- a' +++ a][i]      *)
   (* ---------------------------------------- *)
@@ -342,20 +336,17 @@ Ltac sigma := repeat sigma_once.
 
 Local Ltac split_set_add_get l i1 i2 :=
   destruct (nat_eq_dec i1 i2);
-  decompose sum (lt_eq_lt_dec i2 (#l));
-  subst; sigma; try lia.
+  decompose sum (lt_eq_lt_dec i2 (#l)); subst;
+  sigma; try lia.
 
 Local Ltac split_set_get_eq l i :=
-  decompose sum (le_lt_dec (#l) i);
-  sigma.
+  decompose sum (le_lt_dec (#l) i); sigma.
 
 Local Ltac split_set_get i1 i2 :=
-  destruct (nat_eq_dec i1 i2);
-  subst; sigma; try lia.
+  destruct (nat_eq_dec i1 i2); subst; sigma; try lia.
 
 Local Ltac split_add_get l i :=
-  decompose sum (lt_eq_lt_dec i (#l));
-  subst; sigma.
+  decompose sum (lt_eq_lt_dec i (#l)); subst; sigma.
 
 Ltac omicron :=
   sigma;
@@ -383,10 +374,99 @@ Ltac omicron :=
   end.
 
 (* ------------------------------------------------------------------------- *)
+(* sigma tests                                                               *)
+(* ------------------------------------------------------------------------- *)
+
+Local Ltac test_with T :=
+  intros; T; reflexivity.
+
+Local Lemma test_rewrite_get_default1 : forall {A} d (l : list A) i,
+  #l < i ->
+  l[i] or d = d.
+Proof. test_with sigma. Qed.
+
+Local Lemma test_rewrite_get_default2 : forall {A} d (l : list A),
+  l[#l] or d = d.
+Proof. test_with sigma. Qed.
+
+Local Lemma test_rewrite_set_invalid : forall {A} (l : list A) i a,
+  #l <= i ->
+  l[i <- a] = l.
+Proof. test_with sigma. Qed.
+
+Local Lemma test_rewrite_add_get_eq : forall {A} d (l : list A) a,
+  (l +++ a)[#l] or d = a.
+Proof. test_with sigma. Qed.
+
+Local Lemma test_rewrite_add_get_lt : forall {A} d (l : list A) i a,
+  i < #l ->
+  (l +++ a)[i] or d = l[i] or d.
+Proof. test_with sigma. Qed.
+
+Local Lemma test_rewrite_add_get_gt : forall {A} d (l : list A) i a,
+  #l < i ->
+  (l +++ a)[i] or d = d.
+Proof. test_with sigma. Qed.
+
+Local Lemma test_rewrite_set_get_eq : forall {A} d (l : list A) i a,
+  i < #l ->
+  l[i <- a][i] or d = a.
+Proof. test_with sigma. Qed.
+
+Local Lemma test_rewrite_set_get_neq1 : forall {A} d (l : list A) i j a,
+  i <> j ->
+  l[j <- a][i] or d = l[i] or d.
+Proof. test_with sigma. Qed.
+
+Local Lemma test_rewrite_set_get_neq2 : forall {A} d (l : list A) i j a,
+  j <> i ->
+  l[j <- a][i] or d = l[i] or d.
+Proof. test_with sigma. Qed.
+
+Local Lemma test_rewrite_set_get_lt : forall {A} d (l : list A) i j a,
+  i < j ->
+  l[j <- a][i] or d = l[i] or d.
+Proof. test_with sigma. Qed.
+
+Local Lemma test_rewrite_set_get_gt : forall {A} d (l : list A) i j a,
+  j < i ->
+  l[j <- a][i] or d = l[i] or d.
+Proof. test_with sigma. Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* forall                                                                    *)
+(* ------------------------------------------------------------------------- *)
+
+Definition forall_array {A} (d : A) (P : A -> Prop) (l : list A) : Prop :=
+  forall i, P (l[i] or d).
+
+(* TODO: Am I using this?
+
+Lemma forall_array_add : forall {A} (P : A -> Prop) d l a,
+  P d ->
+  P a ->
+  forall_array d P l ->
+  forall_array d P (l +++ a).
+Proof.
+  intros ** ?. omicron; trivial.
+Qed.
+
+Lemma forall_array_set : forall {A} (P : A -> Prop) d l i a,
+  P d ->
+  P a ->
+  forall_array d P l ->
+  forall_array d P l[i <- a].
+Proof.
+  intros ** ?. do 2 (omicron; trivial).
+Qed.
+
+*)
+
+(* ------------------------------------------------------------------------- *)
 (* misc. lemmas                                                              *)
 (* ------------------------------------------------------------------------- *)
 
-(* TODO: Are these being used? *)
+(* TODO: Are these being used?
 
 Lemma add_length_neq : forall {A} (l : list A) a,
   l <> l +++ a.
@@ -410,92 +490,6 @@ Lemma add_inv_head : forall {A} (l : list A) a1 a2,
 Proof.
   unfold add. intros * H. eapply app_inv_head in H. inversion H. reflexivity.
 Qed.
-
-(* ------------------------------------------------------------------------- *)
-(* sigma tests                                                               *)
-(* ------------------------------------------------------------------------- *)
-
-Local Ltac test_with T :=
-  intros; T; reflexivity.
-
-Local Lemma test_rewrite_get_default1 : forall {A} default (l : list A) i,
-  #l < i ->
-  l[i] or default = default.
-Proof. test_with sigma. Qed.
-
-Local Lemma test_rewrite_get_default2 : forall {A} default (l : list A),
-  l[#l] or default = default.
-Proof. test_with sigma. Qed.
-
-Local Lemma test_rewrite_set_invalid : forall {A} (l : list A) i a,
-  #l <= i ->
-  l[i <- a] = l.
-Proof. test_with sigma. Qed.
-
-Local Lemma test_rewrite_add_get_eq : forall {A} default (l : list A) a,
-  (l +++ a)[#l] or default = a.
-Proof. test_with sigma. Qed.
-
-Local Lemma test_rewrite_add_get_lt : forall {A} default (l : list A) i a,
-  i < #l ->
-  (l +++ a)[i] or default = l[i] or default.
-Proof. test_with sigma. Qed.
-
-Local Lemma test_rewrite_add_get_gt : forall {A} default (l : list A) i a,
-  #l < i ->
-  (l +++ a)[i] or default = default.
-Proof. test_with sigma. Qed.
-
-Local Lemma test_rewrite_set_get_eq : forall {A} default (l : list A) i a,
-  i < #l ->
-  l[i <- a][i] or default = a.
-Proof. test_with sigma. Qed.
-
-Local Lemma test_rewrite_set_get_neq1 : forall {A} default (l : list A) i j a,
-  i <> j ->
-  l[j <- a][i] or default = l[i] or default.
-Proof. test_with sigma. Qed.
-
-Local Lemma test_rewrite_set_get_neq2 : forall {A} default (l : list A) i j a,
-  j <> i ->
-  l[j <- a][i] or default = l[i] or default.
-Proof. test_with sigma. Qed.
-
-Local Lemma test_rewrite_set_get_lt : forall {A} default (l : list A) i j a,
-  i < j ->
-  l[j <- a][i] or default = l[i] or default.
-Proof. test_with sigma. Qed.
-
-Local Lemma test_rewrite_set_get_gt : forall {A} default (l : list A) i j a,
-  j < i ->
-  l[j <- a][i] or default = l[i] or default.
-Proof. test_with sigma. Qed.
-
-(* ------------------------------------------------------------------------- *)
-(* forall                                                                    *)
-(* ------------------------------------------------------------------------- *)
-
-Definition forall_array {A} (default : A) (P : A -> Prop) (l : list A) : Prop :=
-  forall i, P (l[i] or default).
-
-(* TODO: Am I using this?
-
-Lemma forall_array_add : forall {A} (P : A -> Prop) default l a,
-  P default ->
-  P a ->
-  forall_array default P l ->
-  forall_array default P (l +++ a).
-Proof.
-  intros ** ?. omicron; trivial.
-Qed.
-
-Lemma forall_array_set : forall {A} (P : A -> Prop) default l i a,
-  P default ->
-  P a ->
-  forall_array default P l ->
-  forall_array default P l[i <- a].
-Proof.
-  intros ** ?. do 2 (omicron; trivial).
-Qed.
-
+ 
 *)
+

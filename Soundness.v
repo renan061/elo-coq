@@ -1,18 +1,19 @@
-From Coq Require Import Lists.List.
 From Coq Require Import Lia.
 
 From Elo Require Import Core.
-From Elo Require Import Properties.
-From Elo Require Import Preservation.
 
-Local Lemma safe_preserves_inclusion : forall Gamma Gamma',
-  Gamma includes Gamma' ->
-  (safe Gamma) includes (safe Gamma').
+From Elo Require Import WellTypedTerm.
+From Elo Require Import ValidAddresses.
+From Elo Require Import ValidReferences.
+
+Local Lemma safe_preserves_inclusion : forall Gamma1 Gamma2,
+  Gamma1 includes Gamma2 ->
+  (safe Gamma1) includes (safe Gamma2).
 Proof.
   unfold inclusion, safe. intros * H *.
-  destruct (Gamma k) eqn:E1; destruct (Gamma' k) eqn:E2;
-  solve [ intros F; inversion F
-        | eapply H in E2; rewrite E1 in E2; inversion E2; subst; trivial
+  destruct (Gamma1 k) eqn:E1; destruct (Gamma2 k) eqn:E2;
+  solve [ intros F; inv F
+        | eapply H in E2; rewrite E1 in E2; inv E2; trivial
         ].
 Qed.
 
@@ -20,20 +21,20 @@ Local Lemma update_safe_includes_safe_update : forall Gamma k T,
   (safe Gamma)[k <== T] includes (safe Gamma[k <== T]).
 Proof.
   intros ? ? ? k' ? H. unfold safe in H. 
-  destruct (string_eq_dec k k'); subst.
-  - rewrite lookup_update_eq in *. destruct T; inversion H; subst; trivial.
+  destruct (str_eq_dec k k'); subst.
+  - rewrite lookup_update_eq in *. destruct T; inv H; trivial.
   - rewrite lookup_update_neq in *; trivial.
 Qed.
 
-Local Lemma context_weakening : forall Gamma Gamma' t T,
-  Gamma' |-- t is T ->
-  Gamma includes Gamma' ->
-  Gamma  |-- t is T.
+Local Lemma context_weakening : forall Gamma1 Gamma2 t T,
+  Gamma2 |-- t is T ->
+  Gamma1 includes Gamma2 ->
+  Gamma1  |-- t is T.
 Proof.
-  intros. generalize dependent Gamma. induction_type; intros;
-  eauto using type_of,
-    safe_preserves_inclusion,
-    MapInclusion.update_inclusion.
+  intros. generalize dependent Gamma1.
+  ind_typeof; intros; eauto using type_of,
+                                  safe_preserves_inclusion,
+                                  MapInclusion.update_inclusion.
 Qed.
 
 Local Corollary context_weakening_empty : forall Gamma t T,
@@ -47,172 +48,159 @@ Qed.
 (* preservation                                                              *)
 (* ------------------------------------------------------------------------- *)
 
-Local Lemma typeof_subst_preservation : forall t tx T Tx Tx' Gamma x,
-  Gamma |-- <{ fn x Tx t }> is <{{ Tx' --> T }}> ->
-  empty |-- tx is Tx' ->
-  Gamma |-- [x := tx] t is T.
+Local Lemma typeof_subst : forall t tx T Tx Gamma x,
+  Gamma[x <== Tx] |-- t is T ->
+  empty |-- tx is Tx ->
+  Gamma |-- <{[x := tx] t}> is T.
 Proof.
-  assert (forall t tx T Tx Gamma x,
-    Gamma[x <== Tx] |-- t is T ->
-    empty |-- tx is Tx ->
-    Gamma |-- ([x := tx] t) is T
-  ). {
-    unfold subst. intros ?. induction t; intros * Htype ?; 
-    try (destruct string_eq_dec); try inv_type;
-    eauto using type_of, context_weakening, context_weakening_empty,
-      MapInclusion.update_overwrite, MapInclusion.update_permutation,
-      update_safe_includes_safe_update;
-    match goal with
-    | H : _[_ <== _] _ = _ |- _ =>
-      try (erewrite lookup_update_eq in H || erewrite lookup_update_neq in H);
-      inversion H; subst; eauto using context_weakening_empty, type_of
-    end.
-  }
-  intros. inv_type. eauto.
+  intros ?. induction t; intros * Htype ?; invc_typeof; eauto using type_of;
+  eauto using update_safe_includes_safe_update, context_weakening, type_of;
+  eauto using context_weakening_empty, type_of;
+  simpl; destruct str_eq_dec; subst;
+  eauto using MapInclusion.update_overwrite, context_weakening, type_of;
+  eauto using MapInclusion.update_permutation, context_weakening, type_of;
+  match goal with | H : _[_ <== _] _ = _ |- _ => rename H into Hty end.
+  - rewrite lookup_update_eq in Hty.
+    invc Hty. eauto using context_weakening_empty.
+  - rewrite lookup_update_neq in Hty; eauto using type_of.
 Qed.
 
-Local Lemma typeof_tstep_spawn_preservation : forall t t' block T,
-  empty |-- t is T ->
-  t --[EF_Spawn block]--> t' ->
-  empty |-- t' is T.
+Local Lemma typeof_preservation_mstep : forall m1 m2 t1 t2 e T,
+  valid_references m1 t1 ->
+  (* --- *)
+  empty |-- t1 is T ->
+  m1 / t1 ==[e]==> m2 / t2 ->
+  empty |-- t2 is T.
+Proof.
+  intros. invc_mstep;
+  generalize dependent T; ind_tstep; intros;
+  invc_vr; invc_typeof; eauto using type_of;
+  repeat invc_typeof; repeat invc_vr; eauto using typeof_subst, type_of.
+Qed.
+
+Local Lemma typeof_preservation_mem_mstep : forall m1 m2 t1 t2 e ad T,
+  well_typed_term t1 ->
+  valid_references m1 t1 ->
+  (* --- *)
+  ad < #m1 ->
+  empty |-- m1[ad].t is T ->
+  m1 / t1 ==[e]==> m2 / t2 ->
+  empty |-- m2[ad].t is T.
+Proof.
+  intros * [T1 ?] **. invc_mstep; sigma; trivial; omicron; trivial.
+  generalize dependent T1. ind_tstep; intros; invc_typeof; invc_vr; eauto.
+  invc_typeof. invc_vr. apply_deterministic_typing. eauto.
+Qed.
+
+Lemma typeof_preservation_spawn : forall t1 t2 tid t T,
+  empty |-- t1 is T ->
+  t1 --[e_spawn tid t]--> t2 ->
+  empty |-- t2 is T.
 Proof.
   intros. remember empty as Gamma. generalize dependent T.
-  induction_tstep; intros; inv_type; eauto using type_of.
+  ind_tstep; intros; inv_typeof; eauto using type_of.
 Qed.
 
-Local Lemma typeof_mstep_preservation : forall m m' t t' e T,
-  consistently_typed_references m t ->
-  empty |-- t is T ->
-  m / t ==[e]==> m' / t' ->
-  empty |-- t' is T.
+Lemma typeof_preservation_spawned : forall t1 t2 tid t T1,
+  empty |-- t1 is T1 ->
+  t1 --[e_spawn tid t]--> t2 ->
+  exists T, empty |-- t is T.
 Proof.
-  intros.
-  invc_mstep; generalize dependent t'; remember empty as Gamma;
-  induction_type; intros; inv_tstep; inv_ctr;
-  eauto using type_of, typeof_subst_preservation;
-  inv_type; inv_ctr; trivial.
+  intros. generalize dependent T1.
+  ind_tstep; intros; inv_typeof; eauto.
 Qed.
 
-Local Lemma typeof_mstep_mem_preservation : forall m m' t t' e ad T Tm,
-  consistently_typed_references m t ->
-  ad < #m ->
-  empty |-- t is T ->
-  empty |-- m[ad].tm is Tm ->
-  m / t ==[e]==> m' / t' ->
-  empty |-- m'[ad].tm is Tm.
-Proof.
-  intros * ? ? Htype ? ?. rename ad into ad'.
-  invc_mstep; try simpl_array; trivial.
-  decompose sum (lt_eq_lt_dec ad' ad); subst; simpl_array; trivial.
-  generalize dependent t'. remember empty as Gamma.
-  induction Htype; inv HeqGamma; intros;
-  try inv_ctr; inv_tstep; eauto.
-  inv_type; inv_ctr; apply_deterministic_typing. eauto.
-Qed.
+Definition thread_types (ths : threads) (tys: list ty) :=
+  #ths = #tys /\ forall i, empty |-- ths[i] is (tys[i] or `Unit`).
 
-Lemma typeof_spawn_block_preservation : forall t t' block T,
-  empty |-- t is T ->
-  t --[EF_Spawn block]--> t' ->
-  exists Tb, empty |-- block is Tb.
+Theorem type_preservation : forall m1 m2 ths1 ths2 tys tid e,
+  forall_threads ths1 (valid_references m1) ->
+  (* --- *)
+  thread_types ths1 tys ->
+  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+  (thread_types ths2 tys \/ exists T, thread_types ths2 (tys +++ T)).
 Proof.
-  intros. remember empty as Gamma. generalize dependent T.
-  induction_tstep; intros; inv_type; eauto.
-Qed.
-
-Definition thread_types (ths : threads) (TT: list typ) :=
-  #ths = #TT /\ forall i, empty |-- ths[i] is (TT[i] or <{{ Unit }}>).
-
-Theorem type_preservation : forall m m' ths ths' tid e TT,
-  forall_threads ths (consistently_typed_references m) ->
-  thread_types ths TT ->
-  m / ths ~~[tid, e]~~> m' / ths' ->
-  (thread_types ths' TT \/ exists T, thread_types ths' (TT +++ T)).
-Proof.
-  intros * ? [? ?]. intros. inv_cstep.
+  intros * ? [Heq ?] **. inv_cstep.
+  - left. split; sigma; trivial.
+    intros ?. omicron; eauto using typeof_preservation_mstep.
   - right.
-    assert (exists T, empty |-- block is T) as [? ?]
-        by eauto using typeof_spawn_block_preservation.
-    eexists. split.
-    + rewrite 2 add_increments_length. rewrite set_preserves_length. eauto.
-    + intros i. decompose sum (lt_eq_lt_dec i (#ths)); subst; simpl_array.
-      * rewrite H0 in a0.
-        decompose sum (lt_eq_lt_dec i tid); subst; simpl_array;
-        eauto using typeof_tstep_spawn_preservation.
-      * rewrite H0. simpl_array. eauto.
-      * rewrite H0 in b.
-        simpl_array. eauto using type_of.
-  - left. split.
-    + rewrite set_preserves_length. trivial.
-    + intros i. decompose sum (lt_eq_lt_dec i tid); subst; simpl_array;
-      eauto using typeof_mstep_preservation.
+    assert (exists T, empty |-- te is T) as [? ?]
+        by eauto using typeof_preservation_spawned.
+    eexists. split; sigma; eauto.
+    intros ?. omicron;
+    repeat match goal with
+    | H : #ths1 < _ |- _ => rewrite Heq in H
+    | H : _ < #ths1 |- _ => rewrite Heq in H
+    | |- context C [ #ths1 ] => rewrite Heq 
+    end;
+    sigma; eauto using typeof_preservation_spawn, type_of.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
 
-Theorem basic_progress : forall m t,
-  valid_addresses m t ->
-  consistently_typed_references m t ->
+Local Ltac destruct_IH :=
+  repeat auto_specialize;
+  match goal with
+  | H : safe empty = empty -> _ |- _ =>
+    specialize (H empty_eq_safe_empty); destruct_IH
+  | IH : value ?t
+    \/   (exists _ _ _, _ / ?t ==[_]==> _/ _)
+    \/   (exists _ _ _, ?t --[e_spawn _ _]--> _)
+    |-   _ =>
+    destruct IH as [? | [[? [? [? ?]]] | [? [? [? ?]]]]]
+  end.
+
+Local Ltac solve_progress :=
+  try solve [left; repeat eexists; eauto using value, tstep, mstep];
+  match goal with
+  | Hval : value ?t1, _ : _ |-- ?t1 is `?T --> _`, _ : _ |-- ?t2 is ?T |- _ =>
+    invc Hval; invc_typeof
+  | Hval : value ?t1, _ : _ |-- ?t1 is `Safe ?T`, _ : _ |-- ?t2 is ?T |- _ =>
+    invc Hval; invc_typeof
+  | Hval : value ?t, _ : _ |-- ?t is _ |- _ =>
+    invc Hval; invc_typeof; repeat invc_vad; repeat invc_vr
+  | Hmstep : _ / _ ==[?e]==> ?m2 / _ |- _ =>
+    left; exists e, m2; eexists; invc_mstep; eauto using value, tstep, mstep
+  | Htstep : _ --[e_spawn _ _]--> _ |- _ =>
+    right; repeat eexists; eauto using value, tstep
+  end.
+
+Theorem basic_progress : forall m1 t1,
+  valid_addresses m1 t1 ->
+  valid_references m1 t1 ->
   (* --- *)
-  well_typed_term t ->
-  (value t
-    \/ (exists e m' t', m / t ==[e]==> m' / t')
-    \/ (exists block t', t --[EF_Spawn block]--> t')).
+  well_typed_term t1 ->
+  (value t1
+    \/ (exists e m2 t2, m1 / t1 ==[e]==> m2 / t2)
+    \/ (exists tid t t2, t1 --[e_spawn tid t]--> t2)).
 Proof.
   intros * ? ? [T ?]. remember empty as Gamma.
-  induction_type; try inv_vad; try inv_ctr;
-  try solve [left; eauto using value];
-  right;
-  try solve
-    [ destruct IHtype_of as [? | [[e [? [? ?]]] | [? [? ?]]]];
-      eauto using tstep; left;
-      try solve [ do 3 eexists; eauto using tstep, mstep
-                | exists e; do 2 eexists;
-                  destruct e; inv_mstep; eauto using tstep, mstep
-                ]
-    ].
-  - destruct IHtype_of as [Hval | [[e [? [? ?]]] | [? [? ?]]]];
-    eauto using tstep.
-    + left. destruct t; inv Hval; inv_type. inv_vad.
-      eauto using tstep, mstep.
-    + left. exists e. exists x. eexists.
-      destruct e; inv_mstep; eauto using tstep, mstep.
-  - destruct IHtype_of as [Hval | [[e [? [? ?]]] | [? [? ?]]]];
-    eauto using tstep.
-    + left. destruct t; inv Hval; inv_type. inv_vad.
-      eauto using tstep, mstep.
-    + left. exists e. exists x. eexists.
-      destruct e; inv_mstep; eauto using tstep, mstep.
-  - destruct IHtype_of1 as [Hval1 | [[e1 [? [? ?]]] | [? [? ?]]]];
-    eauto using tstep.
-    + destruct IHtype_of2 as [Hval2 | [[e2 [? [? ?]]] | [? [? ?]]]];
-      eauto using tstep.
-      * destruct Hval1; inv H1_.
-        left. do 3 eexists. inv_vad; eauto using tstep, mstep.
-      * left. exists e2. exists x. eexists. 
-        destruct e2; inv_mstep; eauto using tstep, mstep.
-    + left. exists e1. exists x. eexists. 
-      destruct e1; inv_mstep; eauto using tstep, mstep.
-  - subst. inv H1.
-  - destruct IHtype_of1 as [Hval1 | [[e1 [? [? ?]]] | [? [? ?]]]];
-    eauto using tstep.
-    + destruct IHtype_of2 as [Hval2 | [[e2 [? [? ?]]] | [? [? ?]]]];
-      eauto using tstep.
-      * destruct Hval1; inv H1_.
-        left. do 3 eexists. inv_vad; eauto using tstep, mstep.
-      * left. exists e2. exists x. eexists. 
-        destruct e2; inv_mstep; eauto using tstep, mstep.
-    + left. exists e1. exists x. eexists. 
-      destruct e1; inv_mstep; eauto using tstep, mstep.
-  - destruct IHtype_of1 as [Hval1 | [[e1 [? [? ?]]] | [? [? ?]]]];
-    eauto using tstep.
-    + destruct IHtype_of2 as [Hval2 | [[e2 [? [? ?]]] | [? [? ?]]]];
-      eauto using tstep.
-      * left. do 3 eexists. eauto using tstep, mstep.
-      * left. do 3 eexists. eauto using tstep, mstep.
-      * left. do 3 eexists. eauto using tstep, mstep.
-    + left. exists e1. exists x. eexists. 
-      destruct e1; inv_mstep; eauto using tstep, mstep.
-Qed.
+  ind_typeof; try invc_vad; try invc_vr; eauto using value; right;
+  try solve [subst; discriminate];
+  try solve [destruct_IH; repeat solve_progress];
+  try solve [
+    destruct_IH; try solve [repeat solve_progress];
+    destruct_IH; repeat solve_progress
+  ].
+  - destruct_IH.
+    + destruct_IH; repeat solve_progress.
+      repeat invc_vad. repeat invc_vr.
+      left. repeat eexists.
+      eapply ms_acq; eauto using tstep.
+      admit.
+    + repeat solve_progress.
+    + repeat solve_progress.
+  - destruct_IH.
+    + left. repeat eexists.
+      eapply ms_rel; eauto using tstep.
+      admit.
+    + repeat solve_progress.
+    + repeat solve_progress.
+  - destruct_IH.
+    + right. eauto using tstep.
+    + right. eauto using tstep.
+    + repeat solve_progress.
+Abort.
 
 (* ------------------------------------------------------------------------- *)
 
@@ -225,6 +213,7 @@ Proof.
   intros i. specialize (H (S i)). trivial.
 Qed.
 
+(*
 Corollary forall_threads_inversion : forall (P : tm -> Prop) x xs,
   forall_threads (x :: xs) P ->
   P x /\ forall_threads xs P.
@@ -294,31 +283,36 @@ Proof.
     + right. destruct Hcstep as [? [? [? [? ?]]]]. do 4 eexists.
       eauto using cstep_cons.
 Qed.
+*)
 
 (* ------------------------------------------------------------------------- *)
 (* preservation mem                                                          *)
 (* ------------------------------------------------------------------------- *)
 
+(*
 Lemma wtt_cstep_mem_preservation : forall m m' ths ths' tid e,
-  forall_memory m well_typed_term ->
   forall_threads ths well_typed_term ->
+  (* --- *)
+  forall_memory m well_typed_term ->
   m / ths ~~[tid, e]~~> m' / ths' ->
   forall_memory m' well_typed_term.
 Proof.
-  intros. invc_cstep; trivial. invc_mstep; trivial; intros ad'.
-  - decompose sum (lt_eq_lt_dec ad' (#m)); subst; simpl_array; eauto; simpl;
+  intros. invc_cstep; trivial. invc_mstep; trivial; intros ?.
+  - omicron; eauto; simpl;
     eauto using wtt_tstep_alloc_value, type_of with wtt.
-  - decompose sum (lt_eq_lt_dec ad ad'); subst; simpl_array; eauto. simpl.
+  - omicron; eauto. simpl.
     eauto using wtt_tstep_write_value.
 Qed.
+*)
 
 (* ------------------------------------------------------------------------- *)
 (* soundness                                                                 *)
 (* ------------------------------------------------------------------------- *)
 
-Local Lemma wtt_to_TT : forall ths,
+(*
+Local Lemma wtt_to_tys : forall ths,
   forall_threads ths well_typed_term ->
-  exists TT, thread_types ths TT.
+  exists tys, thread_types ths tys.
 Proof.
   intros * H. induction ths.
   - exists nil. split; trivial.
@@ -327,9 +321,11 @@ Proof.
     destruct IHths as [TT [? ?]]; trivial.
     exists (T :: TT). split; simpl; try lia. intros i. destruct i; trivial.
 Qed.
+*)
 
 Corollary wtt_cstep_preservation : forall m m' ths ths' tid e,
-  forall_threads ths (consistently_typed_references m) ->
+  forall_threads ths (valid_references m) ->
+  (* --- *)
   forall_threads ths well_typed_term ->
   m / ths ~~[tid, e]~~> m' / ths' ->
   forall_threads ths' well_typed_term.

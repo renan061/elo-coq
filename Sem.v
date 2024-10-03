@@ -417,15 +417,15 @@ Notation " ths '[' tid ']' " := (ths[tid] or tm_default)
   (at level 9, tid at next level).
 
 Inductive cstep : mem -> threads -> nat -> eff -> mem -> threads -> Prop :=
-  | cs_mem : forall m m' t' ths tid e,
+  | cs_mem : forall m1 m2 t ths tid e,
     tid < #ths ->
-    m / ths[tid] ==[e]==> m' / t' ->
-    m / ths ~~[tid, e]~~> m' / ths[tid <- t']
+    m1 / ths[tid] ==[e]==> m2 / t ->
+    m1 / ths ~~[tid, e]~~> m2 / ths[tid <- t]
 
-  | cs_spawn : forall m t' te ths tid e,
+  | cs_spawn : forall m t te ths tid e,
     tid < #ths ->
-    ths[tid] --[e_spawn (#ths) te]--> t' ->
-    m / ths ~~[tid, e]~~> m / (ths[tid <- t'] +++ te)
+    ths[tid] --[e_spawn (#ths) te]--> t ->
+    m / ths ~~[tid, e]~~> m / (ths[tid <- t] +++ te)
 
   where "m / ths '~~[' tid , e ']~~>' m' / ths'" := (cstep m ths tid e m' ths').
 

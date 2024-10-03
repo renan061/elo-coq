@@ -18,6 +18,7 @@ properties:
 	$(COQC) ValidPointerTypes.v
 	$(COQC) ValidAddresses.v
 	$(COQC) ValidReferences.v
+	$(COQC) Soundness.v
 	# $(COQC) CTR.v
 	# $(COQC) Definitions.v
 	# $(COQC) Inversions.v

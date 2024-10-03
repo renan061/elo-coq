@@ -29,14 +29,17 @@ Inductive valid_references (m : mem) : tm -> Prop :=
     valid_references m <{call t1 t2}> 
 
   | vr_refR : forall T ad,
+    empty |-- m[ad].t is `Safe T` ->
     m[ad].T = `r&T` ->
     valid_references m <{&ad : r&T}>
 
   | vr_refX : forall T ad,
+    empty |-- m[ad].t is T ->
     m[ad].T = `x&T` ->
     valid_references m <{&ad : x&T}>
 
   | vr_refW : forall T ad,
+    empty |-- m[ad].t is T ->
     m[ad].T = `w&T` ->
     valid_references m <{&ad : w&T}>
 
@@ -108,32 +111,27 @@ Proof.
   intros. ind_tstep; inv_vr; eauto.
 Qed.
 
-Local Lemma vr_write_effect : forall m t1 t2 ad t T,
+Lemma valid_write_effect1 : forall t1 t2 ad t T,
   well_typed_term t1 ->
-  valid_references m t1 ->
   (* --- *)
   t1 --[e_write ad t T]--> t2 ->
-  T = m[ad].T.
+  exists Te, empty |-- t is Te /\ T = `w&Te`.
 Proof.
   intros * [T' ?] **. generalize dependent T'.
-  ind_tstep; intros; invc_typeof; invc_vr; eauto.
-  invc_typeof. invc_vr. eauto.
+  ind_tstep; intros; invc_typeof; eauto.
+  invc_typeof. eauto.
 Qed.
 
-(*
-Local Lemma vr_rel_effect : forall m t1 t2 otid ad,
-  well_typed_term t1 ->
+Lemma valid_write_effect2 : forall m t1 t2 ad t T,
   valid_references m t1 ->
   (* --- *)
-  t1 --[e_rel otid ad]--> t2 ->
-  exists T, empty |-- m[ad].tm is `x&T`
-         /\ m[ad].ty = `x&T`.
+  t1 --[e_write ad t `w&T`]--> t2 ->
+  m[ad].T = `w&T`.
 Proof.
-  intros * [T' ?] **. generalize dependent T'.
-  ind_tstep; intros; invc_typeof; invc_vr; eauto.
-  repeat clean. eexists.
-Abort.
-*)
+  intros.
+  ind_tstep; intros; invc_vr; eauto.
+  invc_vr. eauto.
+Qed.
 
 (* ------------------------------------------------------------------------- *)
 (* preservation                                                              *)
@@ -162,17 +160,22 @@ Proof.
   sigma; assumption.
 Qed.
 
-Lemma vr_mem_setW : forall m t ad te Te,
+Lemma vr_mem_setW : forall m t ad te T Te,
   ad < #m ->
-  Te = m[ad].T ->
+  T = `w&Te` ->
+  m[ad].T = `w&Te` ->
+  empty |-- te is Te ->
   (* --- *)
   valid_references m t ->
-  valid_references m[ad.tT <- te Te] t.
+  valid_references m[ad.tT <- te T] t.
 Proof.
-  intros.
+  intros. subst.
   induction t; try invc_vr; eauto using valid_references;
   (eapply vr_refR || eapply vr_refX || eapply vr_refW);
-  omicron; eauto.
+  omicron; trivial;
+  match goal with H1 : _[?ad1].T = _, H2 : _[?ad2].T = _ |- _ =>
+    rewrite H1 in H2; invc H2; trivial
+  end.
 Qed.
 
 Lemma vr_mem_setX : forall m t ad X,
@@ -267,7 +270,9 @@ Lemma vr_preservation_mem_write : forall m t1 t2 ad t T,
   forall_memory m[ad.tT <- t T] (valid_references m[ad.tT <- t T]).
 Proof.
   intros ** ?.
-  omicron; eauto using vr_mem_setW, vr_tstep_write_term, vr_write_effect.
+  assert (exists Te, empty |-- t is Te /\ T = `w&Te`) as [Te [? ?]]
+    by eauto using valid_write_effect1.
+  omicron; eauto using vr_mem_setW, valid_write_effect2, vr_tstep_write_term.
 Qed.
 
 Lemma vr_preservation_write : forall m t1 t2 ad t T,
@@ -279,8 +284,10 @@ Lemma vr_preservation_write : forall m t1 t2 ad t T,
   valid_references (m[ad.tT <- t T]) t2.
 Proof.
   intros.
+  assert (exists Te, empty |-- t is Te /\ T = `w&Te`) as [Te [? ?]]
+    by eauto using valid_write_effect1.
   ind_tstep; invc_wtt; invc_vr;
-  eauto using vr_mem_setW, vr_write_effect, valid_references.
+  eauto using vr_mem_setW, valid_write_effect2, valid_references.
 Qed.
 
 Lemma vr_preservation_unt_write : forall m t1 t2 tu ad t T,
@@ -293,7 +300,10 @@ Lemma vr_preservation_unt_write : forall m t1 t2 tu ad t T,
   valid_references m[ad.tT <- t T] tu.
 Proof.
   intros.
-  eauto using vr_mem_setW, vr_write_effect.
+  assert (exists Te, empty |-- t is Te /\ T = `w&Te`) as [Te [? ?]]
+    by eauto using valid_write_effect1.
+  subst.
+  eauto using vr_mem_setW, valid_write_effect2.
 Qed.
 
 (* acq --------------------------------------------------------------------- *)

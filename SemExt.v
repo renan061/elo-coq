@@ -126,8 +126,8 @@ Ltac apply_deterministic_typing :=
   | H1 : _ |-- ?t is ?T1
   , H2 : _ |-- ?t is ?T2
   |- _ =>
-    assert (Heq : T1 = T2) by eauto using deterministic_typing; subst;
-    try (invc Heq)
+    assert (Heqty : T1 = T2) by eauto using deterministic_typing; subst;
+    try (invc Heqty)
   end.
 
 (* ------------------------------------------------------------------------- *)
