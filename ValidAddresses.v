@@ -315,7 +315,7 @@ Qed.
 
 (* ------------------------------------------------------------------------- *)
 
-Corollary vad_cstep_preservation : forall m1 m2 ths1 ths2 tid e,
+Corollary vad_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
   forall_memory m1 (valid_addresses m1) ->
   forall_threads ths1 (valid_addresses m1) ->
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
