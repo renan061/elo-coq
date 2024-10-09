@@ -1,257 +1,262 @@
-From Coq Require Import Arith.Arith.
-From Coq Require Import Lists.List.
 From Coq Require Import Lia.
+From Coq Require Import Lists.List.
 
-From Elo Require Import Map.
-From Elo Require Import Properties.
-From Elo Require Import Lemmas.
-From Elo Require Import Preservation.
-From Elo Require Import PtrTyp.
-From Elo Require Import Soundness.
-From Elo Require Import Multistep.
+From Elo Require Import Core.
 
-Local Lemma multistep_app : forall m1 m2 m3 ths1 ths2 ths3 tcA tcB,
-  m1 / ths1 ~~[tcA]~~>* m2 / ths2 ->
-  m2 / ths2 ~~[tcB]~~>* m3 / ths3 ->
-  m1 / ths1 ~~[tcB ++ tcA]~~>* m3 / ths3.
-Proof.
-  intros * ? Hmultistep. induction Hmultistep; eauto using multistep.
-Qed.
+(* ------------------------------------------------------------------------- *)
+(* monotonic-nondecreasing                                                   *)
+(* ------------------------------------------------------------------------- *)
 
-Local Corollary multistep_append : forall m1 m2 m3 ths1 ths2 ths3 tid e tc,
+Lemma cstep_nondecreasing_memory : forall m1 m2 ths1 ths2 tid e,
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
-  m2 / ths2 ~~[tc]~~>* m3 / ths3 ->
-  m1 / ths1 ~~[tc +++ (tid, e)]~~>* m3 / ths3.
+  #m1 <= #m2.
 Proof.
-  eauto using multistep, multistep_app.
+  intros. invc_cstep; trivial. invc_mstep; trivial; sigma; lia.
 Qed.
 
-Local Lemma destruct_multistep2 : forall tc m1 m3 ths1 ths3 tid e,
-  m1 / ths1  ~~[tc ++ (tid, e) :: nil]~~>* m3 / ths3 ->
-  (exists m2 ths2,
-    m1 / ths1 ~~[tid, e]~~> m2 / ths2 /\
-    m2 / ths2 ~~[tc]~~>*    m3 / ths3).
+Lemma ustep_nondecreasing_memory : forall m1 m2 ths1 ths2 tc,
+  m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+  #m1 <= #m2.
 Proof.
-  intros ?. induction tc; intros * Hmultistep; invc_mulst.
-  - inv_mulst. eauto using multistep.
+  intros. ind_ustep; trivial.
+  assert (#m2 <= #m3) by eauto using cstep_nondecreasing_memory. lia.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* happens-before                                                            *)
+(* ------------------------------------------------------------------------- *)
+
+Notation " tc '[' ev '].ev' " := (tc[ev] or tc_default)
+  (at level 9, ev at next level).
+
+Notation " tc '[' ev '].tid' " := (fst (tc[ev] or tc_default))
+  (at level 9, ev at next level).
+
+Notation " tc '[' ev '].eff' " := (snd (tc[ev] or tc_default))
+  (at level 9, ev at next level).
+
+Reserved Notation "evA '<<' evB 'in' tc" (at level 50).
+
+Inductive happens_before (tc : trace) : nat -> nat -> Prop :=
+  | hb_thread : forall evA evB,
+    evB < evA ->
+    tc[evA].tid = tc[evB].tid ->
+    evA << evB in tc
+
+  | hb_sync : forall evA evB tidA tidB ad t,
+    evB < evA ->
+    tc[evA].ev = (tidA, e_rel ad) ->
+    tc[evB].ev = (tidB, e_acq ad t) ->
+    evA << evB in tc
+
+  | hb_spawn : forall evA evB tid t,
+    evB < evA -> (* TODO: is this necessary? *)
+    tc[evA].eff = e_spawn tid t ->
+    tc[evB].tid = tid ->
+    evA << evB in tc
+
+  | hb_trans : forall evA evB evC,
+    evA << evB in tc ->
+    evB << evC in tc ->
+    evA << evC in tc
+
+  where "evA '<<' evB 'in' tc" := (happens_before tc evA evB).
+
+(* ------------------------------------------------------------------------- *)
+(* safety                                                                    *)
+(* ------------------------------------------------------------------------- *)
+
+Local Lemma destruct_ustep2 : forall tc m1 m3 ths1 ths3 tid e,
+  m1 / ths1 ~~[tc +++ (tid, e)]~~>* m3 / ths3 ->
+  (exists m2 ths2,
+    m1 / ths1 ~~[tid, e]~~>  m2 / ths2 /\
+    m2 / ths2 ~~[  tc  ]~~>* m3 / ths3).
+Proof.
+  intros ?. induction tc; intros; invc_ustep.
+  - inv_ustep. eauto using multistep.
   - match goal with
-    | Hmultistep : _ / _ ~~[ _ ]~~>* _ / _ |- _ => 
-      decompose record (IHtc _ _ _ _ _ _ Hmultistep); eauto using multistep
+    | Hustep : _ / _ ~~[ _ ]~~>* _ / _ |- _ => 
+      decompose record (IHtc _ _ _ _ _ _ Hustep); eauto using multistep
     end.
 Qed.
 
-Local Lemma destruct_multistep3 : forall tc m1 m4 ths1 ths4 tid1 tid2 e1 e2,
-  m1 / ths1  ~~[(tid2, e2) :: tc ++ (tid1, e1) :: nil]~~>* m4 / ths4 ->
+Local Lemma destruct_ustep3 : forall tc m1 m4 ths1 ths4 tid1 tid2 e1 e2,
+  m1 / ths1  ~~[(tid2, e2) :: tc +++ (tid1, e1)]~~>* m4 / ths4 ->
   (exists m2 ths2 m3 ths3,
     m1 / ths1 ~~[tid1, e1]~~> m2 / ths2 /\
     m2 / ths2 ~~[tc]~~>*      m3 / ths3 /\
     m3 / ths3 ~~[tid2, e2]~~> m4 / ths4 ).
 Proof.
-  intros. invc_mulst.
+  intros. invc_ustep.
   match goal with H : _ / _ ~~[_]~~>* _ / _ |- _ =>
-    eapply destruct_multistep2 in H; decompose record H
+    eapply destruct_ustep2 in H; decompose record H
   end.
-  do 4 eexists. splits 3; eauto.
+  repeat eexists; eauto.
 Qed.
 
-(* ------------------------------------------------------------------------- *)
-(* TODO                                                                      *)
-(* ------------------------------------------------------------------------- *)
-
-Theorem nacc_preservation_multistep : forall m m' ths ths' tid ad tc,
-  valid_program m ths ->
-  (* --- *)
-  ad < #m ->
-  tid < #ths ->
-  ~ access ad m ths[tid] ->
-  m / ths ~~[tc]~~>* m' / ths' ->
-  ~ access ad m' ths'[tid].
+Local Lemma unlock_requires_release : forall tc m1 m2 ths1 ths2 ad,
+  ad < #m1 ->
+  m1[ad].X = true ->
+  m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+  m2[ad].X = false ->
+  exists tid, In (tid, e_rel ad) tc.
 Proof.
-  intros. induction_mulst; eauto.
-  assert (#m   <= #m')   by eauto using multistep_nondecreasing_memory_length.
-  assert (#ths <= #ths') by eauto using multistep_nondecreasing_threads_length.
-  assert (valid_program m' ths') by eauto using vp_preservation.
-  eapply nacc_preservation in Hcstep; eauto with vp; try lia.
+  induction tc; intros * Had Hx1 ? Hx2; invc_ustep.
+  - rewrite Hx1 in Hx2. discriminate.
+  - simpl. rename m3 into m.
+    rename H4 into Hustep.
+    specialize (IHtc _ _ _ _ ad Had Hx1 Hustep). invc_cstep.
+    + assert (#m1 <= #m) by eauto using ustep_nondecreasing_memory.
+      assert (ad < #m) by lia.
+      invc_mstep.
+      * auto_specialize. destruct IHtc. eauto.
+      * sigma. auto_specialize. destruct IHtc. eauto.
+      * auto_specialize. destruct IHtc. eauto.
+      * omicron; auto_specialize; destruct IHtc; eauto.
+      * omicron; auto_specialize; destruct IHtc; eauto.
+      * omicron; eauto. auto_specialize. destruct IHtc. eauto.
+    + auto_specialize. destruct IHtc. eauto.
 Qed.
 
-Theorem spawned_thread_nacc_or_sacc : forall m m' ths ths' tid ad e,
-  forall_memory m (valid_addresses m) ->
-  forall_threads ths (valid_addresses m) ->
-  forall_threads ths well_typed_term ->
-  forall_threads ths safe_spawns ->
-  safe_memory_sharing m ths ->
-  (* --- *)
-  ad < #m ->
-  m / ths ~~[tid, e]~~> m' / ths' ->
-  ~ access ad m' ths'[#ths] \/ safe_access ad m' ths'[#ths].
+Local Lemma lock_requires_acquire : forall tc m1 m2 ths1 ths2 ad,
+  ad < #m1 ->
+  m1[ad].X = false ->
+  m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+  m2[ad].X = true ->
+  exists tid t, In (tid, e_acq ad t) tc.
 Proof.
-  intros. destruct (acc_dec ad m' ths'[#ths]); subst; eauto.
-  right. split; trivial. inv_cstep; simpl_array; eauto using spawn_nuacc.
-  intros ?. inv_uacc.
+  induction tc; intros * Had Hx1 ? Hx2; invc_ustep.
+  - rewrite Hx1 in Hx2. discriminate.
+  - simpl. rename m3 into m.
+    rename H4 into Hustep.
+    specialize (IHtc _ _ _ _ ad Had Hx1 Hustep). invc_cstep.
+    + assert (#m1 <= #m) by eauto using ustep_nondecreasing_memory.
+      assert (ad < #m) by lia.
+      invc_mstep.
+      * auto_specialize. decompose record IHtc. eauto.
+      * sigma. auto_specialize. decompose record IHtc. eauto.
+      * auto_specialize. decompose record IHtc. eauto.
+      * omicron; auto_specialize; decompose record IHtc; eauto.
+      * omicron; eauto. auto_specialize. decompose record IHtc. eauto.
+      * omicron. auto_specialize. decompose record IHtc. eauto.
+    + auto_specialize. decompose record IHtc. eauto.
 Qed.
 
-Theorem nacc_or_sacc_cstep : forall m m' ths ths' tid tid' ad e,
-  forall_memory m (valid_addresses m) ->
-  forall_threads ths (valid_addresses m) ->
-  forall_threads ths well_typed_term ->
-  forall_threads ths safe_spawns ->
-  safe_memory_sharing m ths ->
-  (* --- *)
-  ad < #m ->
-  ~ access ad m ths[tid] ->
-  m / ths ~~[tid', e]~~> m' / ths' ->
-  (~ access ad m' ths'[tid]) \/ (tid = #ths /\ safe_access ad m' ths'[tid]).
+Local Lemma safety_wr : forall m2 m3 ths2 ths3 tc,
+  m2 / ths2 ~~[tc]~~>* m3 / ths3 ->
+  forall m1 m4 ths1 ths4 tidW tidR ad tW tR T,
+  tidW <> tidR ->
+  m1 / ths1 ~~[tidW, e_write ad tW T]~~>  m2 / ths2 ->
+  m3 / ths3 ~~[tidR, e_read ad tR   ]~~>  m4 / ths4 ->
+  exists mD thsD mC thsC mB thsB mA thsA tcX tcY tcZ ad' t,
+    m2 / ths2 ~~[tcX              ]~~>* mA / thsA /\
+    mA / thsA ~~[tidW, e_rel ad'  ]~~>  mB / thsB /\
+    mB / thsB ~~[tcY              ]~~>* mC / thsC /\
+    mC / thsC ~~[tidR, e_acq ad' t]~~>  mD / thsD /\
+    mD / thsD ~~[tcZ              ]~~>* m3 / ths3.
 Proof.
-  intros. decompose sum (lt_eq_lt_dec tid (#ths)); subst; eauto.
-  - (* tid < #ths *)
-    eauto using nacc_preservation.
-  - (* tid = #ths *)
-    destruct (acc_dec ad m' ths'[#ths]); subst; eauto.
-    right. split; trivial.
-    inv_cstep; simpl_array; eauto using spawn_sacc. inv_acc.
-  - (* tid > #ths *)
-    destruct (nat_eq_dec tid tid'); subst; simpl_array;
-    inv_cstep; simpl_array; eauto with acc. inv_mstep; inv_tstep.
+  intros * Hustep.
+  induction Hustep as [| m2 mA m3 ths2 thsA ths3 tid e tc Hustep IH Hcstep];
+  intros * Hneq HcstepW HcstepR. 
+  - admit.
+  - 
+    inv_ustep.
+    match goal with
+    | Hustep: m2 / ths2 ~~[tc]~~>* ?m' / ?ths' |- _ =>
+      rename m' into m;
+      rename ths' into ths;
+      rename Hustep into Hustep'
+    end.
+
+    inversion Hustep
+      as [| ? mD ? ? thsD ? tidD eD ? Hustep' HcstepD]; subst;
+      clear Hustep; rename Hustep' into Hustep.
+    exists mD, thsD.
+
+    specialize (IHtc m1 m2 m3 m4 ths1 ths2 ths3 ths4 tidW tidR ad tW tR T
+      Hneq).
 Qed.
 
-Theorem nacc_or_sacc : forall m m' ths ths' tid ad tc,
-  valid_program m ths ->
-  (* --- *)
-  ad < #m ->
-  ~ access ad m ths[tid] ->
-  m / ths ~~[tc]~~>* m' / ths' ->
-  (~ access ad m' ths'[tid]) \/ (safe_access ad m' ths'[tid]).
+Local Lemma safety_wr : forall m1 m4 ths1 ths4 tc tidW tidR ad tW tR T,
+  tidW <> tidR ->
+  m1/ ths1
+    ~~[((tidR, e_read ad tR) :: tc) +++ (tidW, e_write ad tW T)]~~>*
+  m4 / ths4 ->
+  0 << (S (#tc)) in tc.
 Proof.
-  intros * Hvp Hlt Hnacc **. induction_mulst; eauto.
-  assert (#m <= #m') by eauto using multistep_nondecreasing_memory_length.
-  assert (ad < #m') by lia.
-  assert (valid_program m' ths') by eauto using vp_preservation. 
-  destruct (IHmultistep Hvp Hlt Hnacc) as [? | [? ?]]; subst; clear IHmultistep.
-  - eapply nacc_or_sacc_cstep in Hcstep as [? | [_ ?]]; subst; eauto with vp.
-  - destruct (acc_dec ad m'' ths''[tid]); eauto. right. split; trivial.
-    eapply nuacc_preservation in Hcstep; eauto with vp.
-    decompose sum (lt_eq_lt_dec tid (#ths')); subst; trivial;
-    simpl_array; inv_acc.
+  intros * Hneq Hustep.
+  eapply destruct_ustep3 in Hustep
+    as [m2 [ths2 [m3 [ths3 [HcstepW [Hustep_ HcstepR]]]]]].
+Qed.
+
+Local Lemma safety_write_read_neq : forall m1 m2 ths1 ths2 tc,
+  m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+  forall evW evR tidW tidR ad tW tR T,
+    evW < evR ->
+    tc[evW].ev = (tidW, e_write ad tW T) ->
+    tc[evR].ev = (tidR, e_read ad tR) ->
+    tidW <> tidR ->
+    evW << evR in tc.
+Proof.
+  intros ? ? ? ? ? ?. ind_ustep; intros * Hlt Hw Hr Hneq.
+  - invc Hw.
+    destruct evW; match goal with H : tc_default = _ |- _ => invc H end.
+  - destruct (nat_eq_dec evW (#tc)); destruct (nat_eq_dec evR (#tc)); subst.
+    + sigma. invc Hw. invc Hr.
+    + sigma. invc Hr.
+    + sigma. invc Hr.
+      destruct (nat_eq_dec evW 0); subst.
+      * admit.
+      * assert (0 < evW ) by eauto using Lt.neq_0_lt.
+        induction tc.
+        ** invc Hw. destruct evW; invc H1.
+        ** admit. (* TODO *)
+    + assert (evR < #tc) by (omicron; eauto; invc Hr).
+      assert (evW < #tc) by (omicron; eauto; invc Hw).
+      sigma.
+      specialize (IHmultistep evW evR tidW tidR ad tW tR T Hlt Hw Hr Hneq).
+      (* Prove that:
+        evW < #tc ->
+        evR < #tc ->
+        evW << evR in tc ->
+        evW << evR in (tc +++ (tid, e)) 
+      *)
+      shelve.
 Qed.
 
 Theorem safety_write_read :
-  forall m m' ths ths' tid1 tid2 ad v1 v2 tc tc' T,
-    valid_program m ths ->
-    (* --- *)
-    tid1 <> tid2 ->
-    m / ths ~~[tc]~~>* m' / ths' ->
-    tc <> (tid2, EF_Read ad v2) :: tc' ++ (tid1, EF_Write ad v1 T) :: nil.
+  forall m1 m2 ths1 ths2 tc evW evR tidW tidR ad tW tR T,
+    m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+    evW < evR ->
+    tc[evW].ev = (tidW, e_write ad tW T) ->
+    tc[evR].ev = (tidR, e_read ad tR) ->
+    evW << evR in tc.
 Proof.
-  intros * Hvp Hneq Hmultistep Heq. rewrite Heq in Hmultistep.
-  specialize Hvp as H; destruct H as [_ [[_ ?] [[? ?] [[_ _] [_ Hsms]]]]].
-  rename m into m1. rename ths into ths1.
-  eapply destruct_multistep3 in Hmultistep
-    as [m2 [ths2 [m3 [ths3 [Hcstep1___ [Hmultistep Hcstep2___]]]]]].
-  (* --- *)
-  assert (valid_program m2 ths2) by eauto using vp_preservation. 
-  assert (valid_program m3 ths3) by eauto using vp_preservation. 
-  (* --- *)
-  assert (ad < #m1)
-    by eauto using vad_acc, write_requires_uacc, uacc_then_acc.
-  (* --- *)
-  assert (Hacc : access ad m3 ths3[tid2])
-    by eauto using read_requires_acc.
-  assert (Huacc : unsafe_access ad m1 ths1[tid1])
-    by eauto using write_requires_uacc.
-  assert (Hnacc : ~ access ad m1 ths1[tid2])
-    by (intros ?; eapply (Hsms tid1 tid2); eauto).
-  (* --- *)
-  assert (H' : m1 / ths1 ~~[tc' +++ (tid1, EF_Write ad v1 T)]~~>* m3 / ths3)
-    by eauto using multistep_append.
-  assert (m1[ad].typ = m3[ad].typ) by eauto using memtyp_preservation.
-  eapply nacc_or_sacc in H' as [? | ?]; eauto with vp.
-  eapply (ptyp_sacc_uacc_contradiction m3 m1 ths3[tid2] ths1[tid1]);
-  eauto with vp.
+  intros * ? ? Hw Hr.
+  destruct (nat_eq_dec tidW tidR); subst.
+  - eapply hb_thread; eauto. rewrite Hw. rewrite Hr. trivial.
+  - eauto using safety_write_read_neq.
 Qed.
 
-Theorem safety_write_write :
-  forall m m' ths ths' tid1 tid2 ad v1 v2 tc tc' T1 T2,
-    valid_program m ths ->
-    (* --- *)
-    tid1 <> tid2 ->
-    m / ths ~~[tc]~~>* m' / ths' ->
-    tc <> (tid2, EF_Write ad v2 T2) :: tc' ++ (tid1, EF_Write ad v1 T1) :: nil.
-Proof.
-  intros * Hvp Hneq Hmultistep Heq. rewrite Heq in Hmultistep.
-  specialize Hvp as H; destruct H as [? [[? ?] [[? ?] [[? ?] [? Hsms]]]]].
-  rename m into m1. rename ths into ths1.
-  eapply destruct_multistep3 in Hmultistep
-    as [m2 [ths2 [m3 [ths3 [Hcstep1___ [Hmultistep Hcstep2___]]]]]].
-  (* --- *)
-  assert (valid_program m2 ths2) by eauto using vp_preservation. 
-  assert (Hvp3 : valid_program m3 ths3) by eauto using vp_preservation. 
-  destruct Hvp3 as [? [[? ?] [[? ?] [[? ?] [? Hsms3]]]]].
-  (* --- *)
-  assert (ad < #m1)
-    by eauto using vad_acc, write_requires_uacc, uacc_then_acc.
-  (* --- *)
-  assert (Huacc1 : unsafe_access ad m1 ths1[tid1])
-    by eauto using write_requires_uacc.
-  assert (Huacc3 : unsafe_access ad m3 ths3[tid2])
-    by (eapply write_requires_uacc; eauto; eapply des_vp_wtt; eauto).
-  assert (Hnacc : ~ access ad m1 ths1[tid2])
-    by (intros ?; eapply (Hsms tid1 tid2); eauto).
-  assert (Hnacc2 : ~ access ad m3 ths3[tid1])
-    by (intros ?; eapply (Hsms3 tid2 tid1); eauto).
-  (* --- *)
-  assert (H' : m1 / ths1 ~~[tc' +++ (tid1, EF_Write ad v1 T1)]~~>* m3 / ths3)
-    by eauto using multistep_append.
-  assert (m1[ad].typ = m3[ad].typ) by eauto using memtyp_preservation.
-  eapply nacc_or_sacc in H' as [? | ?];
-  eauto using uacc_then_acc.
-  eapply (ptyp_sacc_uacc_contradiction m3 m1 ths3[tid2] ths1[tid1]); eauto.
-Qed.
+(*
+(* ad guards ad' in m *)
+Definition guards ad ad' m := exists T,
+  m[ad].ty = `x&T` /\ write_access ad' m m[ad].tm.
 
-(* TODO Need to clean this proof. *)
-Theorem safety_read_write :
-  forall m m' ths ths' tid1 tid2 ad v1 v2 tc tc' T,
-    valid_program m ths ->
-    (* --- *)
-    tid1 <> tid2 ->
-    m / ths ~~[tc]~~>* m' / ths' ->
-    tc <> (tid2, EF_Write ad v2 T) :: tc' ++ (tid1, EF_Read ad v1) :: nil.
-Proof.
-  intros * Hvp Hneq Hmultistep Heq. rewrite Heq in Hmultistep.
-  specialize Hvp as H; destruct H as [_ [[_ ?] [[? ?] [[_ _] [_ Hsms]]]]].
-  rename m into m1. rename ths into ths1.
-  eapply destruct_multistep3 in Hmultistep
-    as [m2 [ths2 [m3 [ths3 [Hcstep1___ [Hmultistep Hcstep2___]]]]]].
-  (* --- *)
-  assert (Hvp2 : valid_program m2 ths2) by eauto using vp_preservation. 
-  assert (Hvp3 : valid_program m3 ths3) by eauto using vp_preservation. 
-  (* --- *)
-  assert (ad < #m1) by eauto using vad_acc, read_requires_acc.
-  (* --- *)
-  assert (Huacc3 : unsafe_access ad m3 ths3[tid2])
-    by (eapply des_vp_wtt in Hvp3; eauto using write_requires_uacc).
-  (* --- *)
-  assert (Hdec : Decidable.decidable (unsafe_access ad m1 ths1[tid1]))
-    by eauto using uacc_dec.
-  destruct Hdec as [Huacc' | Hnuacc'].
-  - destruct Hvp3 as [? [[? ?] [[? ?] [[? ?] [? Hsms3]]]]].
-    assert (Hnacc : ~ access ad m1 ths1[tid2])
-      by (intros ?; eapply (Hsms tid1 tid2); eauto).
-    assert (Hnacc2 : ~ access ad m3 ths3[tid1])
-      by (intros ?; eapply (Hsms3 tid2 tid1); eauto).
-    assert (H' : m1 / ths1 ~~[tc' +++ (tid1, EF_Read ad v1)]~~>* m3 / ths3)
-      by eauto using multistep_append.
-    assert (m1[ad].typ = m3[ad].typ) by eauto using memtyp_preservation.
-    eapply nacc_or_sacc in H' as [? | ?];
-    eauto using uacc_then_acc.
-    eapply (ptyp_sacc_uacc_contradiction m3 m3 ths3[tid2] ths3[tid2]);
-    eauto with vp.
-  - assert (Hacc : access ad m1 ths1[tid1])
-      by eauto using read_requires_acc.
-    assert (Hsacc : safe_access ad m1 ths1[tid1]) by (split; eauto).
-    assert (H' : m1 / ths1 ~~[tc' +++ (tid1, EF_Read ad v1)]~~>* m3 / ths3)
-        by eauto using multistep_append.
-    assert (m1[ad].typ = m3[ad].typ) by eauto using memtyp_preservation.
-    eapply (ptyp_sacc_uacc_contradiction m1 m3 ths1[tid1] ths3[tid2]);
-    eauto with vp.
-Qed.
+Definition guard_exclusivity m := forall ad1 ad2 ad,
+  ad1 <> ad2 ->
+  guards ad1 ad m ->
+  ~ guards ad2 ad m.
 
+Definition safe_memory_sharing1 m ths := forall tid1 tid2 ad,
+  tid1 <> tid2 ->
+  write_access ad m ths[tid1] ->
+  ~ write_access ad m ths[tid2].
+
+Definition safe_memory_sharing2 m ths := forall tid1 tid2 ad T,
+  tid1 <> tid2 ->
+  access ad m ths[tid1] ->
+  access ad m ths[tid2] ->
+  m[ad].ty = `w&T` ->
+  exists ad', guards ad' ad m.
+*)

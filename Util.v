@@ -2,6 +2,8 @@ From Coq Require Logic.ClassicalFacts.
 From Coq Require Import Logic.Decidable.
 From Coq Require Import Lia.
 
+Ltac gendep x := generalize dependent x.
+
 (* inversion shortcuts *)
 
 Ltac inv H := inversion H; subst.

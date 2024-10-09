@@ -1,9 +1,7 @@
 From Elo Require Import Core.
 
-From Elo Require Import Preservation_.
+From Elo Require Import Preservation.
 From Elo Require Import WellTypedTerm.
-From Elo Require Import ValidPointerTypes.
-From Elo Require Import ValidAddresses.
 
 (* ------------------------------------------------------------------------- *)
 (* valid_references                                                          *)
@@ -29,16 +27,19 @@ Inductive valid_references (m : mem) : tm -> Prop :=
     valid_references m <{call t1 t2}> 
 
   | vr_refR : forall T ad,
+    ad < #m ->
     empty |-- m[ad].t is `Safe T` ->
     m[ad].T = `r&T` ->
     valid_references m <{&ad : r&T}>
 
   | vr_refX : forall T ad,
+    ad < #m ->
     empty |-- m[ad].t is T ->
     m[ad].T = `x&T` ->
     valid_references m <{&ad : x&T}>
 
   | vr_refW : forall T ad,
+    ad < #m ->
     empty |-- m[ad].t is T ->
     m[ad].T = `w&T` ->
     valid_references m <{&ad : w&T}>
@@ -62,6 +63,7 @@ Inductive valid_references (m : mem) : tm -> Prop :=
     valid_references m <{acq t1 t2}>
 
   | vr_cr : forall ad t,
+    ad < #m ->
     valid_references m t ->
     valid_references m <{cr ad t}>
 
@@ -97,7 +99,7 @@ Ltac invc_vr := _vr invc.
 
 Local Lemma vr_tstep_alloc_term : forall m t1 t2 ad t T,
   valid_references m t1 ->
-  t1 --[e_alloc ad t T ]--> t2 ->
+  t1 --[e_alloc ad t T]--> t2 ->
   valid_references m t.
 Proof.
   intros. ind_tstep; inv_vr; eauto using valid_references.
@@ -105,7 +107,7 @@ Qed.
 
 Local Lemma vr_tstep_write_term : forall m t1 t2 ad t T,
   valid_references m t1 ->
-  t1 --[e_write ad t T ]--> t2 ->
+  t1 --[e_write ad t T]--> t2 ->
   valid_references m t.
 Proof.
   intros. ind_tstep; inv_vr; eauto.
@@ -148,17 +150,18 @@ Proof.
 Qed.
 
 Lemma vr_mem_add : forall m t tT,
-  valid_addresses m t ->
-  (* --- *)
   valid_references m t ->
   valid_references (m +++ tT) t.
 Proof.
-  intros.
-  induction t; eauto using valid_references;
-  inv_vad; inv_vr; eauto using valid_references;
-  (eapply vr_refR || eapply vr_refX || eapply vr_refW);
-  sigma; assumption.
+  intros. induction t; try invc_vr; eauto using valid_references;
+  (eapply vr_refR || eapply vr_refX || eapply vr_refW || eapply vr_cr);
+  sigma; eauto.
 Qed.
+
+Local Ltac invc_eq := 
+  match goal with H1 : ?x = ?a, H2 : ?x = ?b |- _ =>
+    rewrite H1 in H2; invc H2
+  end.
 
 Lemma vr_mem_setW : forall m t ad te T Te,
   ad < #m ->
@@ -169,13 +172,9 @@ Lemma vr_mem_setW : forall m t ad te T Te,
   valid_references m t ->
   valid_references m[ad.tT <- te T] t.
 Proof.
-  intros. subst.
-  induction t; try invc_vr; eauto using valid_references;
-  (eapply vr_refR || eapply vr_refX || eapply vr_refW);
-  omicron; trivial;
-  match goal with H1 : _[?ad1].T = _, H2 : _[?ad2].T = _ |- _ =>
-    rewrite H1 in H2; invc H2; trivial
-  end.
+  intros. subst. induction t; try invc_vr; eauto using valid_references;
+  (eapply vr_refR || eapply vr_refX || eapply vr_refW || eapply vr_cr);
+  sigma; eauto; omicron; trivial; invc_eq; trivial.
 Qed.
 
 Lemma vr_mem_setX : forall m t ad X,
@@ -184,10 +183,9 @@ Lemma vr_mem_setX : forall m t ad X,
   valid_references m t ->
   valid_references m[ad.X <- X] t.
 Proof.
-  intros.
-  induction t; try invc_vr; eauto using valid_references;
-  (eapply vr_refR || eapply vr_refX || eapply vr_refW);
-  omicron; eauto.
+  intros. induction t; try invc_vr; eauto using valid_references;
+  (eapply vr_refR || eapply vr_refX || eapply vr_refW || eapply vr_cr);
+  sigma; eauto; omicron; eauto.
 Qed.
 
 (* none -------------------------------------------------------------------- *)
@@ -206,8 +204,6 @@ Qed.
 
 Lemma vr_preservation_mem_alloc : forall m t1 t2 t T X,
   well_typed_term t1 ->
-  forall_memory m (valid_addresses m) ->
-  valid_addresses m t1 ->
   valid_references m t1 ->
   (* --- *)
   forall_memory m (valid_references m) ->
@@ -221,22 +217,19 @@ Qed.
 
 Lemma vr_preservation_alloc : forall m t1 t2 t T X,
   well_typed_term t1 ->
-  valid_addresses m t1 ->
   (* --- *)
   valid_references m t1 ->
   t1 --[e_alloc (#m) t T]--> t2 ->
   valid_references (m +++ (t, T, X)) t2.
 Proof.
   intros * [T ?] **. generalize dependent T.
-  ind_tstep; intros; inv_vr; inv_typeof; inv_vad;
+  ind_tstep; intros; inv_vr; inv_typeof;
   eauto using vr_mem_add, valid_references;
-  (eapply vr_refR || eapply vr_refX || eapply vr_refW);
+  (eapply vr_refR || eapply vr_refX || eapply vr_refW || eapply vr_cr);
   sigma; eauto using type_of, empty_eq_safe_empty.
 Qed.
 
 Lemma vr_preservation_unt_alloc : forall m t1 t2 tu ad t T X,
-  valid_addresses m tu ->
-  (* --- *)
   valid_references m tu ->
   t1 --[e_alloc ad t T]--> t2 ->
   valid_references (m +++ (t, T, X)) tu.
@@ -288,6 +281,7 @@ Proof.
     by eauto using valid_write_effect1.
   ind_tstep; invc_wtt; invc_vr;
   eauto using vr_mem_setW, valid_write_effect2, valid_references.
+  eapply vr_cr; sigma; eauto.
 Qed.
 
 Lemma vr_preservation_unt_write : forall m t1 t2 tu ad t T,
@@ -308,36 +302,37 @@ Qed.
 
 (* acq --------------------------------------------------------------------- *)
 
-Lemma vr_preservation_mem_acq : forall m t1 t2 tid ad t X,
+Lemma vr_preservation_mem_acq : forall m t1 t2 ad t X,
   forall_memory m well_typed_term ->
   well_typed_term t1 ->
   valid_references m t1 ->
   (* --- *)
   ad < #m ->
   forall_memory m (valid_references m) ->
-  t1 --[e_acq tid ad t]--> t2 ->
+  t1 --[e_acq ad t]--> t2 ->
   forall_memory m[ad.X <- X] (valid_references m[ad.X <- X]).
 Proof.
   intros ** ?. omicron; eauto using vr_mem_setX.
 Qed.
 
-Lemma vr_preservation_acq : forall m t1 t2 tid ad X,
+Lemma vr_preservation_acq : forall m t1 t2 ad X,
   forall_memory m (valid_references m) ->
   (* --- *)
   ad < #m ->
   valid_references m t1 ->
-  t1 --[e_acq tid ad m[ad].t]--> t2 ->
+  t1 --[e_acq ad m[ad].t]--> t2 ->
   valid_references m[ad.X <- X] t2.
 Proof.
   intros.
   ind_tstep; invc_vr; eauto using vr_mem_setX, valid_references.
   repeat invc_vr; eauto using vr_subst, vr_mem_setX, valid_references.
+  eapply vr_cr; sigma; eauto.
 Qed.
 
-Lemma vr_preservation_unt_acq : forall m t1 t2 tu tid ad t X,
+Lemma vr_preservation_unt_acq : forall m t1 t2 tu ad t X,
   ad < #m ->
   valid_references m tu ->
-  t1 --[e_acq tid ad t]--> t2 ->
+  t1 --[e_acq ad t]--> t2 ->
   valid_references m[ad.X <- X] tu.
 Proof.
   eauto using vr_mem_setX.
@@ -345,33 +340,34 @@ Qed.
 
 (* rel --------------------------------------------------------------------- *)
 
-Lemma vr_preservation_mem_rel : forall m t1 t2 tid ad X,
+Lemma vr_preservation_mem_rel : forall m t1 t2 ad X,
   forall_memory m well_typed_term ->
   well_typed_term t1 ->
   valid_references m t1 ->
   (* --- *)
   ad < #m ->
   forall_memory m (valid_references m) ->
-  t1 --[e_rel tid ad]--> t2 ->
+  t1 --[e_rel ad]--> t2 ->
   forall_memory m[ad.X <- X] (valid_references m[ad.X <- X]).
 Proof.
   intros ** ?. omicron; eauto using vr_mem_setX.
 Qed.
 
-Lemma vr_preservation_rel : forall m t1 t2 tid ad X,
+Lemma vr_preservation_rel : forall m t1 t2 ad X,
   ad < #m ->
   valid_references m t1 ->
-  t1 --[e_rel tid ad]--> t2 ->
+  t1 --[e_rel ad]--> t2 ->
   valid_references m[ad.X <- X] t2.
 Proof.
   intros.
   ind_tstep; invc_vr; eauto using vr_mem_setX, valid_references.
+  eapply vr_cr; sigma; eauto.
 Qed.
 
-Lemma vr_preservation_unt_rel : forall m t1 t2 tu tid ad X,
+Lemma vr_preservation_unt_rel : forall m t1 t2 tu ad X,
   ad < #m ->
   valid_references m tu ->
-  t1 --[e_rel tid ad]--> t2 ->
+  t1 --[e_rel ad]--> t2 ->
   valid_references m[ad.X <- X] tu.
 Proof.
   eauto using vr_mem_setX.
@@ -399,7 +395,6 @@ Qed.
 
 Theorem vr_preservation : forall m1 m2 ths1 ths2 tid e,
   forall_program m1 ths1 well_typed_term ->
-  forall_program m1 ths1 (valid_addresses m1) ->
   (* --- *)
   forall_program m1 ths1 (valid_references m1) ->
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
@@ -430,8 +425,6 @@ Qed.
 Corollary vr_cstep_preservation : forall m1 m2 ths1 ths2 tid e,
   forall_memory  m1   well_typed_term ->
   forall_threads ths1 well_typed_term ->
-  forall_memory  m1   (valid_addresses m1) ->
-  forall_threads ths1 (valid_addresses m1) ->
   (* --- *)
   forall_memory m1 (valid_references m1) ->
   forall_threads ths1 (valid_references m1) ->

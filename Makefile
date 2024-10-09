@@ -2,7 +2,7 @@
 
 COQC= coqc -Q . Elo
 
-all: core properties
+all: core properties todo 
 
 core:
 	$(COQC) Util.v
@@ -13,22 +13,20 @@ core:
 	$(COQC) Core.v
 
 properties:
-	$(COQC) Preservation_.v
+	$(COQC) Preservation.v
 	$(COQC) WellTypedTerm.v
-	$(COQC) ValidPointerTypes.v
-	$(COQC) ValidAddresses.v
 	$(COQC) ValidReferences.v
 	$(COQC) Soundness.v
-	# $(COQC) CTR.v
-	# $(COQC) Definitions.v
-	# $(COQC) Inversions.v
-	# $(COQC) Constructors.v
-	# $(COQC) Properties.v
+	$(COQC) Properties.v
 
-preservation:
-	$(COQC) SimpleLemmas.v
-	$(COQC) Preservation.v
+todo:
+	$(COQC) CriticalRegion.v
 
+safety:
+	$(COQC) Access.v
+	$(COQC) SMS.v
+	# $(COQC) Invariants.v
+	# $(COQC) Safety.
 
 clean:
 	rm -f .lia.cache .*.aux *.vo *.vok *.vos *.glob

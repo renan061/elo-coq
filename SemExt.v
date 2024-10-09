@@ -51,11 +51,11 @@ Ltac invc_ustep := _ustep invc.
 
 Ltac ind_tstep :=
   match goal with H : _ --[?e]--> _ |- _ =>
-    remember e eqn:Heq; induction H; inv Heq
+    remember e eqn:Heqe; induction H; inv Heqe
   end.
 
 Ltac ind_ustep :=
-  match goal with H : _ / _ ~~[_]~~>* _ / _ |- _ =>
+  match goal with H : _ / _ ~~[?tc]~~>* _ / _ |- _ =>
     induction H as [| ? ? ? ? ? ? ? ? ? Hustep ? Hcstep]
   end.
 

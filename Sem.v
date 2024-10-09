@@ -133,9 +133,9 @@ Inductive eff : Set :=
   | e_alloc (ad : addr) (t : tm) (T : ty)
   | e_read  (ad : addr) (t : tm)
   | e_write (ad : addr) (t : tm) (T : ty)
+  | e_acq   (ad : addr) (t : tm)
+  | e_rel   (ad : addr)
   | e_spawn (tid : nat) (t : tm)
-  | e_acq   (tid : nat) (ad : addr) (t : tm)
-  | e_rel   (tid : nat) (ad : addr)
   .
 
 (* ------------------------------------------------------------------------- *)
@@ -143,10 +143,10 @@ Inductive eff : Set :=
 (* ------------------------------------------------------------------------- *)
 
 Inductive cell : Type :=
-  | cell_triple (t : tm) (T : ty) (otid : option nat)
+  | cell_triple (t : tm) (T : ty) (X : bool)
   .
 
-Notation "'(' t ',' T ',' otid ')'" := (cell_triple t T otid).
+Notation "'(' t ',' T ',' X ')'" := (cell_triple t T X).
 
 Notation " c '.t' " := (let (t, _, _) := c in t) (at level 9).
 Notation " c '.T' " := (let (_, T, _) := c in T) (at level 9).
@@ -163,7 +163,7 @@ Definition trace   := list (nat * eff).
 
 Definition tm_default   := <{unit}>.
 Definition ty_default   := `Unit`.
-Definition cell_default := (tm_default, ty_default, None).
+Definition cell_default := (tm_default, ty_default, true).
 Definition tc_default   := (0, e_none).
 
 (* ------------------------------------------------------------------------- *)
@@ -333,17 +333,17 @@ Inductive tstep : tm -> eff -> tm -> Prop :=
     t2 --[e]--> t2' ->
     <{acq t1 t2}> --[e]--> <{acq t1 t2'}>
 
-  | ts_acq : forall tid ad T x Tx t tx,
-    <{acq (&ad : T) (fn x Tx t)}> --[e_acq tid ad tx]--> <{cr ad ([x := tx] t)}>
+  | ts_acq : forall ad T x Tx t tx,
+    <{acq (&ad : T) (fn x Tx t)}> --[e_acq ad tx]--> <{cr ad ([x := tx] t)}>
 
   (* Critical Region *)
   | ts_cr1 : forall ad t t' e,
     t --[e]--> t' ->
     <{cr ad t}> --[e]--> <{cr ad t'}>
 
-  | ts_cr : forall tid ad t,
+  | ts_cr : forall ad t,
     value t ->
-    <{cr ad t}> --[e_rel tid ad]--> t
+    <{cr ad t}> --[e_rel ad]--> t
 
   (* Spawn *)
   | ts_spawn : forall tid t,
@@ -383,7 +383,7 @@ Inductive mstep : mem -> tm -> eff -> mem -> tm -> Prop :=
   | ms_alloc : forall m t1 t2 ad t T,
     ad = #m ->
     t1 --[e_alloc ad t T]--> t2 ->
-    m / t1 ==[e_alloc ad t T]==> (m +++ (t, T, None)) / t2
+    m / t1 ==[e_alloc ad t T]==> (m +++ (t, T, false)) / t2
 
   | ms_read : forall m t1 t2 ad,
     ad < #m ->
@@ -395,17 +395,17 @@ Inductive mstep : mem -> tm -> eff -> mem -> tm -> Prop :=
     t1 --[e_write ad t T]--> t2 ->
     m / t1 ==[e_write ad t T]==> m[ad.tT <- t T] / t2
 
-  | ms_acq : forall m t1 t2 tid ad,
+  | ms_acq : forall m t1 t2 ad,
     ad < #m ->
-    m[ad].X = None ->
-    t1 --[e_acq tid ad m[ad].t]--> t2 ->
-    m / t1 ==[e_acq tid ad m[ad].t]==> m[ad.X <- Some tid] / t2
+    m[ad].X = false ->
+    t1 --[e_acq ad m[ad].t]--> t2 ->
+    m / t1 ==[e_acq ad m[ad].t]==> m[ad.X <- true] / t2
 
-  | ms_rel : forall m t1 t2 tid ad,
+  | ms_rel : forall m t1 t2 ad,
     ad < #m ->
-    m[ad].X = Some tid->
-    t1 --[e_rel tid ad]--> t2 ->
-    m / t1 ==[e_rel tid ad]==> m[ad.X <- None] / t2
+    m[ad].X = true -> (* TODO: apagar *)
+    t1 --[e_rel ad]--> t2 ->
+    m / t1 ==[e_rel ad]==> m[ad.X <- false] / t2
 
   where "m / t '==[' e ']==>' m' / t'" := (mstep m t e m' t').
 
@@ -437,10 +437,11 @@ Inductive multistep : mem -> threads -> trace -> mem -> threads -> Prop :=
   | multistep_refl: forall m ths,
     m / ths ~~[nil]~~>* m / ths
 
-  | multistep_trans : forall m m' m'' ths ths' ths'' tid e tc,
-    m  / ths  ~~[tc            ]~~>* m'  / ths'  ->
-    m' / ths' ~~[tid, e        ]~~>  m'' / ths'' ->
-    m  / ths  ~~[(tid, e) :: tc]~~>* m'' / ths'' 
+  | multistep_trans : forall m1 m2 m3 ths1 ths2 ths3 tid e tc,
+    m1 / ths1 ~~[tc            ]~~>* m2 / ths2 ->
+    m2 / ths2 ~~[tid, e        ]~~>  m3 / ths3 ->
+    m1 / ths1 ~~[(tid, e) :: tc]~~>* m3 / ths3 
 
-  where "m / ths '~~[' tc ']~~>*' m' / ths'" := (multistep m ths tc m' ths').
+  where "m1 / ths1 '~~[' tc ']~~>*' m2 / ths2" :=
+    (multistep m1 ths1 tc m2 ths2).
 
