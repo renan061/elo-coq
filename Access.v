@@ -25,8 +25,11 @@ Inductive access (ad : addr) (m : mem) : tm -> Prop :=
     access ad m m[ad'].t ->
     access ad m <{&ad' : T}>
 
-  | acc_ref : forall T,
-    access ad m <{&ad : T}>
+  | acc_refR : forall T,
+    access ad m <{&ad : r&T}>
+
+  | acc_refW : forall T,
+    access ad m <{&ad : w&T}>
 
   | acc_new : forall T t,
     access ad m t ->

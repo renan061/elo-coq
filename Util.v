@@ -36,6 +36,7 @@ Ltac clean :=
   | _ : ?n < ?n  |- _ => lia
   | _ : ?n > ?n  |- _ => lia
   | F : ?x <> ?x |- _ => contradict F; eauto
+  | _ : ?x, _ : ~ ?x |- _ => contradiction
   end : core.
 
 Axiom excluded_middle : ClassicalFacts.excluded_middle.
@@ -52,8 +53,9 @@ From Coq Require Arith.Compare_dec.
 From Coq Require Arith.Peano_dec.
 From Coq Require Strings.String.
 
-Definition nat_eq_dec := Peano_dec.eq_nat_dec.
-Definition str_eq_dec := String.string_dec.
+Definition bool_eq_dec  := Bool.bool_dec.
+Definition nat_eq_dec   := Peano_dec.eq_nat_dec.
+Definition str_eq_dec   := String.string_dec.
 Definition lt_eq_lt_dec := Compare_dec.lt_eq_lt_dec.
 
 (* misc *)

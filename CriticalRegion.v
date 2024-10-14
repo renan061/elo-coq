@@ -1,6 +1,6 @@
-From Elo Require Import Core.
+From Coq Require Import Lia.
 
-From Elo Require Import WellTypedTerm.
+From Elo Require Import Core.
 
 (* ------------------------------------------------------------------------- *)
 (* no-cr & ok-crs                                                            *)
@@ -201,6 +201,14 @@ Proof.
   intros ** ?. induction t; invc_nocr; invc_incr; eauto.
 Qed.
 
+Lemma nincr_spawned : forall ad t t1 t2 tid,
+  ok_crs t1 ->
+  t1 --[e_spawn tid t]--> t2 ->
+  ~ in_cr ad t.
+Proof.
+  intros. ind_tstep; invc_okcrs; eauto using nocr_then_nincr.
+Qed.
+
 (* inheritance ------------------------------------------------------------- *)
 
 Local Lemma incr_inheritance_subst : forall ad x Tx t tx,
@@ -211,6 +219,16 @@ Proof.
   try (destruct str_eq_dec; subst; eauto using in_cr);
   invc_incr; repeat auto_specialize; repeat invc_incr; eauto using in_cr.
 Qed.
+
+Local Lemma incr_inheritance_subst2 : forall ad ad' T x Tx t tx,
+  no_cr t ->
+  (* --- *)
+  ad <> ad' ->
+  in_cr ad <{[x := tx] t}> ->
+  in_cr ad <{acq (&ad' : T) (fn x Tx t)}>.
+Proof.
+  intros.
+Abort.
 
 Local Lemma incr_inheritance_none : forall t1 t2 ad,
   in_cr ad t2 ->
@@ -246,6 +264,21 @@ Local Lemma incr_inheritance_write : forall t1 t2 ad ad' t T,
   in_cr ad t1.
 Proof.
   intros. ind_tstep; try invc_incr; eauto using in_cr.
+Qed.
+
+Local Lemma incr_inheritance_acq : forall t1 t2 ad ad' t,
+  value t ->
+  ok_crs t ->
+  ok_crs t1 ->
+  (* --- *)
+  ad <> ad' ->
+  in_cr ad t2 ->
+  t1 --[e_acq ad' t]--> t2 ->
+  in_cr ad t1.
+Proof.
+  intros. ind_tstep; repeat invc_okcrs; try invc_incr; eauto using in_cr.
+  exfalso. eapply nocr_then_nincr.
+  2: eauto. eauto using value_then_nocr, nocr_subst.
 Qed.
 
 Local Lemma incr_inheritance_rel : forall t1 t2 ad ad',
@@ -359,31 +392,107 @@ Proof.
   invc_nincr; repeat auto_specialize; intros ?; invc_incr; eauto.
 Qed.
 
+Local Ltac solve_nincr_preservation IH :=
+  intros; ind_tstep; repeat invc_okcrs; repeat invc_nincr;
+  eauto using nincr_subst, value_then_nocr, nocr_then_nincr;
+  intros ?; invc_incr; eauto; repeat auto_specialize; contradict IH; assumption.
+
 Local Lemma nincr_preservation_none : forall t1 t2 ad,
   ok_crs t1 ->
   (* --- *)
   ~ in_cr ad t1 ->
   t1 --[e_none]--> t2 ->
   ~ in_cr ad t2.
-Proof.
-  intros. ind_tstep; repeat invc_okcrs; repeat invc_nincr;
-  eauto using nincr_subst;
-  intros ?; invc_incr; eauto;
-  repeat auto_specialize; contradict IHtstep; assumption.
-Qed.
+Proof. solve_nincr_preservation IHtstep. Qed.
 
 Local Lemma nincr_preservation_alloc : forall t1 t2 ad ad' t T,
   ~ in_cr ad t1 ->
   t1 --[e_alloc ad' t T]--> t2 ->
   ~ in_cr ad t2.
+Proof. solve_nincr_preservation IHtstep. Qed.
+
+Local Lemma nincr_preservation_read : forall t1 t2 ad ad' t,
+  value t ->
+  ok_crs t ->
+  (* --- *)
+  ~ in_cr ad t1 ->
+  t1 --[e_read ad' t]--> t2 ->
+  ~ in_cr ad t2.
+Proof. solve_nincr_preservation IHtstep. Qed.
+
+Local Lemma nincr_preservation_write : forall t1 t2 ad ad' t T,
+  ~ in_cr ad t1 ->
+  t1 --[e_write ad' t T]--> t2 ->
+  ~ in_cr ad t2.
+Proof. solve_nincr_preservation IHtstep. Qed.
+
+Local Lemma nincr_preservation_acq : forall t1 t2 ad ad' t,
+  value t ->
+  ok_crs t ->
+  ok_crs t1 ->
+  (* --- *)
+  ad <> ad' ->
+  ~ in_cr ad t1 ->
+  t1 --[e_acq ad' t]--> t2 ->
+  ~ in_cr ad t2.
 Proof.
-  intros. ind_tstep; repeat invc_okcrs; repeat invc_nincr;
-  intros ?; invc_incr; eauto;
-  repeat auto_specialize; contradict IHtstep; assumption.
+  intros; ind_tstep; repeat invc_okcrs; repeat invc_nincr;
+  intros ?; invc_incr; eauto; repeat auto_specialize; eauto.
+  (* TODO *)
+  contradict H8. eauto using nincr_subst, value_then_nocr, nocr_then_nincr.
 Qed.
 
+Local Lemma nincr_preservation_rel : forall t1 t2 ad ad',
+  ~ in_cr ad t1 ->
+  t1 --[e_rel ad']--> t2 ->
+  ~ in_cr ad t2.
+Proof. solve_nincr_preservation IHtstep. Qed.
+
+Local Lemma nincr_preservation_spawn : forall t1 t2 ad tid t,
+  ~ in_cr ad t1 ->
+  t1 --[e_spawn tid t]--> t2 ->
+  ~ in_cr ad t2.
+Proof. solve_nincr_preservation IHtstep. Qed.
+
 (* ------------------------------------------------------------------------- *)
-(* invariant                                                                 *)
+(* lock-exclusivity                                                          *)
+(* ------------------------------------------------------------------------- *)
+
+Definition locked_cr (m : mem) (t : tm) := forall ad,
+  in_cr ad t ->
+  m[ad].X = true.
+
+Theorem lcr_preservation : forall m1 m2 ths1 ths2 tid e,
+  forall_memory m1 value ->
+  forall_memory m1 ok_crs ->
+  forall_threads ths1 ok_crs ->
+  (* --- *)
+  forall_threads ths1 (locked_cr m1) ->
+  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+  forall_threads ths2 (locked_cr m2).
+Proof.
+  unfold locked_cr.
+  intros ** tid' **. invc_cstep; try invc_mstep.
+  - omicron; eauto using incr_inheritance_none.
+  - repeat omicron; eauto using incr_inheritance_alloc.
+    + specialize (H2 tid' (#m1)). sigma. eauto using incr_inheritance_alloc. 
+    + specialize (H2 tid' ad).    sigma. eauto using incr_inheritance_alloc. 
+    + specialize (H2 tid' (#m1)). sigma. eauto.
+    + specialize (H2 tid' ad).    sigma. eauto.
+  - omicron; eauto using incr_inheritance_read.
+  - repeat omicron; eauto using incr_inheritance_write.
+  - repeat omicron; eauto using incr_inheritance_acq. 
+  - repeat omicron; eauto.
+    + specialize (H2 tid' ad). clear H2. repeat clean. admit.
+    + eauto using incr_inheritance_rel. 
+    + admit.
+  - omicron; eauto using incr_inheritance_spawn.
+    + contradict H4. eauto using nincr_spawned.
+    + invc_incr.
+Abort.
+
+(* ------------------------------------------------------------------------- *)
+(* critical-region-exclusivity                                               *)
 (* ------------------------------------------------------------------------- *)
 
 Definition critical_region_exclusivity (ths : threads) := forall ad tid1 tid2,
@@ -438,6 +547,94 @@ Local Lemma cre_preservation_read : forall t ths tid ad te,
 Proof.
   unfold critical_region_exclusivity. intros.
   destruct_cre ths tid tid1 tid2; sigma;
-  eauto using incr_inheritance_read, nincr_preservation_alloc.
-  admit.
+  eauto using incr_inheritance_read, nincr_preservation_read.
+Qed.
+
+Local Lemma cre_preservation_write : forall t ths tid ad te T,
+  critical_region_exclusivity ths ->
+  ths[tid] --[e_write ad te T]--> t ->
+  critical_region_exclusivity ths[tid <- t].
+Proof.
+  unfold critical_region_exclusivity. intros.
+  destruct_cre ths tid tid1 tid2; sigma;
+  eauto using incr_inheritance_write, nincr_preservation_write.
+Qed.
+
+Local Lemma cre_preservation_rel : forall t ths tid ad,
+  forall_threads ths ok_crs ->
+  (* --- *)
+  critical_region_exclusivity ths ->
+  ths[tid] --[e_rel ad]--> t ->
+  critical_region_exclusivity ths[tid <- t].
+Proof.
+  unfold critical_region_exclusivity. intros.
+  destruct_cre ths tid tid1 tid2; sigma;
+  eauto using incr_inheritance_rel, nincr_preservation_rel.
+Qed.
+
+Local Lemma cre_preservation_acq : forall m t ths tid ad te,
+  m[ad].X = false ->
+  value te ->
+  ok_crs te ->
+  forall_threads ths ok_crs ->
+  (* --- *)
+  critical_region_exclusivity ths ->
+  ths[tid] --[e_acq ad te]--> t ->
+  critical_region_exclusivity ths[tid <- t].
+Proof.
+  unfold critical_region_exclusivity. intros * ? ? ? ? ? ? ad' **.
+  destruct_cre ths tid tid1 tid2; sigma; eauto;
+  destruct (nat_eq_dec ad' ad); subst;
+  eauto using nincr_preservation_acq, incr_inheritance_acq.
+  - (*
+      - tid1 steps
+      - t has CR(ad) after the acq
+      - we want to show tid2 does not have it
+    *)
+    admit.
+  - (*
+      - tid2 steps
+      - tid1 has CR(ad)
+      - we want to show t does not have it (after the step)
+    *)
+    admit.
+Abort.
+
+Local Lemma cre_preservation_spawn : forall t ths tid tid' te,
+  forall_threads ths ok_crs ->
+  (* --- *)
+  critical_region_exclusivity ths ->
+  ths[tid] --[e_spawn tid' te]--> t ->
+  critical_region_exclusivity (ths[tid <- t] +++ te).
+Proof.
+  unfold critical_region_exclusivity. intros.
+  destruct_cre ths tid tid1 tid2; repeat omicron;
+  eauto; try solve [lia | intros ?; invc_incr];
+  eauto using incr_inheritance_spawn, nincr_preservation_spawn, nincr_spawned;
+  match goal with
+  | H : in_cr _ _ |- _ => contradict H; eauto using nincr_spawned
+  end.
+Qed.
+
+Theorem cre_preservation : forall m1 m2 ths1 ths2 tid e,
+  forall_memory m1 value ->
+  forall_program m1 ths1 ok_crs ->
+  (* --- *)
+  critical_region_exclusivity ths1 ->
+  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+  critical_region_exclusivity ths2.
+Proof.
+  intros * ? [? ?] **. invc_cstep; try invc_mstep;
+  eauto using cre_preservation_none,
+              cre_preservation_alloc,
+              cre_preservation_read,
+              cre_preservation_write,
+              cre_preservation_rel,
+              cre_preservation_spawn.
+
+  intros ad' tid1 tid2 Hneq Hincr.
+  omicron; eauto.
+  -
+
+  specialize (H2 tid ad). auto_specialize.
 Qed.

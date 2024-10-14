@@ -13,24 +13,21 @@ inCR t ad := ...
 (OK)
 critical_access ad adX m t := ...
 
-(Fácil)
 Lemma cacc_then_incr :
     cacc ad adX m t ->
     inCR adX t.
 
-(No Idea)
+(???)
 Invariante acc_then_cacc :
     guards ad adX m ->
     acc  ad m t ->
     cacc ad adX ad m t.
 
-(Fácil)
 Invariante cr_exclusivity :
     tid1 <> tid2 ->
     inCR ad ths[tid1] ->
     ~ inCR ad ths[tid2].
 
-(Fácil)
 Invariante cacc_exclusivity :
     tid1 <> tid2 ->
     cacc ad adX m ths[tid1] ->
@@ -41,14 +38,12 @@ Invariante SMS :
     write_access ad m ths[tid1] ->
     ~ write_access ad m ths[tid2]
 
-(Fácil)
 Tem que dar acquire para entrar na CR:
     ~ inCR ad ths1[tid1]->
     m1 / ths1 ~~[e]~~> m2 / ths2 ->
     inCR ad ths2[tid1] ->
     exists t, e = acq ad t.
 
-(Fácil)
 Tem que dar release pra sair na CR:
     inCR ad ths1[tid1]->
     m1 / ths1 ~~[e]~~> m2 / ths2 ->

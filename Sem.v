@@ -161,10 +161,10 @@ Definition mem     := list cell.
 Definition threads := list tm.
 Definition trace   := list (nat * eff).
 
-Definition tm_default   := <{unit}>.
-Definition ty_default   := `Unit`.
-Definition cell_default := (tm_default, ty_default, true).
-Definition tc_default   := (0, e_none).
+Notation tm_default   := <{unit}>.
+Notation ty_default   := `Unit`.
+Notation cell_default := (tm_default, ty_default, false).
+Notation tc_default   := (0, e_none).
 
 (* ------------------------------------------------------------------------- *)
 (* typing                                                                    *)
@@ -403,7 +403,6 @@ Inductive mstep : mem -> tm -> eff -> mem -> tm -> Prop :=
 
   | ms_rel : forall m t1 t2 ad,
     ad < #m ->
-    m[ad].X = true -> (* TODO: apagar *)
     t1 --[e_rel ad]--> t2 ->
     m / t1 ==[e_rel ad]==> m[ad.X <- false] / t2
 
