@@ -19,11 +19,13 @@ Ltac splits n :=
   | S ?n' => split; [| splits n']
   end.
 
-Ltac auto_specialize :=
+Ltac auto_specialize := (* TODO: deprecated *)
   match goal with
   | P : ?x, H : ?x -> _ |- _ => specialize (H P)
   | H : ?x = ?x -> _ |- _ => specialize (H eq_refl) 
   end.
+
+Ltac aspecialize := auto_specialize.
 
 Ltac clean :=
   match goal with

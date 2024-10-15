@@ -39,18 +39,19 @@ Definition no_crs (t : tm) := forall ad, no_cr ad t.
 
 Local Ltac _nocr tt :=
   match goal with
-  | H : no_cr _ <{unit     }> |- _ => clear H
-  | H : no_cr _ <{nat _    }> |- _ => clear H
-  | H : no_cr _ <{var _    }> |- _ => clear H
-  | H : no_cr _ <{fn _ _ _ }> |- _ => tt H
-  | H : no_cr _ <{call _ _ }> |- _ => tt H
-  | H : no_cr _ <{&_ : _   }> |- _ => clear H
-  | H : no_cr _ <{new _ : _}> |- _ => tt H
-  | H : no_cr _ <{* _      }> |- _ => tt H
-  | H : no_cr _ <{_ := _   }> |- _ => tt H
-  | H : no_cr _ <{acq _ _  }> |- _ => tt H
-  | H : no_cr _ <{cr _ _   }> |- _ => tt H
-  | H : no_cr _ <{spawn _  }> |- _ => tt H
+  | H : no_cr _   <{unit     }> |- _ => clear H
+  | H : no_cr _   <{nat _    }> |- _ => clear H
+  | H : no_cr _   <{var _    }> |- _ => clear H
+  | H : no_cr _   <{fn _ _ _ }> |- _ => tt H
+  | H : no_cr _   <{call _ _ }> |- _ => tt H
+  | H : no_cr _   <{&_ : _   }> |- _ => clear H
+  | H : no_cr _   <{new _ : _}> |- _ => tt H
+  | H : no_cr _   <{* _      }> |- _ => tt H
+  | H : no_cr _   <{_ := _   }> |- _ => tt H
+  | H : no_cr _   <{acq _ _  }> |- _ => tt H
+  | H : no_cr ?ad <{cr ?ad _ }> |- _ => invc H; eauto
+  | H : no_cr _   <{cr _ _   }> |- _ => tt H
+  | H : no_cr _   <{spawn _  }> |- _ => tt H
   end.
 
 Ltac inv_nocr  := _nocr inv.
@@ -744,15 +745,15 @@ Proof.
     + split; eauto using nocrs_then_nocr, nocrs_subst, no_cr.
   - destruct (H2 ad) as [? Hor]. destruct (m[ad].X).
     + auto_specialize. destruct Hor.
-      * invc_nocr. eauto.
+      * invc_nocr.
       * invc_onecr; eauto. intros ad''. split; intros ?.
         ** omicron. destruct (nat_eq_dec ad'' ad); subst.
-           *** specialize (H2 ad) as [? _]. auto_specialize. invc_nocr. eauto.
+           *** specialize (H2 ad) as [? _]. auto_specialize. invc_nocr.
            *** eapply nocr_cr; eauto.
                specialize (IHtstep ad'') as [? _]. sigma. eauto.
         ** omicron; destruct (nat_eq_dec ad'' ad); subst.
            *** specialize (H2 ad) as [? _]. auto_specialize.
-               invc_nocr. eauto.
+               invc_nocr.
            *** specialize (IHtstep ad'') as [_ ?]. sigma.
                auto_specialize. destruct H6; eauto using no_cr, one_cr.
            *** destruct (H2 ad) as [_ ?]. auto_specialize.
@@ -767,61 +768,59 @@ Proof.
            *** specialize (IHtstep ad'') as [_ ?]. sigma. 
                auto_specialize.
                destruct H6; eauto using no_cr, one_cr.
-    + clear Hor. auto_specialize. invc_nocr. eauto.
+    + clear Hor. auto_specialize. invc_nocr.
 Qed.
 
-Local Lemma bli : forall m ad t,
-  unlocked_nocr m <{cr ad t}> ->
-  locked_onecr m <{cr ad t}> ->
-  locked_onecr m t \/ no_cr ad t.
+Local Lemma blop : forall m t ad,
+  unique_crs m <{cr ad t}> ->
+  m[ad].X = true.
 Proof.
-  intros * Hu Hl.
-  destruct (bool_eq_dec m[ad].X false) as [Heq | Hneq].
-  - right. specialize (Hu ad). auto_specialize. inv Hu. eauto.
-  - eapply Bool.not_false_is_true in Hneq.
-    specialize (Hl ad). auto_specialize. inv Hl; eauto.
+  intros * H. specialize (H ad) as [? Hor].
+  destruct (m[ad].X); aspecialize; trivial. invc_nocr.
 Qed.
 
-Local Lemma locr_preservation_rel : forall m t1 t2 ad,
+Local Lemma ucrs_preservation_rel : forall m t1 t2 ad,
+  ok_crs t1 ->
+  (* --- *)
   ad < #m ->
-  unlocked_nocr m t1 ->
-  locked_onecr m t1 ->
+  unique_crs m t1 ->
   t1 --[e_rel ad]--> t2 ->
-  locked_onecr m[ad.X <- false] t2.
+  unique_crs m[ad.X <- false] t2.
 Proof. 
-  intros * ? ? H **. rename ad into ad'; ind_tstep; intros ad'' ?;
-  repeat clean.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - inv_me. omicron. eapply bli in H as H'; eauto. destruct H'.
-    + repeat auto_specialize. specialize (IHtstep ad''). sigma.
-      auto_specialize. destruct (nat_eq_dec ad'' ad); subst.
-      * eapply onecr_eq.
-        specialize (H ad). auto_specialize. invc H;
-        eauto using nocr_preservation_rel_neq.
-      * eapply onecr_neq; trivial.
-    +  destruct (nat_eq_dec ad'' ad); subst.
-      * eapply onecr_eq.
-        eauto using nocr_preservation_rel_neq.
-      * eapply onecr_neq; trivial.
-        specialize (H ad''). repeat auto_specialize. invc H; eauto.
-        admit. (* Should be provable using onecr_preservation_rel_neq. *)
+  intros * ? ? Hucrs ?. rename ad into ad'.
+  ind_tstep; invc_okcrs; inv_ucrs; clean; repeat aspecialize;
+  eauto using ok_crs;
+  try solve [exfalso; eauto using value_does_not_step];
+  try solve [
+    intros ad''; specialize (IHtstep ad'') as [? Hor]; split; intros ?;
+    omicron; aspecialize; eauto using no_cr;
+    destruct Hor; eauto using no_cr, one_cr
+  ].
+  - intros ad''. specialize (IHtstep ad'') as [? Hor1]. split; intros ?.
+    + specialize (Hucrs ad) as [? Hor2]. destruct (nat_eq_dec ad'' ad); subst.
+      * omicron; aspecialize; repeat clean.
+        ** destruct (m[ad].X); repeat aspecialize.
+           *** destruct Hor2; try solve [invc_nocr]. invc_onecr; eauto.
+               exfalso. eauto using nocr_preservation_rel_eq.
+           *** invc_nocr.
+        ** destruct (m[ad].X); repeat aspecialize.
+           *** invc_nocr.
+           *** invc_nocr.
+      * omicron; aspecialize; repeat clean; eauto using no_cr.
+    + specialize (Hucrs ad) as [? Hor2]. destruct (nat_eq_dec ad'' ad); subst.
+      * omicron; aspecialize; repeat clean.
+        destruct (m[ad].X); repeat aspecialize; try solve [invc_nocr].
+        destruct Hor2; try solve [invc_nocr]. invc_onecr; eauto.
+        eauto using nocr_preservation_rel_neq, one_cr.
+      * omicron; aspecialize; repeat clean.
+        destruct (m[ad].X); repeat aspecialize; try solve [invc_nocr].
+        destruct Hor2; try solve [invc_nocr]. invc_onecr; eauto.
+        destruct Hor1; eauto using nocr_preservation_rel_neq, no_cr, one_cr.
+  - eapply blop in Hucrs. intros ?. split.
+    + omicron; intros ?; eauto using nocrs_then_nocr, value_then_nocrs.
+    + omicron; intros ?; eauto using nocrs_then_nocr, value_then_nocrs.
+Qed.
 
-
-    specialize (H ad'' H3) as H'. invc H'.
-    + specialize (H ad H3). invc H.
-      *
-      eapply onecr_eq.
-      assert (unlocked_nocr m <{cr ad t}>) by admit.
-      invc_me.
-Abort.
-    
 Local Lemma me_preservation_rel : forall m t1 t2 ad,
   ad < #m ->
   unlocked_nocr m t1 ->
