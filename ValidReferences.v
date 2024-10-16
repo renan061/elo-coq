@@ -8,68 +8,52 @@ From Elo Require Import WellTypedTerm.
 (* ------------------------------------------------------------------------- *)
 
 Inductive valid_references (m : mem) : tm -> Prop :=
-  | vr_unit :
-    valid_references m <{unit}> 
+  | vr_unit  :                valid_references m <{unit }> 
+  | vr_nat   : forall n,      valid_references m <{nat n}>
+  | vr_var   : forall x,      valid_references m <{var x}>
 
-  | vr_nat : forall n,
-    valid_references m <{nat n}>
+  | vr_fun   : forall x Tx t, valid_references m t ->
+                              valid_references m <{fn x Tx t}>
 
-  | vr_var : forall x,
-    valid_references m <{var x}>
+  | vr_call  : forall t1 t2,  valid_references m t1 ->
+                              valid_references m t2 ->
+                              valid_references m <{call t1 t2}> 
 
-  | vr_fun : forall x Tx t,
-    valid_references m t ->
-    valid_references m <{fn x Tx t}>
+  | vr_refR  : forall T ad,   ad < #m                       ->
+                              empty |-- m[ad].t is `Safe T` ->
+                              m[ad].T = `r&T`               ->
+                              valid_references m <{&ad : r&T}>
 
-  | vr_call : forall t1 t2,
-    valid_references m t1 ->
-    valid_references m t2 ->
-    valid_references m <{call t1 t2}> 
+  | vr_refX  : forall T ad,   ad < #m                ->
+                              empty |-- m[ad].t is T ->
+                              m[ad].T = `x&T`        ->
+                              valid_references m <{&ad : x&T}>
 
-  | vr_refR : forall T ad,
-    ad < #m ->
-    empty |-- m[ad].t is `Safe T` ->
-    m[ad].T = `r&T` ->
-    valid_references m <{&ad : r&T}>
+  | vr_refW  : forall T ad,   ad < #m                ->
+                              empty |-- m[ad].t is T ->
+                              m[ad].T = `w&T`        ->
+                              valid_references m <{&ad : w&T}>
 
-  | vr_refX : forall T ad,
-    ad < #m ->
-    empty |-- m[ad].t is T ->
-    m[ad].T = `x&T` ->
-    valid_references m <{&ad : x&T}>
+  | vr_new   : forall T t,    valid_references m t ->
+                              valid_references m <{new t : T}> 
 
-  | vr_refW : forall T ad,
-    ad < #m ->
-    empty |-- m[ad].t is T ->
-    m[ad].T = `w&T` ->
-    valid_references m <{&ad : w&T}>
+  | vr_load  : forall t,      valid_references m t ->
+                              valid_references m <{*t}> 
 
-  | vr_new : forall T t,
-    valid_references m t ->
-    valid_references m <{new t : T}> 
+  | vr_asg   : forall t1 t2,  valid_references m t1 ->
+                              valid_references m t2 ->
+                              valid_references m <{t1 := t2}> 
 
-  | vr_load : forall t,
-    valid_references m t ->
-    valid_references m <{*t}> 
+  | vr_acq   : forall t1 t2,  valid_references m t1 ->
+                              valid_references m t2 ->
+                              valid_references m <{acq t1 t2}>
 
-  | vr_asg : forall t1 t2,
-    valid_references m t1 ->
-    valid_references m t2 ->
-    valid_references m <{t1 := t2}> 
+  | vr_cr    : forall ad t,   ad < #m              ->
+                              valid_references m t ->
+                              valid_references m <{cr ad t}>
 
-  | vr_acq : forall t1 t2,
-    valid_references m t1 ->
-    valid_references m t2 ->
-    valid_references m <{acq t1 t2}>
-
-  | vr_cr : forall ad t,
-    ad < #m ->
-    valid_references m t ->
-    valid_references m <{cr ad t}>
-
-  | vr_spawn : forall t,
-    valid_references m t ->
-    valid_references m <{spawn t}>
+  | vr_spawn : forall t,      valid_references m t ->
+                              valid_references m <{spawn t}>
   .
 
 (* ------------------------------------------------------------------------- *)
@@ -111,6 +95,14 @@ Local Lemma vr_tstep_write_term : forall m t1 t2 ad t T,
   valid_references m t.
 Proof.
   intros. ind_tstep; inv_vr; eauto.
+Qed.
+
+Lemma vr_tstep_write_addr : forall m t1 t2 ad t T,
+  valid_references m t1 ->
+  t1 --[e_write ad t T]--> t2 ->
+  ad < #m.
+Proof.
+  intros. ind_tstep; repeat invc_vr; eauto.
 Qed.
 
 Lemma valid_write_effect1 : forall t1 t2 ad t T,
