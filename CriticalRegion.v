@@ -153,6 +153,14 @@ Proof.
   invc_nocr; eauto using no_cr.
 Qed.
 
+Local Corollary nocrs_subst : forall x tx t,
+  no_crs t ->
+  no_crs tx ->
+  no_crs <{[x := tx] t}>.
+Proof.
+  intros ** ?. eauto using nocr_subst.
+Qed.
+
 Local Ltac solve_nocr_preservation :=
   intros; ind_tstep; repeat invc_nocr; eauto using nocr_subst, no_cr.
 
@@ -226,277 +234,195 @@ Local Lemma nocr_preservation_spawned : forall t1 t2 ad tid t,
 Proof. solve_nocr_preservation. Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* ok-crs                                                                    *)
+(* valid-crs                                                                 *)
 (* ------------------------------------------------------------------------- *)
 
-Inductive ok_crs : tm -> Prop :=
-  | okcrs_unit   :                ok_crs <{unit      }>
-  | okcrs_nat    : forall n,      ok_crs <{nat n     }>
-  | okcrs_var    : forall x,      ok_crs <{var x     }>
-  | okcrs_fun    : forall x Tx t, no_crs t  ->
-                                  ok_crs <{fn x Tx t }>
-  | okcrs_call1  : forall t1 t2,  ~ value t1 ->
-                                  ok_crs  t1 ->
-                                  no_crs  t2 ->
-                                  ok_crs <{call t1 t2}>
-  | okcrs_call2  : forall t1 t2,  value   t1 ->
-                                  ~ value t2 ->
-                                  no_crs  t1 ->
-                                  ok_crs  t2 ->
-                                  ok_crs <{call t1 t2}>
-  | okcrs_call3  : forall t1 t2,  value   t1 ->
-                                  value   t2 ->
-                                  no_crs  t1 ->
-                                  no_crs  t2 ->
-                                  ok_crs <{call t1 t2}>
-  | okcrs_ref    : forall ad' T,  ok_crs <{&ad' : T  }>
-  | okcrs_new    : forall T t,    ok_crs t   ->
-                                  ok_crs <{new t : T }>
-  | okcrs_load   : forall t,      ok_crs t   ->
-                                  ok_crs <{*t        }>
-  | okcrs_asg1   : forall t1 t2,  ~ value t1 ->
-                                  ok_crs  t1 ->
-                                  no_crs  t2 ->
-                                  ok_crs <{t1 := t2  }>
-  | okcrs_asg2   : forall t1 t2,  value   t1 ->
-                                  ~ value t2 ->
-                                  no_crs  t1 ->
-                                  ok_crs  t2 ->
-                                  ok_crs <{t1 := t2  }>
-  | okcrs_asg3  : forall t1 t2,   value   t1 ->
-                                  value   t2 ->
-                                  no_crs  t1 ->
-                                  no_crs  t2 ->
-                                  ok_crs <{t1 := t2  }>
-  | okcrs_acq1  : forall t1 t2,   ~ value t1 ->
-                                  ok_crs  t1 ->
-                                  no_crs  t2 ->
-                                  ok_crs <{acq t1 t2 }>
-  | okcrs_acq2  : forall t1 t2,   value   t1 ->
-                                  ~ value t2 ->
-                                  no_crs  t1 ->
-                                  ok_crs  t2 ->
-                                  ok_crs <{acq t1 t2 }>
-  | okcrs_acq3  : forall t1 t2,   value   t1 ->
-                                  value   t2 ->
-                                  no_crs  t1 ->
-                                  no_crs  t2 ->
-                                  ok_crs <{acq t1 t2 }>
-  | okcrs_cr    : forall ad t,    ok_crs t   ->
-                                  ok_crs <{cr ad t   }>
-  | okcrs_spawn : forall t,       no_crs t   ->
-                                  ok_crs <{spawn t   }>
+Inductive valid_crs : tm -> Prop :=
+  | vcrs_unit   :                valid_crs <{unit      }>
+  | vcrs_nat    : forall n,      valid_crs <{nat n     }>
+  | vcrs_var    : forall x,      valid_crs <{var x     }>
+  | vcrs_fun    : forall x Tx t, no_crs t     ->
+                                 valid_crs <{fn x Tx t }>
+  | vcrs_call1  : forall t1 t2,  valid_crs t1 ->
+                                 valid_crs t2 ->
+                                 valid_crs <{call t1 t2}>
+  | vcrs_ref    : forall ad' T,  valid_crs <{&ad' : T  }>
+  | vcrs_new    : forall T t,    valid_crs t  ->
+                                 valid_crs <{new t : T }>
+  | vcrs_load   : forall t,      valid_crs t  ->
+                                 valid_crs <{*t        }>
+  | vcrs_asg1   : forall t1 t2,  valid_crs t1 ->
+                                 valid_crs t2 ->
+                                 valid_crs <{t1 := t2  }>
+  | vcrs_acq1  : forall t1 t2,   valid_crs t1 ->
+                                 valid_crs t2 ->
+                                 valid_crs <{acq t1 t2 }>
+  | vcrs_cr    : forall ad t,    valid_crs t  ->
+                                 valid_crs <{cr ad t   }>
+  | vcrs_spawn : forall t,       no_crs t     ->
+                                 valid_crs <{spawn t   }>
   .
 
-(* inversion -- ok-crs ----------------------------------------------------- *)
+(* inversion -- valid-crs -------------------------------------------------- *)
 
-Local Ltac _okcrs tt :=
+Local Ltac _vcrs tt :=
   match goal with
-  | H : ok_crs <{unit     }> |- _ => clear H
-  | H : ok_crs <{nat _    }> |- _ => clear H
-  | H : ok_crs <{var _    }> |- _ => clear H
-  | H : ok_crs <{fn _ _ _ }> |- _ => tt H
-  | H : ok_crs <{call _ _ }> |- _ => tt H
-  | H : ok_crs <{&_ : _   }> |- _ => clear H
-  | H : ok_crs <{new _ : _}> |- _ => tt H
-  | H : ok_crs <{* _      }> |- _ => tt H
-  | H : ok_crs <{_ := _   }> |- _ => tt H
-  | H : ok_crs <{acq _ _  }> |- _ => tt H
-  | H : ok_crs <{cr _ _   }> |- _ => tt H
-  | H : ok_crs <{spawn _  }> |- _ => tt H
+  | H : valid_crs <{unit     }> |- _ => clear H
+  | H : valid_crs <{nat _    }> |- _ => clear H
+  | H : valid_crs <{var _    }> |- _ => clear H
+  | H : valid_crs <{fn _ _ _ }> |- _ => tt H
+  | H : valid_crs <{call _ _ }> |- _ => tt H
+  | H : valid_crs <{&_ : _   }> |- _ => clear H
+  | H : valid_crs <{new _ : _}> |- _ => tt H
+  | H : valid_crs <{* _      }> |- _ => tt H
+  | H : valid_crs <{_ := _   }> |- _ => tt H
+  | H : valid_crs <{acq _ _  }> |- _ => tt H
+  | H : valid_crs <{cr _ _   }> |- _ => tt H
+  | H : valid_crs <{spawn _  }> |- _ => tt H
   end.
 
-Ltac inv_okcrs  := _okcrs inv.
-Ltac invc_okcrs := _okcrs invc.
+Ltac inv_vcrs  := _vcrs inv.
+Ltac invc_vcrs := _vcrs invc.
 
-(* lemmas -- ok-crs -------------------------------------------------------- *)
+(* lemmas -- valid-crs ----------------------------------------------------- *)
 
-Lemma nocrs_then_okcrs : forall t,
+Lemma nocrs_then_vcrs : forall t,
   no_crs t ->
-  ok_crs t.
+  valid_crs t.
 Proof.
-  intros. induction t; invc_nocrs; eauto using ok_crs;
-  destruct (value_dec t1), (value_dec t2); eauto using ok_crs.
+  intros. induction t; invc_nocrs; eauto using valid_crs.
 Qed.
 
 Lemma value_then_nocr : forall ad t,
-  ok_crs t ->
-  (* --- *)
+  valid_crs t ->
   value t ->
   no_cr ad t.
 Proof.
-  intros * ? Hval. invc Hval; invc_okcrs; eauto using no_cr.
+  intros * ? Hval. invc Hval; invc_vcrs; eauto using no_cr.
 Qed.
 
 Corollary value_then_nocrs : forall t,
-  ok_crs t ->
-  (* --- *)
+  valid_crs t ->
   value  t ->
   no_crs t.
 Proof.
   intros ** ?. eauto using value_then_nocr.
 Qed.
 
-(* preservation -- ok-crs -------------------------------------------------- *)
-
-Local Corollary nocrs_subst : forall x tx t,
-  no_crs t ->
-  no_crs tx ->
-  no_crs <{[x := tx] t}>.
-Proof.
-  intros ** ?. eauto using nocr_subst.
-Qed.
-
-Local Lemma okcrs_subst : forall x tx t,
-  value  tx ->
-  no_crs t ->
-  ok_crs tx ->
-  ok_crs <{[x := tx] t}>.
-Proof.
-  intros. induction t; simpl in *; invc_nocrs;
-  try (destruct str_eq_dec); eauto using value_then_nocrs, nocrs_subst, ok_crs;
-  repeat auto_specialize;
-  destruct (value_dec <{[x := tx] t1}>), (value_dec <{[x := tx] t2}>);
-  eauto using value_then_nocrs, nocrs_subst, ok_crs.
-Qed.
-
-Local Lemma value_does_not_step : forall t1 t2 e,
-  value t1 ->
-  t1 --[e]--> t2 ->
-  False.
-Proof.
-  intros * Hval ?. ind_tstep; invc Hval.
-Qed.
-
-Local Ltac solve_okcrs_preservation :=
-  intros; ind_tstep; invc_okcrs;
-  eauto using ok_crs,
-    nocr_preservation_none,
-    nocr_preservation_alloc,
-    nocr_preservation_read,
-    nocr_preservation_write,
-    nocr_preservation_spawn;
-  solve [ invc_nocrs; eauto using nocrs_then_okcrs, okcrs_subst, ok_crs
-        | exfalso; eauto using value_does_not_step, value
-        | match goal with
-          |- ok_crs (_ ?t1 ?t2) =>
-            destruct (value_dec t1), (value_dec t2);
-            eauto using value_then_nocrs, nocrs_then_okcrs, ok_crs
-          end
-        ].
-
-Local Lemma okcrs_preservation_none : forall t1 t2,
-  ok_crs t1 ->
-  t1 --[e_none]--> t2 ->
-  ok_crs t2.
-Proof. solve_okcrs_preservation. Qed.
-
-Local Lemma okcrs_preservation_alloc : forall t1 t2 ad t T,
-  ok_crs t1 ->
+Local Lemma vcrs_alloc_term : forall t1 t2 ad t T,
+  valid_crs t1 ->
   t1 --[e_alloc ad t T]--> t2 ->
-  ok_crs t2.
-Proof. solve_okcrs_preservation. Qed.
+  valid_crs t.
+Proof.
+  intros. ind_tstep; invc_vcrs; eauto using nocrs_then_vcrs.
+Qed.
 
-Local Lemma okcrs_preservation_read : forall t1 t2 ad t,
-  ok_crs t ->
-  (* --- *)
-  ok_crs t1 ->
-  t1 --[e_read ad t]--> t2 ->
-  ok_crs t2.
-Proof. solve_okcrs_preservation. Qed.
-
-Local Lemma okcrs_preservation_write : forall t1 t2 ad t T,
-  ok_crs t1 ->
+Local Lemma vcrs_write_term  : forall t1 t2 ad t T,
+  valid_crs t1 ->
   t1 --[e_write ad t T]--> t2 ->
-  ok_crs t2.
-Proof. solve_okcrs_preservation. Qed.
+  valid_crs t.
+Proof.
+  intros. ind_tstep; invc_vcrs; eauto using nocrs_then_vcrs.
+Qed.
 
-Local Lemma okcrs_preservation_acq : forall t1 t2 ad t,
-  value  t ->
-  ok_crs t ->
+(* preservation -- valid-crs ----------------------------------------------- *)
+
+Local Ltac solve_vcrs_preservation :=
+  intros; ind_tstep; repeat invc_vcrs; eauto using valid_crs;
+  eauto using nocrs_then_vcrs, nocrs_subst, value_then_nocrs, valid_crs.
+
+Local Lemma vcrs_preservation_none : forall t1 t2,
+  valid_crs t1 ->
+  t1 --[e_none]--> t2 ->
+  valid_crs t2.
+Proof. solve_vcrs_preservation. Qed.
+
+Local Lemma vcrs_preservation_alloc : forall t1 t2 ad t T,
+  valid_crs t1 ->
+  t1 --[e_alloc ad t T]--> t2 ->
+  valid_crs t2.
+Proof. solve_vcrs_preservation. Qed.
+
+Local Lemma vcrs_preservation_read : forall t1 t2 ad t,
+  no_crs t ->
   (* --- *)
-  ok_crs t1 ->
+  valid_crs t1 ->
+  t1 --[e_read ad t]--> t2 ->
+  valid_crs t2.
+Proof. solve_vcrs_preservation. Qed.
+
+Local Lemma vcrs_preservation_write : forall t1 t2 ad t T,
+  valid_crs t1 ->
+  t1 --[e_write ad t T]--> t2 ->
+  valid_crs t2.
+Proof. solve_vcrs_preservation. Qed.
+
+Local Lemma vcrs_preservation_acq : forall t1 t2 ad t,
+  no_crs t ->
+  (* --- *)
+  valid_crs t1 ->
   t1 --[e_acq ad t]--> t2 ->
-  ok_crs t2.
-Proof. solve_okcrs_preservation. Qed.
+  valid_crs t2.
+Proof. solve_vcrs_preservation. Qed.
 
-Local Lemma okcrs_preservation_rel : forall t1 t2 ad,
-  ok_crs t1 ->
+Local Lemma vcrs_preservation_rel : forall t1 t2 ad,
+  valid_crs t1 ->
   t1 --[e_rel ad]--> t2 ->
-  ok_crs t2.
-Proof. solve_okcrs_preservation. Qed.
+  valid_crs t2.
+Proof. solve_vcrs_preservation. Qed.
 
-Local Lemma okcrs_preservation_spawn : forall t1 t2 tid t,
-  ok_crs t1 ->
+Local Lemma vcrs_preservation_spawn : forall t1 t2 tid t,
+  valid_crs t1 ->
   t1 --[e_spawn tid t]--> t2 ->
-  ok_crs t2.
-Proof. solve_okcrs_preservation. Qed.
+  valid_crs t2.
+Proof. solve_vcrs_preservation. Qed.
 
-Local Lemma okcrs_preservation_spawned : forall t1 t2 tid t,
-  ok_crs t1 ->
+Local Lemma vcrs_preservation_spawned : forall t1 t2 tid t,
+  valid_crs t1 ->
   t1 --[e_spawn tid t]--> t2 ->
   no_crs t.
-Proof.
-  intros. ind_tstep; invc_okcrs; eauto;
-  exfalso; eauto using value_does_not_step.
-Qed.
+Proof. solve_vcrs_preservation. Qed.
 
-Local Lemma okcrs_preservation_tm_cstep : forall m1 m2 ths1 ths2 tid e,
-  forall_memory m1 value ->
-  forall_memory m1 ok_crs ->
+Local Lemma vcrs_preservation_tm_cstep : forall m1 m2 ths1 ths2 tid e,
+  forall_memory m1 no_crs ->
   (* --- *)
-  forall_threads ths1 ok_crs ->
+  forall_threads ths1 valid_crs ->
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
-  forall_threads ths2 ok_crs.
+  forall_threads ths2 valid_crs.
 Proof.
-  intros * ? ? H ? tid' **.
-  invc_cstep; try invc_mstep; omicron; eauto using ok_crs;
-  eauto using okcrs_preservation_none;
-  eauto using okcrs_preservation_alloc;
-  eauto using okcrs_preservation_read;
-  eauto using okcrs_preservation_write;
-  eauto using okcrs_preservation_acq;
-  eauto using okcrs_preservation_rel;
-  eauto using okcrs_preservation_spawn;
-  eauto using okcrs_preservation_spawned, nocrs_then_okcrs.
+  intros ** ?. invc_cstep; try invc_mstep; omicron; eauto using valid_crs;
+  eauto using vcrs_preservation_none;
+  eauto using vcrs_preservation_alloc;
+  eauto using vcrs_preservation_read;
+  eauto using vcrs_preservation_write;
+  eauto using vcrs_preservation_acq;
+  eauto using vcrs_preservation_rel;
+  eauto using vcrs_preservation_spawn;
+  eauto using vcrs_preservation_spawned, nocrs_then_vcrs.
 Qed.
 
-Local Lemma okcrs_alloc_term : forall t1 t2 ad t T,
-  ok_crs t1 ->
-  t1 --[e_alloc ad t T]--> t2 ->
-  ok_crs t.
-Proof.
-  intros. ind_tstep; invc_okcrs; eauto using nocrs_then_okcrs.
-Qed.
-
-Local Lemma okcrs_write_term  : forall t1 t2 ad t T,
-  ok_crs t1 ->
-  t1 --[e_write ad t T]--> t2 ->
-  ok_crs t.
-Proof.
-  intros. ind_tstep; invc_okcrs; eauto using nocrs_then_okcrs.
-Qed.
-
-Local Lemma okcrs_preservation_mem_cstep : forall m1 m2 ths1 ths2 tid e,
-  forall_threads ths1 ok_crs ->
+Local Lemma vcrs_preservation_mem_cstep : forall m1 m2 ths1 ths2 tid e,
+  forall_threads ths1 valid_crs ->
   (* --- *)
-  forall_memory m1 ok_crs ->
+  forall_memory m1 valid_crs ->
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
-  forall_memory m2 ok_crs.
+  forall_memory m2 valid_crs.
 Proof.
-  intros * H ** ?. invc_cstep; try invc_mstep; trivial;
-  omicron; eauto using okcrs_alloc_term, okcrs_write_term, ok_crs.
+  intros ** ?. invc_cstep; try invc_mstep; trivial; omicron; eauto;
+  eauto using vcrs_alloc_term;
+  eauto using valid_crs;
+  eauto using vcrs_write_term.
 Qed.
 
-Theorem okcrs_preservation : forall m1 m2 ths1 ths2 tid e,
-  forall_memory m1 value ->
+Theorem vcrs_preservation : forall m1 m2 ths1 ths2 tid e,
+  forall_memory m1 no_crs ->
   (* --- *)
-  forall_program m1 ths1 ok_crs ->
+  forall_program m1 ths1 valid_crs ->
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
-  forall_program m2 ths2 ok_crs.
+  forall_program m2 ths2 valid_crs.
 Proof.
   intros * ? [? ?] **. split;
-  eauto using okcrs_preservation_tm_cstep, okcrs_preservation_mem_cstep.
+  eauto using vcrs_preservation_tm_cstep, vcrs_preservation_mem_cstep.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -504,8 +430,6 @@ Qed.
 (* ------------------------------------------------------------------------- *)
 
 Inductive one_cr (ad : addr) : tm -> Prop :=
-  | onecr_fun    : forall x Tx t, one_cr ad t  ->
-                                  one_cr ad <{fn x Tx t }>
   | onecr_call1  : forall t1 t2,  one_cr ad t1 ->
                                   no_cr  ad t2 ->
                                   one_cr ad <{call t1 t2}>
@@ -533,8 +457,6 @@ Inductive one_cr (ad : addr) : tm -> Prop :=
   | onecr_cr_neq : forall ad' t,  ad <> ad'    ->
                                   one_cr ad t  ->
                                   one_cr ad <{cr ad' t  }>
-  | onecr_spawn  : forall t,      one_cr ad t  ->
-                                  one_cr ad <{spawn t   }>
   .
 
 (* inversion -- one-cr ----------------------------------------------------- *)
@@ -544,7 +466,7 @@ Local Ltac _onecr tt :=
   | H : one_cr _ <{unit     }> |- _ => inv H
   | H : one_cr _ <{nat _    }> |- _ => inv H
   | H : one_cr _ <{var _    }> |- _ => inv H
-  | H : one_cr _ <{fn _ _ _ }> |- _ => tt H
+  | H : one_cr _ <{fn _ _ _ }> |- _ => inv H
   | H : one_cr _ <{call _ _ }> |- _ => tt H
   | H : one_cr _ <{&_ : _   }> |- _ => inv H
   | H : one_cr _ <{new _ : _}> |- _ => tt H
@@ -552,7 +474,7 @@ Local Ltac _onecr tt :=
   | H : one_cr _ <{_ := _   }> |- _ => tt H
   | H : one_cr _ <{acq _ _  }> |- _ => tt H
   | H : one_cr _ <{cr _ _   }> |- _ => tt H
-  | H : one_cr _ <{spawn _  }> |- _ => tt H
+  | H : one_cr _ <{spawn _  }> |- _ => inv H
   end.
 
 Ltac inv_onecr  := _onecr inv.
@@ -600,36 +522,34 @@ Proof.
 Qed.
 
 Local Lemma onecr_preservation_none : forall t1 t2 ad,
-  ok_crs t1 ->
+  valid_crs t1 ->
   (* --- *)
   one_cr ad t1 ->
   t1 --[e_none]--> t2 ->
   one_cr ad t2.
 Proof.
-  intros. ind_tstep; invc_okcrs; repeat invc_onecr;
-  eauto using nocr_preservation_none, onecr_subst, one_cr;
-  exfalso; eauto using value_does_not_step, value, nocrs_then_not_onecr.
+  intros. ind_tstep; repeat invc_vcrs; repeat invc_onecr;
+  eauto using nocr_preservation_none, onecr_subst, one_cr.
+  invc_nocr. exfalso. eauto using value_then_nocrs, nocrs_then_not_onecr.
 Qed.
 
 Local Lemma onecr_preservation_alloc : forall t1 t2 ad ad' t T,
-  ok_crs t1 ->
+  valid_crs t1 ->
   (* --- *)
   one_cr ad t1 ->
   t1 --[e_alloc ad' t T]--> t2 ->
   one_cr ad t2.
 Proof.
-  intros. ind_tstep; invc_okcrs; invc_onecr;
-  eauto using nocr_preservation_alloc, one_cr;
-  exfalso;
-  eauto using value_does_not_step;
-  eauto using value_then_nocrs, nocrs_then_not_onecr.
+  intros. ind_tstep; invc_vcrs; invc_onecr;
+  eauto using nocr_preservation_alloc, one_cr.
+  exfalso. eauto using value_then_nocrs, nocrs_then_not_onecr.
 Qed.
 
-Local Lemma onecr_preservation_read : forall t1 t2 ad ad' te,
-  no_crs te ->
+Local Lemma onecr_preservation_read : forall t1 t2 ad ad' t,
+  no_crs t ->
   (* --- *)
   one_cr ad t1 ->
-  t1 --[e_read ad' te]--> t2 ->
+  t1 --[e_read ad' t]--> t2 ->
   one_cr ad t2.
 Proof.
   intros. ind_tstep; repeat invc_onecr;
@@ -637,15 +557,16 @@ Proof.
 Qed.
 
 Local Lemma onecr_preservation_write : forall t1 t2 ad ad' t T,
-  ok_crs t1 ->
+  valid_crs t1 ->
   (* --- *)
   one_cr ad t1 ->
   t1 --[e_write ad' t T]--> t2 ->
   one_cr ad t2.
 Proof.
-  intros. ind_tstep; invc_okcrs; invc_onecr;
-  eauto using nocr_preservation_write, one_cr;
-  exfalso; eauto using value_does_not_step, value, nocrs_then_not_onecr.
+  intros. ind_tstep; repeat invc_vcrs; invc_onecr;
+  eauto using nocr_preservation_write, one_cr.
+  - invc_onecr.
+  - exfalso. eauto using value_then_nocrs, nocrs_then_not_onecr.
 Qed.
 
 Local Lemma onecr_preservation_acq_neq : forall t1 t2 ad ad' t,
@@ -658,7 +579,6 @@ Local Lemma onecr_preservation_acq_neq : forall t1 t2 ad ad' t,
 Proof.
   intros. ind_tstep; repeat invc_onecr;
   eauto using nocr_preservation_acq_neq, one_cr.
-  eauto using onecr_subst, one_cr.
 Qed.
 
 Local Lemma onecr_preservation_rel_neq : forall t1 t2 ad ad',
@@ -672,15 +592,14 @@ Proof.
 Qed.
 
 Local Lemma onecr_preservation_spawn : forall ad t1 t2 tid t,
-  ok_crs t1 ->
+  valid_crs t1 ->
   (* --- *)
   one_cr ad t1 ->
   t1 --[e_spawn tid t]--> t2 ->
   one_cr ad t2.
 Proof.
-  intros. ind_tstep; invc_okcrs; repeat invc_onecr;
-  eauto using nocr_preservation_spawn, one_cr;
-  exfalso; eauto using value_does_not_step, nocrs_then_not_onecr.
+  intros. ind_tstep; invc_vcrs; invc_onecr;
+  eauto using nocr_preservation_spawn, one_cr.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -702,14 +621,14 @@ Definition unique_critical_regions (m : mem) (ths : threads) :=
 (* preservation -- unique-critical-regions --------------------------------- *)
 
 Local Lemma ucr_preservation_none : forall m ths tid t,
-  forall_threads ths ok_crs ->
+  forall_threads ths valid_crs ->
   (* --- *)
   tid < #ths ->
   unique_critical_regions m ths ->
   ths[tid] --[e_none]--> t ->
   unique_critical_regions m ths[tid <- t].
 Proof.
-  intros * Hokcrs ? [Hucr1 Hucr2] ?. split.
+  intros * Hvcrs ? [Hucr1 Hucr2] ?. split.
   - intros ? ? ?. omicron; eauto using nocr_preservation_none.
   - intros ad Had. specialize (Hucr2 ad Had) as [tid' [? ?]]. exists tid'.
     omicron; split; eauto using onecr_preservation_none; intros ? ?. 
@@ -719,7 +638,7 @@ Qed.
 
 Local Lemma ucr_preservation_alloc : forall m ths tid t te Te,
   forall_threads ths (valid_references m) ->
-  forall_threads ths ok_crs ->
+  forall_threads ths valid_crs ->
   (* --- *)
   tid < #ths ->
   unique_critical_regions m ths ->
@@ -753,7 +672,7 @@ Qed.
 
 Local Lemma ucr_preservation_write : forall m ths tid t ad te Te,
   forall_threads ths (valid_references m) ->
-  forall_threads ths ok_crs ->
+  forall_threads ths valid_crs ->
   (* --- *)
   tid < #ths ->
   unique_critical_regions m ths ->
@@ -826,7 +745,7 @@ Ltac eapply_tstep tt :=
   match goal with Htstep : _ --[_]--> _ |- _ => eapply tt in Htstep as ? end.
 
 Local Lemma ucr_preservation_spawn : forall m ths tid t te,
-  forall_threads ths ok_crs ->
+  forall_threads ths valid_crs ->
   (* --- *)
   tid < #ths ->
   unique_critical_regions m ths ->
@@ -840,16 +759,16 @@ Proof.
   - specialize (Hucr2 ad Had) as [tid' [? ?]]. exists tid'. omicron;
     try invc_onecr; split; eauto using onecr_preservation_spawn.
     + intros. omicron; eauto using no_cr.
-      eapply_tstep okcrs_preservation_spawned; eauto.
+      eapply_tstep vcrs_preservation_spawned; eauto.
     + intros tid'' ?. omicron; eauto using no_cr.
       * eauto using nocr_preservation_spawn.
-      * eapply_tstep okcrs_preservation_spawned; eauto.
+      * eapply_tstep vcrs_preservation_spawned; eauto.
 Qed.
 
 Theorem ucr_preservation : forall m1 m2 ths1 ths2 tid e,
   forall_memory m1 no_crs ->
   forall_threads ths1 (valid_references m1) ->
-  forall_threads ths1 ok_crs ->
+  forall_threads ths1 valid_crs ->
   (* --- *)
   unique_critical_regions m1 ths1 ->
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
