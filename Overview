@@ -17,12 +17,12 @@ Lemma cacc_then_incr :
     cacc ad adX m t ->
     inCR adX t.
 
-(???)
 Invariante acc_then_cacc :
     guards ad adX m ->
     acc  ad m t ->
     cacc ad adX ad m t.
 
+(Provado)
 Invariante cr_exclusivity :
     tid1 <> tid2 ->
     inCR ad ths[tid1] ->

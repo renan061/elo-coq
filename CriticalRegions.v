@@ -113,7 +113,7 @@ Ltac invc_nocrs :=
 
 (* lemmas -- no-cr(s) ------------------------------------------------------ *)
 
-Corollary nocrs_then_nocr : forall ad t,
+Local Corollary nocrs_then_nocr : forall ad t,
   no_crs t ->
   no_cr ad t.
 Proof.
@@ -139,6 +139,14 @@ Proof.
   end.
   - lia.
   - eauto using no_cr.
+Qed.
+
+Local Lemma nocr_then_not_rel : forall t1 t2 ad,
+  no_cr ad t1 ->
+  t1 --[e_rel ad]--> t2 ->
+  False.
+Proof.
+  intros. ind_tstep; invc_nocr; eauto.
 Qed.
 
 (* preservation (no-cr) ---------------------------------------------------- *)
@@ -199,19 +207,13 @@ Local Lemma nocr_preservation_acq_eq : forall t1 t2 ad t,
   False.
 Proof. solve_nocr_preservation. Qed.
 
-Local Lemma nocr_preservation_acq_neq : forall t1 t2 ad ad' t,
+Local Lemma nocr_preservation_acq : forall t1 t2 ad ad' t,
   no_cr ad t ->
   (* --- *)
   ad <> ad' ->
   no_cr ad t1 ->
   t1 --[e_acq ad' t]--> t2 ->
   no_cr ad t2.
-Proof. solve_nocr_preservation. Qed.
-
-Local Lemma nocr_preservation_rel_eq : forall t1 t2 ad,
-  no_cr ad t1 ->
-  t1 --[e_rel ad]--> t2 ->
-  False.
 Proof. solve_nocr_preservation. Qed.
 
 Local Lemma nocr_preservation_rel_neq : forall t1 t2 ad ad',
@@ -238,29 +240,29 @@ Proof. solve_nocr_preservation. Qed.
 (* ------------------------------------------------------------------------- *)
 
 Inductive valid_crs : tm -> Prop :=
-  | vcrs_unit   :                valid_crs <{unit      }>
-  | vcrs_nat    : forall n,      valid_crs <{nat n     }>
-  | vcrs_var    : forall x,      valid_crs <{var x     }>
-  | vcrs_fun    : forall x Tx t, no_crs t     ->
-                                 valid_crs <{fn x Tx t }>
-  | vcrs_call1  : forall t1 t2,  valid_crs t1 ->
-                                 valid_crs t2 ->
-                                 valid_crs <{call t1 t2}>
-  | vcrs_ref    : forall ad' T,  valid_crs <{&ad' : T  }>
-  | vcrs_new    : forall T t,    valid_crs t  ->
-                                 valid_crs <{new t : T }>
-  | vcrs_load   : forall t,      valid_crs t  ->
-                                 valid_crs <{*t        }>
-  | vcrs_asg1   : forall t1 t2,  valid_crs t1 ->
-                                 valid_crs t2 ->
-                                 valid_crs <{t1 := t2  }>
-  | vcrs_acq1  : forall t1 t2,   valid_crs t1 ->
-                                 valid_crs t2 ->
-                                 valid_crs <{acq t1 t2 }>
-  | vcrs_cr    : forall ad t,    valid_crs t  ->
-                                 valid_crs <{cr ad t   }>
-  | vcrs_spawn : forall t,       no_crs t     ->
-                                 valid_crs <{spawn t   }>
+  | vcrs_unit  :                valid_crs <{unit      }>
+  | vcrs_nat   : forall n,      valid_crs <{nat n     }>
+  | vcrs_var   : forall x,      valid_crs <{var x     }>
+  | vcrs_fun   : forall x Tx t, no_crs t     ->
+                                valid_crs <{fn x Tx t }>
+  | vcrs_call  : forall t1 t2,  valid_crs t1 ->
+                                valid_crs t2 ->
+                                valid_crs <{call t1 t2}>
+  | vcrs_ref   : forall ad T,   valid_crs <{&ad : T   }>
+  | vcrs_new   : forall T t,    valid_crs t  ->
+                                valid_crs <{new t : T }>
+  | vcrs_load  : forall t,      valid_crs t  ->
+                                valid_crs <{*t        }>
+  | vcrs_asg   : forall t1 t2,  valid_crs t1 ->
+                                valid_crs t2 ->
+                                valid_crs <{t1 := t2  }>
+  | vcrs_acq   : forall t1 t2,  valid_crs t1 ->
+                                valid_crs t2 ->
+                                valid_crs <{acq t1 t2 }>
+  | vcrs_cr    : forall ad t,   valid_crs t  ->
+                                valid_crs <{cr ad t   }>
+  | vcrs_spawn : forall t,      no_crs t     ->
+                                valid_crs <{spawn t   }>
   .
 
 (* inversion -- valid-crs -------------------------------------------------- *)
@@ -309,6 +311,14 @@ Proof.
   intros ** ?. eauto using value_then_nocr.
 Qed.
 
+Corollary mem_then_nocrs : forall m,
+  forall_memory m value ->
+  forall_memory m valid_crs ->
+  forall_memory m no_crs.
+Proof.
+  intros ** ?. eauto using value_then_nocrs.
+Qed.
+
 Local Lemma vcrs_alloc_term : forall t1 t2 ad t T,
   valid_crs t1 ->
   t1 --[e_alloc ad t T]--> t2 ->
@@ -323,6 +333,14 @@ Local Lemma vcrs_write_term  : forall t1 t2 ad t T,
   valid_crs t.
 Proof.
   intros. ind_tstep; invc_vcrs; eauto using nocrs_then_vcrs.
+Qed.
+
+Local Lemma nocrs_spawn_term : forall t1 t2 tid t,
+  valid_crs t1 ->
+  t1 --[e_spawn tid t]--> t2 ->
+  no_crs t.
+Proof. 
+  intros. ind_tstep; invc_vcrs; eauto.
 Qed.
 
 (* preservation -- valid-crs ----------------------------------------------- *)
@@ -377,12 +395,6 @@ Local Lemma vcrs_preservation_spawn : forall t1 t2 tid t,
   valid_crs t2.
 Proof. solve_vcrs_preservation. Qed.
 
-Local Lemma vcrs_preservation_spawned : forall t1 t2 tid t,
-  valid_crs t1 ->
-  t1 --[e_spawn tid t]--> t2 ->
-  no_crs t.
-Proof. solve_vcrs_preservation. Qed.
-
 Local Lemma vcrs_preservation_tm_cstep : forall m1 m2 ths1 ths2 tid e,
   forall_memory m1 no_crs ->
   (* --- *)
@@ -398,7 +410,7 @@ Proof.
   eauto using vcrs_preservation_acq;
   eauto using vcrs_preservation_rel;
   eauto using vcrs_preservation_spawn;
-  eauto using vcrs_preservation_spawned, nocrs_then_vcrs.
+  eauto using nocrs_spawn_term, nocrs_then_vcrs.
 Qed.
 
 Local Lemma vcrs_preservation_mem_cstep : forall m1 m2 ths1 ths2 tid e,
@@ -453,7 +465,7 @@ Inductive one_cr (ad : addr) : tm -> Prop :=
                                   one_cr ad t2 ->
                                   one_cr ad <{acq t1 t2 }>
   | onecr_cr_eq  : forall t,      no_cr  ad t  ->
-                                  one_cr ad <{cr ad t  }>
+                                  one_cr ad <{cr ad t   }>
   | onecr_cr_neq : forall ad' t,  ad <> ad'    ->
                                   one_cr ad t  ->
                                   one_cr ad <{cr ad' t  }>
@@ -507,14 +519,14 @@ Local Lemma onecr_rel_to_nocr : forall t1 t2 ad,
   no_cr ad t2.
 Proof.
   intros. ind_tstep; repeat invc_onecr; eauto using no_cr;
-  exfalso; eauto using nocr_preservation_rel_eq.
+  exfalso; eauto using nocr_then_not_rel.
 Qed.
 
 (* preservation -- one-cr -------------------------------------------------- *)
 
 Local Lemma onecr_subst : forall ad x tx t,
   no_cr  ad tx -> 
-  one_cr ad t ->
+  one_cr ad t  ->
   one_cr ad <{[x := tx] t}>.
 Proof.
   intros. induction t; invc_onecr; eauto using nocr_subst, one_cr; simpl in *;
@@ -569,7 +581,7 @@ Proof.
   - exfalso. eauto using value_then_nocrs, nocrs_then_not_onecr.
 Qed.
 
-Local Lemma onecr_preservation_acq_neq : forall t1 t2 ad ad' t,
+Local Lemma onecr_preservation_acq : forall t1 t2 ad ad' t,
   no_cr ad t ->
   (* --- *)
   ad <> ad' ->
@@ -578,10 +590,10 @@ Local Lemma onecr_preservation_acq_neq : forall t1 t2 ad ad' t,
   one_cr ad t2.
 Proof.
   intros. ind_tstep; repeat invc_onecr;
-  eauto using nocr_preservation_acq_neq, one_cr.
+  eauto using nocr_preservation_acq, one_cr.
 Qed.
 
-Local Lemma onecr_preservation_rel_neq : forall t1 t2 ad ad',
+Local Lemma onecr_preservation_rel : forall t1 t2 ad ad',
   ad <> ad' ->
   one_cr ad t1 ->
   t1 --[e_rel ad']--> t2 ->
@@ -606,17 +618,16 @@ Qed.
 (* unique-critical-regions                                                   *)
 (* ------------------------------------------------------------------------- *)
 
-Definition unique_critical_regions1 (m : mem) (ths : threads) :=
-  forall ad, m[ad].X = false ->
-    forall tid, no_cr ad ths[tid].
+Definition locked_then_nocrs (m : mem) (ths : threads) :=
+  forall ad, m[ad].X = false -> forall tid, no_cr ad ths[tid].
 
-Definition unique_critical_regions2 (m : mem) (ths : threads) :=
+Definition unlocked_then_onecr (m : mem) (ths : threads) :=
   forall ad, m[ad].X = true ->
     exists tid, one_cr ad ths[tid] /\
     forall tid', tid <> tid' -> no_cr ad ths[tid'].
 
 Definition unique_critical_regions (m : mem) (ths : threads) :=
-  unique_critical_regions1 m ths /\ unique_critical_regions2 m ths.
+  locked_then_nocrs m ths /\ unlocked_then_onecr m ths.
 
 (* preservation -- unique-critical-regions --------------------------------- *)
 
@@ -628,10 +639,10 @@ Local Lemma ucr_preservation_none : forall m ths tid t,
   ths[tid] --[e_none]--> t ->
   unique_critical_regions m ths[tid <- t].
 Proof.
-  intros * Hvcrs ? [Hucr1 Hucr2] ?. split.
-  - intros ? ? ?. omicron; eauto using nocr_preservation_none.
-  - intros ad Had. specialize (Hucr2 ad Had) as [tid' [? ?]]. exists tid'.
-    omicron; split; eauto using onecr_preservation_none; intros ? ?. 
+  intros until 2. intros [? Hunlocked] ?. split; intros ad Had **.
+  - omicron; eauto using nocr_preservation_none.
+  - specialize (Hunlocked ad Had) as [tid' [? ?]]. exists tid'.
+    omicron; split; eauto using onecr_preservation_none; intros. 
     + sigma. eauto.
     + omicron; eauto using nocr_preservation_none.
 Qed.
@@ -645,13 +656,12 @@ Local Lemma ucr_preservation_alloc : forall m ths tid t te Te,
   ths[tid] --[e_alloc (#m) te Te]--> t ->
   unique_critical_regions (m +++ (te, Te, false)) ths[tid <- t].
 Proof.
-  intros * Hvr ? ? [Hucr1 Hucr2] ?. split; intros ad' Had' **; repeat omicron;
+  intros until 3. intros [? Hunlocked] ?.
+  split; intros ad Had **; repeat omicron;
   eauto using nocr_from_vr_eq, nocr_from_vr_gt, nocr_preservation_alloc.
-  - specialize (Hucr2 ad' Had') as [tid' [? ?]].
-    exists tid'. split; intros; omicron;
-    eauto using nocr_preservation_alloc, onecr_preservation_alloc.
-  - invc Had'.
-  - invc Had'.
+  specialize (Hunlocked ad Had) as [tid' [? ?]]. exists tid'.
+  split; intros; omicron;
+  eauto using nocr_preservation_alloc, onecr_preservation_alloc.
 Qed.
 
 Local Lemma ucr_preservation_read : forall m ths tid t ad te,
@@ -662,10 +672,10 @@ Local Lemma ucr_preservation_read : forall m ths tid t ad te,
   ths[tid] --[e_read ad te]--> t ->
   unique_critical_regions m ths[tid <- t].
 Proof.
-  intros * ? ? [Hucr1 Hucr2] ?. split.
-  - intros ? ? ?. omicron; eauto using nocr_preservation_read.
-  - intros ad' Had'. specialize (Hucr2 ad' Had') as [tid' [? ?]]. exists tid'.
-    omicron; split; eauto using onecr_preservation_read; intros ? ?. 
+  intros * ? ? [Hucr1 Hucr2] ?. split; intros ad' Had' **.
+  - omicron; eauto using nocr_preservation_read.
+  - specialize (Hucr2 ad' Had') as [tid' [? ?]]. exists tid'.
+    omicron; split; eauto using onecr_preservation_read; intros. 
     + sigma. eauto.
     + omicron; eauto using nocr_preservation_read.
 Qed.
@@ -679,11 +689,11 @@ Local Lemma ucr_preservation_write : forall m ths tid t ad te Te,
   ths[tid] --[e_write ad te Te]--> t ->
   unique_critical_regions m[ad.tT <- te Te] ths[tid <- t].
 Proof.
-  intros * ? ? ? [Hucr1 Hucr2] ?.
+  intros until 3. intros [? Hunlocked] ?.
   assert (ad < #m) by eauto using vr_tstep_write_addr.
   split; intros ad' Had' **; repeat omicron;
-  eauto using nocr_preservation_write; try solve [invc Had'];
-  specialize (Hucr2 ad' Had') as [tid' [? ?]];
+  eauto using nocr_preservation_write;
+  specialize (Hunlocked ad' Had') as [tid' [? ?]];
   exists tid'; split; intros; omicron;
   eauto using nocr_preservation_write, onecr_preservation_write.
 Qed.
@@ -698,17 +708,15 @@ Local Lemma ucr_preservation_acq : forall m ths tid ad t te,
   ths[tid] --[e_acq ad te]--> t ->
   unique_critical_regions m[ad.X <- true] ths[tid <- t].
 Proof.
-  intros * ? ? ? Had [Hucr1 Hucr2] ?. split.
-  - intros ad' Had' tid'. repeat omicron; eauto.
-    assert (no_cr ad' te) by eauto using nocrs_then_nocr.
-    eauto using nocr_preservation_acq_neq.
-  - intros ad' Had'. omicron.
-    + exists tid. sigma. split.
-      * eauto using nocr_acq_to_onecr.
-      * intros. sigma. eauto.
-    + specialize (Hucr2 ad' Had') as [tid' [? ?]]. exists tid'. split.
-      * omicron; eauto using onecr_preservation_acq_neq.
-      * intros. omicron; eauto using nocr_preservation_acq_neq.
+  intros until 4. intros [? Hunlocked] ?.
+  split; intros ad' Had' **; repeat omicron;
+  eauto using nocr_preservation_acq.
+  - exists tid. sigma. split.
+    + eauto using nocr_acq_to_onecr.
+    + intros. sigma. eauto.
+  - specialize (Hunlocked ad' Had') as [tid' [? ?]]. exists tid'. split.
+    + omicron; eauto using onecr_preservation_acq.
+    + intros. omicron; eauto using nocr_preservation_acq.
 Qed.
 
 Local Lemma ucr_preservation_rel : forall m ths tid ad t,
@@ -718,30 +726,27 @@ Local Lemma ucr_preservation_rel : forall m ths tid ad t,
   ths[tid] --[e_rel ad]--> t ->
   unique_critical_regions m[ad.X <- false] ths[tid <- t].
 Proof.
-  intros * ? ? [Hucr1 Hucr2] ?.
-  assert (Had : m[ad].X = true). {
+  intros until 2. intros [? Hunlocked] ?.
+  assert (Had : m[ad].X = true). { (* This is cool *)
     destruct (m[ad].X) eqn:Heq; trivial. exfalso.
-    eauto using nocr_preservation_rel_eq.
-  }
-  split.
-  - intros ad' ? tid'. repeat omicron; eauto using nocr_preservation_rel_neq.
-    + specialize (Hucr2 ad' Had) as [tid'' [? ?]].
-      destruct (nat_eq_dec tid'' tid'); subst.
-      * eauto using onecr_rel_to_nocr.
-      * exfalso. eauto using nocr_preservation_rel_eq.
-    + specialize (Hucr2 ad' Had) as [tid'' [? ?]].
-      destruct (nat_eq_dec tid'' tid'); subst;
-      eauto using nocr_preservation_rel_eq.
-  - intros ad' Had'. omicron.
-    specialize (Hucr2 ad' Had') as [tid' [? ?]]. exists tid'.
-    destruct (nat_eq_dec tid' tid); subst; sigma.
-    + split; eauto using onecr_preservation_rel_neq.
-      intros ? ?. sigma. eauto.
-    + split; eauto.
-      intros tid'' ?. omicron; eauto using nocr_preservation_rel_neq.
+    eauto using nocr_then_not_rel.
+  } 
+  split; intros ad' Had'; try intros tid';
+  repeat omicron; eauto using nocr_preservation_rel_neq.
+  - specialize (Hunlocked ad' Had) as [tid'' [? ?]].
+    destruct (nat_eq_dec tid'' tid'); subst; eauto using onecr_rel_to_nocr.
+    exfalso. eauto using nocr_then_not_rel.
+  - specialize (Hunlocked ad' Had) as [tid'' [? ?]].
+    destruct (nat_eq_dec tid'' tid'); subst;
+    eauto using nocr_then_not_rel.
+  - specialize (Hunlocked ad' Had') as [tid' [? ?]]. exists tid'.
+    destruct (nat_eq_dec tid' tid); subst; sigma;
+    split; eauto using onecr_preservation_rel; intros.
+    + sigma. eauto.
+    + omicron; eauto using nocr_preservation_rel_neq.
 Qed.
 
-Ltac eapply_tstep tt :=
+Local Ltac eapply_in_tstep tt :=
   match goal with Htstep : _ --[_]--> _ |- _ => eapply tt in Htstep as ? end.
 
 Local Lemma ucr_preservation_spawn : forall m ths tid t te,
@@ -752,17 +757,16 @@ Local Lemma ucr_preservation_spawn : forall m ths tid t te,
   ths[tid] --[e_spawn (#ths) te]--> t ->
   unique_critical_regions m (ths[tid <- t] +++ te).
 Proof.
-  intros * ? ? [Hucr1 Hucr2] ?. split; intros ad Had **.
+  intros until 2. intros [? Hunlocked] ?. split; intros ad Had **.
   - omicron; eauto using no_cr.
-    + eapply_tstep nocr_preservation_spawn; eauto using no_cr.
+    + eapply_in_tstep nocr_preservation_spawn; eauto using no_cr.
     + eauto using nocr_preservation_spawned.
-  - specialize (Hucr2 ad Had) as [tid' [? ?]]. exists tid'. omicron;
-    try invc_onecr; split; eauto using onecr_preservation_spawn.
-    + intros. omicron; eauto using no_cr.
-      eapply_tstep vcrs_preservation_spawned; eauto.
-    + intros tid'' ?. omicron; eauto using no_cr.
-      * eauto using nocr_preservation_spawn.
-      * eapply_tstep vcrs_preservation_spawned; eauto.
+  - specialize (Hunlocked ad Had) as [tid' [? ?]]. exists tid'. omicron;
+    try invc_onecr; split; eauto using onecr_preservation_spawn; intros;
+    omicron; eauto using no_cr.
+    + eapply_in_tstep nocrs_spawn_term; eauto.
+    + eauto using nocr_preservation_spawn.
+    + eapply_in_tstep nocrs_spawn_term; eauto.
 Qed.
 
 Theorem ucr_preservation : forall m1 m2 ths1 ths2 tid e,

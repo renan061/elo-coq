@@ -93,7 +93,7 @@ Notation "'*' t"          := (tm_load t)          (in custom elo_tm at level 0).
 Notation "t1 ':=' t2"     := (tm_asg t1 t2)       (in custom elo_tm at level 70,
                                                               no associativity).
 Notation "'acq' t1 t2"    := (tm_acq t1 t2)       (in custom elo_tm at level 0).
-Notation "'cr' t1 t2"     := (tm_cr t1 t2)        (in custom elo_tm at level 0).
+Notation "'cr' ad t"      := (tm_cr ad t)         (in custom elo_tm at level 0).
 Notation "'spawn' t"      := (tm_spawn t)         (in custom elo_tm at level 0).
 
 Reserved Notation "Gamma '|--' t 'is' T" (at level 40).
@@ -164,7 +164,6 @@ Definition trace   := list (nat * eff).
 Notation tm_default   := <{unit}>.
 Notation ty_default   := `Unit`.
 Notation cell_default := (tm_default, ty_default, false).
-Notation tc_default   := (0, e_none).
 
 (* ------------------------------------------------------------------------- *)
 (* typing                                                                    *)

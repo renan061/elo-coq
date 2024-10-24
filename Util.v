@@ -35,10 +35,14 @@ Ltac clean :=
 
 #[export] Hint Extern 4 =>
   match goal with
-  | _ : ?n < ?n  |- _ => lia
-  | _ : ?n > ?n  |- _ => lia
-  | F : ?x <> ?x |- _ => contradict F; eauto
+  | _ : ?n < ?n      |- _ => lia
+  | _ : ?n > ?n      |- _ => lia
+  | F : ?x <> ?x     |- _ => contradict F; eauto
   | _ : ?x, _ : ~ ?x |- _ => contradiction
+  | F : false = true |- _ => inv F
+  | F : true = false |- _ => inv F
+  | H1 : ?x = ?a
+  , H2 : ?x = ?b     |- _ => try solve [rewrite H1 in H2; discriminate]
   end : core.
 
 Axiom excluded_middle : ClassicalFacts.excluded_middle.

@@ -1,142 +1,87 @@
+From Elo Require Import Core.
 
 (* ------------------------------------------------------------------------- *)
 (* safe-value                                                                *)
 (* ------------------------------------------------------------------------- *)
 
 Inductive safe_value : tm -> Prop :=
-  | safe_value_unit :
-    safe_value <{unit}>
-
-  | safe_value_nat : forall n,
-    safe_value <{nat n}>
-
-  | safe_value_refR : forall ad T,
-    safe_value <{&ad : r&T}>
-
-  | safe_value_refX : forall ad T,
-    safe_value <{&ad : x&T}>
+  | sv_unit :              safe_value <{unit       }>
+  | sv_num  : forall n,    safe_value <{nat n      }>
+  | sv_refR : forall ad T, safe_value <{&ad : `r&T`}>
+  | sv_refX : forall ad T, safe_value <{&ad : `x&T`}>
   .
 
-(* ------------------------------------------------------------------------- *)
-(* safe-term                                                                 *)
-(* ------------------------------------------------------------------------- *)
+(* inversion --------------------------------------------------------------- *)
 
-(* A safe term has no "write" references. *)
-Inductive safe_term : tm -> Prop :=
-  | safe_term_unit :
-    safe_term <{unit}>
+Local Ltac _sval tt := match goal with H : safe_value _ |- _ => tt H end.
 
-  | safe_term_nat : forall n,
-    safe_term <{nat n}>
-
-  | safe_term_var : forall x,
-    safe_term <{var x}>
-
-  | safe_term_fun : forall x Tx t,
-    safe_term t ->
-    safe_term <{fn x Tx t}>
-
-  | safe_term_call : forall t1 t2,
-    safe_term t1 ->
-    safe_term t2 ->
-    safe_term <{call t1 t2}>
-
-  | safe_term_refR : forall ad T,
-    safe_term <{&ad : r&T}>
-
-  | safe_term_refX : forall ad T,
-    safe_term <{&ad : x&T}>
-
-  | safe_term_new : forall T t,
-    safe_term t ->
-    safe_term <{new t : T}>
-
-  | safe_term_load : forall t,
-    safe_term t ->
-    safe_term <{*t}>
-
-  | safe_term_asg : forall t1 t2,
-    safe_term t1 ->
-    safe_term t2 ->
-    safe_term <{t1 := t2}>
-
-  | safe_term_acq : forall t1 t2,
-    safe_term t1 ->
-    safe_term t2 ->
-    safe_term <{acq t1 t2}>
-
-  | safe_term_cr : forall ad t,
-    safe_term t ->
-    safe_term <{cr ad t}>
-
-  | safe_term_spawn : forall t,
-    safe_term t ->
-    safe_term <{spawn t}>
-  .
+Ltac inv_sval  := _sval inv.
+Ltac invc_sval := _sval invc.
 
 (* ------------------------------------------------------------------------- *)
 (* safe-boundaries                                                           *)
 (* ------------------------------------------------------------------------- *)
 
-(* A term is safely bounded if ... *)
 Inductive safe_boundaries : tm -> Prop :=
-  | safe_boundaries_unit :
-    safe_boundaries <{unit}>
+  | sb_unit  :                  safe_boundaries <{unit      }>
 
-  | safe_boundaries_nat : forall n,
-    safe_boundaries <{nat n}>
+  | sb_nat   : forall n,        safe_boundaries <{nat n     }>
 
-  | safe_boundaries_var : forall x,
-    safe_boundaries <{var x}>
+  | sb_var   : forall x,        safe_boundaries <{var x     }>
 
-  | safe_boundaries_fun : forall x Tx t,
-    safe_boundaries t ->
-    safe_boundaries <{fn x Tx t}>
+  | sb_fun   : forall x Tx t,   safe_boundaries t  ->
+                                safe_boundaries <{fn x Tx t }>
 
-  | safe_boundaries_call : forall t1 t2,
-    safe_boundaries t1 ->
-    safe_boundaries t2 ->
-    safe_boundaries <{call t1 t2}>
+  | sb_call  : forall t1 t2,    safe_boundaries t1 ->
+                                safe_boundaries t2 ->
+                                safe_boundaries <{call t1 t2}>
 
-  | safe_boundaries_ref : forall ad T,
-    safe_boundaries <{&ad : T}>
+  | sb_ref   : forall ad T,     safe_boundaries <{&ad : T   }>
 
-  | safe_boundaries_new : forall T t,
-    safe_boundaries t ->
-    safe_boundaries <{new t : T}>
+  | sb_new   : forall T t,      safe_boundaries t  ->
+                                safe_boundaries <{new t : T }>
 
-  | safe_boundaries_load : forall t,
-    safe_boundaries t ->
-    safe_boundaries <{*t}>
+  | sb_load  : forall t,        safe_boundaries t  ->
+                                safe_boundaries <{*t        }>
 
-  | safe_boundaries_asg : forall t1 t2,
-    safe_boundaries t1 ->
-    safe_boundaries t2 ->
-    safe_boundaries <{t1 := t2}>
+  | sb_asg   : forall t1 t2,    safe_boundaries t1 ->
+                                safe_boundaries t2 ->
+                                safe_boundaries <{t1 := t2  }>
 
-  | safe_boundaries_acq1 : forall t1 t2,
-    ~ value t2 ->
-    safe_boundaries t1 ->
-    safe_boundaries t2 ->
-    safe_boundaries <{acq t1 t2}>
+  | sb_acq   : forall t1 t2,    safe_boundaries t1 ->
+                                safe_boundaries t2 ->
+                                safe_boundaries <{acq t1 t2 }>
 
-  | safe_boundaries_acq2 : forall t1 t2,
-    value t2 ->
-    safe_value t2 ->
-    safe_boundaries <{acq t1 t2}>
+  | sb_cr1   : forall ad t,     ~ value t          ->
+                                safe_boundaries t  ->
+                                safe_boundaries <{cr ad t   }>
 
-  | safe_boundaries_cr1 : forall ad t,
-    ~ value t ->
-    safe_boundaries t ->
-    safe_boundaries <{cr ad t}>
+  | sb_cr2   : forall ad t,     value t            ->
+                                safe_value t       ->
+                                safe_boundaries <{cr ad t   }>
 
-  | safe_boundaries_cr2 : forall ad t,
-    value t ->
-    safe_term t ->
-    safe_boundaries <{cr ad t}>
-
-  | safe_boundaries_spawn : forall t,
-    safe_term t ->
-    safe_boundaries <{spawn t}>
+  | sb_spawn : forall t,        safe_boundaries t  ->
+                                safe_boundaries <{spawn t   }>
   .
+
+(* inversion --------------------------------------------------------------- *)
+
+Local Ltac _sb tt :=
+  match goal with
+  | H : safe_boundaries <{unit     }>   |- _ => clear H
+  | H : safe_boundaries <{nat _    }>   |- _ => clear H
+  | H : safe_boundaries <{var _    }>   |- _ => clear H
+  | H : safe_boundaries <{fn _ _ _ }>   |- _ => tt H
+  | H : safe_boundaries <{call _ _ }>   |- _ => tt H
+  | H : safe_boundaries <{& _ : _  }>   |- _ => clear H
+  | H : safe_boundaries <{new _ : _}>   |- _ => tt H
+  | H : safe_boundaries <{* _      }>   |- _ => tt H
+  | H : safe_boundaries <{_ := _   }>   |- _ => tt H
+  | H : safe_boundaries <{acq _  _ }>   |- _ => tt H
+  | H : safe_boundaries <{cr _ _   }>   |- _ => tt H
+  | H : safe_boundaries <{spawn _  }>   |- _ => tt H
+  end.
+
+Ltac inv_sb  := _sb inv.
+Ltac invc_sb := _sb invc.
 

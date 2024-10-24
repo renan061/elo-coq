@@ -20,10 +20,11 @@ properties:
 	$(COQC) Properties.v
 
 todo:
-	$(COQC) CriticalRegion.v
+	$(COQC) CriticalRegions.v
+	$(COQC) Boundaries.v
+	$(COQC) Access.v
 
 safety:
-	$(COQC) Access.v
 	$(COQC) SMS.v
 	# $(COQC) Invariants.v
 	# $(COQC) Safety.
