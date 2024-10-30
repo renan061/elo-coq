@@ -2,6 +2,7 @@ From Elo Require Import Core.
 
 From Elo Require Import WellTypedTerm.
 From Elo Require Import ValidReferences.
+From Elo Require Import CriticalRegions.
 From Elo Require Import Boundaries.
 
 (* ------------------------------------------------------------------------- *)
@@ -645,11 +646,9 @@ Proof.
   eauto using access.
 Qed.
 
-Local Lemma xacc_subst_backwads : forall adx ad m x tx t,
+Local Lemma xacc_subst_backwards : forall adx ad m x tx t,
   exclusive_access adx ad m <{ [x := tx] t }> ->
-  (exclusive_access adx ad m tx \/
-   exclusive_access adx ad m t  \/
-   access ad m <{[x := tx] t}>  ).
+  (access ad m tx \/ exclusive_access adx ad m tx \/ exclusive_access adx ad m t).
 Proof.
   intros. induction t; eauto; simpl in *; try destruct str_eq_dec; eauto;
   inv_xacc; try aspecialize;
@@ -657,29 +656,30 @@ Proof.
     match goal with H : _ \/ _ \/ _ |- _ => decompose sum H end;
     eauto using access, exclusive_access
   ].
-  - eapply acc_subst_backwards in H1 as [? | ?];
-    eauto using exclusive_access.
-    exfalso.
-    admit.
-  - destruct IHt as [? | [? | ?]]; eauto.
-    + right. left. eapply xacc_cr_neq; eauto.
-    + exfalso. (*H0 e H3*)
-Abort.
+  eapply acc_subst_backwards in H1 as [? | ?];
+  eauto using exclusive_access.
+Qed.
 
 Local Lemma ap1_subst : forall ad m x tx Tx t,
+  valid_crs <{call (fn x Tx t) tx}> ->
+  value tx ->
   access_promise1 ad m <{call (fn x Tx t) tx}> ->
   access_promise1 ad m t ->
   access_promise1 ad m tx ->
   access_promise1 ad m <{[x := tx] t}>.
 Proof.
-  intros * H Ht Htx. intros until 3.
+  intros * Hvcrs Hval H Ht Htx. intros until 3.
+  repeat invc_vcrs.
+eapply value_then_nocrs in H6; trivial.
   specialize (Ht adx T H0).
   specialize (Htx adx T H0).
   assert (Hacc : access ad m tx \/ access ad m t)
     by eauto using acc_subst_backwards.
-  destruct Hacc; repeat aspecialize;
+  assert (Hxacc : access ad m tx \/ exclusive_access adx ad m tx \/ exclusive_access adx ad m t)
+    by eauto using xacc_subst_backwards.
+  destruct Hacc as [? | ?]; destruct Hxacc as [? | [? | ?]]; repeat aspecialize;
   eauto using access, exclusive_access.
-  - admit.
+  - Usar o tipo. admit.
   - admit.
 Abort.
 
