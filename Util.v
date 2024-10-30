@@ -12,12 +12,8 @@ Ltac invc H := inv H; clear H.
 
 (* miscellaneous utilities *)
 
-Ltac splits n :=
-  match n with
-  | O => fail
-  | S O => idtac
-  | S ?n' => split; [| splits n']
-  end.
+Ltac duplicate H H' := specialize H as H'.
+Ltac dup H H' := duplicate H H'.
 
 Ltac auto_specialize := (* TODO: deprecated *)
   match goal with

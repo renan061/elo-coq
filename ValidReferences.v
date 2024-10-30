@@ -81,7 +81,7 @@ Ltac invc_vr := _vr invc.
 (* auxiliary lemmas                                                          *)
 (* ------------------------------------------------------------------------- *)
 
-Local Lemma vr_tstep_alloc_term : forall m t1 t2 ad t T,
+Lemma vr_tstep_alloc_term : forall m t1 t2 ad t T,
   valid_references m t1 ->
   t1 --[e_alloc ad t T]--> t2 ->
   valid_references m t.
