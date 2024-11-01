@@ -17,13 +17,13 @@ Definition addr := nat.
 Inductive sty : Set :=
   | ty_unit
   | ty_num
-  | ty_refR : sty -> sty (* read reference *)
-  | ty_refX : ty  -> sty (* guarded reference *)
+  | ty_refR : sty -> sty        (* read reference    *)
+  | ty_refX : ty  -> sty        (* monitor reference *)
 
 (* type *)
 with ty : Set :=
   | ty_safe : sty -> ty
-  | ty_refW : ty  -> ty (* write reference *)
+  | ty_refW : ty  -> ty         (* write reference   *)
   | ty_fun  : ty  -> ty -> ty
   .
 
@@ -34,18 +34,19 @@ with ty : Set :=
 Inductive tm : Set :=
   (* primitives *)
   | tm_unit
-  | tm_nat   : nat -> tm
+  | tm_nat   : nat  -> tm
   (* functions *)
-  | tm_var   : id -> tm
-  | tm_fun   : id -> ty -> tm -> tm
-  | tm_call  : tm -> tm -> tm
+  | tm_var   : id   -> tm
+  | tm_fun   : id   -> ty -> tm -> tm
+  | tm_call  : tm   -> tm -> tm
   (* memory *)
   | tm_ref   : addr -> ty -> tm
   | tm_new   : tm   -> ty -> tm
+  | tm_init  : addr -> tm -> ty -> tm
   | tm_load  : tm   -> tm
   | tm_asg   : tm   -> tm -> tm
   | tm_acq   : tm   -> tm -> tm
-  | tm_cr    : addr -> tm -> tm (* critical region *)
+  | tm_cr    : addr -> tm -> tm
   (* concurrency *)
   | tm_spawn : tm -> tm
   .
@@ -78,23 +79,25 @@ Notation "<{ t }>" := t (t custom elo_tm at level 99).
 Notation "( x )"   := x (in custom elo_tm, x at level 99).
 Notation "x"       := x (in custom elo_tm at level 0, x constr at level 0).
 
-Notation "'unit'"         := (tm_unit)            (in custom elo_tm at level 0).
-Notation "'nat' n"        := (tm_nat n)           (in custom elo_tm at level 0).
-Notation "'var' x"        := (tm_var x)           (in custom elo_tm at level 0).
-Notation "'fn' x Tx t"    := (tm_fun x Tx t)       (in custom elo_tm at level 0,
+Notation "'unit'"           := (tm_unit)          (in custom elo_tm at level 0).
+Notation "'nat' n"          := (tm_nat n)         (in custom elo_tm at level 0).
+Notation "'var' x"          := (tm_var x)         (in custom elo_tm at level 0).
+Notation "'fn' x Tx t"      := (tm_fun x Tx t)     (in custom elo_tm at level 0,
                                                             x constr at level 0,
                                                    Tx custom elo_ty at level 0).
-Notation "'call' t1 t2"   := (tm_call t1 t2)      (in custom elo_tm at level 0).
-Notation "'&' ad ':' T"   := (tm_ref ad T)         (in custom elo_tm at level 0,
+Notation "'call' t1 t2"     := (tm_call t1 t2)    (in custom elo_tm at level 0).
+Notation "'&' ad ':' T"     := (tm_ref ad T)       (in custom elo_tm at level 0,
                                                     T custom elo_ty at level 0).
-Notation "'new' t : T"    := (tm_new t T)          (in custom elo_tm at level 0,
+Notation "'new' t : T"      := (tm_new t T)        (in custom elo_tm at level 0,
                                                     T custom elo_ty at level 0).
-Notation "'*' t"          := (tm_load t)          (in custom elo_tm at level 0).
-Notation "t1 ':=' t2"     := (tm_asg t1 t2)       (in custom elo_tm at level 70,
+Notation "'init' ad t : T"  := (tm_init ad t T)    (in custom elo_tm at level 0,
+                                                    T custom elo_ty at level 0).
+Notation "'*' t"            := (tm_load t)        (in custom elo_tm at level 0).
+Notation "t1 ':=' t2"       := (tm_asg t1 t2)     (in custom elo_tm at level 70,
                                                               no associativity).
-Notation "'acq' t1 t2"    := (tm_acq t1 t2)       (in custom elo_tm at level 0).
-Notation "'cr' ad t"      := (tm_cr ad t)         (in custom elo_tm at level 0).
-Notation "'spawn' t"      := (tm_spawn t)         (in custom elo_tm at level 0).
+Notation "'acq' t1 t2"      := (tm_acq t1 t2)     (in custom elo_tm at level 0).
+Notation "'cr' ad t"        := (tm_cr ad t)       (in custom elo_tm at level 0).
+Notation "'spawn' t"        := (tm_spawn t)       (in custom elo_tm at level 0).
 
 Reserved Notation "Gamma '|--' t 'is' T" (at level 40).
 
@@ -130,12 +133,13 @@ Inductive value : tm -> Prop :=
 
 Inductive eff : Set :=
   | e_none
-  | e_alloc (ad : addr) (t : tm) (T : ty)
-  | e_read  (ad : addr) (t : tm)
-  | e_write (ad : addr) (t : tm) (T : ty)
-  | e_acq   (ad : addr) (t : tm)
-  | e_rel   (ad : addr)
-  | e_spawn (tid : nat) (t : tm)
+  | e_alloc  (ad : addr) (T : ty)
+  | e_init   (ad : addr) (t : tm)
+  | e_read   (ad : addr) (t : tm)
+  | e_write  (ad : addr) (t : tm)
+  | e_acq    (ad : addr) (t : tm)
+  | e_rel    (ad : addr)
+  | e_spawn  (tid : nat) (t : tm)
   .
 
 (* ------------------------------------------------------------------------- *)
@@ -143,7 +147,7 @@ Inductive eff : Set :=
 (* ------------------------------------------------------------------------- *)
 
 Inductive cell : Type :=
-  | cell_triple (t : tm) (T : ty) (X : bool)
+  | cell_triple (t : option tm) (T : ty) (X : bool)
   .
 
 Notation "'(' t ',' T ',' X ')'" := (cell_triple t T X).
@@ -163,7 +167,7 @@ Definition trace   := list (nat * eff).
 
 Notation tm_default   := <{unit}>.
 Notation ty_default   := `Unit`.
-Notation cell_default := (tm_default, ty_default, false).
+Notation cell_default := (None, ty_default, false).
 
 (* ------------------------------------------------------------------------- *)
 (* typing                                                                    *)
@@ -218,6 +222,18 @@ Inductive type_of : ctx -> tm -> ty -> Prop :=
     Gamma |-- t is T ->
     Gamma |-- <{new t : w&T}> is `w&T`
 
+  | T_initR : forall Gamma ad t T,
+    empty |-- t is `Safe T` ->
+    Gamma |-- <{init ad t : r&T}> is `r&T`
+
+  | T_initX : forall Gamma ad t T,
+    empty |-- t is T ->
+    Gamma |-- <{init ad t : x&T}> is `x&T`
+
+  | T_initW : forall Gamma ad t T,
+    empty |-- t is T ->
+    Gamma |-- <{init ad t : w&T}> is `w&T`
+
   | T_loadR : forall Gamma t T,
     Gamma |-- t is `r&T` ->
     Gamma |-- <{*t}> is `Safe T`
@@ -254,21 +270,22 @@ Local Infix "=?" := string_dec (at level 70, no associativity).
 
 Fixpoint subst (x : id) (tx t : tm) : tm :=
   match t with
-  | <{unit       }> => t
-  | <{nat _      }> => t
+  | <{unit           }> => t
+  | <{nat _          }> => t
   (* functions *)
-  | <{var x'     }> => if x =? x' then tx else t
-  | <{fn x' Tx t'}> => if x =? x' then t  else <{fn x' Tx ([x := tx] t')}>
+  | <{var x'         }> => if x =? x' then tx else t
+  | <{fn x' Tx t'    }> => if x =? x' then t  else <{fn x' Tx ([x := tx] t')}>
   (* memory *)
-  | <{call t1 t2 }> => <{call ([x := tx] t1) ([x := tx] t2)}>
-  | <{& _ : _    }> => t
-  | <{new t' : T }> => <{new ([x := tx] t') : T}>
-  | <{*t'        }> => <{* ([x := tx] t')}>
-  | <{t1 := t2   }> => <{([x := tx] t1) := ([x := tx] t2)}>
-  | <{acq t1 t2  }> => <{acq ([x := tx] t1) ([x := tx] t2)}>
-  | <{cr ad t'   }> => <{cr ad ([x := tx] t')}> (* could it be "t"? *)
+  | <{call t1 t2     }> => <{call ([x := tx] t1) ([x := tx] t2)}>
+  | <{& _ : _        }> => t
+  | <{new t' : T     }> => <{new ([x := tx] t') : T}>
+  | <{init ad t' : T }> => <{init ad ([x := tx] t') : T}>
+  | <{*t'            }> => <{* ([x := tx] t')}>
+  | <{t1 := t2       }> => <{([x := tx] t1) := ([x := tx] t2)}>
+  | <{acq t1 t2      }> => <{acq ([x := tx] t1) ([x := tx] t2)}>
+  | <{cr ad t'       }> => <{cr ad ([x := tx] t')}> (* could it be "t"? *)
   (* concurrency *)
-  | <{spawn t'   }> => <{spawn ([x := tx] t')}>
+  | <{spawn t'       }> => <{spawn ([x := tx] t')}>
   end
   where "'[' x ':=' tx ']' t" := (subst x tx t) (in custom elo_tm).
 
@@ -277,7 +294,7 @@ Fixpoint subst (x : id) (tx t : tm) : tm :=
 (* ------------------------------------------------------------------------- *)
 
 Inductive tstep : tm -> eff -> tm -> Prop :=
-  (* Call *)
+  (* call *)
   | ts_call1 : forall t1 t1' t2 e,
     t1 --[e]--> t1' ->
     <{call t1 t2}> --[e]--> <{call t1' t2}>
@@ -291,16 +308,20 @@ Inductive tstep : tm -> eff -> tm -> Prop :=
     value tx ->
     <{call (fn x Tx t) tx}> --[e_none]--> <{[x := tx] t}>
 
-  (* New *)
-  | ts_new1 : forall t t' e T,
-    t --[e]--> t' ->
-    <{new t : T}> --[e]--> <{new t' : T}>
-
+  (* new *)
   | ts_new : forall ad t T,
-    value t ->
-    <{new t : T}> --[e_alloc ad t T]--> <{&ad : T}>
+    <{new t : T}> --[e_alloc ad T]--> <{init ad t : T}>
 
-  (* Load *)
+  (* init *)
+  | ts_init1 : forall ad t t' e T,
+    t --[e]--> t' ->
+    <{init ad t : T}> --[e]--> <{init ad t' : T}>
+
+  | ts_init : forall ad t T,
+    value t ->
+    <{init ad t : T}> --[e_init ad t]--> <{&ad : T}>
+
+  (* load *)
   | ts_load1 : forall t t' e,
     t --[e]--> t' ->
     <{*t}> --[e]--> <{*t'}>
@@ -308,7 +329,7 @@ Inductive tstep : tm -> eff -> tm -> Prop :=
   | ts_load : forall ad t T,
     <{* (&ad : T)}> --[e_read ad t]--> t
 
-  (* Asg *)
+  (* asg *)
   | ts_asg1 : forall t1 t1' t2 e,
     t1 --[e]--> t1' ->
     <{t1 := t2}> --[e]--> <{t1' := t2}>
@@ -320,9 +341,9 @@ Inductive tstep : tm -> eff -> tm -> Prop :=
 
   | ts_asg : forall ad t T,
     value t ->
-    <{&ad : T := t}> --[e_write ad t T]--> <{unit}>
+    <{&ad : T := t}> --[e_write ad t]--> <{unit}>
 
-  (* Acquire *)
+  (* acq *)
   | ts_acq1 : forall t1 t1' t2 e,
     t1 --[e]--> t1' ->
     <{acq t1 t2}> --[e]--> <{acq t1' t2}>
@@ -335,7 +356,7 @@ Inductive tstep : tm -> eff -> tm -> Prop :=
   | ts_acq : forall ad T x Tx t tx,
     <{acq (&ad : T) (fn x Tx t)}> --[e_acq ad tx]--> <{cr ad ([x := tx] t)}>
 
-  (* Critical Region *)
+  (* cr *)
   | ts_cr1 : forall ad t t' e,
     t --[e]--> t' ->
     <{cr ad t}> --[e]--> <{cr ad t'}>
@@ -366,8 +387,8 @@ Notation " m '[' ad '].T' " := ((m[ad] or cell_default).T)
 Notation " m '[' ad '].X' " := ((m[ad] or cell_default).X)
   (at level 9, ad at next level).
 
-Notation " m '[' ad '.tT' '<-' t T ']' " :=
-  (m[ad <- (t, T, m[ad].cell.X)])
+Notation " m '[' ad '.t' '<-' t ']' " :=
+  (m[ad <- (Some t, m[ad].cell.T, m[ad].cell.X)])
   (at level 9, ad at next level, t at next level).
 
 Notation " m '[' ad '.X' '<-' X ']' " :=
@@ -379,26 +400,33 @@ Inductive mstep : mem -> tm -> eff -> mem -> tm -> Prop :=
     t1 --[e_none]--> t2 ->
     m / t1 ==[e_none]==> m / t2
 
-  | ms_alloc : forall m t1 t2 ad t T,
+  | ms_alloc : forall m t1 t2 ad T,
     ad = #m ->
-    t1 --[e_alloc ad t T]--> t2 ->
-    m / t1 ==[e_alloc ad t T]==> (m +++ (t, T, false)) / t2
+    t1 --[e_alloc ad T]--> t2 ->
+    m / t1 ==[e_alloc ad T]==> (m +++ (None, T, false)) / t2
 
-  | ms_read : forall m t1 t2 ad,
+  | ms_init : forall m t1 t2 ad t,
     ad < #m ->
-    t1 --[e_read ad m[ad].t]--> t2 ->
-    m / t1 ==[e_read ad m[ad].t]==> m / t2
+    t1 --[e_init ad t]--> t2 ->
+    m / t1 ==[e_init ad t]==> m[ad.t <- t] / t2
 
-  | ms_write : forall m t1 t2 ad t T,
+  | ms_read : forall m t1 t2 ad t,
     ad < #m ->
-    t1 --[e_write ad t T]--> t2 ->
-    m / t1 ==[e_write ad t T]==> m[ad.tT <- t T] / t2
+    m[ad].t = Some t ->
+    t1 --[e_read ad t]--> t2 ->
+    m / t1 ==[e_read ad t]==> m / t2
 
-  | ms_acq : forall m t1 t2 ad,
+  | ms_write : forall m t1 t2 ad t,
     ad < #m ->
+    t1 --[e_write ad t]--> t2 ->
+    m / t1 ==[e_write ad t]==> m[ad.t <- t] / t2
+
+  | ms_acq : forall m t1 t2 ad t,
+    ad < #m ->
+    m[ad].t = Some t ->
     m[ad].X = false ->
-    t1 --[e_acq ad m[ad].t]--> t2 ->
-    m / t1 ==[e_acq ad m[ad].t]==> m[ad.X <- true] / t2
+    t1 --[e_acq ad t]--> t2 ->
+    m / t1 ==[e_acq ad t]==> m[ad.X <- true] / t2
 
   | ms_rel : forall m t1 t2 ad,
     ad < #m ->

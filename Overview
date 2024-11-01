@@ -49,3 +49,18 @@ Tem que dar release pra sair na CR:
     m1 / ths1 ~~[e]~~> m2 / ths2 ->
     ~ inCR ad ths2[tid1] ->
     e = rel ad.
+
+Invariante:
+    m[ad].T = w&T ->
+    xacc adx ad m ths[tid1] ->
+    (~ acc ad m ths[tid2] /\
+     (tid1 <> tid2 -> ~ xacc adx' ad m ths[tid2]) /\
+     (tid  == tid2 -> adx <> adx' -> ~ xacc adx' ad m ths[tid1]) /\
+    )
+
+cell
+    option tm
+    typ
+    bool
+
+cr flag adx t

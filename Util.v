@@ -29,6 +29,11 @@ Ltac clean :=
   | H  : ?a = ?a     |- _ => clear H
   end.
 
+Ltac invc_eq := 
+  match goal with H1 : ?x = ?a, H2 : ?x = ?b |- _ =>
+    rewrite H1 in H2; invc H2
+  end.
+
 #[export] Hint Extern 4 =>
   match goal with
   | _ : ?n < ?n      |- _ => lia

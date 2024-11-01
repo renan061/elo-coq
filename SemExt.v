@@ -11,18 +11,19 @@ From Elo Require Import Sem.
 
 Ltac _typeof tt :=
   match goal with
-  | H : _ |-- <{unit     }> is _ |- _ => tt H
-  | H : _ |-- <{nat _    }> is _ |- _ => tt H
-  | H : _ |-- <{var _    }> is _ |- _ => tt H
-  | H : _ |-- <{fn _ _ _ }> is _ |- _ => tt H
-  | H : _ |-- <{call _ _ }> is _ |- _ => tt H
-  | H : _ |-- <{& _ : _  }> is _ |- _ => tt H
-  | H : _ |-- <{new _ : _}> is _ |- _ => tt H
-  | H : _ |-- <{* _      }> is _ |- _ => tt H
-  | H : _ |-- <{_ := _   }> is _ |- _ => tt H
-  | H : _ |-- <{acq _ _  }> is _ |- _ => tt H
-  | H : _ |-- <{cr _ _   }> is _ |- _ => tt H
-  | H : _ |-- <{spawn _  }> is _ |- _ => tt H
+  | H : _ |-- <{unit        }> is _ |- _ => tt H
+  | H : _ |-- <{nat _       }> is _ |- _ => tt H
+  | H : _ |-- <{var _       }> is _ |- _ => tt H
+  | H : _ |-- <{fn _ _ _    }> is _ |- _ => tt H
+  | H : _ |-- <{call _ _    }> is _ |- _ => tt H
+  | H : _ |-- <{& _ : _     }> is _ |- _ => tt H
+  | H : _ |-- <{new _ : _   }> is _ |- _ => tt H
+  | H : _ |-- <{init _ _ : _}> is _ |- _ => tt H
+  | H : _ |-- <{* _         }> is _ |- _ => tt H
+  | H : _ |-- <{_ := _      }> is _ |- _ => tt H
+  | H : _ |-- <{acq _ _     }> is _ |- _ => tt H
+  | H : _ |-- <{cr _ _      }> is _ |- _ => tt H
+  | H : _ |-- <{spawn _     }> is _ |- _ => tt H
   end.
 
 Ltac inv_typeof  := _typeof inv.
@@ -51,7 +52,7 @@ Ltac invc_ustep := _ustep invc.
 
 Ltac ind_tstep :=
   match goal with H : _ --[?e]--> _ |- _ =>
-    remember e eqn:Heqe; induction H; inv Heqe
+    remember e eqn:Heqe; induction H; inv Heqe; clean
   end.
 
 Ltac ind_ustep :=
@@ -92,16 +93,14 @@ Qed.
 (* forall properties                                                         *)
 (* ------------------------------------------------------------------------- *)
 
-Definition forall_memory (m : mem) (P : tm -> _) : Prop :=
-  forall_array cell_default (fun cell => P (cell.t)) m.
+Definition forall_memory (m : mem) (P : tm -> Prop) : Prop :=
+  forall ad t, m[ad].t = Some t -> P t.
 
 Definition forall_threads (ths : threads) (P : tm -> _) : Prop :=
   forall_array tm_default P ths.
 
 Definition forall_program (m : mem) (ths : threads) (P : tm -> _) : Prop :=
   (forall_memory m P) /\ (forall_threads ths P).
-
-#[export] Hint Unfold forall_program : core.
 
 (* ------------------------------------------------------------------------- *)
 (* determinism                                                               *)
@@ -138,8 +137,8 @@ Lemma tstep_tid_bound : forall t ths tid e,
   ths[tid] --[e]--> t ->
   tid < #ths.
 Proof.
-  intros. decompose sum (lt_eq_lt_dec tid (#ths)); subst; trivial; Array.sigma;
-  solve [lia | inv_tstep].
+  intros. decompose sum (lt_eq_lt_dec tid (#ths)); subst; trivial;
+  sigma; inv_tstep.
 Qed.
 
 Lemma mstep_tid_bound : forall m m' t' ths tid e,

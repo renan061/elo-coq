@@ -174,6 +174,9 @@ Inductive exclusive_access (adx ad : addr) (m : mem) : tm -> Prop :=
                                  exclusive_access adx ad m <{acq t1 t2 }>
 
   | xacc_cr_eq  : forall t,      access ad m t                ->
+                                 exclusive_access adx ad m <{cr2 adx t  }>
+
+  | xacc_cr_eq  : forall t,      access ad m t                ->
                                  exclusive_access adx ad m <{cr adx t  }>
 
   | xacc_cr_neq : forall adx' t, adx <> adx'                  ->

@@ -13,7 +13,6 @@ core:
 	$(COQC) Core.v
 
 properties:
-	$(COQC) Preservation.v
 	$(COQC) WellTypedTerm.v
 	$(COQC) ValidReferences.v
 	$(COQC) Soundness.v

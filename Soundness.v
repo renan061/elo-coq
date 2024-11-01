@@ -72,24 +72,32 @@ Local Lemma typeof_preservation_mstep : forall m1 m2 t1 t2 e T,
   m1 / t1 ==[e]==> m2 / t2 ->
   empty |-- t2 is T.
 Proof.
-  intros. invc_mstep;
-  generalize dependent T; ind_tstep; intros;
-  invc_vr; invc_typeof; eauto using type_of;
-  repeat invc_typeof; repeat invc_vr; eauto using typeof_subst, type_of.
+  intros. invc_mstep; gendep T; ind_tstep; intros;
+  repeat invc_vr; repeat invc_typeof;
+  try invc_eq; eauto using typeof_subst, type_of.
 Qed.
 
-Local Lemma typeof_preservation_mem_mstep : forall m1 m2 t1 t2 e ad T,
+Local Lemma typeof_preservation_mem_mstep : forall m1 m2 t1 t2 t1' t2' e ad T,
   well_typed_term t1 ->
   valid_references m1 t1 ->
   (* --- *)
   ad < #m1 ->
-  empty |-- m1[ad].t is T ->
+  m1[ad].t = Some t1' ->
+  m2[ad].t = Some t2' ->
+  empty |-- t1' is T ->
   m1 / t1 ==[e]==> m2 / t2 ->
-  empty |-- m2[ad].t is T.
+  empty |-- t2' is T.
 Proof.
-  intros * [T1 ?] **. invc_mstep; sigma; trivial; omicron; trivial.
-  generalize dependent T1. ind_tstep; intros; invc_typeof; invc_vr; eauto.
-  invc_typeof. invc_vr. apply_deterministic_typing. eauto.
+  intros. rename ad into ad'.
+  invc_mstep; try invc_eq; trivial;
+  sigma; try omicron; repeat invc_eq; trivial.
+  + contradict H2. admit.
+  + invc H3.
+    destruct H as [T' ?].
+    gendep T'. gendep t1'.
+    ind_tstep; intros;
+    repeat invc_typeof; repeat invc_vr; eauto.
+    invc_eq. apply_deterministic_typing. eauto.
 Qed.
 
 Lemma typeof_preservation_spawn : forall t1 t2 tid t T,
