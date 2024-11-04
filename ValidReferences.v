@@ -3,7 +3,7 @@ From Elo Require Import Core.
 From Elo Require Import WellTypedTerm.
 
 (* ------------------------------------------------------------------------- *)
-(* valid_references                                                          *)
+(* valid-references                                                          *)
 (* ------------------------------------------------------------------------- *)
 
 Inductive valid_references (m : mem) : tm -> Prop :=
@@ -39,17 +39,17 @@ Inductive valid_references (m : mem) : tm -> Prop :=
   | vr_initR : forall ad t T, ad < #m              ->
                               m[ad].T = `r&T`      ->
                               valid_references m t ->
-                              valid_references m <{init ad t : `r&T`}> 
+                              valid_references m <{init ad t : r&T}> 
 
   | vr_initX : forall ad t T, ad < #m              ->
                               m[ad].T = `x&T`      ->
                               valid_references m t ->
-                              valid_references m <{init ad t : `x&T`}> 
+                              valid_references m <{init ad t : x&T}> 
 
   | vr_initW : forall ad t T, ad < #m              ->
                               m[ad].T = `w&T`      ->
                               valid_references m t ->
-                              valid_references m <{init ad t : `w&T`}> 
+                              valid_references m <{init ad t : w&T}> 
 
   | vr_new   : forall T t,    valid_references m t ->
                               valid_references m <{new t : T}> 
@@ -73,9 +73,7 @@ Inductive valid_references (m : mem) : tm -> Prop :=
                               valid_references m <{spawn t}>
   .
 
-(* ------------------------------------------------------------------------- *)
-(* tactics                                                                   *)
-(* ------------------------------------------------------------------------- *)
+(* inversion --------------------------------------------------------------- *)
 
 Local Ltac _vr tt :=
   match goal with
@@ -97,9 +95,7 @@ Local Ltac _vr tt :=
 Ltac inv_vr  := _vr inv.
 Ltac invc_vr := _vr invc.
 
-(* ------------------------------------------------------------------------- *)
-(* auxiliary lemmas                                                          *)
-(* ------------------------------------------------------------------------- *)
+(* lemmas ------------------------------------------------------------------ *)
 
 Lemma vr_tstep_init_term : forall m t1 t2 ad t,
   valid_references m t1 ->
@@ -164,9 +160,7 @@ Proof.
   - invc_eq. assumption.
 Qed.
 
-(* ------------------------------------------------------------------------- *)
-(* preservation                                                              *)
-(* ------------------------------------------------------------------------- *)
+(* preservation ------------------------------------------------------------ *)
 
 Lemma vr_subst : forall m t tx x,
   valid_references m tx ->

@@ -30,18 +30,21 @@ Ltac clean :=
   end.
 
 Ltac invc_eq := 
-  match goal with H1 : ?x = ?a, H2 : ?x = ?b |- _ =>
-    rewrite H1 in H2; invc H2
+  match goal with
+  | H1 : ?x = ?a, H2 : ?x = ?b |- _ => rewrite H1 in H2; invc H2
+  | H  : Some ?x = Some ?y     |- _ => invc H
   end.
 
 #[export] Hint Extern 4 =>
   match goal with
-  | _ : ?n < ?n      |- _ => lia
-  | _ : ?n > ?n      |- _ => lia
+  | _ : False        |- _ => contradiction
   | F : ?x <> ?x     |- _ => contradict F; eauto
   | _ : ?x, _ : ~ ?x |- _ => contradiction
   | F : false = true |- _ => inv F
   | F : true = false |- _ => inv F
+  | _ : ?n < ?n      |- _ => lia
+  | _ : ?n > ?n      |- _ => lia
+  | _ : ?n > ?n      |- _ => lia
   | H1 : ?x = ?a
   , H2 : ?x = ?b     |- _ => try solve [rewrite H1 in H2; discriminate]
   end : core.
@@ -64,6 +67,18 @@ Definition bool_eq_dec  := Bool.bool_dec.
 Definition nat_eq_dec   := Peano_dec.eq_nat_dec.
 Definition str_eq_dec   := String.string_dec.
 Definition lt_eq_lt_dec := Compare_dec.lt_eq_lt_dec.
+
+Lemma opt_dec : forall {A} (o : option A),
+  {o = None} + {exists a, o = Some a}.
+Proof.
+  destruct o; eauto.
+Qed.
+
+Lemma alt_opt_dec : forall {A} (o : option A),
+  {o = None} + {o <> None}.
+Proof.
+  intros. destruct o; eauto. right. intros F. invc F.
+Qed.
 
 (* misc *)
 

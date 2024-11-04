@@ -2,7 +2,7 @@
 
 COQC= coqc -Q . Elo
 
-all: core properties todo 
+all: core properties
 
 core:
 	$(COQC) Util.v
@@ -13,12 +13,16 @@ core:
 	$(COQC) Core.v
 
 properties:
+	$(COQC) Addresses.v
+	$(COQC) Blocks.v
+	$(COQC) Initializers.v
+
+todo:
 	$(COQC) WellTypedTerm.v
 	$(COQC) ValidReferences.v
 	$(COQC) Soundness.v
 	$(COQC) Properties.v
 
-todo:
 	$(COQC) CriticalRegions.v
 	$(COQC) Boundaries.v
 	$(COQC) Access.v
