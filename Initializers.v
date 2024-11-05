@@ -622,8 +622,8 @@ Proof.
 Qed.
 
 Local Lemma ui_preservation_write : forall m ths tid t ad te,
-  forall_program m ths (valid_addresses m) ->
-  forall_program m ths valid_blocks ->
+  forall_threads ths (valid_addresses m) ->
+  forall_threads ths valid_blocks ->
   consistent_uninitialized_addresses m ths ->
   (* --- *)
   tid < #ths ->
@@ -631,7 +631,7 @@ Local Lemma ui_preservation_write : forall m ths tid t ad te,
   ths[tid] --[e_write ad te]--> t ->
   unique_initializers m[ad.t <- te] ths[tid <- t].
 Proof.
-  intros * [? ?] [? ?] Hcua ? Hui ** ad'.
+  intros * ? ? Hcua ? Hui ** ad'.
   assert (ad < #m) by eauto using vad_write_addr.
   destruct (Hui ad') as [Hnone Hone];
   split; intros Had **; repeat omicron; eauto.
@@ -645,224 +645,235 @@ Proof.
     omicron; eauto using noinit_preservation_write, oneinit_preservation_write.
 Qed.
 
+Local Lemma acq_then_initialized : forall m ths tid t ad te,
+  consistent_uninitialized_addresses m ths ->
+  (* --- *)
+  ths[tid] --[e_acq ad te]--> t ->
+  m[ad].t <> None.
+Proof.
+  intros * Hcua ? Had.
+  specialize (Hcua ad Had) as [_ Hnoref]. clear Had. specialize (Hnoref tid).
+  ind_tstep; repeat invc_noref; eauto.
+Qed.
+
+Lemma setx_get_eq : forall m ad ad' X,
+  m[ad.X <- X][ad'].t = m[ad'].t.
+Proof.
+  intros. repeat omicron; trivial.
+Qed.
+
+Ltac upsilon_once :=
+  match goal with
+  | H : context C [ _[_.X <- _][_].t ] |- _ => rewrite setx_get_eq in H
+  |  |- context C [ _[_.X <- _][_].t ]      => rewrite setx_get_eq 
+  end.
+
+Ltac upsilon := repeat upsilon_once.
+
 Local Lemma ui_preservation_acq : forall m ths tid ad t te,
+  no_inits te ->
+  (* --- *)
   tid < #ths ->
   unique_initializers m ths ->
   ths[tid] --[e_acq ad te]--> t ->
   unique_initializers m[ad.X <- true] ths[tid <- t].
 Proof.
-Abort.
+  intros * ? ? Hui ** ad'. upsilon. specialize (Hui ad') as [? Hone].
+  split; intros; aspecialize. 
+  - intros ?. omicron; eauto using noinit_preservation_acq.
+  - specialize Hone as [tid' [? ?]]. exists tid'. split; intros;
+    omicron; eauto using noinit_preservation_acq, oneinit_preservation_acq.
+Qed.
 
-Local Lemma ucr_preservation_rel : forall m ths tid ad t,
+Local Lemma ui_preservation_rel : forall m ths tid ad t,
   tid < #ths ->
   unique_initializers m ths ->
   ths[tid] --[e_rel ad]--> t ->
   unique_initializers m[ad.X <- false] ths[tid <- t].
 Proof.
-Abort.
+  intros * ? Hui ** ad'. upsilon. specialize (Hui ad') as [? Hone].
+  split; intros; aspecialize.
+  - intros ?. omicron; eauto using noinit_preservation_rel.
+  - specialize Hone as [tid' [? ?]]. exists tid'. split; intros;
+    omicron; eauto using noinit_preservation_rel, oneinit_preservation_rel.
+Qed.
 
-Local Lemma ucr_preservation_spawn : forall m ths tid t te,
+Local Lemma ui_preservation_spawn : forall m ths tid t te,
+  forall_threads ths valid_blocks ->
+  (* --- *)
   tid < #ths ->
   unique_initializers m ths ->
   ths[tid] --[e_spawn (#ths) te]--> t ->
   unique_initializers m (ths[tid <- t] +++ te).
 Proof.
-Abort.
+  intros * ? ? Hui ** ad'. specialize (Hui ad') as [? Hone].
+  split; intros; aspecialize.
+  - intros ?. omicron; eauto.
+    + eauto using noinit_preservation_spawn.
+    + eauto using noinit_preservation_spawned.
+    + eauto using no_init.
+  - specialize Hone as [tid' [? ?]]. exists tid'. split; intros;
+    omicron; eauto using noinit_preservation_spawn, oneinit_preservation_spawn;
+    eauto using noinit_spawn_term, no_init.
+    invc_oneinit.
+Qed.
 
 Theorem ui_preservation : forall m1 m2 ths1 ths2 tid e,
-  forall_threads ths1 (valid_addresses m1) ->
-  forall_threads ths1 valid_blocks ->
   forall_memory m1 no_inits ->
+  forall_program m1 ths1 (valid_addresses m1) ->
+  forall_program m1 ths1 valid_blocks ->
+  consistent_uninitialized_addresses m1 ths1 ->
   (* --- *)
   unique_initializers m1 ths1 ->
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
   unique_initializers m2 ths2.
 Proof.
-  intros. invc_cstep; try invc_mstep;
+  intros * ? [? ?] [? ?] ? **. invc_cstep; try invc_mstep;
   eauto using ui_preservation_none; 
   eauto using ui_preservation_alloc; 
   eauto using ui_preservation_init; 
-  eauto using ui_preservation_read.
+  eauto using ui_preservation_read;
   eauto using ui_preservation_write; 
   eauto using ui_preservation_acq; 
   eauto using ui_preservation_rel;
   eauto using ui_preservation_spawn.
 Qed.
 
+(* ------------------------------------------------------------------------- *)
+(* consistent-inits                                                          *)
+(* ------------------------------------------------------------------------- *)
 
-
-
-
-
-
-
-
-
-
-
-
-Inductive one_init (ad : addr) : tm -> Prop :=
-  | oneinit_call1  : forall t1 t2,  one_init ad t1 ->
-                                  no_init  ad t2 ->
-                                  one_init ad <{call t1 t2}>
-  | oneinit_call2  : forall t1 t2,  no_init  ad t1 ->
-                                  one_init ad t2 ->
-                                  one_init ad <{call t1 t2}>
-  | oneinit_new    : forall T t,    one_init ad t  ->
-                                  one_init ad <{new t : T }>
-  | oneinit_load   : forall t,      one_init ad t  ->
-                                  one_init ad <{*t        }>
-  | oneinit_asg1   : forall t1 t2,  one_init ad t1 ->
-                                  no_init  ad t2 ->
-                                  one_init ad <{t1 := t2  }>
-  | oneinit_asg2   : forall t1 t2,  no_init  ad t1 ->
-                                  one_init ad t2 ->
-                                  one_init ad <{t1 := t2  }>
-  | oneinit_acq1   : forall t1 t2,  one_init ad t1 ->
-                                  no_init  ad t2 ->
-                                  one_init ad <{acq t1 t2 }>
-  | oneinit_acq2   : forall t1 t2,  no_init  ad t1 ->
-                                  one_init ad t2 ->
-                                  one_init ad <{acq t1 t2 }>
-  | oneinit_cr_eq  : forall t,      no_init  ad t  ->
-                                  one_init ad <{cr ad t   }>
-  | oneinit_cr_neq : forall ad' t,  ad <> ad'    ->
-                                  one_init ad t  ->
-                                  one_init ad <{cr ad' t  }>
-  .
-
-
-Inductive valid_init (ad : addr) (m : mem) : tm -> Prop :=
-  | vi_unit  :                valid_init m <{unit }> 
-
-  | vi_nat   : forall n,      valid_init m <{nat n}>
-
-  | vi_var   : forall x,      valid_init m <{var x}>
-
-  | vi_fun   : forall x Tx t, valid_inits m t ->
-                              valid_inits m <{fn x Tx t}>
-
-  | vi_call  : forall t1 t2,  valid_inits m t1 ->
-                              valid_inits m t2 ->
-                              valid_inits m <{call t1 t2}> 
-
-  | vi_ref   : forall ad T,   valid_inits m <{&ad : T}>
-
-  | vi_init  : forall ad t T, ad < #m         ->
-                              m[ad].t = None  ->
-                              valid_inits m t ->
-                              valid_inits m <{init ad t : T}> 
-
-  | vi_new   : forall T t,    valid_inits m t ->
-                              valid_inits m <{new t : T}> 
-
-  | vi_load  : forall t,      valid_inits m t ->
-                              valid_inits m <{*t}> 
-
-  | vi_asg   : forall t1 t2,  valid_inits m t1 ->
-                              valid_inits m t2 ->
-                              valid_inits m <{t1 := t2}> 
-
-  | vi_acq   : forall t1 t2,  valid_inits m t1 ->
-                              valid_inits m t2 ->
-                              valid_inits m <{acq t1 t2}>
-
-  | vi_cr    : forall ad t,   valid_inits m t ->
-                              valid_inits m <{cr ad t}>
-
-  | vi_spawn : forall t,      valid_inits m t ->
-                              valid_inits m <{spawn t}>
+Inductive consistent_inits (m : mem) : tm -> Prop :=
+  | ci_unit  :                consistent_inits m <{unit         }> 
+  | ci_nat   : forall n,      consistent_inits m <{nat n        }>
+  | ci_var   : forall x,      consistent_inits m <{var x        }>
+  | ci_fun   : forall x Tx t, consistent_inits m t  ->
+                              consistent_inits m <{fn x Tx t    }>
+  | ci_call  : forall t1 t2,  consistent_inits m t1 ->
+                              consistent_inits m t2 ->
+                              consistent_inits m <{call t1 t2   }> 
+  | ci_ref   : forall ad T,   consistent_inits m <{&ad : T      }>
+  | ci_init  : forall ad t T, m[ad].t = None        ->
+                              consistent_inits m t  ->
+                              consistent_inits m <{init ad t : T}> 
+  | ci_new   : forall T t,    consistent_inits m t  ->
+                              consistent_inits m <{new t : T    }> 
+  | ci_load  : forall t,      consistent_inits m t  ->
+                              consistent_inits m <{*t           }> 
+  | ci_asg   : forall t1 t2,  consistent_inits m t1 ->
+                              consistent_inits m t2 ->
+                              consistent_inits m <{t1 := t2     }> 
+  | ci_acq   : forall t1 t2,  consistent_inits m t1 ->
+                              consistent_inits m t2 ->
+                              consistent_inits m <{acq t1 t2    }>
+  | ci_cr    : forall ad t,   consistent_inits m t  ->
+                              consistent_inits m <{cr ad t      }>
+  | ci_spawn : forall t,      consistent_inits m t  ->
+                              consistent_inits m <{spawn t      }>
   .
 
 (* inversion --------------------------------------------------------------- *)
 
-Local Ltac _vi tt :=
+Local Ltac _ci tt :=
   match goal with
-  | H : valid_inits _ <{unit        }> |- _ => clear H
-  | H : valid_inits _ <{nat _       }> |- _ => clear H
-  | H : valid_inits _ <{var _       }> |- _ => clear H
-  | H : valid_inits _ <{fn _ _ _    }> |- _ => tt H
-  | H : valid_inits _ <{call _ _    }> |- _ => tt H
-  | H : valid_inits _ <{& _ : _     }> |- _ => clear H
-  | H : valid_inits _ <{new _ : _   }> |- _ => tt H
-  | H : valid_inits _ <{init _ _ : _}> |- _ => tt H
-  | H : valid_inits _ <{* _         }> |- _ => tt H
-  | H : valid_inits _ <{_ := _      }> |- _ => tt H
-  | H : valid_inits _ <{acq _ _     }> |- _ => tt H
-  | H : valid_inits _ <{cr _ _      }> |- _ => tt H
-  | H : valid_inits _ <{spawn _     }> |- _ => tt H
+  | H : consistent_inits _ <{unit        }> |- _ => clear H
+  | H : consistent_inits _ <{nat _       }> |- _ => clear H
+  | H : consistent_inits _ <{var _       }> |- _ => clear H
+  | H : consistent_inits _ <{fn _ _ _    }> |- _ => tt H
+  | H : consistent_inits _ <{call _ _    }> |- _ => tt H
+  | H : consistent_inits _ <{& _ : _     }> |- _ => clear H
+  | H : consistent_inits _ <{new _ : _   }> |- _ => tt H
+  | H : consistent_inits _ <{init _ _ : _}> |- _ => tt H
+  | H : consistent_inits _ <{* _         }> |- _ => tt H
+  | H : consistent_inits _ <{_ := _      }> |- _ => tt H
+  | H : consistent_inits _ <{acq _ _     }> |- _ => tt H
+  | H : consistent_inits _ <{cr _ _      }> |- _ => tt H
+  | H : consistent_inits _ <{spawn _     }> |- _ => tt H
   end.
 
-Ltac inv_vi  := _vi inv.
-Ltac invc_vi := _vi invc.
+Ltac inv_ci  := _ci inv.
+Ltac invc_ci := _ci invc.
+
+(* lemmas ------------------------------------------------------------------ *)
+
+Lemma ci_init_term : forall m t1 t2 ad t,
+  consistent_inits m t1 ->
+  t1 --[e_init ad t]--> t2 ->
+  consistent_inits m t.
+Proof.
+  intros. ind_tstep; invc_ci; eauto.
+Qed.
 
 (* preservation ------------------------------------------------------------ *)
 
-Lemma vi_subst : forall m x tx t,
-  valid_inits m t ->
-  valid_inits m tx ->
-  valid_inits m <{[x := tx] t}>.
+Lemma ci_subst : forall m x tx t,
+  consistent_inits m t ->
+  consistent_inits m tx ->
+  consistent_inits m <{[x := tx] t}>.
 Proof.
-  intros. induction t; invc_vi; simpl;
-  try destruct str_eq_dec; eauto using valid_inits.
+  intros. induction t; invc_ci; simpl;
+  try destruct str_eq_dec; eauto using consistent_inits.
 Qed.
 
-Lemma vi_mem_add : forall m t c,
-  valid_inits m t ->
-  valid_inits (m +++ c) t.
+Lemma ci_mem_add : forall m t c,
+  valid_addresses m t ->
+  (* --- *)
+  consistent_inits m t ->
+  consistent_inits (m +++ c) t.
 Proof.
-  intros. induction t; invc_vi; constructor; sigma; eauto using valid_inits.
+  intros. induction t; invc_vad; invc_ci;
+  constructor; sigma; eauto using consistent_inits.
 Qed.
 
-Lemma vi_mem_set : forall m t t' ad,
-  valid_inits m t' ->
-  valid_inits m t  ->
-  valid_inits m[ad.t <- t'] t.
+Lemma ci_mem_set : forall m t t' ad,
+  no_init ad t ->
+  (* --- *)
+  consistent_inits m t' ->
+  consistent_inits m t  ->
+  consistent_inits m[ad.t <- t'] t.
 Proof.
-  intros. induction t; inv_vi; eauto using valid_inits.
-  aspecialize.
-  constructor; sigma; eauto. omicron; eauto.
-Abort.
+  intros. induction t; invc_noinit; invc_ci;
+  constructor; sigma; eauto.
+Qed.
 
 (* ------------------------------------------------------------------------- *)
 
-Lemma vi_preservation_none : forall m t1 t2,
-  valid_inits m t1 ->
+Lemma ci_preservation_none : forall m t1 t2,
+  consistent_inits m t1 ->
   t1 --[e_none]--> t2 ->
-  valid_inits m t2.
+  consistent_inits m t2.
 Proof.
-  intros. ind_tstep; repeat invc_vi; eauto using vi_subst, valid_inits.
+  intros. ind_tstep; repeat invc_ci; eauto using ci_subst, consistent_inits.
 Qed.
 
-Lemma vi_preservation_alloc : forall m t1 t2 T,
-  valid_inits m t1 ->
+Lemma ci_preservation_alloc : forall m t1 t2 T,
+  valid_addresses m t1 ->
+  (* --- *)
+  consistent_inits m t1 ->
   t1 --[e_alloc (#m) T]--> t2 ->
-  valid_inits (m +++ (None, T, false)) t2.
+  consistent_inits (m +++ (None, T, false)) t2.
 Proof.
-  intros. ind_tstep; invc_vi;
-  constructor; sigma; eauto using vi_mem_add.
+  intros. ind_tstep; invc_vad; invc_ci;
+  constructor; sigma; eauto using ci_mem_add.
 Qed.
 
-Lemma vi_preservation_inits : forall m t1 t2 ad t,
-  valid_inits m t1 ->
+Lemma ci_preservation_inits : forall m t1 t2 ad t,
+  one_init ad t1 ->
+  (* --- *)
+  consistent_inits m t1 ->
   t1 --[e_init ad t]--> t2 ->
-  valid_inits m[ad.t <- t] t2.
+  consistent_inits m[ad.t <- t] t2.
 Proof.
-  intros. ind_tstep; inv_vi;
-  constructor; sigma; eauto using vi_mem_add.
-  - repeat aspecialize.
-    constructor.
+  intros. assert (consistent_inits m t) by eauto using ci_init_term.
+  ind_tstep; invc_oneinit; invc_ci;
+  constructor; sigma; eauto using ci_mem_set;
+  exfalso; eauto using noinit_init_contradiction.
 Qed.
-H4 : ths1 [tid'] --[ e_init ad t0 ]--> t
-
-========================= (1 / 1)
-
-valid_inits 
 
 Theorem vi_preservation : forall m1 m2 ths1 ths2 tid e,
-  forall_program m1 ths1 (valid_inits m1) ->
+  forall_program m1 ths1 (consistent_inits m1) ->
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
-  forall_program m2 ths2 (valid_inits m2).
+  forall_program m2 ths2 (consistent_inits m2).
 Proof.
   intros * [? ?] ?.
   invc_cstep; try invc_mstep; split; try destruct_forall; trivial.
@@ -885,6 +896,6 @@ Proof.
   - eauto using vi_preservation_unt_rel.
   - eauto using vi_preservation_spawn.
   - eauto using vi_preservation_spawned.
-  - eauto using valid_inits.
+  - eauto using consistent_inits.
 Qed.
 

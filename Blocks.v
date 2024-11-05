@@ -278,6 +278,14 @@ Proof.
   intros. ind_tstep; invc_vb; eauto using valid_blocks.
 Qed.
 
+Lemma noinit_spawn_term : forall m t1 t2 tid t,
+  valid_blocks t1 ->
+  t1 --[e_spawn tid t]--> t2 ->
+  no_init m t.
+Proof.
+  intros. ind_tstep; invc_vb; eauto.
+Qed.
+
 Lemma noinit_from_value : forall ad t,
   valid_blocks t ->
   (* --- *)
