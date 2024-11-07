@@ -10,6 +10,7 @@ core:
 	$(COQC) Map.v
 	$(COQC) Sem.v
 	$(COQC) SemExt.v
+	$(COQC) Values.v
 	$(COQC) Core.v
 
 properties:

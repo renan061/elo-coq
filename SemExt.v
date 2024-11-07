@@ -90,7 +90,7 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* forall properties                                                         *)
+(* forall & forone properties                                                *)
 (* ------------------------------------------------------------------------- *)
 
 Definition forall_memory (m : mem) (P : tm -> Prop) : Prop :=
@@ -101,6 +101,10 @@ Definition forall_threads (ths : threads) (P : tm -> _) : Prop :=
 
 Definition forall_program (m : mem) (ths : threads) (P : tm -> _) : Prop :=
   (forall_memory m P) /\ (forall_threads ths P).
+
+(* P1 holds for one thread. P2 holds for the other threads. *)
+Definition forone_thread (ths : threads) (P1: tm -> Prop) (P2 : tm -> Prop) :=
+  exists tid, P1 ths[tid] /\ forall tid', tid <> tid' -> P2 ths[tid'].
 
 (* ------------------------------------------------------------------------- *)
 (* determinism                                                               *)
@@ -194,3 +198,160 @@ Proof. eauto. Qed.
   | H : safe empty |-- _ is _ |- _ => rewrite empty_eq_safe_empty in H
   | _ : _ |- safe empty |-- _ is _ => rewrite empty_eq_safe_empty
   end : core.
+
+(* ------------------------------------------------------------------------- *)
+(* upsilon simplification                                                    *)
+(* ------------------------------------------------------------------------- *)
+
+Local Lemma setx_get_eq : forall m ad ad' X,
+  m[ad.X <- X][ad'].t = m[ad'].t.
+Proof.
+  intros. repeat omicron; trivial.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+
+Local Lemma add_get_eq_none : forall m ad T,
+  (m +++ (None, T, false))[ad].t = None ->
+  m[ad].t = None.
+Proof.
+  intros. omicron; eauto.
+Qed.
+
+Local Lemma add_get_neq_none : forall m ad T,
+  (m +++ (None, T, false))[ad].t <> None ->
+  (m[ad].t <> None /\ ad < #m).
+Proof.
+  intros. omicron; eauto.
+Qed.
+
+Local Lemma set_get_eq_none : forall m ad ad' t,
+  ad' < #m ->
+  m[ad'.t <- t][ad].t = None ->
+  (m[ad].t = None /\ ad <> ad').
+Proof.
+  intros. repeat omicron; eauto. discriminate.
+Qed.
+
+Local Lemma set_get_neq_none : forall m ad ad' t,
+  ad <> ad'->
+  m[ad'.t <- t][ad].t <> None ->
+  m[ad].t <> None.
+Proof.
+  intros. destruct (nat_eq_dec ad' ad); subst; sigma; eauto.
+Qed.
+   
+(* ------------------------------------------------------------------------- *)
+
+Local Lemma forallprogram_step {P : tm -> Prop} : forall m ths tid t,
+  P <{unit}> ->
+  P t ->
+  forall_program m ths P ->
+  forall_program m ths[tid <- t] P.
+Proof.
+  intros * ? ? [? ?]. split; trivial.
+  intros ?. repeat omicron; eauto.
+Qed.
+
+Local Lemma forallprogram_add_step {P : tm -> Prop} : forall m ths tid t T,
+  P <{unit}> ->
+  P t ->
+  forall_program m ths P ->
+  forall_program (m +++ (None, T, false)) ths[tid <- t] P.
+Proof.
+  intros * ? ? [? ?]. split.
+  - intros until 1. omicron; eauto; discriminate.
+  - intros ?. repeat omicron; trivial.
+Qed.
+
+Local Lemma forallprogram_sett_step {P : tm -> Prop} :
+  forall m ths ad t1 tid t2,
+    P <{unit}> ->
+    (P t1 /\ P t2) -> 
+    forall_program m ths P ->
+    forall_program m[ad.t <- t1] ths[tid <- t2] P.
+Proof.
+  intros * ? [? ?] [? ?]. split.
+  - intros until 1. repeat omicron; eauto.
+    + discriminate.
+    + invc_eq. assumption.
+  - intros ?. repeat omicron; trivial.
+Qed.
+
+Local Lemma forallprogram_setx_step {P : tm -> Prop} : forall m ths ad X tid t,
+  P <{unit}> ->
+  P t ->
+  forall_program m ths P ->
+  forall_program m[ad.X <- X] ths[tid <- t] P.
+Proof.
+  intros * ? ? [? ?]. split.
+  - intros until 1. repeat omicron; eauto. discriminate.
+  - intros ?. repeat omicron; trivial.
+Qed.
+
+Local Lemma forallprogram_spawn {P : tm -> Prop} : forall m ths tid t1 t2,
+  P <{unit}> ->
+  (P t1 /\ P t2) -> 
+  forall_program m ths P ->
+  forall_program m (ths[tid <- t1] +++ t2) P.
+Proof.
+  intros * ? [? ?] [? ?]. split.
+  - intros until 1. repeat omicron; eauto.
+  - intros ?. repeat omicron; trivial.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+
+Ltac upsilon_once :=
+  match goal with
+  (* ---------------------------------------- *)
+  (* setx-get-eq                              *)
+  (* ---------------------------------------- *)
+  | H : context C [ _[_.X <- _][_].t ] |- _ => rewrite setx_get_eq in H
+  |  |- context C [ _[_.X <- _][_].t ]      => rewrite setx_get_eq 
+  (* ---------------------------------------- *)
+  (* add-get-eq-none                          *)
+  (* ---------------------------------------- *)
+  | H : (_ +++ (None, _, false))[_].t = None |- _ =>
+    eapply add_get_eq_none in H
+  (* ---------------------------------------- *)
+  (* add-get-neq-none                         *)
+  (* ---------------------------------------- *)
+  | H : (_ +++ (None, _, false))[_].t <> None |- _ =>
+    eapply add_get_neq_none in H as [?Ha ?Hb]; clear H
+  (* ---------------------------------------- *)
+  (* set-get-eq-none                          *)
+  (* ---------------------------------------- *)
+  | Had : ?ad < #?m, H : ?m[?ad.t <- _][_].t = None |- _ =>
+    eapply set_get_eq_none in H as [?Ha ?Hb]; trivial; clear H
+  (* ---------------------------------------- *)
+  (* set-get-neq-none                          *)
+  (* ---------------------------------------- *)
+  | Had : ?ad <> ?ad', H : ?m[?ad.t <- _][?ad'].t = None |- _ =>
+    eapply set_get_neq_none in H; trivial
+  (* ---------------------------------------- *)
+  (* forall-program goals                     *)
+  (* ---------------------------------------- *)
+  | H : forall_program ?m ?ths ?P
+  |-    forall_program ?m ?ths[_ <- _] ?P =>
+    eapply forallprogram_step; eauto; try solve [constructor]
+  (* ---------------------------------------- *)
+  | H : forall_program ?m ?ths ?P
+  |-    forall_program (?m +++ (None, _, false)) ?ths[_ <- _] ?P =>
+    eapply forallprogram_add_step; eauto; try solve [constructor]
+  (* ---------------------------------------- *)
+  | H : forall_program ?m ?ths ?P
+  |-    forall_program ?m[_.t <- _] ?ths[_ <- _] ?P =>
+    eapply forallprogram_sett_step; eauto; try solve [constructor]
+  (* ---------------------------------------- *)
+  | H : forall_program ?m ?ths ?P
+  |-    forall_program ?m[_.X <- _] ?ths[_ <- _] ?P =>
+    eapply forallprogram_setx_step; eauto; try solve [constructor]
+  (* ---------------------------------------- *)
+  | H : forall_program ?m ?ths ?P
+  |-    forall_program ?m (?ths[_ <- _] +++ _) ?P =>
+      eapply forallprogram_spawn; eauto; try solve [constructor]
+  end.
+
+Ltac upsilon := repeat upsilon_once.
+

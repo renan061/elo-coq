@@ -56,6 +56,24 @@ Local Ltac _noinit tt :=
 Ltac inv_noinit  := _noinit inv.
 Ltac invc_noinit := _noinit invc.
 
+(* lemmas ------------------------------------------------------------------ *)
+
+Lemma noinit_init_term : forall t1 t2 ad ad' t,
+  no_init ad' t1 ->
+  t1 --[e_init ad t]--> t2 ->
+  no_init ad' t.
+Proof.
+  intros. ind_tstep; invc_noinit; eauto using no_init.
+Qed.
+
+Lemma noinit_write_term : forall t1 t2 ad ad' t,
+  no_init ad' t1 ->
+  t1 --[e_write ad t]--> t2 ->
+  no_init ad' t.
+Proof.
+  intros. ind_tstep; invc_noinit; eauto using no_init.
+Qed.
+
 (* preservation lemmas ----------------------------------------------------- *)
 
 Lemma noinit_subst : forall ad x tx t,
@@ -196,7 +214,24 @@ Ltac invc_noinits :=
   | H : no_inits <{spawn _     }> |- _ => eapply inv_noinits_spawn in H
   end.
 
-(* preservation ------------------------------------------------------------ *)
+(* lemmas ------------------------------------------------------------------ *)
+
+Corollary noinit_from_noinits : forall ad t,
+  no_inits t ->
+  no_init ad t.
+Proof.
+  unfold no_inits. auto.
+Qed.
+
+Corollary noinits_write_term : forall t1 t2 ad t,
+  no_inits t1 ->
+  t1 --[e_write ad t]--> t2 ->
+  no_inits t.
+Proof.
+  unfold no_inits. eauto using noinit_write_term.
+Qed.
+
+(* preservation lemmas ----------------------------------------------------- *)
 
 Corollary noinits_subst : forall x tx t,
   no_inits t ->

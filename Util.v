@@ -45,6 +45,7 @@ Ltac invc_eq :=
   | _ : ?n < ?n      |- _ => lia
   | _ : ?n > ?n      |- _ => lia
   | _ : ?n > ?n      |- _ => lia
+  | _ : ?m < ?n      |- _ => assert (m <> n) by lia
   | H1 : ?x = ?a
   , H2 : ?x = ?b     |- _ => try solve [rewrite H1 in H2; discriminate]
   end : core.
