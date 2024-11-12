@@ -10,21 +10,21 @@ core:
 	$(COQC) Map.v
 	$(COQC) Sem.v
 	$(COQC) SemExt.v
+	$(COQC) Upsilon.v
 	$(COQC) Values.v
 	$(COQC) Core.v
 
 properties:
 	$(COQC) Addresses.v
 	$(COQC) Blocks.v
-	$(COQC) Initializers.v
-
-todo:
 	$(COQC) WellTypedTerm.v
-	$(COQC) ValidReferences.v
+	$(COQC) Inits.v
+	$(COQC) Refs.v
 	$(COQC) Soundness.v
+	$(COQC) CriticalRegions.v
 	$(COQC) Properties.v
 
-	$(COQC) CriticalRegions.v
+todo:
 	$(COQC) Boundaries.v
 	$(COQC) Access.v
 

@@ -2,9 +2,9 @@ From Coq Require Import Lia.
 
 From Elo Require Import Core.
 
-From Elo Require Import Values.
 From Elo Require Import Addresses.
 From Elo Require Import Blocks.
+From Elo Require Import WellTypedTerm.
 
 (* ------------------------------------------------------------------------- *)
 (* no-ref                                                                    *)
@@ -377,14 +377,6 @@ Proof.
   eauto using noinit_oneinit_contradiction.
 Qed.
 
-Local Lemma noinit_init_contradiction : forall t1 t2 ad t,
-  no_init ad t1 ->
-  t1 --[e_init ad t]--> t2 ->
-  False.
-Proof.
-  intros. ind_tstep; invc_noinit; eauto.
-Qed.
-
 Local Lemma noinit_to_oneinit : forall t1 t2 ad T,
   no_init ad t1 ->
   t1 --[e_alloc ad T]--> t2 ->
@@ -689,9 +681,22 @@ Inductive consistent_inits (m : mem) : tm -> Prop :=
                               consistent_inits m t2 ->
                               consistent_inits m <{call t1 t2   }> 
   | ci_ref   : forall ad T,   consistent_inits m <{&ad : T      }>
-  | ci_init  : forall ad t T, m[ad].t = None        ->
+
+  | ci_initR : forall ad t T, m[ad].t = None        ->
+                              m[ad].T = `r&T`       ->
                               consistent_inits m t  ->
-                              consistent_inits m <{init ad t : T}> 
+                              consistent_inits m <{init ad t : r&T}> 
+
+  | ci_initX : forall ad t T, m[ad].t = None        ->
+                              m[ad].T = `x&T`       ->
+                              consistent_inits m t  ->
+                              consistent_inits m <{init ad t : x&T}> 
+
+  | ci_initW : forall ad t T, m[ad].t = None        ->
+                              m[ad].T = `w&T`       ->
+                              consistent_inits m t  ->
+                              consistent_inits m <{init ad t : w&T}> 
+
   | ci_new   : forall T t,    consistent_inits m t  ->
                               consistent_inits m <{new t : T    }> 
   | ci_load  : forall t,      consistent_inits m t  ->
@@ -737,6 +742,14 @@ Lemma ci_from_noinits : forall m t,
   consistent_inits m t.
 Proof.
   intros. induction t; invc_noinits; eauto using consistent_inits.
+Qed.
+
+Lemma ci_init_address : forall m t1 t2 ad t,
+  consistent_inits m t1 ->
+  t1 --[e_init ad t]--> t2 ->
+  m[ad].t = None.
+Proof.
+  intros. ind_tstep; invc_ci; eauto.
 Qed.
 
 Lemma ci_init_term : forall m t1 t2 ad t,
@@ -848,12 +861,14 @@ Qed.
 
 Lemma ci_preservation_alloc : forall m t1 t2 T,
   valid_addresses m t1 ->
+  well_typed_term t1 ->
   (* --- *)
   consistent_inits m t1 ->
   t1 --[e_alloc (#m) T]--> t2 ->
   consistent_inits (m +++ (None, T, false)) t2.
 Proof.
-  intros. ind_tstep; invc_vad; invc_ci;
+  intros * ? [T ?] **. gendep T.
+  ind_tstep; intros; invc_vad; invc_typeof; invc_ci;
   constructor; sigma; eauto using ci_mem_add.
 Qed.
 
@@ -928,10 +943,63 @@ Proof.
   intros. ind_tstep; invc_ci; eauto using consistent_inits.
 Qed.
 
-Theorem ci_preservation : forall m1 m2 ths1 ths2 tid e,
-  forall_memory  m1 no_inits ->
+Theorem ci_preservation_ths : forall m1 m2 ths1 ths2 tid e,
   forall_program m1 ths1 (valid_addresses m1) ->
   forall_program m1 ths1 valid_blocks ->
+  forall_program m1 ths1 well_typed_term ->
+  no_uninitialized_references m1 ths1 ->
+  unique_initializers m1 ths1 ->
+  (* --- *)
+  forall_program m1 ths1 (consistent_inits m1) ->
+  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+  forall_threads ths2 (consistent_inits m2).
+Proof.
+  intros * [? ?] [? ?] [? ?] ? Hui [? ?] ?.
+  invc_cstep; try invc_mstep; upsilon; intros.
+  - eauto using ci_preservation_none.
+  - eauto using ci_preservation_alloc.
+  - eauto using ci_mem_add.
+  - assert (one_init ad ths1[tid]) by eauto using oneinit_from_ui.
+    eauto using ci_preservation_init.
+  - assert (one_init ad ths1[tid] ) by eauto using oneinit_from_ui.
+    assert (no_init  ad ths1[tid']) by eauto using noinit_from_ui.
+    eapply ci_mem_set1; eauto using ci_from_noinits,
+      vb_init_term, value_init_term, noinits_from_value.
+  - eauto using ci_preservation_read.
+  - assert (m1[ad].t <> None) by eauto using write_then_initialized. 
+    specialize (Hui ad) as [Hnoinit _]. aspecialize.
+    eauto using ci_preservation_write.
+  - assert (m1[ad].t <> None) by eauto using write_then_initialized. 
+    specialize (Hui ad) as [Hnoinit _]. aspecialize.
+    eauto using ci_write_term, ci_mem_set1.
+  - eauto using ci_preservation_acq.
+  - eauto using ci_mem_acq.
+  - eauto using ci_preservation_rel.
+  - eauto using ci_mem_rel.
+  - eauto using ci_preservation_spawn.
+  - eauto using ci_preservation_spawned.
+Qed.
+
+Corollary ci_preservation_mem : forall m1 m2 ths1 ths2 tid e,
+  forall_memory  m1 value ->
+  forall_program m1 ths1 valid_blocks ->
+  (* --- *)
+  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+  forall_memory m2 (consistent_inits m2).
+Proof.
+  intros ** ? ? ?.
+  assert (forall_memory m2 value)
+    by eauto using value_preservation.
+  assert (forall_program m2 ths2 valid_blocks) as [? _]
+    by eauto using vb_preservation.
+  eauto using noinits_from_value, ci_from_noinits.
+Qed.
+
+Theorem ci_preservation : forall m1 m2 ths1 ths2 tid e,
+  forall_memory  m1 value ->
+  forall_program m1 ths1 (valid_addresses m1) ->
+  forall_program m1 ths1 valid_blocks ->
+  forall_program m1 ths1 well_typed_term ->
   no_uninitialized_references m1 ths1 ->
   unique_initializers m1 ths1 ->
   (* --- *)
@@ -939,33 +1007,7 @@ Theorem ci_preservation : forall m1 m2 ths1 ths2 tid e,
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
   forall_program m2 ths2 (consistent_inits m2).
 Proof.
-  intros * ? [? ?] [? ?] Hnur Hui. intros [? ?] ?.
-  invc_cstep; try invc_mstep; split; trivial; intros tid' **.
-  - omicron; eauto using ci_preservation_none.
-  - repeat omicron; eauto using ci_mem_add; discriminate.
-  - omicron; eauto using ci_mem_add, ci_preservation_alloc.
-  - omicron; eauto; try invc_eq; eapply ci_mem_set2;
-    eauto using vb_init_term, value_init_term, noinits_from_value.
-  - assert (one_init ad ths1[tid]) by eauto using oneinit_from_ui.
-    omicron; eauto using ci_preservation_init.
-    assert (no_init ad ths1[tid']) by eauto using noinit_from_ui.
-    eapply ci_mem_set1; eauto using ci_from_noinits,
-      vb_init_term, value_init_term, noinits_from_value.
-  - omicron; eauto using ci_preservation_read.
-  - omicron; try invc_eq;
-    eapply ci_mem_set2;
-    eauto using vb_write_term, value_write_term, noinits_from_value.
-  - assert (m1[ad].t <> None) by eauto using write_then_initialized. 
-    specialize (Hui ad) as [Hnoinit _]. aspecialize. omicron;
-    eauto using ci_preservation_write;
-    eauto using ci_write_term, ci_mem_set1.
-  - upsilon. eauto using ci_mem_acq.
-  - omicron; eauto using ci_preservation_acq, ci_mem_acq.
-  - omicron; eauto using ci_mem_rel.
-  - omicron; eauto using ci_preservation_rel, ci_mem_rel.
-  - omicron; trivial.
-    + eauto using ci_preservation_spawn.
-    + eauto using ci_preservation_spawned.
-    + constructor.
+  intros until 6. intros Hci **. split;
+  eauto using ci_preservation_mem, ci_preservation_ths.
 Qed.
 

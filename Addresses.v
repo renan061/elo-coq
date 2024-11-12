@@ -200,15 +200,40 @@ Theorem vad_preservation : forall m1 m2 ths1 ths2 tid e,
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
   forall_program m2 ths2 (valid_addresses m2).
 Proof.
-  intros * [? ?] ?. invc_cstep; try invc_mstep; split; trivial;
-  intros ? **; omicron; try discriminate; try invc_eq; try constructor;
-  eauto using vad_preservation_none;
-  eauto using vad_mem_add, vad_preservation_alloc;
-  eauto using vad_mem_set, vad_init_term, vad_preservation_init;
-  eauto using vad_preservation_read;
-  eauto using vad_mem_set, vad_write_term, vad_preservation_write;
-  eauto using vad_mem_acq, vad_preservation_acq;
-  eauto using vad_mem_rel, vad_preservation_rel;
-  eauto using vad_preservation_spawn, vad_preservation_spawned.
+  intros * Hvad ?.
+  assert (Hvad' := Hvad). destruct Hvad' as [? ?].
+  invc_cstep; try invc_mstep.
+  - upsilon. eauto using vad_preservation_none.
+  - split.
+    + intros ? ? ?. upsilon. eauto using vad_mem_add.
+    + intros ?. omicron.
+      * eauto using vad_preservation_alloc.
+      * eauto using vad_mem_add.
+  - split.
+    + intros ? ? ?. upsilon.
+      * eauto using vad_init_term, vad_mem_set.
+      * eauto using vad_mem_set.
+    + intros ?. omicron.
+      * eauto using vad_preservation_init.
+      * eauto using vad_mem_set.
+  - upsilon. eauto using vad_preservation_read.
+  - split.
+    + intros ? ? ?. upsilon.
+      * eauto using vad_write_term, vad_mem_set.
+      * eauto using vad_mem_set.
+    + intros ?. omicron.
+      * eauto using vad_preservation_write.
+      * eauto using vad_mem_set.
+  - split.
+    + intros ? ? ?. upsilon. eauto using vad_mem_acq.
+    + intros ?. omicron.
+      * eauto using vad_preservation_acq.
+      * eauto using vad_mem_acq.
+  - split.
+    + intros ? ? ?. upsilon. eauto using vad_mem_rel.
+    + intros ?. omicron.
+      * eauto using vad_preservation_rel.
+      * eauto using vad_mem_rel.
+  - upsilon; eauto using vad_preservation_spawn, vad_preservation_spawned.
 Qed.
 

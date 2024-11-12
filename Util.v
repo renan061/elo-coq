@@ -37,17 +37,19 @@ Ltac invc_eq :=
 
 #[export] Hint Extern 4 =>
   match goal with
-  | _ : False        |- _ => contradiction
-  | F : ?x <> ?x     |- _ => contradict F; eauto
-  | _ : ?x, _ : ~ ?x |- _ => contradiction
-  | F : false = true |- _ => inv F
-  | F : true = false |- _ => inv F
-  | _ : ?n < ?n      |- _ => lia
-  | _ : ?n > ?n      |- _ => lia
-  | _ : ?n > ?n      |- _ => lia
-  | _ : ?m < ?n      |- _ => assert (m <> n) by lia
+  | _ : False         |- _ => contradiction
+  | F : ?x <> ?x      |- _ => contradict F; eauto
+  | _ : ?x, _ : ~ ?x  |- _ => contradiction
+  | F : false = true  |- _ => discriminate
+  | F : true = false  |- _ => discriminate
+  | _ : Some _ = None |- _ => discriminate
+  | _ : None = Some _ |- _ => discriminate
+  | _ : ?n < ?n       |- _ => lia
+  | _ : ?n > ?n       |- _ => lia
+  | _ : ?n > ?n       |- _ => lia
+  | _ : ?m < ?n       |- _ => assert (m <> n) by lia
   | H1 : ?x = ?a
-  , H2 : ?x = ?b     |- _ => try solve [rewrite H1 in H2; discriminate]
+  , H2 : ?x = ?b      |- _ => try solve [rewrite H1 in H2; discriminate]
   end : core.
 
 Axiom excluded_middle : ClassicalFacts.excluded_middle.
@@ -78,7 +80,7 @@ Qed.
 Lemma alt_opt_dec : forall {A} (o : option A),
   {o = None} + {o <> None}.
 Proof.
-  intros. destruct o; eauto. right. intros F. invc F.
+  intros. destruct o; eauto.
 Qed.
 
 (* misc *)

@@ -3,8 +3,10 @@ From Coq Require Import Lists.List.
 
 From Elo Require Import Core.
 
+From Elo Require Import Addresses.
 From Elo Require Import WellTypedTerm.
-From Elo Require Import ValidReferences.
+From Elo Require Import Inits.
+From Elo Require Import Refs.
 
 Local Lemma safe_preserves_inclusion : forall Gamma1 Gamma2,
   Gamma1 includes Gamma2 ->
@@ -66,38 +68,38 @@ Proof.
 Qed.
 
 Local Lemma typeof_preservation_mstep : forall m1 m2 t1 t2 e T,
-  valid_references m1 t1 ->
+  consistent_references m1 t1 ->
   (* --- *)
   empty |-- t1 is T ->
   m1 / t1 ==[e]==> m2 / t2 ->
   empty |-- t2 is T.
 Proof.
   intros. invc_mstep; gendep T; ind_tstep; intros;
-  repeat invc_vr; repeat invc_typeof;
+  repeat invc_cr; repeat invc_typeof;
   try invc_eq; eauto using typeof_subst, type_of.
 Qed.
 
 Local Lemma typeof_preservation_mem_mstep : forall m1 m2 t1 t2 t1' t2' e ad T,
   well_typed_term t1 ->
-  valid_references m1 t1 ->
+  consistent_inits m1 t1 ->
+  consistent_references m1 t1 ->
   (* --- *)
-  ad < #m1 ->
   m1[ad].t = Some t1' ->
   m2[ad].t = Some t2' ->
   empty |-- t1' is T ->
   m1 / t1 ==[e]==> m2 / t2 ->
   empty |-- t2' is T.
 Proof.
-  intros. rename ad into ad'.
+  intros * [T' ?] **. rename ad into ad'.
+  assert (ad' < #m1) by
+    (decompose sum (lt_eq_lt_dec ad' (#m1)); subst; sigma; upsilon; eauto).
   invc_mstep; try invc_eq; trivial;
-  sigma; try omicron; repeat invc_eq; trivial.
-  + contradict H2. admit.
-  + invc H3.
-    destruct H as [T' ?].
-    gendep T'. gendep t1'.
-    ind_tstep; intros;
-    repeat invc_typeof; repeat invc_vr; eauto.
-    invc_eq. apply_deterministic_typing. eauto.
+  sigma; try omicron; repeat invc_eq; trivial; upsilon.
+  + assert (m1[ad'].t = None) by eauto using ci_init_address.
+    invc_eq.
+  + gendep T'. gendep t1'. ind_tstep; intros;
+    repeat invc_typeof; repeat invc_ci; repeat invc_cr; eauto.
+    invc_eq. apply_deterministic_typing. assumption.
 Qed.
 
 Lemma typeof_preservation_spawn : forall t1 t2 tid t T,
@@ -105,8 +107,7 @@ Lemma typeof_preservation_spawn : forall t1 t2 tid t T,
   t1 --[e_spawn tid t]--> t2 ->
   empty |-- t2 is T.
 Proof.
-  intros. remember empty as Gamma. generalize dependent T.
-  ind_tstep; intros; inv_typeof; eauto using type_of.
+  intros. gendep T. ind_tstep; intros; invc_typeof; eauto using type_of.
 Qed.
 
 Lemma typeof_preservation_spawned : forall t1 t2 tid t T1,
@@ -114,8 +115,7 @@ Lemma typeof_preservation_spawned : forall t1 t2 tid t T1,
   t1 --[e_spawn tid t]--> t2 ->
   exists T, empty |-- t is T.
 Proof.
-  intros. generalize dependent T1.
-  ind_tstep; intros; inv_typeof; eauto.
+  intros. gendep T1. ind_tstep; intros; invc_typeof; eauto.
 Qed.
 
 Definition types_of (ths : threads) (Ts: list ty) :=
@@ -124,7 +124,7 @@ Definition types_of (ths : threads) (Ts: list ty) :=
 Notation "'|--' ths 'is' Ts" := (types_of ths Ts) (at level 40).
 
 Theorem typeof_preservation : forall m1 m2 ths1 ths2 Ts tid e,
-  forall_threads ths1 (valid_references m1) ->
+  forall_threads ths1 (consistent_references m1) ->
   (* --- *)
   |-- ths1 is Ts ->
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
@@ -178,7 +178,7 @@ Proof.
 Qed.
 
 Corollary wtt_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
-  forall_threads ths1 (valid_references m1) ->
+  forall_threads ths1 (consistent_references m1) ->
   (* --- *)
   forall_threads ths1 well_typed_term ->
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
@@ -198,13 +198,12 @@ Lemma wtt_preservation_mem_cstep : forall m1 m2 ths1 ths2 tid e,
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
   forall_memory m2 well_typed_term.
 Proof.
-  intros. invc_cstep; trivial. invc_mstep; trivial; intros ?; omicron;
-  eauto using wtt_tstep_alloc_term, wtt_tstep_write_term.
-  eexists. eauto using type_of.
+  intros. invc_cstep; trivial. invc_mstep; trivial;
+  intros ? ? ?; upsilon; eauto using wtt_init_term, wtt_write_term.
 Qed.
 
 Theorem wtt_preservation : forall m1 m2 ths1 ths2 tid e,
-  forall_program m1 ths1 (valid_references m1) ->
+  forall_program m1 ths1 (consistent_references m1) ->
   (* --- *)
   forall_program m1 ths1 well_typed_term ->
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
@@ -261,17 +260,18 @@ Local Ltac destruct_IH :=
   match goal with
   | H : safe empty = empty -> _ |- _ =>
     specialize (H empty_eq_safe_empty); destruct_IH
-  | IH : value _ \/ _ \/ _ \/ _ \/ _ \/ _ \/ _ \/ _ |-   _ =>
+  | IH : value _ \/ _ \/ _ \/ _ \/ _ \/ _ \/ _ \/ _ \/ _ |-   _ =>
     decompose sum IH; clear IH
   end.
 
 Local Ltac pick_none  := left.
 Local Ltac pick_alloc := right; left.
-Local Ltac pick_read  := do 2 right; left.
-Local Ltac pick_write := do 3 right; left.
-Local Ltac pick_acq   := do 4 right; left.
-Local Ltac pick_rel   := do 5 right; left.
-Local Ltac pick_spawn := do 6 right.
+Local Ltac pick_init  := do 2 right; left.
+Local Ltac pick_read  := do 3 right; left.
+Local Ltac pick_write := do 4 right; left.
+Local Ltac pick_acq   := do 5 right; left.
+Local Ltac pick_rel   := do 6 right; left.
+Local Ltac pick_spawn := do 7 right.
 
 Local Ltac solve_inductive_progress_case :=
   match goal with
@@ -280,9 +280,14 @@ Local Ltac solve_inductive_progress_case :=
     destruct H as [m2 [? ?]];
     exists m2; repeat eexists;
     invc_mstep
-  | H : exists m2 t2 ad t T, ?m1 / ?t1 ==[e_alloc ad t T]==> m2 / t2 |- _ =>
+  | H : exists m2 t2 ad t, ?m1 / ?t1 ==[e_alloc ad t]==> m2 / t2 |- _ =>
     pick_alloc;
-    destruct H as [m2 [? [? [? [? ?]]]]];
+    destruct H as [m2 [? [? [? ?]]]];
+    exists m2; repeat eexists;
+    invc_mstep
+  | H : exists m2 t2 ad t, ?m1 / ?t1 ==[e_init ad t]==> m2 / t2 |- _ =>
+    pick_init;
+    destruct H as [m2 [? [? [? ?]]]];
     exists m2; repeat eexists;
     invc_mstep
   | H : exists m2 t2 ad t, ?m1 / ?t1 ==[e_read ad t]==> m2 / t2 |- _ =>
@@ -290,9 +295,9 @@ Local Ltac solve_inductive_progress_case :=
     destruct H as [m2 [? [? [? ?]]]];
     exists m2; repeat eexists;
     invc_mstep
-  | H : exists m2 t2 ad t T, ?m1 / ?t1 ==[e_write ad t T]==> m2 / t2 |- _ =>
+  | H : exists m2 t2 ad t, ?m1 / ?t1 ==[e_write ad t]==> m2 / t2 |- _ =>
     pick_write;
-    destruct H as [m2 [? [? [? [? ?]]]]];
+    destruct H as [m2 [? [? [? ?]]]];
     exists m2; repeat eexists;
     invc_mstep
   | H : exists m2 t2 ad t, _ -> ?m1 / ?t1 ==[e_acq ad t]==> m2 / t2 |- _ =>
@@ -338,51 +343,65 @@ Local Ltac solve_progress :=
 *)
 
 Theorem limited_progress : forall m1 t1,
-  valid_references m1 t1 ->
+  valid_addresses m1 t1 ->
+  consistent_references m1 t1 ->
   (* --- *)
   well_typed_term t1 ->
   (value t1
-    \/ (exists m2 t2,           m1 / t1 ==[e_none        ]==> m2 / t2)
-    \/ (exists m2 t2 ad t T,    m1 / t1 ==[e_alloc ad t T]==> m2 / t2)
-    \/ (exists m2 t2 ad t,      m1 / t1 ==[e_read ad t   ]==> m2 / t2)
-    \/ (exists m2 t2 ad t T,    m1 / t1 ==[e_write ad t T]==> m2 / t2)
-    \/ (exists m2 t2 ad t,  
-            m1[ad].X = false -> m1 / t1 ==[e_acq ad t    ]==> m2 / t2)
-    \/ (exists m2 t2 ad,    
-             m1[ad].X = true -> m1 / t1 ==[e_rel ad      ]==> m2 / t2)
-    \/ (exists t2 tid t,             t1 --[e_spawn tid t ]--> t2)).
+    \/ (exists m2 t2,      m1 / t1 ==[e_none       ]==> m2 / t2)
+    \/ (exists m2 t2 ad T, m1 / t1 ==[e_alloc ad T ]==> m2 / t2)
+    \/ (exists m2 t2 ad t, m1 / t1 ==[e_init ad t  ]==> m2 / t2)
+    \/ (exists m2 t2 ad t, m1 / t1 ==[e_read ad t  ]==> m2 / t2)
+    \/ (exists m2 t2 ad t, m1 / t1 ==[e_write ad t ]==> m2 / t2)
+    \/ (exists m2 t2 ad t, m1[ad].X = false ->
+                           m1 / t1 ==[e_acq ad t   ]==> m2 / t2)
+    \/ (exists m2 t2 ad,   m1[ad].X = true ->
+                           m1 / t1 ==[e_rel ad     ]==> m2 / t2)
+    \/ (exists t2 tid t,   t1 --[e_spawn tid t]--> t2)).
 Proof.
-  intros * ? [T ?]. remember empty as Gamma.
-  ind_typeof; try invc_vr; eauto using value; right;
-  try solve [subst; discriminate];
-  destruct_IH;
-  try solve
-    [ solve_inductive_progress_case
-    | pick_spawn; eexists; exists 0; eexists; eauto using tstep
-    ];
-  try destruct_IH; try solve [solve_inductive_progress_case].
-  - pick_none.
-    invc_value_typeof. invc_vr.
+  intros * ? ? [T ?]. remember empty as Gamma.
+  ind_typeof; eauto using value; right; invc_vad; invc_cr;
+  try solve [subst; discriminate].
+  - repeat (destruct_IH; try solve [solve_inductive_progress_case]).
+    pick_none.
+    invc_value_typeof.
     repeat eexists. eauto using tstep, mstep.
   - pick_alloc. repeat eexists. eauto using tstep, mstep.
   - pick_alloc. repeat eexists. eauto using tstep, mstep.
   - pick_alloc. repeat eexists. eauto using tstep, mstep.
-  - pick_read.
-    invc_value_typeof. invc_vr.
+  - destruct_IH; try solve [solve_inductive_progress_case].
+    pick_init.
+    invc_value_typeof;
+    repeat eexists; eauto using tstep, mstep, value.
+  - destruct_IH; try solve [solve_inductive_progress_case].
+    pick_init.
+    invc_value_typeof;
+    repeat eexists; eauto using tstep, mstep, value.
+  - destruct_IH; try solve [solve_inductive_progress_case].
+    pick_init.
+    invc_value_typeof;
+    repeat eexists; eauto using tstep, mstep, value.
+  - destruct_IH; try solve [solve_inductive_progress_case].
+    pick_read.
+    invc_value_typeof. invc_vad. invc_cr.
     repeat eexists. eauto using tstep, mstep.
-  - pick_read.
-    invc_value_typeof. invc_vr.
+  - destruct_IH; try solve [solve_inductive_progress_case].
+    pick_read.
+    invc_value_typeof. invc_vad. invc_cr.
     repeat eexists. eauto using tstep, mstep.
-  - pick_write.
-    invc_value_typeof. invc_vr.
+  - repeat (destruct_IH; try solve [solve_inductive_progress_case]).
+    pick_write.
+    invc_value_typeof. invc_vad. invc_cr.
     repeat eexists. eauto using tstep, mstep.
-  - pick_acq.
-    repeat invc_value_typeof. repeat invc_vr.
-    repeat eexists. intros ?.
-    eauto using tstep, mstep.
-  - pick_rel.
-    repeat eexists.
-    intros ?. eauto using tstep, mstep.
+  - repeat (destruct_IH; try solve [solve_inductive_progress_case]).
+    pick_acq.
+    repeat invc_value_typeof. repeat invc_vad. repeat invc_cr.
+    repeat eexists. intros. eauto using tstep, mstep.
+  - repeat (destruct_IH; try solve [solve_inductive_progress_case]).
+    pick_rel.
+    repeat eexists. intros. eauto using tstep, mstep.
+  - pick_spawn.
+    eexists. exists 0. eexists. eauto using tstep.
 Qed.
 
 (*

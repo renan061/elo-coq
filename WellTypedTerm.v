@@ -96,7 +96,15 @@ Ltac invc_wtt :=
 (* auxiliary lemmas                                                          *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma wtt_tstep_write_term : forall t1 t2 ad t,
+Lemma wtt_init_term : forall t1 t2 ad t,
+  well_typed_term t1 ->
+  t1 --[e_init ad t]--> t2 ->
+  well_typed_term t.
+Proof.
+  intros. ind_tstep; invc_wtt; eauto.
+Qed.
+
+Lemma wtt_write_term : forall t1 t2 ad t,
   well_typed_term t1 ->
   t1 --[e_write ad t]--> t2 ->
   well_typed_term t.

@@ -152,9 +152,13 @@ Inductive cell : Type :=
 
 Notation "'(' t ',' T ',' X ')'" := (cell_triple t T X).
 
-Notation " c '.t' " := (let (t, _, _) := c in t) (at level 9).
-Notation " c '.T' " := (let (_, T, _) := c in T) (at level 9).
-Notation " c '.X' " := (let (_, _, X) := c in X) (at level 9).
+Definition gett (c : cell) := let (t, _, _) := c in t.
+Definition getT (c : cell) := let (_, T, _) := c in T.
+Definition getX (c : cell) := let (_, _, X) := c in X.
+
+Notation " c '.t' " := (gett c) (at level 9).
+Notation " c '.T' " := (getT c) (at level 9).
+Notation " c '.X' " := (getX c) (at level 9).
 
 (* ------------------------------------------------------------------------- *)
 (* aliases                                                                   *)
