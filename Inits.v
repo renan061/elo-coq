@@ -5,163 +5,7 @@ From Elo Require Import Core.
 From Elo Require Import Addresses.
 From Elo Require Import Blocks.
 From Elo Require Import WellTypedTerm.
-
-(* ------------------------------------------------------------------------- *)
-(* no-ref                                                                    *)
-(* ------------------------------------------------------------------------- *)
-
-Inductive no_ref (ad : addr) : tm -> Prop :=
-  | noref_unit  :                 no_ref ad <{unit          }>
-  | noref_nat   : forall n,       no_ref ad <{nat n         }>
-  | noref_var   : forall x,       no_ref ad <{var x         }>
-  | noref_fun   : forall x Tx t,  no_ref ad t  ->
-                                  no_ref ad <{fn x Tx t     }>
-  | noref_call  : forall t1 t2,   no_ref ad t1 ->
-                                  no_ref ad t2 ->
-                                  no_ref ad <{call t1 t2    }>
-  | noref_ref   : forall ad' T,   ad <> ad'    ->
-                                  no_ref ad <{&ad' : T      }>
-  | noref_new   : forall t T,     no_ref ad t  ->
-                                  no_ref ad <{new t : T     }>
-  | noref_init  : forall ad' t T, no_ref ad t  ->
-                                  no_ref ad <{init ad' t : T}>
-  | noref_load  : forall t,       no_ref ad t  ->
-                                  no_ref ad <{*t            }>
-  | noref_asg   : forall t1 t2,   no_ref ad t1 ->
-                                  no_ref ad t2 ->
-                                  no_ref ad <{t1 := t2      }>
-  | noref_acq   : forall t1 t2,   no_ref ad t1 ->
-                                  no_ref ad t2 ->
-                                  no_ref ad <{acq t1 t2     }>
-  | noref_cr    : forall ad' t,   no_ref ad t  ->
-                                  no_ref ad <{cr ad' t      }>
-  | noref_spawn : forall t,       no_ref ad t ->
-                                  no_ref ad <{spawn t       }>
-  .
-
-(* inversion --------------------------------------------------------------- *)
-
-Local Ltac _noref tt :=
-  match goal with
-  | H : no_ref _   <{unit        }> |- _ => clear H
-  | H : no_ref _   <{nat _       }> |- _ => clear H
-  | H : no_ref _   <{var _       }> |- _ => clear H
-  | H : no_ref _   <{fn _ _ _    }> |- _ => tt H
-  | H : no_ref _   <{call _ _    }> |- _ => tt H
-  | H : no_ref ?ad <{& ?ad : _   }> |- _ => invc H; eauto
-  | H : no_ref _   <{&_ : _      }> |- _ => tt H
-  | H : no_ref _   <{new _ : _   }> |- _ => tt H
-  | H : no_ref _   <{init _ _ : _}> |- _ => tt H
-  | H : no_ref _   <{* _         }> |- _ => tt H
-  | H : no_ref _   <{_ := _      }> |- _ => tt H
-  | H : no_ref _   <{acq _ _     }> |- _ => tt H
-  | H : no_ref _   <{cr _ _      }> |- _ => tt H
-  | H : no_ref _   <{spawn _     }> |- _ => tt H
-  end.
-
-Ltac inv_noref  := _noref inv.
-Ltac invc_noref := _noref invc.
-
-(* lemmas ------------------------------------------------------------------ *)
-
-Lemma noref_init_term : forall m t1 t2 ad t,
-  no_ref m t1 ->
-  t1 --[e_init ad t]--> t2 ->
-  no_ref m t.
-Proof.
-  intros. ind_tstep; invc_noref; eauto.
-Qed.
-
-Lemma noref_write_term : forall m t1 t2 ad t,
-  no_ref m t1 ->
-  t1 --[e_write ad t]--> t2 ->
-  no_ref m t.
-Proof.
-  intros. ind_tstep; invc_noref; eauto.
-Qed.
-
-Local Lemma noref_write_contradiction : forall t1 t2 ad t,
-  no_ref ad t1 ->
-  t1 --[e_write ad t]--> t2 ->
-  False.
-Proof.
-  intros. ind_tstep; repeat invc_noref; eauto.
-Qed.
-
-(* preservation lemmas ----------------------------------------------------- *)
-
-Lemma noref_subst : forall ad x tx t,
-  no_ref ad t ->
-  no_ref ad tx ->
-  no_ref ad <{[x := tx] t}>.
-Proof. 
-  intros. induction t; invc_noref;
-  simpl in *; try destruct str_eq_dec; eauto using no_ref.
-Qed.
-
-(* preservation ------------------------------------------------------------ *)
-
-Local Ltac solve_noref_preservation :=
-  intros; ind_tstep; repeat invc_noref; eauto using noref_subst, no_ref.
-
-Lemma noref_preservation_none : forall ad t1 t2,
-  no_ref ad t1 ->
-  t1 --[e_none]--> t2 ->
-  no_ref ad t2.
-Proof. solve_noref_preservation. Qed.
-
-Lemma noref_preservation_alloc : forall ad t1 t2 ad' T,
-  no_ref ad t1 ->
-  t1 --[e_alloc ad' T]--> t2 ->
-  no_ref ad t2.
-Proof. solve_noref_preservation. Qed.
-
-Lemma noref_preservation_init : forall ad t1 t2 ad' t,
-  ad <> ad' ->
-  no_ref ad t1 ->
-  t1 --[e_init ad' t]--> t2 ->
-  no_ref ad t2.
-Proof. solve_noref_preservation. Qed.
-
-Lemma noref_preservation_read : forall ad t1 t2 ad' t,
-  no_ref ad t ->
-  (* --- *)
-  no_ref ad t1 ->
-  t1 --[e_read ad' t]--> t2 ->
-  no_ref ad t2.
-Proof. solve_noref_preservation. Qed.
-
-Lemma noref_preservation_write : forall ad t1 t2 ad' t,
-  no_ref ad t1 ->
-  t1 --[e_write ad' t]--> t2 ->
-  no_ref ad t2.
-Proof. solve_noref_preservation. Qed.
-
-Lemma noref_preservation_acq : forall ad t1 t2 ad' t,
-  no_ref ad t ->
-  (* --- *)
-  no_ref ad t1 ->
-  t1 --[e_acq ad' t]--> t2 ->
-  no_ref ad t2.
-Proof. solve_noref_preservation. Qed.
-
-Lemma noref_preservation_rel : forall ad t1 t2 ad',
-  no_ref ad t1 ->
-  t1 --[e_rel ad']--> t2 ->
-  no_ref ad t2.
-Proof. solve_noref_preservation. Qed.
-
-Lemma noref_preservation_spawn : forall ad t1 t2 tid t,
-  no_ref ad t1 ->
-  t1 --[e_spawn tid t]--> t2 ->
-  no_ref ad t2.
-Proof. solve_noref_preservation. Qed.
-
-Lemma noref_preservation_spawned : forall ad t1 t2 tid t,
-  no_ref ad t1 ->
-  t1 --[e_spawn tid t]--> t2 ->
-  no_ref ad t.
-Proof. solve_noref_preservation. Qed.
+From Elo Require Import NoRef.
 
 (* ------------------------------------------------------------------------- *)
 (* consistent-uninitialized-addresses                                        *)
@@ -205,8 +49,7 @@ Local Ltac simpl_nur :=
   end;
   upsilon.
 
-Local Lemma nur_preservation_none : forall m ths tid t,
-  tid < #ths ->
+Lemma nur_preservation_none : forall m ths tid t,
   no_uninitialized_references m ths ->
   ths[tid] --[e_none]--> t ->
   no_uninitialized_references m ths[tid <- t].
@@ -214,8 +57,7 @@ Proof.
   simpl_nur. eauto using noref_preservation_none.
 Qed.
 
-Local Lemma nur_preservation_alloc : forall m ths tid t T,
-  tid < #ths ->
+Lemma nur_preservation_alloc : forall m ths tid t T,
   no_uninitialized_references m ths ->
   ths[tid] --[e_alloc (#m) T]--> t ->
   no_uninitialized_references (m +++ (None, T, false)) ths[tid <- t].
@@ -223,10 +65,9 @@ Proof.
   simpl_nur. eauto using noref_preservation_alloc.
 Qed.
 
-Local Lemma nur_preservation_init : forall m ths tid t ad te,
+Lemma nur_preservation_init : forall m ths tid t ad te,
   forall_threads ths (valid_addresses m) ->
   (* --- *)
-  tid < #ths ->
   no_uninitialized_references m ths ->
   ths[tid] --[e_init ad te]--> t ->
   no_uninitialized_references m[ad.t <- te] ths[tid <- t].
@@ -234,8 +75,7 @@ Proof.
   simpl_nur. eauto using noref_init_term, noref_preservation_init.
 Qed.
 
-Local Lemma nur_preservation_read : forall m ths tid t ad te,
-  tid < #ths ->
+Lemma nur_preservation_read : forall m ths tid t ad te,
   m[ad].t = Some te ->
   no_uninitialized_references m ths ->
   ths[tid] --[e_read ad te]--> t ->
@@ -244,10 +84,9 @@ Proof.
   simpl_nur. eauto using noref_preservation_read.
 Qed.
 
-Local Lemma nur_preservation_write : forall m ths tid t ad te,
+Lemma nur_preservation_write : forall m ths tid t ad te,
   forall_threads ths (valid_addresses m) ->
   (* --- *)
-  tid < #ths ->
   no_uninitialized_references m ths ->
   ths[tid] --[e_write ad te]--> t ->
   no_uninitialized_references m[ad.t <- te] ths[tid <- t].
@@ -255,8 +94,7 @@ Proof.
   simpl_nur. eauto using noref_write_term, noref_preservation_write.
 Qed.
 
-Local Lemma nur_preservation_acq : forall m ths tid t ad te,
-  tid < #ths ->
+Lemma nur_preservation_acq : forall m ths tid t ad te,
   m[ad].t = Some te ->
   no_uninitialized_references m ths ->
   ths[tid] --[e_acq ad te]--> t ->
@@ -265,8 +103,7 @@ Proof.
   simpl_nur. eauto using noref_preservation_acq.
 Qed.
 
-Local Lemma nur_preservation_rel : forall m ths tid t ad,
-  tid < #ths ->
+Lemma nur_preservation_rel : forall m ths tid t ad,
   no_uninitialized_references m ths ->
   ths[tid] --[e_rel ad]--> t ->
   no_uninitialized_references m[ad.X <- false] ths[tid <- t].
@@ -274,8 +111,7 @@ Proof.
   simpl_nur. eauto using noref_preservation_rel.
 Qed.
 
-Local Lemma nur_preservation_spawn : forall m ths tid t te,
-  tid < #ths ->
+Lemma nur_preservation_spawn : forall m ths tid t te,
   no_uninitialized_references m ths ->
   ths[tid] --[e_spawn (#ths) te]--> t ->
   no_uninitialized_references m (ths[tid <- t] +++ te).
@@ -377,7 +213,7 @@ Proof.
   eauto using noinit_oneinit_contradiction.
 Qed.
 
-Local Lemma noinit_to_oneinit : forall t1 t2 ad T,
+Lemma noinit_to_oneinit : forall t1 t2 ad T,
   no_init ad t1 ->
   t1 --[e_alloc ad T]--> t2 ->
   one_init ad t2.
@@ -385,7 +221,7 @@ Proof.
   intros. ind_tstep; invc_noinit; eauto using one_init.
 Qed.
 
-Local Lemma oneinit_to_noinit : forall t1 t2 ad t,
+Lemma oneinit_to_noinit : forall t1 t2 ad t,
   one_init ad t1 ->
   t1 --[e_init ad t]--> t2 ->
   no_init ad t2.
@@ -402,6 +238,17 @@ Local Lemma oneinit_subst : forall ad x tx t,
   one_init ad <{[x := tx] t}>.
 Proof.
   intros. induction t; invc_oneinit; eauto using noinit_subst, one_init.
+Qed.
+
+(* inheritance ------------------------------------------------------------- *)
+
+Local Lemma oneinit_preservation_none : forall ad t1 t2,
+  one_init ad t2 ->
+  t1 --[e_none]--> t2 ->
+  one_init ad t1.
+Proof.
+  intros. ind_tstep; eauto using one_init.
+  - invc_oneinit; eauto using one_init. eapply oneinit_call2; eauto.
 Qed.
 
 (* preservation ------------------------------------------------------------ *)
@@ -478,12 +325,20 @@ Proof. solve_oneinit_preservation noinit_preservation_spawn. Qed.
 (* ------------------------------------------------------------------------- *)
 
 Definition unique_initializers (m : mem) (ths : threads) := forall ad,
+  ad < #m ->
   (m[ad].t <> None -> forall_threads ths (no_init ad)) /\
   (m[ad].t =  None -> forone_thread  ths (one_init ad) (no_init ad)).
 
 (* preservation lemmas ----------------------------------------------------- *)
 
-Local Lemma vad_oneinit_ad : forall ad m t,
+Lemma vad_noinit_ad : forall m t,
+  valid_addresses m t ->
+  no_init (#m) t.
+Proof.
+  intros. induction t; invc_vad; eauto using no_init.
+Qed.
+
+Lemma vad_oneinit_ad : forall ad m t,
   valid_addresses m t ->
   one_init ad t ->
   ad < #m.
@@ -502,7 +357,7 @@ Local Lemma ui_preservation_none : forall m ths tid t,
   unique_initializers m ths[tid <- t].
 Proof.
   intros until 1.
-  intros ? Hui ? ad. specialize (Hui ad) as [Hfall Hfone].
+  intros ? Hui ? ad Had. specialize (Hui ad Had) as [Hfall Hfone].
   split; intros; aspecialize.
   - intros ?. omicron; eauto using noinit_preservation_none.
   - specialize Hfone as [tid' [? ?]]. exists tid'. split; intros; omicron;
@@ -518,13 +373,17 @@ Local Lemma ui_preservation_alloc : forall m ths tid t T,
   unique_initializers (m +++ (None, T, false)) ths[tid <- t].
 Proof.
   intros until 1.
-  intros ? Hui ? ad. specialize (Hui ad) as [Hfall Hfone].
-  split; intros; upsilon; aspecialize.
-  - intros ?. omicron; eauto using noinit_preservation_alloc.
-  - specialize Hfone as [tid' [? ?]]. exists tid'.
-    assert (ad < #m) by eauto using vad_oneinit_ad.
-    split; intros; omicron;
-    eauto using noinit_preservation_alloc, oneinit_preservation_alloc.
+  intros ? Hui ? ad Had. omicron.
+  - specialize (Hui ad) as [Hfall Hfone]; trivial.
+    split; intros; upsilon; aspecialize.
+    + intros ?. omicron; eauto using noinit_preservation_alloc.
+    + specialize Hfone as [tid' [? ?]]. exists tid'.
+      assert (ad < #m) by eauto using vad_oneinit_ad.
+      split; intros; omicron;
+      eauto using noinit_preservation_alloc, oneinit_preservation_alloc.
+  - split; intros; upsilon; auto. exists tid. split; intros; sigma;
+    eauto using vad_noinit_ad, noinit_to_oneinit.
+  - lia.
 Qed.
 
 Local Lemma ui_preservation_init : forall m ths tid t ad te,
@@ -537,7 +396,7 @@ Local Lemma ui_preservation_init : forall m ths tid t ad te,
   unique_initializers m[ad.t <- te] ths[tid <- t].
 Proof.
   intros until 2.
-  intros ? Hui ? ad'. specialize (Hui ad') as [Hfall Hfone].
+  intros ? Hui ? ad' Had'. sigma. specialize (Hui ad' Had') as [Hfall Hfone].
   assert (ad < #m) by eauto using vad_init_addr.
   destruct (alt_opt_dec m[ad'].t); aspecialize; split; intros.
   - specialize Hfone as [tid'' [? ?]].
@@ -563,7 +422,7 @@ Local Lemma ui_preservation_read : forall m ths tid t ad te,
   unique_initializers m ths[tid <- t].
 Proof.
   intros until 1.
-  intros ? Hui ? ad'. specialize (Hui ad') as [Hfall Hfone].
+  intros ? Hui ? ad' Had'. specialize (Hui ad' Had') as [Hfall Hfone].
   split; intros; upsilon; aspecialize.
   - intros ?. omicron; eauto using noinit_preservation_read.
   - specialize Hfone as [tid' [? ?]]. exists tid'.
@@ -582,11 +441,11 @@ Local Lemma ui_preservation_write : forall m ths tid t ad te,
   unique_initializers m[ad.t <- te] ths[tid <- t].
 Proof.
   intros until 2. intros Hnur.
-  intros ? Hui ? ad'. specialize (Hui ad') as [Hfall Hfone].
+  intros ? Hui ? ad' Had'. sigma. specialize (Hui ad' Had') as [Hfall Hfone].
   assert (ad < #m) by eauto using vad_write_addr.
   split; intros; repeat omicron; try discriminate; try aspecialize.
-  - destruct (alt_opt_dec m[ad'].t) as [Had' | Had']; aspecialize.
-    + destruct (Hnur ad' Had').
+  - destruct (alt_opt_dec m[ad'].t) as [Hmad' | Hmad']; aspecialize.
+    + destruct (Hnur ad' Hmad').
       exfalso. eauto using noref_write_contradiction.
     + intros ?. omicron; eauto using noinit_preservation_write.
   - intros ?. omicron; eauto using noinit_preservation_write.
@@ -603,7 +462,7 @@ Local Lemma ui_preservation_acq : forall m ths tid ad t te,
   unique_initializers m[ad.X <- true] ths[tid <- t].
 Proof.
   intros until 1.
-  intros ? Hui ? ad'. specialize (Hui ad') as [Hfall Hfone].
+  intros ? Hui ? ad' Had'. sigma. specialize (Hui ad' Had') as [Hfall Hfone].
   split; intros; upsilon; aspecialize.
   - intros ?. omicron; eauto using noinit_preservation_acq.
   - specialize Hfone as [tid' [? ?]]. exists tid'.
@@ -618,7 +477,7 @@ Local Lemma ui_preservation_rel : forall m ths tid ad t,
   unique_initializers m[ad.X <- false] ths[tid <- t].
 Proof.
   intros *.
-  intros ? Hui ? ad'. specialize (Hui ad') as [Hfall Hfone].
+  intros ? Hui ? ad' Had'. sigma. specialize (Hui ad' Had') as [Hfall Hfone].
   split; intros; upsilon; aspecialize.
   - intros ?. omicron; eauto using noinit_preservation_rel.
   - specialize Hfone as [tid' [? ?]]. exists tid'.
@@ -635,7 +494,7 @@ Local Lemma ui_preservation_spawn : forall m ths tid t te,
   unique_initializers m (ths[tid <- t] +++ te).
 Proof.
   intros until 1.
-  intros ? Hui ? ad'. specialize (Hui ad') as [Hfall Hfone].
+  intros ? Hui ? ad' Had'. specialize (Hui ad' Had') as [Hfall Hfone].
   split; intros; upsilon; aspecialize.
   - intros ?. omicron; try constructor;
     eauto using noinit_preservation_spawn, noinit_preservation_spawned.
@@ -769,11 +628,15 @@ Proof.
 Qed.
 
 Local Corollary oneinit_from_ui : forall m ths tid t ad te,
+  forall_threads ths (valid_addresses m) ->
+  (* --- *)
   unique_initializers m ths ->
   ths[tid] --[e_init ad te]--> t ->
   one_init ad ths[tid].
 Proof.
-  intros * Hui ?. specialize (Hui ad) as [Hfall Hfone].
+  intros * ? Hui ?.
+  assert (Had : ad < #m) by eauto using vad_init_addr.
+  specialize (Hui ad Had) as [Hfall Hfone].
   destruct (alt_opt_dec m[ad].t); aspecialize.
   - specialize Hfone as [tid' [? ?]].
     destruct (nat_eq_dec tid' tid); subst; trivial.
@@ -782,12 +645,16 @@ Proof.
 Qed.
 
 Local Corollary noinit_from_ui : forall m ths tid1 tid2 ad,
+  forall_threads ths (valid_addresses m) ->
+  (* --- *)
   tid1 <> tid2 ->
   unique_initializers m ths ->
   one_init ad ths[tid1] ->
   no_init ad ths[tid2].
 Proof.
-  intros * ? Hui **. specialize (Hui ad) as [Hfall Hfone].
+  intros * ? ? Hui **.
+  assert (Had : ad < #m) by eauto using vad_oneinit_ad.
+  specialize (Hui ad Had) as [Hfall Hfone].
   destruct (alt_opt_dec m[ad].t); aspecialize.
   - specialize Hfone as [tid' [? ?]].
     destruct (nat_eq_dec tid1 tid'); subst;
@@ -967,10 +834,10 @@ Proof.
       vb_init_term, value_init_term, noinits_from_value.
   - eauto using ci_preservation_read.
   - assert (m1[ad].t <> None) by eauto using write_then_initialized. 
-    specialize (Hui ad) as [Hnoinit _]. aspecialize.
+    specialize (Hui ad) as [Hnoinit _]; trivial. aspecialize.
     eauto using ci_preservation_write.
   - assert (m1[ad].t <> None) by eauto using write_then_initialized. 
-    specialize (Hui ad) as [Hnoinit _]. aspecialize.
+    specialize (Hui ad) as [Hnoinit _]; trivial. aspecialize.
     eauto using ci_write_term, ci_mem_set1.
   - eauto using ci_preservation_acq.
   - eauto using ci_mem_acq.

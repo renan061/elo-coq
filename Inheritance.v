@@ -1,165 +1,94 @@
 From Elo Require Import Core.
+
 From Elo Require Import Properties.
-From Elo Require Import Lemmas.
+
+From Elo Require Import AccessCore.
+From Elo Require Import NotAccess.
 
 (* ------------------------------------------------------------------------- *)
-(* access inheritance                                                        *)
+(* inheritance                                                               *)
 (* ------------------------------------------------------------------------- *)
 
-(* mem & subst ------------------------------------------------------------- *)
+(* subst ------------------------------------------------------------------- *)
 
-Local Lemma acc_subst_inheritance : forall m x Tx t t' ad,
-  access ad m ([x := t'] t) ->
-  access ad m <{call <{fn x Tx t}> t'}>.
+Local Lemma acc_inheritance_subst : forall m x Tx t tx ad,
+  access ad m <{[x := tx] t}> ->
+  access ad m <{call <{fn x Tx t}> tx}>.
 Proof.
-  intros. induction t; eauto using access; simpl in *;
-  try (destruct string_eq_dec; eauto using access);
-  invc_acc; auto_specialize; do 2 (invc_acc; eauto using access).
+  intros. induction t; simpl in *;
+  try destruct str_eq_dec; try invc_acc; eauto using access;
+  aspecialize; repeat invc_acc; eauto using access.
 Qed.
 
-Lemma acc_mem_add_inheritance : forall m t ad vT,
-  forall_memory m (valid_addresses m) ->
-  valid_addresses m t ->
+Local Lemma xacc_inheritance_subst : forall m x Tx t tx ad adx,
+  no_inits t ->
+  no_crs   t ->
   (* --- *)
-  access ad (m +++ vT) t ->
-  access ad m t.
+  xaccess adx ad m <{[x := tx] t}> ->
+  xaccess adx ad m <{call <{fn x Tx t}> tx}>.
 Proof.
-  intros * Hmvad Hvad Hacc.
-  assert (Hnacc : ~ access (#m) m t) by eauto using nacc_vad_length.
-  clear Hvad. induction Hacc; inv_nacc; eauto using access.
-  decompose sum (lt_eq_lt_dec ad' (#m)); subst; eauto;
-  simpl_array; eauto using access. simpl in *. inv_acc.
+  intros. induction t; simpl in *; try destruct str_eq_dec;
+  invc_noinits; invc_nocrs; try invc_xacc;
+  repeat aspecialize; repeat invc_xacc; eauto using xaccess.
 Qed.
 
-Lemma acc_mem_set_inheritance : forall m t ad ad' v T,
-  ~ access ad m v ->
+(* mem-add ----------------------------------------------------------------- *)
+
+Lemma acc_inheritance_mem_add : forall m t ad T,
+  access ad (m +++ (None, T, false)) t ->
+  access ad m t.
+Proof.
+  intros * Hacc.
+  induction Hacc; eauto using access;
+  omicron; upsilon; eauto using access.
+Qed.
+
+Lemma xacc_inheritance_mem_add : forall m t adx ad T,
+  xaccess adx ad (m +++ (None, T, false)) t ->
+  xaccess adx ad m t.
+Proof.
+  intros * Hxacc. induction Hxacc; eauto using acc_inheritance_mem_add, xaccess.
+Qed.
+
+(* none -------------------------------------------------------------------- *)
+
+Lemma acc_inheritance_none : forall ad m t1 t2,
+  access ad m t2 ->
+  t1 --[e_none]--> t2 ->
+  access ad m t1.
+Proof.
+  intros. ind_tstep; try invc_acc; eauto using acc_inheritance_subst, access.
+Qed.
+
+Lemma xacc_inheritance_none : forall adx ad m t1 t2,
+  valid_blocks t1 ->
   (* --- *)
-  access ad m[ad' <- (v, T)] t ->
-  access ad m t.
+  xaccess adx ad m t2 ->
+  t1 --[e_none]--> t2 ->
+  xaccess adx ad m t1.
 Proof.
-  intros * Hnacc Hacc. remember (m[ad' <- (v, T)]) as m'.
-  induction Hacc; inv Heqm'; eauto using access.
-  match goal with |- access _ _ <{& ?ad :: _}> => rename ad into ad'' end.
-  destruct (nat_eq_dec ad' ad''); subst; try (simpl_array; eauto using access);
-  destruct (nat_eq_dec ad'' ad); subst; eauto using access;
-  rewrite (get_set_eq memory_default) in IHHacc. 1: contradiction.
-  decompose sum (lt_eq_lt_dec ad'' (#m)); subst; trivial;
-  simpl_array; simpl in *; inv_acc.
+  intros. ind_tstep; repeat invc_vb; try invc_xacc;
+  eauto using acc_inheritance_none, xacc_inheritance_subst, xaccess.
 Qed.
 
-Lemma alt_acc_mem_set_inheritance : forall m t ad ad' vT,
-  ~ access ad' m t ->
-  (* --- *)
-  access ad m[ad' <- vT] t ->
-  access ad m t.
+(* alloc ------------------------------------------------------------------- *)
+
+Lemma acc_inheritance_alloc : forall ad m t1 t2 T,
+  access ad (m +++ (None, T, false)) t2 ->
+  t1 --[e_alloc (#m) T]--> t2 ->
+  access ad m t1.
 Proof.
-  intros * ? Hacc. induction Hacc; inv_nacc; eauto using access.
-  simpl_array. eauto using access.
+  intros. ind_tstep; invc_acc;
+  eauto using acc_inheritance_mem_add, access.
 Qed.
 
-(* tstep ------------------------------------------------------------------- *)
-
-Lemma acc_tstep_none_inheritance  : forall m t t' ad,
-  access ad m t' ->
-  t --[EF_None]--> t' ->
-  access ad m t.
+Lemma xacc_inheritance_alloc : forall adx ad m t1 t2 T,
+  adx <> #m ->
+  xaccess adx ad (m +++ (None, T, false)) t2 ->
+  t1 --[e_alloc (#m) T]--> t2 ->
+  xaccess adx ad m t1.
 Proof.
-  intros.
-  induction_tstep; try inv_acc; eauto using access, acc_subst_inheritance.
+  intros. ind_tstep; invc_xacc;
+  eauto using acc_inheritance_alloc, xacc_inheritance_mem_add, xaccess.
 Qed.
 
-Lemma acc_tstep_alloc_inheritance : forall m t t' ad v T,
-  forall_memory m (valid_addresses m) ->
-  valid_addresses m t ->
-  (* --- *)
-  ad < #m ->
-  access ad (m +++ (v, T)) t' ->
-  t --[EF_Alloc (#m) v T]--> t' ->
-  access ad m t.
-Proof.
-  intros. induction_tstep; inv_vad; inv_acc;
-  eauto using access, acc_mem_add_inheritance.
-  simpl_array. eauto using access, acc_mem_add_inheritance.
-Qed.
-
-Lemma acc_tstep_read_inheritance : forall m t t' ad ad',
-  access ad m t' ->
-  t --[EF_Read ad' m[ad'].tm]--> t' ->
-  access ad m t.
-Proof.
-  intros. induction_tstep; try inv_acc; eauto using access.
-  destruct (nat_eq_dec ad' ad); subst; eauto using access.
-Qed.
-
-Lemma acc_tstep_write_inheritance : forall m t t' ad ad' v T,
-  access ad m[ad' <- (v, T)] t' ->
-  t --[EF_Write ad' v T]--> t' ->
-  access ad m t.
-Proof.
-  intros. induction_tstep; inv_acc; eauto using access;
-  destruct (acc_dec ad m v); eauto using access, acc_mem_set_inheritance;
-  assert (forall t t', t --[EF_Write ad' v T]--> t' -> access ad m t)
-    by (intros; induction_tstep; eauto using access);
-  eauto using access.
-Qed.
-
-Lemma acc_tstep_spawn_inheritance : forall m t t' block ad,
-  access ad m t' ->
-  t --[EF_Spawn block]--> t' ->
-  access ad m t.
-Proof.
-  intros. induction_tstep; inv_acc; eauto using access.
-Qed.
-
-(* mstep ------------------------------------------------------------------- *)
-
-Corollary acc_mstep_inheritance : forall m m' t t' ad e,
-  forall_memory m (valid_addresses m) ->
-  valid_addresses m t ->
-  (* --- *)
-  ad < #m ->
-  access ad m' t' ->
-  m / t ==[e]==> m' / t' ->
-  access ad m t.
-Proof.
-  intros. inv_mstep;
-  eauto using acc_tstep_none_inheritance,
-              acc_tstep_alloc_inheritance,
-              acc_tstep_read_inheritance,
-              acc_tstep_write_inheritance.
-Qed.
-
-(* ------------------------------------------------------------------------- *)
-(* unsafe-access inheritance                                                 *)
-(* ------------------------------------------------------------------------- *)
-
-Lemma uacc_mem_add_inheritance : forall m t ad vT,
-  ~ access (#m) m t ->
-  (* --- *)
-  unsafe_access ad (m +++ vT) t ->
-  unsafe_access ad m t.
-Proof.
-  intros * ? Huacc.
-  induction Huacc; inv_nacc; eauto using unsafe_access.
-  eapply uacc_mem; trivial.
-  decompose sum (lt_eq_lt_dec ad' (#m)); subst; simpl_array; eauto.
-Qed.
-
-Lemma uacc_mem_set_inheritance : forall m t ad ad' vT,
-  ~ access ad' m t ->
-  (* --- *)
-  unsafe_access ad m[ad' <- vT] t ->
-  unsafe_access ad m t.
-Proof.
-  intros * ? Huacc.
-  induction Huacc; inv_nacc; eauto using unsafe_access.
-  simpl_array. eauto using unsafe_access.
-Qed.
-
-Lemma uacc_tstep_spawn_inheritance : forall m t t' block ad,
-  unsafe_access ad m t' ->
-  t --[EF_Spawn block]--> t' ->
-  unsafe_access ad m t.
-Proof.
-  intros. induction_tstep; inv_uacc; eauto using unsafe_access.
-Qed.

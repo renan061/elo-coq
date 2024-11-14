@@ -125,13 +125,21 @@ Qed.
 (* memory                                                                    *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma setx_get_tm_eq : forall m ad ad' X,
+Lemma add_getT : forall m ad T1 T2,
+  (m +++ (None, T1, false))[ad].T = T2 -> (ad = #m /\ T1 = T2) \/ m[ad].T = T2.
+Proof.
+  intros. omicron; auto.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+
+Lemma setx_gett_eq : forall m ad ad' X,
   m[ad.X <- X][ad'].t = m[ad'].t.
 Proof.
   intros. repeat omicron; trivial.
 Qed.
 
-Lemma setx_get_ty_eq : forall m ad ad' X,
+Lemma setx_getT_eq : forall m ad ad' X,
   m[ad.X <- X][ad'].T = m[ad'].T.
 Proof.
   intros. repeat omicron; trivial.
@@ -275,14 +283,14 @@ Ltac upsilon' :=
   (* memory -- X                              *)
   (* ---------------------------------------- *)
   | H : context C [ ?m[?ad'.X <- ?X][?ad].t ] |- _ =>
-    rewrite setx_get_tm_eq in H
+    rewrite setx_gett_eq in H
   |  |- context C [ ?m[?ad'.X <- ?X][?ad].t ] =>
-    rewrite setx_get_tm_eq 
+    rewrite setx_gett_eq 
   (* ---------------------------------------- *)
   | H : context C [ ?m[?ad'.X <- ?X][?ad].T ] |- _ =>
-    rewrite setx_get_ty_eq in H
+    rewrite setx_getT_eq in H
   |  |- context C [ ?m[?ad'.X <- ?X][?ad].T ] =>
-    rewrite setx_get_ty_eq 
+    rewrite setx_getT_eq 
   (* ---------------------------------------- *)
   | H : (_ +++ (None, _, false))[_].X = false |- _ =>
     rewrite add_getx_false in H
@@ -309,6 +317,11 @@ Ltac upsilon' :=
   (* ---------------------------------------- *)
   | H : ?m[?ad'.t <- ?t'][?ad].t = Some ?t |- _ =>
     apply (set_get_some m ad ad' t t') in H as [[? ?] | [? ?]]; subst
+  (* ---------------------------------------- *)
+  (* memory -- T                              *)
+  (* ---------------------------------------- *)
+  | H : (?m +++ (None, ?T1, false))[?ad].T = ?T2 |- _ =>
+    apply (add_getT m ad T1 T2) in H as [[? ?] | ?]; subst
   end.
 
 Ltac upsilon := repeat upsilon'.

@@ -2,7 +2,7 @@
 
 COQC= coqc -Q . Elo
 
-all: core properties
+all: core properties access
 
 core:
 	$(COQC) Util.v
@@ -18,15 +18,23 @@ properties:
 	$(COQC) Addresses.v
 	$(COQC) Blocks.v
 	$(COQC) WellTypedTerm.v
+	$(COQC) NoRef.v
 	$(COQC) Inits.v
 	$(COQC) Refs.v
 	$(COQC) Soundness.v
 	$(COQC) CriticalRegions.v
+	$(COQC) XArea.v
+	#$(COQC) PointerTypes.v
 	$(COQC) Properties.v
+
+access:
+	$(COQC) AccessCore.v
+	$(COQC) NotAccess.v
+	$(COQC) Boundaries1.v
+	$(COQC) Inheritance.v
 
 todo:
 	$(COQC) Boundaries.v
-	$(COQC) Access.v
 
 safety:
 	$(COQC) SMS.v

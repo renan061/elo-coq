@@ -82,6 +82,18 @@ Proof.
   intros. ind_tstep; invc_noinit; eauto.
 Qed.
 
+(* inheritance ------------------------------------------------------------- *)
+
+Lemma noinit_inheritance_none : forall ad t1 t2,
+  no_init ad t2 ->
+  t1 --[e_none]--> t2 ->
+  no_init ad t1.
+Proof.
+  intros. ind_tstep; eauto;
+  try solve [invc_noinit; constructor; eauto].
+  - 
+Qed.
+
 (* preservation lemmas ----------------------------------------------------- *)
 
 Lemma noinit_subst : forall ad x tx t,
