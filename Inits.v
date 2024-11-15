@@ -242,13 +242,17 @@ Qed.
 
 (* inheritance ------------------------------------------------------------- *)
 
-Local Lemma oneinit_preservation_none : forall ad t1 t2,
+Lemma oneinit_inheritance_none : forall ad t1 t2,
+  valid_blocks t1 ->
+  (* --- *)
   one_init ad t2 ->
   t1 --[e_none]--> t2 ->
   one_init ad t1.
 Proof.
-  intros. ind_tstep; eauto using one_init.
-  - invc_oneinit; eauto using one_init. eapply oneinit_call2; eauto.
+  intros. ind_tstep; repeat invc_vb; try invc_oneinit;
+  eauto using noinit_inheritance_none, one_init.
+  exfalso. apply (noinit_oneinit_contradiction ad <{[x := tx] t}>);
+  auto using noinit_from_value, noinit_subst.
 Qed.
 
 (* preservation ------------------------------------------------------------ *)

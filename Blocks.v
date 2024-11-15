@@ -82,18 +82,6 @@ Proof.
   intros. ind_tstep; invc_noinit; eauto.
 Qed.
 
-(* inheritance ------------------------------------------------------------- *)
-
-Lemma noinit_inheritance_none : forall ad t1 t2,
-  no_init ad t2 ->
-  t1 --[e_none]--> t2 ->
-  no_init ad t1.
-Proof.
-  intros. ind_tstep; eauto;
-  try solve [invc_noinit; constructor; eauto].
-  - 
-Qed.
-
 (* preservation lemmas ----------------------------------------------------- *)
 
 Lemma noinit_subst : forall ad x tx t,
@@ -721,5 +709,52 @@ Proof.
   - eauto using vb_preservation_acq.
   - eauto using vb_preservation_rel.
   - eauto using vb_preservation_spawn, vb_preservation_spawned.
+Qed.
+
+
+
+
+(* inheritance ------------------------------------------------------------- *)
+
+Local Lemma noinit_inheritance_subst : forall x Tx t tx ad,
+  no_init ad tx ->
+  no_init ad <{[x := tx] t}> ->
+  no_init ad <{call <{fn x Tx t}> tx}>.
+Proof.
+  intros. repeat constructor; trivial.
+  induction t; simpl in *;
+  try destruct str_eq_dec; try invc_noinit; eauto using no_init.
+Qed.
+
+Lemma noinit_inheritance_none : forall ad t1 t2,
+  valid_blocks t1 ->
+  (* --- *)
+  no_init ad t2 ->
+  t1 --[e_none]--> t2 ->
+  no_init ad t1.
+Proof.
+  intros. ind_tstep; repeat invc_vb; try invc_noinit; eauto using no_init.
+  eauto using noinit_from_value, noinit_inheritance_subst.
+Qed.
+
+Local Lemma nocr_inheritance_subst : forall x Tx t tx ad,
+  no_cr ad tx ->
+  no_cr ad <{[x := tx] t}> ->
+  no_cr ad <{call <{fn x Tx t}> tx}>.
+Proof.
+  intros. repeat constructor; trivial.
+  induction t; simpl in *;
+  try destruct str_eq_dec; try invc_nocr; eauto using no_cr.
+Qed.
+
+Lemma nocr_inheritance_none : forall ad t1 t2,
+  valid_blocks t1 ->
+  (* --- *)
+  no_cr ad t2 ->
+  t1 --[e_none]--> t2 ->
+  no_cr ad t1.
+Proof.
+  intros. ind_tstep; repeat invc_vb; try invc_nocr; eauto using no_cr.
+  eauto using nocr_from_value, nocr_inheritance_subst.
 Qed.
 

@@ -15,15 +15,15 @@ Definition init_cr_exclusivity (m : mem) (ths : threads) := forall ad tid1 tid2,
 (* preservation ------------------------------------------------------------ *)
 
 Lemma ice_preservation_none : forall m ths tid t,
+  forall_threads ths valid_blocks ->
+  (* --- *)
   init_cr_exclusivity m ths ->
   ths[tid] --[e_none]--> t ->
   init_cr_exclusivity m ths[tid <- t].
 Proof.
-  intros * Hice Htstep ad tid1 tid2.
-  specialize (Hice ad tid1 tid2) as [Hinit Hcr].
-  split; intros Hone.
-  - repeat omicron; eauto using nocr_preservation_none.
-    + eapply nocr_preservation_none; eauto. eapply Hinit. admit.
-    + eapply Hinit. admit.
-  -
+  intros * ? Hice ? ad tid1 tid2.
+  specialize (Hice ad tid1 tid2) as [? ?].
+  split; intros; repeat omicron;
+  eauto using nocr_preservation_none, oneinit_inheritance_none;
+  eauto using noinit_preservation_none, onecr_inheritance_none.
 Qed.

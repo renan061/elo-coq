@@ -65,13 +65,20 @@ Ltac invc_onecr := _onecr invc.
 
 (* lemmas -- one-cr -------------------------------------------------------- *)
 
-Local Lemma nocrs_onecr_contradiction : forall ad t,
+Local Lemma nocr_onecr_contradiction : forall ad t,
+  no_cr  ad t ->
+  one_cr ad t ->
+  False.
+Proof.
+  intros * H ?. induction t; invc_nocr; invc_onecr; auto.
+Qed.
+
+Local Corollary nocrs_onecr_contradiction : forall ad t,
   no_crs t ->
   one_cr ad t ->
   False.
 Proof.
-  intros * H ?. specialize (H ad).
-  induction t; invc_nocr; invc_onecr; auto.
+  unfold no_crs. eauto using nocr_onecr_contradiction.
 Qed.
 
 Local Lemma nocr_to_onecr : forall t1 t2 ad t,
@@ -91,6 +98,21 @@ Local Lemma onecr_to_nocr : forall t1 t2 ad,
 Proof.
   intros. ind_tstep; repeat invc_onecr; eauto using no_cr;
   exfalso; eauto using nocr_rel_contradiction.
+Qed.
+
+(* inheritance ------------------------------------------------------------- *)
+
+Lemma onecr_inheritance_none : forall ad t1 t2,
+  valid_blocks t1 ->
+  (* --- *)
+  one_cr ad t2 ->
+  t1 --[e_none]--> t2 ->
+  one_cr ad t1.
+Proof.
+  intros. ind_tstep; repeat invc_vb; try invc_onecr;
+  eauto using nocr_inheritance_none, one_cr.
+  exfalso. apply (nocr_onecr_contradiction ad <{[x := tx] t}>);
+  auto using nocr_from_value, nocr_subst.
 Qed.
 
 (* preservation lemmas ----------------------------------------------------- *)
