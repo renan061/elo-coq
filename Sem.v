@@ -134,7 +134,7 @@ Inductive value : tm -> Prop :=
 Inductive eff : Set :=
   | e_none
   | e_alloc  (ad : addr) (T : ty)
-  | e_init   (ad : addr) (t : tm)
+  | e_insert (ad : addr) (t : tm)
   | e_read   (ad : addr) (t : tm)
   | e_write  (ad : addr) (t : tm)
   | e_acq    (ad : addr) (t : tm)
@@ -272,22 +272,23 @@ Inductive type_of : ctx -> tm -> ty -> Prop :=
 
 Local Infix "=?" := string_dec (at level 70, no associativity).
 
+(* TODO: could it be "t" for cr? *)
 Fixpoint subst (x : id) (tx t : tm) : tm :=
   match t with
-  | <{unit           }> => t
-  | <{nat _          }> => t
+  | <{unit          }> => t
+  | <{nat _         }> => t
   (* functions *)
-  | <{var x'         }> => if x =? x' then tx else t
-  | <{fn x' Tx t'    }> => if x =? x' then t  else <{fn x' Tx ([x := tx] t')}>
+  | <{var x'        }> => if x =? x' then tx else t
+  | <{fn x' Tx t'   }> => if x =? x' then t  else <{fn x' Tx ([x := tx] t')}>
   (* memory *)
-  | <{call t1 t2     }> => <{call ([x := tx] t1) ([x := tx] t2)}>
-  | <{& _ : _        }> => t
-  | <{new t' : T     }> => <{new ([x := tx] t') : T}>
-  | <{init ad t' : T }> => <{init ad ([x := tx] t') : T}>
-  | <{*t'            }> => <{* ([x := tx] t')}>
-  | <{t1 := t2       }> => <{([x := tx] t1) := ([x := tx] t2)}>
-  | <{acq t1 t2      }> => <{acq ([x := tx] t1) ([x := tx] t2)}>
-  | <{cr ad t'       }> => <{cr ad ([x := tx] t')}> (* could it be "t"? *)
+  | <{call t1 t2    }> => <{call ([x := tx] t1) ([x := tx] t2)}>
+  | <{& _ : _       }> => t
+  | <{new t' : T    }> => <{new ([x := tx] t') : T}>
+  | <{init ad t' : T}> => <{init ad ([x := tx] t') : T}>
+  | <{*t'           }> => <{* ([x := tx] t')}>
+  | <{t1 := t2      }> => <{([x := tx] t1) := ([x := tx] t2)}>
+  | <{acq t1 t2     }> => <{acq ([x := tx] t1) ([x := tx] t2)}>
+  | <{cr ad t'      }> => <{cr ad ([x := tx] t')}>
   (* concurrency *)
   | <{spawn t'       }> => <{spawn ([x := tx] t')}>
   end
@@ -323,7 +324,7 @@ Inductive tstep : tm -> eff -> tm -> Prop :=
 
   | ts_init : forall ad t T,
     value t ->
-    <{init ad t : T}> --[e_init ad t]--> <{&ad : T}>
+    <{init ad t : T}> --[e_insert ad t]--> <{&ad : T}>
 
   (* load *)
   | ts_load1 : forall t t' e,
@@ -409,10 +410,10 @@ Inductive mstep : mem -> tm -> eff -> mem -> tm -> Prop :=
     t1 --[e_alloc ad T]--> t2 ->
     m / t1 ==[e_alloc ad T]==> (m +++ (None, T, false)) / t2
 
-  | ms_init : forall m t1 t2 ad t,
+  | ms_insert : forall m t1 t2 ad t,
     ad < #m ->
-    t1 --[e_init ad t]--> t2 ->
-    m / t1 ==[e_init ad t]==> m[ad.t <- t] / t2
+    t1 --[e_insert ad t]--> t2 ->
+    m / t1 ==[e_insert ad t]==> m[ad.t <- t] / t2
 
   | ms_read : forall m t1 t2 ad t,
     ad < #m ->

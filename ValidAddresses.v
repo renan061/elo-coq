@@ -5,34 +5,34 @@ From Elo Require Import Core.
 (* ------------------------------------------------------------------------- *)
 
 Inductive valid_addresses (m : mem) : tm -> Prop :=
-  | vad_unit  :                valid_addresses m <{unit         }> 
-  | vad_nat   : forall n,      valid_addresses m <{nat n        }>
-  | vad_var   : forall x,      valid_addresses m <{var x        }>
+  | vad_unit  :                valid_addresses m <{unit        }> 
+  | vad_nat   : forall n,      valid_addresses m <{nat n       }>
+  | vad_var   : forall x,      valid_addresses m <{var x       }>
   | vad_fun   : forall x Tx t, valid_addresses m t  ->
-                               valid_addresses m <{fn x Tx t    }>
+                               valid_addresses m <{fn x Tx t   }>
   | vad_call  : forall t1 t2,  valid_addresses m t1 ->
                                valid_addresses m t2 ->
-                               valid_addresses m <{call t1 t2   }> 
+                               valid_addresses m <{call t1 t2  }> 
   | vad_ref   : forall ad T,   ad < #m              ->
-                               valid_addresses m <{&ad : T      }>
+                               valid_addresses m <{&ad : T     }>
   | vad_init  : forall ad t T, ad < #m              ->
                                valid_addresses m t  ->
                                valid_addresses m <{init ad t : T}> 
   | vad_new   : forall T t,    valid_addresses m t  ->
-                               valid_addresses m <{new t : T    }>
+                               valid_addresses m <{new t : T   }>
   | vad_load  : forall t,      valid_addresses m t  ->
-                               valid_addresses m <{*t           }> 
+                               valid_addresses m <{*t          }> 
   | vad_asg   : forall t1 t2,  valid_addresses m t1 ->
                                valid_addresses m t2 ->
-                               valid_addresses m <{t1 := t2     }> 
+                               valid_addresses m <{t1 := t2    }> 
   | vad_acq   : forall t1 t2,  valid_addresses m t1 ->
                                valid_addresses m t2 ->
-                               valid_addresses m <{acq t1 t2    }>
+                               valid_addresses m <{acq t1 t2   }>
   | vad_cr    : forall ad t,   ad < #m              ->
                                valid_addresses m t  ->
-                               valid_addresses m <{cr ad t      }>
+                               valid_addresses m <{cr ad t     }>
   | vad_spawn : forall t,      valid_addresses m t  ->
-                               valid_addresses m <{spawn t      }>
+                               valid_addresses m <{spawn t     }>
   .
 
 (* inversion --------------------------------------------------------------- *)
@@ -59,12 +59,12 @@ Ltac invc_vad := _vad invc.
 
 (* lemmas ------------------------------------------------------------------ *)
 
-Lemma vad_init_term : forall m t1 t2 ad t,
+Lemma vad_insert_term : forall m t1 t2 ad t,
   valid_addresses m t1 ->
-  t1 --[e_init ad t]--> t2 ->
+  t1 --[e_insert ad t]--> t2 ->
   valid_addresses m t.
 Proof.
-  intros. ind_tstep; inv_vad; eauto.
+  intros. ind_tstep; invc_vad; eauto.
 Qed.
 
 Lemma vad_write_term : forall m t1 t2 ad t,
@@ -72,12 +72,12 @@ Lemma vad_write_term : forall m t1 t2 ad t,
   t1 --[e_write ad t]--> t2 ->
   valid_addresses m t.
 Proof.
-  intros. ind_tstep; inv_vad; eauto.
+  intros. ind_tstep; invc_vad; eauto.
 Qed.
 
-Lemma vad_init_addr : forall m t1 t2 ad t,
+Lemma vad_insert_addr : forall m t1 t2 ad t,
   valid_addresses m t1 ->
-  t1 --[e_init ad t]--> t2 ->
+  t1 --[e_insert ad t]--> t2 ->
   ad < #m.
 Proof.
   intros. ind_tstep; repeat invc_vad; eauto.
@@ -149,9 +149,9 @@ Lemma vad_preservation_alloc : forall m t1 t2 T,
   valid_addresses (m +++ (None, T, false)) t2.
 Proof. solve_vad_preservation. Qed.
 
-Lemma vad_preservation_init : forall m t1 t2 ad t,
+Lemma vad_preservation_insert : forall m t1 t2 ad t,
   valid_addresses m t1 ->
-  t1 --[e_init ad t]--> t2 ->
+  t1 --[e_insert ad t]--> t2 ->
   valid_addresses (m[ad.t <- t]) t2.
 Proof. solve_vad_preservation. Qed.
 
@@ -204,36 +204,17 @@ Proof.
   assert (Hvad' := Hvad). destruct Hvad' as [? ?].
   invc_cstep; try invc_mstep.
   - upsilon. eauto using vad_preservation_none.
-  - split.
-    + intros ? ? ?. upsilon. eauto using vad_mem_add.
-    + intros ?. omicron.
-      * eauto using vad_preservation_alloc.
-      * eauto using vad_mem_add.
-  - split.
-    + intros ? ? ?. upsilon.
-      * eauto using vad_init_term, vad_mem_set.
-      * eauto using vad_mem_set.
-    + intros ?. omicron.
-      * eauto using vad_preservation_init.
-      * eauto using vad_mem_set.
+  - split; intros ? **; upsilon; try omicron;
+    eauto using vad_mem_add, vad_preservation_alloc.
+  - split; intros ? **; upsilon; try omicron;
+    eauto using vad_insert_term, vad_mem_set, vad_preservation_insert.
   - upsilon. eauto using vad_preservation_read.
-  - split.
-    + intros ? ? ?. upsilon.
-      * eauto using vad_write_term, vad_mem_set.
-      * eauto using vad_mem_set.
-    + intros ?. omicron.
-      * eauto using vad_preservation_write.
-      * eauto using vad_mem_set.
-  - split.
-    + intros ? ? ?. upsilon. eauto using vad_mem_acq.
-    + intros ?. omicron.
-      * eauto using vad_preservation_acq.
-      * eauto using vad_mem_acq.
-  - split.
-    + intros ? ? ?. upsilon. eauto using vad_mem_rel.
-    + intros ?. omicron.
-      * eauto using vad_preservation_rel.
-      * eauto using vad_mem_rel.
+  - split; intros ? **; upsilon; try omicron;
+    eauto using vad_write_term, vad_mem_set, vad_preservation_write.
+  - split; intros ? **; upsilon; try omicron;
+    eauto using vad_mem_acq, vad_preservation_acq.
+  - split; intros ? **; upsilon; try omicron;
+    eauto using vad_mem_rel, vad_preservation_rel.
   - upsilon; eauto using vad_preservation_spawn, vad_preservation_spawned.
 Qed.
 

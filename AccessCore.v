@@ -79,6 +79,96 @@ Ltac inv_acc  := _acc inv.
 Ltac invc_acc := _acc invc.
 
 (* ------------------------------------------------------------------------- *)
+(* write-access                                                              *)
+(* ------------------------------------------------------------------------- *)
+
+(* Ignores monitor initializers, critical regions, and spawn blocks. *)
+Inductive write_access (ad : addr) (m : mem) : tm -> Prop :=
+  | wacc_fun   : forall x Tx t,  write_access ad m t  ->
+                                 write_access ad m <{fn x Tx t       }>
+
+  | wacc_call1 : forall t1 t2,   write_access ad m t1 ->
+                                 write_access ad m <{call t1 t2      }>
+
+  | wacc_call2 : forall t1 t2,   write_access ad m t2 ->
+                                 write_access ad m <{call t1 t2      }>
+
+  | wacc_mem   : forall t ad' T, ad <> ad'            ->
+                                 m[ad'].t = Some t    ->
+                                 write_access ad m t  ->
+                                 write_access ad m <{&ad' : w&T      }>
+
+  | wacc_ref   : forall T,       write_access ad m <{&ad  : w&T      }>
+
+  | wacc_new   : forall t T,     write_access ad m t  ->
+                                 write_access ad m <{new t : T       }>
+
+  | wacc_initR : forall ad' t T, write_access ad m t  ->
+                                 write_access ad m <{init ad' t : r&T}>
+
+  | wacc_initW : forall ad' t T, write_access ad m t  ->
+                                 write_access ad m <{init ad' t : w&T}>
+
+  | wacc_load  : forall t,       write_access ad m t  ->
+                                 write_access ad m <{*t              }>
+
+  | wacc_asg1  : forall t1 t2,   write_access ad m t1 ->
+                                 write_access ad m <{t1 := t2        }>
+
+  | wacc_asg2  : forall t1 t2,   write_access ad m t2 ->
+                                 write_access ad m <{t1 := t2        }>
+
+  | wacc_acq1  : forall t1 t2,   write_access ad m t1 ->
+                                 write_access ad m <{acq t1 t2       }>
+
+  | wacc_acq2  : forall t1 t2,   write_access ad m t2 ->
+                                 write_access ad m <{acq t1 t2       }>
+  .
+
+(* inversion --------------------------------------------------------------- *)
+
+Local Ltac _wacc tt :=
+  match goal with
+  | H : write_access _ _ <{unit          }>   |- _ => inv H
+  | H : write_access _ _ <{nat _         }>   |- _ => inv H
+  | H : write_access _ _ <{var _         }>   |- _ => inv H
+  | H : write_access _ _ <{fn _ _ _      }>   |- _ => tt H
+  | H : write_access _ _ <{call _ _      }>   |- _ => tt H
+  | H : write_access _ _ <{& _ : _       }>   |- _ => tt H
+  | H : write_access _ _ <{new _ : _     }>   |- _ => tt H
+  | H : write_access _ _ <{init _ _ : _  }>   |- _ => tt H
+  | H : write_access _ _ <{* _           }>   |- _ => tt H
+  | H : write_access _ _ <{_ := _        }>   |- _ => tt H
+  | H : write_access _ _ <{acq _  _      }>   |- _ => tt H
+  | H : write_access _ _ <{cr _ _        }>   |- _ => inv H
+  | H : write_access _ _ <{spawn _       }>   |- _ => inv H
+  end.
+
+Ltac inv_wacc  := _wacc inv.
+Ltac invc_wacc := _wacc invc.
+
+(* lemmas ------------------------------------------------------------------ *)
+
+Lemma wacc_then_acc : forall ad m t,
+  write_access ad m t ->
+  access ad m t.
+Proof.
+  intros * Hwacc. induction Hwacc; eauto using access.
+Qed.
+
+Lemma wacc_safe_contradiction : forall ad ad' m t T,
+  forall_memory m value ->
+  (* --- *)
+  m[ad'].t = Some t ->
+  write_access ad m t ->
+  empty |-- t is `Safe T` ->
+  False.
+Proof.
+  intros * Hval Had **. destruct (Hval ad' t Had);
+  invc_typeof; invc_wacc; eauto.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
 (* xaccess                                                                   *)
 (* ------------------------------------------------------------------------- *)
 

@@ -2,6 +2,7 @@ From Elo Require Import Core.
 From Elo Require Import Properties.
 
 From Elo Require Import AccessCore.
+From Elo Require Import PointerTypes.
 From Elo Require Import Inheritance.
 
 (* ------------------------------------------------------------------------- *)
@@ -83,7 +84,9 @@ Proof.
   intros. induction t; invc_noinit; inv_nocr; invc_xacc; eauto.
 Qed.
 
-Lemma todo : forall ad m t T,
+Lemma todo1 : forall ad m t T,
+  forall_memory m value ->
+  forall_memory m (consistent_references m) ->
   consistent_references m t ->
   (* --- *)
   m[ad].T = `w&T` ->
@@ -91,12 +94,17 @@ Lemma todo : forall ad m t T,
   no_wrefs t ->
   False.
 Proof.
-  intros * ? ? Hacc ?. induction Hacc; invc_cr; invc_nowrefs; eauto.
-  admit. (* Aqui tem que fazer as tretas de poiter type,
-  mas dessa vez sem write_access, só com m[ad].T = w&T *)
-Abort.
+  intros * ? ? ? ? Hacc ?.
+  induction Hacc; invc_cr; invc_nowrefs; eauto. invc_eq.
+  assert (write_access ad m t0) by (eapply ptyp_wacc_correlation; eauto).
+  eauto using wacc_safe_contradiction.
+Qed.
 
 Lemma todo : forall ad m t T1 T2,
+  forall_memory m value ->
+  forall_memory m (consistent_references m) ->
+  consistent_references m t ->
+  (* --- *)
   m[ad].T = `w&T1` ->
   no_cr (#m) t ->
   one_init (#m) t ->
@@ -104,14 +112,14 @@ Lemma todo : forall ad m t T1 T2,
   xaccess (#m) ad (m +++ (None, T2, false)) t ->
   False.
 Proof.
-  intros * ? ? ? ? Hxacc. induction Hxacc;
+  intros * ? ? ? ? ? ? ? Hxacc. induction Hxacc;
   try solve [
-    invc_nowrefs; invc_nocr; inv_oneinit;
+    invc_cr; invc_nowrefs; invc_nocr; inv_oneinit;
     eauto using xacc_noinit_nocr_contradiction
   ].
-  invc_nowrefs. invc_nocr. invc_oneinit; eauto.
-  - invc_oneinit.
-  - 
+  invc_cr. invc_nowrefs. invc_nocr. invc_oneinit; eauto.
+  eapply todo1; eauto.
+
 Abort.
 
 
@@ -147,6 +155,7 @@ Proof.
     + destruct (nat_eq_dec (#m) adx); subst.
       * assert (no_init (#m) ths[tid2]) by eauto using vad_noinit_ad.
         assert (one_init (#m) t) by eauto using noinit_to_oneinit.
+        admit.
       * eauto using acc_inheritance_alloc, xacc_inheritance_alloc.
     + eauto using acc_inheritance_alloc, xacc_inheritance_mem_add.
     + destruct (nat_eq_dec (#m) adx); subst.

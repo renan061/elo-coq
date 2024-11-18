@@ -1,7 +1,7 @@
 From Elo Require Import Core.
 
 From Elo Require Import WellTypedTerm.
-From Elo Require Import Inits.
+From Elo Require Import ConsistentInits.
 
 (* ------------------------------------------------------------------------- *)
 (* consistent-references                                                     *)
@@ -74,9 +74,9 @@ Ltac invc_cr := _cr invc.
 
 (* lemmas ------------------------------------------------------------------ *)
 
-Lemma cr_init_term : forall m t1 t2 ad t,
+Lemma cr_insert_term : forall m t1 t2 ad t,
   consistent_references m t1 ->
-  t1 --[e_init ad t]--> t2 ->
+  t1 --[e_insert ad t]--> t2 ->
   consistent_references m t.
 Proof.
   intros. ind_tstep; invc_cr; eauto.
@@ -99,11 +99,11 @@ Proof.
   decompose sum (lt_eq_lt_dec ad (#m)); subst; trivial; sigma; discriminate.
 Qed.
 
-Lemma consistent_init : forall m t1 t2 ad t,
+Lemma consistent_insert : forall m t1 t2 ad t,
   well_typed_term t1 ->
   consistent_inits m t1 ->
   (* --- *)
-  t1 --[e_init ad t]--> t2 ->
+  t1 --[e_insert ad t]--> t2 ->
   (exists T, empty |-- t is `Safe T` /\ m[ad].T = `r&T`) \/
   (exists T, empty |-- t is T        /\ m[ad].T = `x&T`) \/
   (exists T, empty |-- t is T        /\ m[ad].T = `w&T`).
@@ -252,30 +252,30 @@ Qed.
 
 (* init -------------------------------------------------------------------- *)
 
-Lemma cr_preservation_mem_init : forall m t1 t2 ad t,
+Lemma cr_preservation_mem_insert : forall m t1 t2 ad t,
   well_typed_term t1 ->
   consistent_inits m t1 ->
   consistent_references m t1 ->
   (* --- *)
   forall_memory m (consistent_references m) ->
-  t1 --[e_init ad t]--> t2 ->
+  t1 --[e_insert ad t]--> t2 ->
   forall_memory m[ad.t <- t] (consistent_references m[ad.t <- t]).
 Proof.
   intros ** ? ? Had.
   assert ((exists T, empty |-- t is `Safe T` /\ m[ad].T = `r&T`) \/
           (exists T, empty |-- t is T        /\ m[ad].T = `x&T`) \/
           (exists T, empty |-- t is T        /\ m[ad].T = `w&T`)
-  ) as [[? [? ?]] | [[? [? ?]] | [? [? ?]]]] by eauto using consistent_init;
-  upsilon; eauto using cr_mem_setR, cr_mem_setX, cr_mem_setW, cr_init_term. 
+  ) as [[? [? ?]] | [[? [? ?]] | [? [? ?]]]] by eauto using consistent_insert;
+  upsilon; eauto using cr_mem_setR, cr_mem_setX, cr_mem_setW, cr_insert_term. 
 Qed.
 
-Lemma cr_preservation_init : forall m t1 t2 ad t,
+Lemma cr_preservation_insert : forall m t1 t2 ad t,
   well_typed_term t1 ->
   consistent_inits m t1 ->
   (* --- *)
   ad < #m ->
   consistent_references m t1 ->
-  t1 --[e_init ad t]--> t2 ->
+  t1 --[e_insert ad t]--> t2 ->
   consistent_references (m[ad.t <- t]) t2.
 Proof.
   intros * Hwtt **.
@@ -284,7 +284,7 @@ Proof.
     (exists T, empty |-- t is T        /\ m[ad].T = `x&T`) \/
     (exists T, empty |-- t is T        /\ m[ad].T = `w&T`)
   ) as [[T [? ?]] | [[T [? ?]] | [T [? ?]]]]
-    by eauto using consistent_init;
+    by eauto using consistent_insert;
   clear Hwtt;
   ind_tstep; invc_ci; invc_cr;
   try solve [constructor; eauto using cr_mem_setR, cr_mem_setX, cr_mem_setW];
@@ -292,14 +292,14 @@ Proof.
   sigma; upsilon; trivial.
 Qed.
 
-Lemma cr_preservation_unt_init : forall m t1 t2 tu ad t,
+Lemma cr_preservation_unt_insert : forall m t1 t2 tu ad t,
   well_typed_term t1 ->
   consistent_inits m t1 ->
   consistent_references m t1 ->
   (* --- *)
   ad < #m ->
   consistent_references m tu ->
-  t1 --[e_init ad t]--> t2 ->
+  t1 --[e_insert ad t]--> t2 ->
   consistent_references m[ad.t <- t] tu.
 Proof.
   intros.
@@ -308,7 +308,7 @@ Proof.
     (exists T, empty |-- t is T        /\ m[ad].T = `x&T`) \/
     (exists T, empty |-- t is T        /\ m[ad].T = `w&T`)
   ) as [[? [? ?]] | [[? [? ?]] | [? [? ?]]]]
-    by eauto using consistent_init;
+    by eauto using consistent_insert;
   eauto using cr_mem_setR, cr_mem_setX, cr_mem_setW.
 Qed.
 
@@ -478,8 +478,8 @@ Proof.
   - upsilon. eauto using cr_preservation_none.
   - eauto using cr_preservation_mem_alloc.
   - upsilon; eauto using cr_preservation_alloc, cr_preservation_unt_alloc.
-  - eauto using cr_preservation_mem_init.
-  - upsilon; eauto using cr_preservation_init, cr_preservation_unt_init.
+  - eauto using cr_preservation_mem_insert.
+  - upsilon; eauto using cr_preservation_insert, cr_preservation_unt_insert.
   - upsilon. eauto using cr_preservation_read.
   - eauto using cr_preservation_mem_write.
   - upsilon; eauto using cr_preservation_write, cr_preservation_unt_write.

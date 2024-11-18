@@ -3,8 +3,8 @@ From Elo Require Import Sem.
 From Elo Require Import SemExt.
 From Elo Require Import Upsilon.
 
-Lemma value_init_term : forall t1 t2 ad t,
-  t1 --[e_init ad t]--> t2 ->
+Lemma value_insert_term : forall t1 t2 ad t,
+  t1 --[e_insert ad t]--> t2 ->
   value t.
 Proof.
   intros. ind_tstep; eauto.
@@ -23,6 +23,6 @@ Theorem value_preservation : forall m1 m2 ths1 ths2 tid e,
   forall_memory m2 value.
 Proof.
   intros. invc_cstep; trivial. invc_mstep; trivial;
-  intros ? ? ?; upsilon; eauto using value_init_term, value_write_term.
+  intros ? ? ?; upsilon; eauto using value_insert_term, value_write_term.
 Qed.
 

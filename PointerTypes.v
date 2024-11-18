@@ -1,6 +1,8 @@
 From Elo Require Import Core.
 
-From Elo Require Import Refs.
+From Elo Require Import Properties.
+
+From Elo Require Import AccessCore.
 
 (* ------------------------------------------------------------------------- *)
 (* pointer types                                                             *)
@@ -16,23 +18,23 @@ Qed.
 
 Lemma ptyp_wacc_correlation : forall m t ad,
   forall_memory m value ->
-  forall_memory m (valid_addresses m) ->
-  valid_addreses m t ->
+  forall_memory m (consistent_references m) ->
+  consistent_references m t ->
   (* --- *)
   access ad m t ->
   write_access ad m t <-> (exists T, m[ad].T = `w&T`).
 Proof.
-  intros * ? Hmvr ? Hacc. split.
-  - intros Hwacc. clear Hacc. induction Hwacc; invc_vr; eauto.
-  - intros [? ?]. induction Hacc; invc_vr; eauto using write_access.
-    exfalso. eapply safe_then_nwacc; eauto.
+  intros * ? ? ? Hacc. split.
+  - intros Hwacc. clear Hacc. induction Hwacc; invc_cr; eauto.
+  - intros [? ?]. induction Hacc; invc_cr; eauto using write_access;
+    invc_eq. exfalso. eauto using wacc_safe_contradiction.
 Qed.
 
 Corollary wacc_by_association : forall m t t' ad,
   forall_memory m value ->
-  forall_memory m (valid_references m) ->
-  valid_references m t ->
-  valid_references m t' ->
+  forall_memory m (consistent_references m) ->
+  consistent_references m t ->
+  consistent_references m t' ->
   (* --- *)
   access ad m t ->
   write_access ad m t' ->
@@ -43,6 +45,7 @@ Proof.
   eapply ptyp_wacc_correlation; eauto using wacc_then_acc.
 Qed.
 
+(*
 Lemma ptyp_racc_correlation : forall m t ad,
   forall_memory m value ->
   forall_memory m (valid_references m) ->
@@ -93,3 +96,4 @@ Proof.
   eauto using wacc_then_acc.
   rewrite Htyp1 in *. rewrite Htyp2 in *. discriminate.
 Qed.
+*)

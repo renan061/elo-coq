@@ -1,0 +1,251 @@
+From Elo Require Import Core.
+
+From Elo Require Import NoCR.
+From Elo Require Import ValidBlocks.
+From Elo Require Import Inheritance1.
+
+(* ------------------------------------------------------------------------- *)
+(* one-cr                                                                    *)
+(* ------------------------------------------------------------------------- *)
+
+Inductive one_cr (ad : addr) : tm -> Prop :=
+  | onecr_call1  : forall t1 t2,   one_cr ad t1 ->
+                                   no_cr  ad t2 ->
+                                   one_cr ad <{call t1 t2    }>
+  | onecr_call2  : forall t1 t2,   no_cr  ad t1 ->
+                                   one_cr ad t2 ->
+                                   one_cr ad <{call t1 t2    }>
+  | onecr_new    : forall t T,     one_cr ad t  ->
+                                   one_cr ad <{new t : T     }>
+  | onecr_init   : forall ad' t T, one_cr ad t  ->
+                                   one_cr ad <{init ad' t : T}>
+  | onecr_load   : forall t,       one_cr ad t  ->
+                                   one_cr ad <{*t            }>
+  | onecr_asg1   : forall t1 t2,   one_cr ad t1 ->
+                                   no_cr  ad t2 ->
+                                   one_cr ad <{t1 := t2      }>
+  | onecr_asg2   : forall t1 t2,   no_cr  ad t1 ->
+                                   one_cr ad t2 ->
+                                   one_cr ad <{t1 := t2      }>
+  | onecr_acq1   : forall t1 t2,   one_cr ad t1 ->
+                                   no_cr  ad t2 ->
+                                   one_cr ad <{acq t1 t2     }>
+  | onecr_acq2   : forall t1 t2,   no_cr  ad t1 ->
+                                   one_cr ad t2 ->
+                                   one_cr ad <{acq t1 t2     }>
+  | onecr_cr_eq  : forall t,       no_cr  ad t  ->
+                                   one_cr ad <{cr ad t       }>
+  | onecr_cr_neq : forall ad' t,   ad <> ad'    ->
+                                   one_cr ad t  ->
+                                   one_cr ad <{cr ad' t      }>
+  .
+
+(* inversion --------------------------------------------------------------- *)
+
+Local Ltac _onecr tt :=
+  match goal with
+  | H : one_cr _ <{unit        }> |- _ => inv H
+  | H : one_cr _ <{nat _       }> |- _ => inv H
+  | H : one_cr _ <{var _       }> |- _ => inv H
+  | H : one_cr _ <{fn _ _ _    }> |- _ => inv H
+  | H : one_cr _ <{call _ _    }> |- _ => tt H
+  | H : one_cr _ <{&_ : _      }> |- _ => inv H
+  | H : one_cr _ <{new _ : _   }> |- _ => tt H
+  | H : one_cr _ <{init _ _ : _}> |- _ => tt H
+  | H : one_cr _ <{* _         }> |- _ => tt H
+  | H : one_cr _ <{_ := _      }> |- _ => tt H
+  | H : one_cr _ <{acq _ _     }> |- _ => tt H
+  | H : one_cr _ <{cr _ _      }> |- _ => tt H
+  | H : one_cr _ <{spawn _     }> |- _ => inv H
+  end.
+
+Ltac inv_onecr  := _onecr inv.
+Ltac invc_onecr := _onecr invc.
+
+(* lemmas ------------------------------------------------------------------ *)
+
+Lemma nocr_onecr_contradiction : forall ad t,
+  no_cr  ad t ->
+  one_cr ad t ->
+  False.
+Proof.
+  intros * H ?. induction t; invc_nocr; invc_onecr; auto.
+Qed.
+
+Corollary nocrs_onecr_contradiction : forall ad t,
+  no_crs t ->
+  one_cr ad t ->
+  False.
+Proof.
+  unfold no_crs. eauto using nocr_onecr_contradiction.
+Qed.
+
+Lemma nocr_to_onecr : forall t1 t2 ad t,
+  no_crs t ->
+  (* --- *)
+  no_cr ad t1 ->
+  t1 --[e_acq ad t]--> t2 ->
+  one_cr ad t2.
+Proof.
+  intros. ind_tstep; repeat invc_nocr; eauto using one_cr, nocr_subst.
+Qed.
+
+Lemma onecr_to_nocr : forall t1 t2 ad,
+  one_cr ad t1 ->
+  t1 --[e_rel ad]--> t2 ->
+  no_cr ad t2.
+Proof.
+  intros. ind_tstep; repeat invc_onecr; eauto using no_cr;
+  exfalso; eauto using nocr_rel_contradiction.
+Qed.
+
+(* preservation lemmas ----------------------------------------------------- *)
+
+Local Lemma onecr_subst : forall ad x tx t,
+  no_cr  ad tx -> 
+  one_cr ad t  ->
+  one_cr ad <{[x := tx] t}>.
+Proof.
+  intros. induction t; invc_onecr; eauto using nocr_subst, one_cr; simpl in *;
+  destruct str_eq_dec; subst; eauto using one_cr.
+Qed.
+
+(* preservation ------------------------------------------------------------ *)
+
+Local Ltac solve_onecr_preservation L :=
+  intros; ind_tstep; try invc_vb; repeat invc_onecr;
+  eauto using L, one_cr;
+  exfalso; eauto using nocrs_from_value, nocrs_onecr_contradiction.
+
+Lemma onecr_preservation_none : forall t1 t2 ad,
+  valid_blocks t1 ->
+  (* --- *)
+  one_cr ad t1 ->
+  t1 --[e_none]--> t2 ->
+  one_cr ad t2.
+Proof. solve_onecr_preservation nocr_preservation_none. Qed.
+
+Lemma onecr_preservation_alloc : forall t1 t2 ad ad' T,
+  one_cr ad t1 ->
+  t1 --[e_alloc ad' T]--> t2 ->
+  one_cr ad t2.
+Proof. solve_onecr_preservation nocr_preservation_alloc. Qed.
+
+Lemma onecr_preservation_insert : forall t1 t2 ad ad' t,
+  valid_blocks t1 ->
+  (* --- *)
+  one_cr ad t1 ->
+  t1 --[e_insert ad' t]--> t2 ->
+  one_cr ad t2.
+Proof. solve_onecr_preservation nocr_preservation_insert. Qed.
+
+Lemma onecr_preservation_read : forall t1 t2 ad ad' t,
+  no_crs t ->
+  (* --- *)
+  one_cr ad t1 ->
+  t1 --[e_read ad' t]--> t2 ->
+  one_cr ad t2.
+Proof. solve_onecr_preservation nocr_preservation_read. Qed.
+
+Lemma onecr_preservation_write : forall t1 t2 ad ad' t,
+  valid_blocks t1 ->
+  (* --- *)
+  one_cr ad t1 ->
+  t1 --[e_write ad' t]--> t2 ->
+  one_cr ad t2.
+Proof. solve_onecr_preservation nocr_preservation_write. Qed.
+
+Lemma onecr_preservation_acq : forall t1 t2 ad ad' t,
+  no_cr ad t ->
+  (* --- *)
+  ad <> ad' ->
+  one_cr ad t1 ->
+  t1 --[e_acq ad' t]--> t2 ->
+  one_cr ad t2.
+Proof. solve_onecr_preservation nocr_preservation_acq. Qed.
+
+Lemma onecr_preservation_rel : forall t1 t2 ad ad',
+  ad <> ad' ->
+  one_cr ad t1 ->
+  t1 --[e_rel ad']--> t2 ->
+  one_cr ad t2.
+Proof. solve_onecr_preservation nocr_preservation_rel. Qed.
+
+Lemma onecr_preservation_spawn : forall ad t1 t2 tid t,
+  valid_blocks t1 ->
+  (* --- *)
+  one_cr ad t1 ->
+  t1 --[e_spawn tid t]--> t2 ->
+  one_cr ad t2.
+Proof. solve_onecr_preservation nocr_preservation_spawn. Qed.
+
+(* inheritance ------------------------------------------------------------- *)
+
+Local Ltac solve_onecr_inheritance L :=
+  intros; ind_tstep; repeat invc_vb; try invc_onecr;
+  eauto using L, one_cr; exfalso;
+  eauto using nocr_from_value, nocr_subst, nocr_onecr_contradiction.
+
+Lemma onecr_inheritance_none : forall ad t1 t2,
+  valid_blocks t1 ->
+  (* --- *)
+  one_cr ad t2 ->
+  t1 --[e_none]--> t2 ->
+  one_cr ad t1.
+Proof. solve_onecr_inheritance nocr_inheritance_none. Qed.
+
+Lemma onecr_inheritance_alloc : forall ad ad' t1 t2 T,
+  one_cr ad t2 ->
+  t1 --[e_alloc ad' T]--> t2 ->
+  one_cr ad t1.
+Proof. solve_onecr_inheritance nocr_inheritance_alloc. Qed.
+
+Lemma onecr_inheritance_insert : forall ad ad' t1 t2 t,
+  valid_blocks t1 ->
+  (* --- *)
+  one_cr ad t2 ->
+  t1 --[e_insert ad' t]--> t2 ->
+  one_cr ad t1.
+Proof. solve_onecr_inheritance nocr_inheritance_insert. Qed.
+
+Lemma onecr_inheritance_read : forall ad ad' t1 t2 t,
+  no_crs t ->
+  (* --- *)
+  one_cr ad t2 ->
+  t1 --[e_read ad' t]--> t2 ->
+  one_cr ad t1.
+Proof. solve_onecr_inheritance nocr_inheritance_read. Qed.
+
+Lemma onecr_inheritance_write : forall ad ad' t1 t2 t,
+  valid_blocks t1 ->
+  (* --- *)
+  one_cr ad t2 ->
+  t1 --[e_write ad' t]--> t2 ->
+  one_cr ad t1.
+Proof. solve_onecr_inheritance nocr_inheritance_write. Qed.
+
+Lemma onecr_inheritance_acq : forall ad ad' t1 t2 t,
+  valid_blocks t1 ->
+  no_crs t ->
+  (* --- *)
+  ad <> ad' ->
+  one_cr ad t2 ->
+  t1 --[e_acq ad' t]--> t2 ->
+  one_cr ad t1.
+Proof. solve_onecr_inheritance nocr_inheritance_acq. Qed.
+
+Lemma onecr_inheritance_rel : forall ad ad' t1 t2,
+  ad <> ad' ->
+  one_cr ad t2 ->
+  t1 --[e_rel ad']--> t2 ->
+  one_cr ad t1.
+Proof. solve_onecr_inheritance nocr_inheritance_rel. Qed.
+
+Lemma onecr_inheritance_spawn : forall ad t1 t2 tid t,
+  valid_blocks t1 ->
+  (* --- *)
+  one_cr ad t2 ->
+  t1 --[e_spawn tid t]--> t2 ->
+  one_cr ad t1.
+Proof. solve_onecr_inheritance nocr_inheritance_spawn. Qed.
+

@@ -1,12 +1,11 @@
 From Coq Require Import Lia.
 From Coq Require Import Lists.List.
 
+From Elo Require Import Properties1.
 From Elo Require Import Core.
 
-From Elo Require Import Addresses.
-From Elo Require Import WellTypedTerm.
-From Elo Require Import Inits.
-From Elo Require Import Refs.
+From Elo Require Import ConsistentInits.
+From Elo Require Import ConsistentRefs.
 
 Local Lemma safe_preserves_inclusion : forall Gamma1 Gamma2,
   Gamma1 includes Gamma2 ->
@@ -95,7 +94,7 @@ Proof.
     (decompose sum (lt_eq_lt_dec ad' (#m1)); subst; sigma; upsilon; eauto).
   invc_mstep; try invc_eq; trivial;
   sigma; try omicron; repeat invc_eq; trivial; upsilon.
-  + assert (m1[ad'].t = None) by eauto using ci_init_address.
+  + assert (m1[ad'].t = None) by eauto using insert_then_uninitialized.
     invc_eq.
   + gendep T'. gendep t1'. ind_tstep; intros;
     repeat invc_typeof; repeat invc_ci; repeat invc_cr; eauto.
@@ -199,7 +198,7 @@ Lemma wtt_preservation_mem_cstep : forall m1 m2 ths1 ths2 tid e,
   forall_memory m2 well_typed_term.
 Proof.
   intros. invc_cstep; trivial. invc_mstep; trivial;
-  intros ? ? ?; upsilon; eauto using wtt_init_term, wtt_write_term.
+  intros ? ? ?; upsilon; eauto using wtt_insert_term, wtt_write_term.
 Qed.
 
 Theorem wtt_preservation : forall m1 m2 ths1 ths2 tid e,
@@ -264,14 +263,14 @@ Local Ltac destruct_IH :=
     decompose sum IH; clear IH
   end.
 
-Local Ltac pick_none  := left.
-Local Ltac pick_alloc := right; left.
-Local Ltac pick_init  := do 2 right; left.
-Local Ltac pick_read  := do 3 right; left.
-Local Ltac pick_write := do 4 right; left.
-Local Ltac pick_acq   := do 5 right; left.
-Local Ltac pick_rel   := do 6 right; left.
-Local Ltac pick_spawn := do 7 right.
+Local Ltac pick_none   := left.
+Local Ltac pick_alloc  := right; left.
+Local Ltac pick_insert := do 2 right; left.
+Local Ltac pick_read   := do 3 right; left.
+Local Ltac pick_write  := do 4 right; left.
+Local Ltac pick_acq    := do 5 right; left.
+Local Ltac pick_rel    := do 6 right; left.
+Local Ltac pick_spawn  := do 7 right.
 
 Local Ltac solve_inductive_progress_case :=
   match goal with
@@ -285,8 +284,8 @@ Local Ltac solve_inductive_progress_case :=
     destruct H as [m2 [? [? [? ?]]]];
     exists m2; repeat eexists;
     invc_mstep
-  | H : exists m2 t2 ad t, ?m1 / ?t1 ==[e_init ad t]==> m2 / t2 |- _ =>
-    pick_init;
+  | H : exists m2 t2 ad t, ?m1 / ?t1 ==[e_insert ad t]==> m2 / t2 |- _ =>
+    pick_insert;
     destruct H as [m2 [? [? [? ?]]]];
     exists m2; repeat eexists;
     invc_mstep
@@ -350,7 +349,7 @@ Theorem limited_progress : forall m1 t1,
   (value t1
     \/ (exists m2 t2,      m1 / t1 ==[e_none       ]==> m2 / t2)
     \/ (exists m2 t2 ad T, m1 / t1 ==[e_alloc ad T ]==> m2 / t2)
-    \/ (exists m2 t2 ad t, m1 / t1 ==[e_init ad t  ]==> m2 / t2)
+    \/ (exists m2 t2 ad t, m1 / t1 ==[e_insert ad t]==> m2 / t2)
     \/ (exists m2 t2 ad t, m1 / t1 ==[e_read ad t  ]==> m2 / t2)
     \/ (exists m2 t2 ad t, m1 / t1 ==[e_write ad t ]==> m2 / t2)
     \/ (exists m2 t2 ad t, m1[ad].X = false ->
@@ -370,15 +369,15 @@ Proof.
   - pick_alloc. repeat eexists. eauto using tstep, mstep.
   - pick_alloc. repeat eexists. eauto using tstep, mstep.
   - destruct_IH; try solve [solve_inductive_progress_case].
-    pick_init.
+    pick_insert.
     invc_value_typeof;
     repeat eexists; eauto using tstep, mstep, value.
   - destruct_IH; try solve [solve_inductive_progress_case].
-    pick_init.
+    pick_insert.
     invc_value_typeof;
     repeat eexists; eauto using tstep, mstep, value.
   - destruct_IH; try solve [solve_inductive_progress_case].
-    pick_init.
+    pick_insert.
     invc_value_typeof;
     repeat eexists; eauto using tstep, mstep, value.
   - destruct_IH; try solve [solve_inductive_progress_case].
