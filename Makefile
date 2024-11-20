@@ -2,7 +2,7 @@
 
 COQC= coqc -Q . Elo
 
-all: core properties1 properties2
+all: core properties1 properties2 properties3
 
 core:
 	$(COQC) Util.v
@@ -37,7 +37,7 @@ properties3:
 	$(COQC) XArea.v
 
 access:
-	$(COQC) NoRef.v
+	$(COQC) NoWRef.v
 	$(COQC) AccessCore.v
 	$(COQC) PointerTypes.v
 	$(COQC) NotAccess.v

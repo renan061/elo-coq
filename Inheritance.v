@@ -1,6 +1,6 @@
 From Elo Require Import Core.
 
-From Elo Require Import Properties.
+From Elo Require Import Properties1.
 
 From Elo Require Import AccessCore.
 From Elo Require Import NotAccess.

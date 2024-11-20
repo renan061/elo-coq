@@ -58,6 +58,20 @@ Local Ltac _noinit tt :=
 Ltac inv_noinit  := _noinit inv.
 Ltac invc_noinit := _noinit invc.
 
+(* decidability ------------------------------------------------------------ *)
+
+Lemma noinit_dec : forall ad t,
+  {no_init ad t} + {no_init ad t -> False}.
+Proof.
+  intros. induction t; eauto using no_init;
+  try destruct IHt; try destruct IHt1, IHt2; eauto using no_init;
+  try solve [right; intros; invc_noinit; eauto].
+  match goal with ad1 : addr, ad2 : addr |- _ =>
+    destruct (nat_eq_dec ad1 ad2); subst
+  end;
+  eauto using no_init; right; intros; invc_noinit.
+Qed.
+
 (* lemmas ------------------------------------------------------------------ *)
 
 Lemma noinit_insert_term : forall t1 t2 ad ad' t,

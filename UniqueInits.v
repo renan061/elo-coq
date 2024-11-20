@@ -15,8 +15,6 @@ Definition unique_initializers (m : mem) (ths : threads) := forall ad,
   (m[ad].t <> None -> forall_threads ths (no_init ad)) /\
   (m[ad].t =  None -> forone_thread  ths (one_init ad) (no_init ad)).
 
-(* preservation lemmas ----------------------------------------------------- *)
-
 (* preservation ------------------------------------------------------------ *)
 
 Local Lemma ui_preservation_none : forall m ths tid t,

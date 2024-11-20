@@ -85,20 +85,36 @@ Proof.
   intros. ind_tstep; invc_vb; eauto using valid_blocks.
 Qed.
 
-Lemma noinit_spawn_term : forall m t1 t2 tid t,
+Lemma noinit_spawn_term : forall ad t1 t2 tid t,
   valid_blocks t1 ->
   t1 --[e_spawn tid t]--> t2 ->
-  no_init m t.
+  no_init ad t.
 Proof.
   intros. ind_tstep; invc_vb; auto.
 Qed.
 
-Lemma nocrs_spawn_term : forall t1 t2 tid t,
+Corollary noinits_spawn_term : forall t1 t2 tid t,
+  valid_blocks t1 ->
+  t1 --[e_spawn tid t]--> t2 ->
+  no_inits t.
+Proof.
+  unfold no_inits. eauto using noinit_spawn_term.
+Qed.
+
+Lemma nocr_spawn_term : forall ad t1 t2 tid t,
+  valid_blocks t1 ->
+  t1 --[e_spawn tid t]--> t2 ->
+  no_cr ad t.
+Proof.
+  intros. ind_tstep; invc_vb; auto.
+Qed.
+
+Corollary nocrs_spawn_term : forall t1 t2 tid t,
   valid_blocks t1 ->
   t1 --[e_spawn tid t]--> t2 ->
   no_crs t.
 Proof.
-  intros. ind_tstep; invc_vb; auto.
+  unfold no_crs. eauto using nocr_spawn_term.
 Qed.
 
 Lemma noinit_from_value : forall ad t,

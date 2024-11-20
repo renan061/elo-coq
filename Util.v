@@ -71,6 +71,8 @@ Definition nat_eq_dec   := Peano_dec.eq_nat_dec.
 Definition str_eq_dec   := String.string_dec.
 Definition lt_eq_lt_dec := Compare_dec.lt_eq_lt_dec.
 
+Ltac lt_eq_gt n1 n2 := decompose sum (lt_eq_lt_dec n1 n2); subst.
+
 Lemma opt_dec : forall {A} (o : option A),
   {o = None} + {exists a, o = Some a}.
 Proof.

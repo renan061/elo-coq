@@ -83,6 +83,14 @@ Proof.
   intros. ind_tstep; repeat invc_noref; eauto.
 Qed.
 
+Lemma noref_acq_contradiction : forall t1 t2 ad t,
+  no_ref ad t1 ->
+  t1 --[e_acq ad t]--> t2 ->
+  False.
+Proof.
+  intros. ind_tstep; repeat invc_noref; eauto.
+Qed.
+
 (* preservation lemmas ----------------------------------------------------- *)
 
 Lemma noref_subst : forall ad x tx t,
@@ -157,7 +165,6 @@ Lemma noref_preservation_spawned : forall ad t1 t2 tid t,
   t1 --[e_spawn tid t]--> t2 ->
   no_ref ad t.
 Proof. solve_noref_preservation. Qed.
-
 
 (* ------------------------------------------------------------------------- *)
 (* no-uninitialized-references                                               *)
