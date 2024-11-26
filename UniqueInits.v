@@ -3,6 +3,7 @@ From Coq Require Import Lia.
 From Elo Require Import Core.
 From Elo Require Import Properties1.
 
+From Elo Require Import NoRef.
 From Elo Require Import NoUninitRefs.
 From Elo Require Import OneInit.
 
@@ -14,6 +15,36 @@ Definition unique_initializers (m : mem) (ths : threads) := forall ad,
   ad < #m ->
   (m[ad].t <> None -> forall_threads ths (no_init ad)) /\
   (m[ad].t =  None -> forone_thread  ths (one_init ad) (no_init ad)).
+
+(* lemmas ------------------------------------------------------------------ *)
+
+Corollary noinit_or_oneinit_from_ui : forall ad m ths tid,
+  ad < #m ->
+  unique_initializers m ths ->
+  no_init ad ths[tid] \/ one_init ad ths[tid].
+Proof.
+  intros * Had Hui. specialize (Hui ad Had) as [? Hnone].
+  destruct (alt_opt_dec m[ad].t); aspecialize; eauto.
+  specialize Hnone as [tid' [? ?]].
+  destruct (nat_eq_dec tid' tid); subst; eauto.
+Qed.
+
+Corollary ui_oneinit_contradiction : forall ad m ths tid1 tid2,
+  unique_initializers m ths ->
+  (* --- *)
+  ad < #m ->
+  tid1 <> tid2 ->
+  one_init ad ths[tid1] ->
+  one_init ad ths[tid2] ->
+  False.
+Proof.
+  intros * Hui Had **. specialize (Hui ad Had) as [? Hnone].
+  destruct (alt_opt_dec m[ad].t); aspecialize;
+  eauto using noinit_oneinit_contradiction.
+  specialize Hnone as [tid [? ?]].
+  destruct (nat_eq_dec tid1 tid), (nat_eq_dec tid2 tid); subst;
+  eauto using noinit_oneinit_contradiction.
+Qed.
 
 (* preservation ------------------------------------------------------------ *)
 
@@ -51,7 +82,7 @@ Proof.
       split; intros; omicron;
       eauto using noinit_preservation_alloc, oneinit_preservation_alloc.
   - split; intros; upsilon; auto. exists tid. split; intros; sigma;
-    eauto using noinit_from_vad, noinit_to_oneinit.
+    eauto using noinit_from_vad1, noinit_to_oneinit.
   - lia.
 Qed.
 

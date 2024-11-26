@@ -1,3 +1,5 @@
+From Coq Require Import Lia.
+
 From Elo Require Import Core.
 
 From Elo Require Import ValidAddresses.
@@ -98,11 +100,23 @@ Proof.
   intros. ind_tstep; invc_noinit; eauto.
 Qed.
 
-Lemma noinit_from_vad : forall m t,
+Lemma noinit_from_vad1 : forall m t,
   valid_addresses m t ->
   no_init (#m) t.
 Proof.
   intros. induction t; invc_vad; auto using no_init.
+Qed.
+
+Lemma noinit_from_vad2 : forall ad m t,
+  valid_addresses m t ->
+  #m < ad ->
+  no_init ad t.
+Proof.
+  intros. induction t; invc_vad; auto using no_init.
+  match goal with |- no_init ?ad1 <{init ?ad2 _ : _}> =>
+    destruct (nat_eq_dec ad1 ad2); subst
+  end;
+  auto using no_init. lia.
 Qed.
 
 (* preservation lemmas ----------------------------------------------------- *)

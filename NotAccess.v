@@ -2,6 +2,9 @@ From Elo Require Import Core.
 
 From Elo Require Import AccessCore.
 
+From Elo Require Import Properties1.
+From Elo Require Import Properties2.
+
 (* ------------------------------------------------------------------------- *)
 (* not-access                                                                *)
 (* ------------------------------------------------------------------------- *)
@@ -188,3 +191,100 @@ match goal with
 | H: ~ access _ _ <{spawn _       }> |- _ => clear H
 end.
 
+(* preservation lemmas ----------------------------------------------------- *)
+
+Lemma nacc_mem_set1 : forall ad ad' m t t',
+  ~ access ad m t' ->
+  (* --- *)
+  ~ access ad m t ->
+  ~ access ad m[ad'.t <- t'] t.
+Proof.
+  intros ** Hacc. induction Hacc; upsilon; eauto using access.
+Qed.
+
+Lemma nacc_mem_set2 : forall ad ad' m t t',
+  ~ access ad' m t ->
+  (* --- *)
+  ~ access ad m t ->
+  ~ access ad m[ad'.t <- t'] t.
+Proof.
+  intros ** Hacc. induction Hacc; repeat invc_nacc; upsilon; eauto.
+Qed.
+
+(* preservation ------------------------------------------------------------ *)
+
+(*
+
+Definition unique_initializers (m : mem) (ths : threads) := forall ad,
+  ad < #m ->
+  (m[ad].t <> None -> forall_threads ths (no_init ad)) /\
+  (m[ad].t =  None -> forone_thread  ths (one_init ad) (no_init ad)).
+
+Definition unique_critical_regions (m : mem) (ths : threads) := forall ad,
+  (m[ad].X = false -> forall_threads ths (no_cr ad)) /\
+  (m[ad].X = true  -> forone_thread  ths (one_cr ad) (no_cr ad)).
+
+From unique_initializers:
+  forone_thread ths (one_init ad) (no_init ad))
+
+From init_cr_exclusivity: 
+  (one_init ad ths[tid1] -> no_cr ad ths[tid2])
+
+*)
+
+Corollary oneinit_or_noinit_from_ui : forall ad m ths tid,
+  forall_threads ths (valid_addresses m) ->
+  (* --- *)
+  unique_initializers m ths ->
+  m[ad].t = None ->
+  (one_init ad ths[tid]) \/ (no_init ad ths[tid]).
+Proof.
+  intros until 1. intros Hui Had.
+  lt_eq_gt ad (#m); eauto using noinit_from_vad1, noinit_from_vad2.
+  specialize (Hui ad). aspecialize. specialize Hui as [_ Hnone].
+  specialize (Hnone Had) as [tid' [Hone Hno]].
+  destruct (nat_eq_dec tid' tid); subst; auto.
+Qed.
+
+Corollary noinit_from_ui : forall ad m ths tid,
+  forall_threads ths (valid_addresses m) ->
+  (* --- *)
+  unique_initializers m ths ->
+  m[ad].t <> None ->
+  (one_init ad ths[tid]) \/ (no_init ad ths[tid]).
+Proof.
+  intros until 1. intros Hui Had.
+  lt_eq_gt ad (#m); eauto using noinit_from_vad1, noinit_from_vad2.
+  specialize (Hui ad). aspecialize. specialize Hui as [Hsome _].
+  aspecialize. auto.
+Qed.
+
+
+
+Lemma oneinit_or_onecr_from_xacc : forall adx ad m t,
+  xaccess adx ad m t ->
+  (one_init adx t) \/ (one_cr adx t).
+Proof.
+  intros.
+Abort.
+
+Lemma nacc_preservation_write : forall ad ad' m t' t1 t2,
+  consistent_inits m t1 ->
+  (* --- *)
+  ~ access ad m t1 ->
+  t1 --[e_write ad' t']--> t2 ->
+  ~ access ad m[ad'.t <- t'] t2.
+Proof.
+  intros. ind_tstep; invc_ci; invc_nacc; eauto with not_access;
+  repeat aspecialize.
+  - admit.
+  - admit.
+  - destruct (acc_dec ad m t'); eauto using nacc_mem_set1 with not_access.
+    destruct (acc_dec ad' m t2); eauto using nacc_mem_set2 with not_access.
+    (* acc_or_xacc_from_write => *)
+    assert (access ad' m t1 \/ (exists adx, xaccess adx ad' m t1)) as [? | ?]
+      by admit.
+    +
+    intros ?.
+    admit.
+Abort.

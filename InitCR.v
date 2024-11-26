@@ -1,6 +1,7 @@
 From Elo Require Import Core.
 From Elo Require Import Properties1.
 
+From Elo Require Import NoRef.
 From Elo Require Import NoUninitRefs.
 From Elo Require Import UniqueInits.
 From Elo Require Import UniqueCRs.
@@ -13,6 +14,39 @@ From Elo Require Import ConsistentInits.
 Definition init_cr_exclusivity (ths : threads) := forall ad tid1 tid2,
   (one_init ad ths[tid1] -> no_cr   ad ths[tid2]) /\
   (one_cr   ad ths[tid1] -> no_init ad ths[tid2]).
+
+(* auxiliary --------------------------------------------------------------- *)
+
+Theorem oneinit_from_insert : forall m ths tid t ad te,
+  forall_threads ths (valid_addresses m) ->
+  forall_threads ths (consistent_inits m) ->
+  unique_initializers m ths ->
+  (* --- *)
+  ths[tid] --[e_insert ad te]--> t ->
+  one_init ad ths[tid].
+Proof.
+  intros * ? ? Hui **.
+  assert (Had   : ad < #m) by eauto using vad_insert_addr.
+  assert (Hnone : m[ad].t = None) by eauto using insert_then_uninitialized.
+  specialize (Hui ad Had) as [_ Hui]. specialize (Hui Hnone) as [tid' [? ?]].
+  destruct (nat_eq_dec tid' tid); subst; trivial.
+  exfalso. eauto using noinit_insert_contradiction.
+Qed.
+
+Theorem onecr_from_rel : forall m ths tid t ad,
+  unique_critical_regions m ths ->
+  (* --- *)
+  ths[tid] --[e_rel ad]--> t ->
+  one_cr ad ths[tid].
+Proof.
+  intros * Hucr **. specialize (Hucr ad) as [Hfalse Htrue].
+  destruct (m[ad].X) eqn:?.
+  - specialize (Htrue eq_refl) as [tid' [? ?]]; clear Hfalse.
+    destruct (nat_eq_dec tid' tid); subst; trivial.
+    exfalso. eauto using nocr_rel_contradiction.
+  - specialize (Hfalse eq_refl); clear Htrue.
+    exfalso. eauto using nocr_rel_contradiction.
+Qed.
 
 (* preservation ------------------------------------------------------------ *)
 
@@ -46,37 +80,6 @@ Proof.
   eauto using nocr_preservation_alloc, oneinit_inheritance_alloc;
   eauto using noinit_preservation_alloc, onecr_inheritance_alloc;
   exfalso; eauto using onecr_inheritance_alloc, nocr_onecr_contradiction.
-Qed.
-
-Theorem oneinit_from_insert : forall m ths tid t ad te,
-  forall_threads ths (valid_addresses m) ->
-  forall_threads ths (consistent_inits m) ->
-  unique_initializers m ths ->
-  (* --- *)
-  ths[tid] --[e_insert ad te]--> t ->
-  one_init ad ths[tid].
-Proof.
-  intros * ? ? Hui **.
-  assert (Had   : ad < #m) by eauto using vad_insert_addr.
-  assert (Hnone : m[ad].t = None) by eauto using insert_then_uninitialized.
-  specialize (Hui ad Had) as [_ Hui]. specialize (Hui Hnone) as [tid' [? ?]].
-  destruct (nat_eq_dec tid' tid); subst; trivial.
-  exfalso. eauto using noinit_insert_contradiction.
-Qed.
-
-Theorem onecr_from_rel : forall m ths tid t ad,
-  unique_critical_regions m ths ->
-  (* --- *)
-  ths[tid] --[e_rel ad]--> t ->
-  one_cr ad ths[tid].
-Proof.
-  intros * Hucr **. specialize (Hucr ad) as [Hfalse Htrue].
-  destruct (m[ad].X) eqn:?.
-  - specialize (Htrue eq_refl) as [tid' [? ?]]; clear Hfalse.
-    destruct (nat_eq_dec tid' tid); subst; trivial.
-    exfalso. eauto using nocr_rel_contradiction.
-  - specialize (Hfalse eq_refl); clear Htrue.
-    exfalso. eauto using nocr_rel_contradiction.
 Qed.
 
 Lemma ice_preservation_insert : forall m ths tid t ad te,

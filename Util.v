@@ -2,6 +2,8 @@ From Coq Require Logic.ClassicalFacts.
 From Coq Require Import Logic.Decidable.
 From Coq Require Import Lia.
 
+Notation "a '\x/' b" := ((a \/ b) /\ ~ (a /\ b)) (at level 10). (* xor *)
+
 Ltac gendep x := generalize dependent x.
 
 (* inversion shortcuts *)

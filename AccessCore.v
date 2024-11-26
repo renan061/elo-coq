@@ -1,169 +1,97 @@
 From Elo Require Import Core.
 
+From Elo Require Import Properties1.
+From Elo Require Import Properties2.
+
 (* ------------------------------------------------------------------------- *)
 (* access                                                                    *)
 (* ------------------------------------------------------------------------- *)
 
 (* Ignores monitor initializers, critical regions, and spawn blocks. *)
-Inductive access (ad : addr) (m : mem) : tm -> Prop :=
-  | acc_fun   : forall x Tx t,  access ad m t  ->
-                                access ad m <{fn x Tx t       }>
+Inductive access (ad : addr) : tm -> Prop :=
+  | acc_fun   : forall x Tx t,  access ad t  ->
+                                access ad <{fn x Tx t       }>
 
-  | acc_call1 : forall t1 t2,   access ad m t1 ->
-                                access ad m <{call t1 t2      }>
+  | acc_call1 : forall t1 t2,   access ad t1 ->
+                                access ad <{call t1 t2      }>
 
-  | acc_call2 : forall t1 t2,   access ad m t2 ->
-                                access ad m <{call t1 t2      }>
+  | acc_call2 : forall t1 t2,   access ad t2 ->
+                                access ad <{call t1 t2      }>
 
-  | acc_memR  : forall t ad' T, ad <> ad'         ->
-                                m[ad'].t = Some t ->
-                                access ad m t     ->
-                                access ad m <{&ad' : r&T      }>
+  | acc_refR  : forall T,       access ad <{&ad  : r&T      }>
 
-  | acc_memW  : forall t ad' T, ad <> ad'         ->
-                                m[ad'].t = Some t ->
-                                access ad m t     ->
-                                access ad m <{&ad' : w&T      }>
+  | acc_refW  : forall T,       access ad <{&ad  : w&T      }>
 
-  | acc_refR  : forall T,       access ad m <{&ad  : r&T      }>
+  | acc_new   : forall t T,     access ad t  ->
+                                access ad <{new t : T       }>
 
-  | acc_refW  : forall T,       access ad m <{&ad  : w&T      }>
+  | acc_initR : forall ad' t T, access ad t  ->
+                                access ad <{init ad' t : r&T}>
 
-  | acc_new   : forall t T,     access ad m t  ->
-                                access ad m <{new t : T       }>
+  | acc_initW : forall ad' t T, access ad t  ->
+                                access ad <{init ad' t : w&T}>
 
-  | acc_initR : forall ad' t T, access ad m t  ->
-                                access ad m <{init ad' t : r&T}>
+  | acc_load  : forall t,       access ad t  ->
+                                access ad <{*t              }>
 
-  | acc_initW : forall ad' t T, access ad m t  ->
-                                access ad m <{init ad' t : w&T}>
+  | acc_asg1  : forall t1 t2,   access ad t1 ->
+                                access ad <{t1 := t2        }>
 
-  | acc_load  : forall t,       access ad m t  ->
-                                access ad m <{*t              }>
+  | acc_asg2  : forall t1 t2,   access ad t2 ->
+                                access ad <{t1 := t2        }>
 
-  | acc_asg1  : forall t1 t2,   access ad m t1 ->
-                                access ad m <{t1 := t2        }>
+  | acc_acq1  : forall t1 t2,   access ad t1 ->
+                                access ad <{acq t1 t2       }>
 
-  | acc_asg2  : forall t1 t2,   access ad m t2 ->
-                                access ad m <{t1 := t2        }>
-
-  | acc_acq1  : forall t1 t2,   access ad m t1 ->
-                                access ad m <{acq t1 t2       }>
-
-  | acc_acq2  : forall t1 t2,   access ad m t2 ->
-                                access ad m <{acq t1 t2       }>
+  | acc_acq2  : forall t1 t2,   access ad t2 ->
+                                access ad <{acq t1 t2       }>
   .
 
 (* inversion --------------------------------------------------------------- *)
 
 Local Ltac _acc tt :=
   match goal with
-  | H : access _ _ <{unit          }>   |- _ => inv H
-  | H : access _ _ <{nat _         }>   |- _ => inv H
-  | H : access _ _ <{var _         }>   |- _ => inv H
-  | H : access _ _ <{fn _ _ _      }>   |- _ => tt H
-  | H : access _ _ <{call _ _      }>   |- _ => tt H
-  | H : access _ _ <{& _ : _       }>   |- _ => tt H
-  | H : access _ _ <{new _ : _     }>   |- _ => tt H
-  | H : access _ _ <{init _ _ : _  }>   |- _ => tt H
-  | H : access _ _ <{* _           }>   |- _ => tt H
-  | H : access _ _ <{_ := _        }>   |- _ => tt H
-  | H : access _ _ <{acq _  _      }>   |- _ => tt H
-  | H : access _ _ <{cr _ _        }>   |- _ => inv H
-  | H : access _ _ <{spawn _       }>   |- _ => inv H
+  | H : access _ <{unit          }>   |- _ => inv H
+  | H : access _ <{nat _         }>   |- _ => inv H
+  | H : access _ <{var _         }>   |- _ => inv H
+  | H : access _ <{fn _ _ _      }>   |- _ => tt H
+  | H : access _ <{call _ _      }>   |- _ => tt H
+  | H : access _ <{& _ : _       }>   |- _ => tt H
+  | H : access _ <{new _ : _     }>   |- _ => tt H
+  | H : access _ <{init _ _ : _  }>   |- _ => tt H
+  | H : access _ <{* _           }>   |- _ => tt H
+  | H : access _ <{_ := _        }>   |- _ => tt H
+  | H : access _ <{acq _  _      }>   |- _ => tt H
+  | H : access _ <{cr _ _        }>   |- _ => inv H
+  | H : access _ <{spawn _       }>   |- _ => inv H
   end.
 
 Ltac inv_acc  := _acc inv.
 Ltac invc_acc := _acc invc.
 
-(* ------------------------------------------------------------------------- *)
-(* write-access                                                              *)
-(* ------------------------------------------------------------------------- *)
+(* decidability ------------------------------------------------------------ *)
 
-(* Ignores monitor initializers, critical regions, and spawn blocks. *)
-Inductive write_access (ad : addr) (m : mem) : tm -> Prop :=
-  | wacc_fun   : forall x Tx t,  write_access ad m t  ->
-                                 write_access ad m <{fn x Tx t       }>
-
-  | wacc_call1 : forall t1 t2,   write_access ad m t1 ->
-                                 write_access ad m <{call t1 t2      }>
-
-  | wacc_call2 : forall t1 t2,   write_access ad m t2 ->
-                                 write_access ad m <{call t1 t2      }>
-
-  | wacc_mem   : forall t ad' T, ad <> ad'            ->
-                                 m[ad'].t = Some t    ->
-                                 write_access ad m t  ->
-                                 write_access ad m <{&ad' : w&T      }>
-
-  | wacc_ref   : forall T,       write_access ad m <{&ad  : w&T      }>
-
-  | wacc_new   : forall t T,     write_access ad m t  ->
-                                 write_access ad m <{new t : T       }>
-
-  | wacc_initR : forall ad' t T, write_access ad m t  ->
-                                 write_access ad m <{init ad' t : r&T}>
-
-  | wacc_initW : forall ad' t T, write_access ad m t  ->
-                                 write_access ad m <{init ad' t : w&T}>
-
-  | wacc_load  : forall t,       write_access ad m t  ->
-                                 write_access ad m <{*t              }>
-
-  | wacc_asg1  : forall t1 t2,   write_access ad m t1 ->
-                                 write_access ad m <{t1 := t2        }>
-
-  | wacc_asg2  : forall t1 t2,   write_access ad m t2 ->
-                                 write_access ad m <{t1 := t2        }>
-
-  | wacc_acq1  : forall t1 t2,   write_access ad m t1 ->
-                                 write_access ad m <{acq t1 t2       }>
-
-  | wacc_acq2  : forall t1 t2,   write_access ad m t2 ->
-                                 write_access ad m <{acq t1 t2       }>
-  .
-
-(* inversion --------------------------------------------------------------- *)
-
-Local Ltac _wacc tt :=
-  match goal with
-  | H : write_access _ _ <{unit          }>   |- _ => inv H
-  | H : write_access _ _ <{nat _         }>   |- _ => inv H
-  | H : write_access _ _ <{var _         }>   |- _ => inv H
-  | H : write_access _ _ <{fn _ _ _      }>   |- _ => tt H
-  | H : write_access _ _ <{call _ _      }>   |- _ => tt H
-  | H : write_access _ _ <{& _ : _       }>   |- _ => tt H
-  | H : write_access _ _ <{new _ : _     }>   |- _ => tt H
-  | H : write_access _ _ <{init _ _ : _  }>   |- _ => tt H
-  | H : write_access _ _ <{* _           }>   |- _ => tt H
-  | H : write_access _ _ <{_ := _        }>   |- _ => tt H
-  | H : write_access _ _ <{acq _  _      }>   |- _ => tt H
-  | H : write_access _ _ <{cr _ _        }>   |- _ => inv H
-  | H : write_access _ _ <{spawn _       }>   |- _ => inv H
-  end.
-
-Ltac inv_wacc  := _wacc inv.
-Ltac invc_wacc := _wacc invc.
+Corollary acc_dec : forall ad t,
+  Decidable.decidable (access ad t).
+Proof. eauto using classic_decidable. Qed.
 
 (* lemmas ------------------------------------------------------------------ *)
 
-Lemma wacc_then_acc : forall ad m t,
-  write_access ad m t ->
-  access ad m t.
+Lemma acc_ad_bounds : forall ad m t,
+  valid_addresses m t ->
+  (* --- *)
+  access ad t ->
+  ad < #m.
 Proof.
-  intros * Hwacc. induction Hwacc; eauto using access.
+  intros * ? Hacc. induction Hacc; invc_vad; auto.
 Qed.
 
-Lemma wacc_safe_contradiction : forall ad ad' m t T,
-  forall_memory m value ->
-  (* --- *)
-  m[ad'].t = Some t ->
-  write_access ad m t ->
-  empty |-- t is `Safe T` ->
+Lemma noref_acc_contradiction : forall t ad,
+  no_ref ad t ->
+  access ad t ->
   False.
 Proof.
-  intros * Hval Had **. destruct (Hval ad' t Had);
-  invc_typeof; invc_wacc; eauto.
+  intros * ? H. induction H; invc_noref; auto.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -171,74 +99,149 @@ Qed.
 (* ------------------------------------------------------------------------- *)
 
 (* Access through monitor initializers and critical regions. *)
-Inductive xaccess (adx ad : addr) (m : mem) : tm -> Prop :=
-  | xacc_fun       : forall x Tx t,   xaccess adx ad m t  ->
-                                      xaccess adx ad m <{fn x Tx t        }>
+Inductive xaccess (adx ad : addr) : tm -> Prop :=
+  | xacc_fun       : forall x Tx t,   xaccess adx ad t  ->
+                                      xaccess adx ad <{fn x Tx t        }>
 
-  | xacc_call1     : forall t1 t2,    xaccess adx ad m t1 ->
-                                      xaccess adx ad m <{call t1 t2       }>
+  | xacc_call1     : forall t1 t2,    xaccess adx ad t1 ->
+                                      xaccess adx ad <{call t1 t2       }>
 
-  | xacc_call2     : forall t1 t2,    xaccess adx ad m t2 ->
-                                      xaccess adx ad m <{call t1 t2       }>
+  | xacc_call2     : forall t1 t2,    xaccess adx ad t2 ->
+                                      xaccess adx ad <{call t1 t2       }>
 
-  | xacc_new       : forall t T,      xaccess adx ad m t  ->
-                                      xaccess adx ad m <{new t : T        }>
+  | xacc_new       : forall t T,      xaccess adx ad t  ->
+                                      xaccess adx ad <{new t : T        }>
 
-  | xacc_initR     : forall adx' t T, xaccess adx ad m t  ->
-                                      xaccess adx ad m <{init adx' t : r&T}>
+  | xacc_initR     : forall adx' t T, xaccess adx ad t  ->
+                                      xaccess adx ad <{init adx' t : r&T}>
 
-  | xacc_initX_eq  : forall t T,      access ad m t       ->
-                                      xaccess adx ad m <{init adx  t : x&T}>
+  | xacc_initX_eq  : forall t T,      access ad t       ->
+                                      xaccess adx ad <{init adx  t : x&T}>
 
-  | xacc_initX_neq : forall adx' t T, adx <> adx'         ->
-                                      xaccess adx ad m t  ->
-                                      xaccess adx ad m <{init adx' t : x&T}>
+  | xacc_initX_neq : forall adx' t T, adx <> adx'       ->
+                                      xaccess adx ad t  ->
+                                      xaccess adx ad <{init adx' t : x&T}>
 
-  | xacc_initW     : forall adx' t T, xaccess adx ad m t  ->
-                                      xaccess adx ad m <{init adx' t : w&T}>
+  | xacc_initW     : forall adx' t T, xaccess adx ad t  ->
+                                      xaccess adx ad <{init adx' t : w&T}>
 
-  | xacc_load      : forall t,        xaccess adx ad m t  ->
-                                      xaccess adx ad m <{*t               }>
+  | xacc_load      : forall t,        xaccess adx ad t  ->
+                                      xaccess adx ad <{*t               }>
 
-  | xacc_asg1      : forall t1 t2,    xaccess adx ad m t1 ->
-                                      xaccess adx ad m <{t1 := t2         }>
+  | xacc_asg1      : forall t1 t2,    xaccess adx ad t1 ->
+                                      xaccess adx ad <{t1 := t2         }>
 
-  | xacc_asg2      : forall t1 t2,    xaccess adx ad m t2 ->
-                                      xaccess adx ad m <{t1 := t2         }>
+  | xacc_asg2      : forall t1 t2,    xaccess adx ad t2 ->
+                                      xaccess adx ad <{t1 := t2         }>
 
-  | xacc_acq1      : forall t1 t2,    xaccess adx ad m t1 ->
-                                      xaccess adx ad m <{acq t1 t2        }>
+  | xacc_acq1      : forall t1 t2,    xaccess adx ad t1 ->
+                                      xaccess adx ad <{acq t1 t2        }>
 
-  | xacc_acq2      : forall t1 t2,    xaccess adx ad m t2 ->
-                                      xaccess adx ad m <{acq t1 t2        }>
+  | xacc_acq2      : forall t1 t2,    xaccess adx ad t2 ->
+                                      xaccess adx ad <{acq t1 t2        }>
 
-  | xacc_cr_eq     : forall t,        access ad m t       ->
-                                      xaccess adx ad m <{cr adx t         }>
+  | xacc_cr_eq     : forall t,        access ad t       ->
+                                      xaccess adx ad <{cr adx t         }>
 
-  | xacc_cr_neq    : forall adx' t,   adx <> adx'         ->
-                                      xaccess adx ad m t  ->
-                                      xaccess adx ad m <{cr adx' t        }>
+  | xacc_cr_neq    : forall adx' t,   adx <> adx'       ->
+                                      xaccess adx ad t  ->
+                                      xaccess adx ad <{cr adx' t        }>
   .
 
 (* inversion --------------------------------------------------------------- *)
 
 Local Ltac _xacc tt :=
   match goal with
-  | H : xaccess _ _ _ <{unit        }>   |- _ => inv H
-  | H : xaccess _ _ _ <{nat _       }>   |- _ => inv H
-  | H : xaccess _ _ _ <{var _       }>   |- _ => inv H
-  | H : xaccess _ _ _ <{fn _ _ _    }>   |- _ => tt H
-  | H : xaccess _ _ _ <{call _ _    }>   |- _ => tt H
-  | H : xaccess _ _ _ <{& _ : _     }>   |- _ => inv H
-  | H : xaccess _ _ _ <{new _ : _   }>   |- _ => tt H
-  | H : xaccess _ _ _ <{init _ _ : _}>   |- _ => tt H
-  | H : xaccess _ _ _ <{* _         }>   |- _ => tt H
-  | H : xaccess _ _ _ <{_ := _      }>   |- _ => tt H
-  | H : xaccess _ _ _ <{acq _  _    }>   |- _ => tt H
-  | H : xaccess _ _ _ <{cr _ _      }>   |- _ => tt H
-  | H : xaccess _ _ _ <{spawn _     }>   |- _ => inv H
+  | H : xaccess _ _ <{unit        }>   |- _ => inv H
+  | H : xaccess _ _ <{nat _       }>   |- _ => inv H
+  | H : xaccess _ _ <{var _       }>   |- _ => inv H
+  | H : xaccess _ _ <{fn _ _ _    }>   |- _ => tt H
+  | H : xaccess _ _ <{call _ _    }>   |- _ => tt H
+  | H : xaccess _ _ <{& _ : _     }>   |- _ => inv H
+  | H : xaccess _ _ <{new _ : _   }>   |- _ => tt H
+  | H : xaccess _ _ <{init _ _ : _}>   |- _ => tt H
+  | H : xaccess _ _ <{* _         }>   |- _ => tt H
+  | H : xaccess _ _ <{_ := _      }>   |- _ => tt H
+  | H : xaccess _ _ <{acq _  _    }>   |- _ => tt H
+  | H : xaccess _ _ <{cr _ _      }>   |- _ => tt H
+  | H : xaccess _ _ <{spawn _     }>   |- _ => inv H
   end.
 
 Ltac inv_xacc  := _xacc inv.
 Ltac invc_xacc := _xacc invc.
+
+(* decidability ------------------------------------------------------------ *)
+
+Corollary xacc_dec : forall adx ad t,
+  Decidable.decidable (xaccess adx ad t).
+Proof. eauto using classic_decidable. Qed.
+
+(* lemmas ------------------------------------------------------------------ *)
+
+Lemma xacc_adx_bounds : forall adx ad m t,
+  valid_addresses m t ->
+  (* --- *)
+  xaccess adx ad t ->
+  adx < #m.
+Proof.
+  intros * ? Hxacc. induction Hxacc; invc_vad; auto.
+Qed.
+
+Lemma xacc_ad_bounds : forall adx ad m t,
+  valid_addresses m t ->
+  (* --- *)
+  xaccess adx ad t ->
+  ad < #m.
+Proof.
+  intros * ? Hacc. induction Hacc; invc_vad; eauto using acc_ad_bounds.
+Qed.
+
+Lemma xacc_noinit_nocr_contradiction : forall adx ad t,
+  xaccess adx ad t ->
+  no_init adx t ->
+  no_cr   adx t ->
+  False.
+Proof.
+  intros. induction t; invc_noinit; inv_nocr; invc_xacc; auto.
+Qed.
+
+Corollary xacc_value_contradiction : forall adx ad t,
+  valid_blocks t ->
+  (* --- *)
+  xaccess adx ad t ->
+  value t ->
+  False.
+Proof.
+  eauto using noinit_from_value, nocr_from_value,
+    xacc_noinit_nocr_contradiction.
+Qed.
+
+Corollary oneinit_or_onecr_from_xacc : forall adx ad t,
+  (no_init adx t \/ one_init adx t) ->
+  (no_cr   adx t \/ one_cr   adx t) ->
+  (* --- *)
+  xaccess adx ad t ->
+  one_init adx t \/ one_cr adx t.
+Proof.
+  intros * [? | ?] [? | ?] ?; auto. exfalso.
+  eauto using xacc_noinit_nocr_contradiction.
+Qed.
+
+Corollary oneinit_xor_onecr_from_xacc : forall adx ad m ths tid,
+  forall_threads ths (valid_addresses m) ->
+  unique_initializers m ths ->
+  unique_critical_regions m ths ->
+  init_cr_exclusivity ths ->
+  (* --- *)
+  xaccess adx ad ths[tid] ->
+  (one_init adx ths[tid]) \x/ (one_cr adx ths[tid]).
+Proof.
+  intros * ? ? ? Hice **. 
+  assert (adx < #m) by eauto using xacc_adx_bounds.
+  assert (tid < #ths) by (lt_eq_gt (#ths) tid; sigma; try invc_xacc; trivial).
+  split; eauto using oneinit_or_onecr_from_xacc,
+    noinit_or_oneinit_from_ui, nocr_or_onecr_from_ucr.
+  destruct (Hice adx tid tid).
+  intros [? ?]. eauto using nocr_onecr_contradiction.
+Qed.
 

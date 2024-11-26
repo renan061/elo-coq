@@ -9,7 +9,35 @@ Definition unique_critical_regions (m : mem) (ths : threads) := forall ad,
   (m[ad].X = false -> forall_threads ths (no_cr ad)) /\
   (m[ad].X = true  -> forone_thread  ths (one_cr ad) (no_cr ad)).
 
-(* preservation -- --------------------------------------------------------- *)
+(* lemmas ------------------------------------------------------------------ *)
+
+Corollary nocr_or_onecr_from_ucr : forall ad m ths tid,
+  unique_critical_regions m ths ->
+  no_cr ad ths[tid] \/ one_cr ad ths[tid].
+Proof.
+  intros * Hucr. specialize (Hucr ad) as [? Htrue].
+  destruct (m[ad].X); aspecialize; eauto.
+  specialize Htrue as [tid' [? ?]].
+  destruct (nat_eq_dec tid' tid); subst; eauto.
+Qed.
+
+Corollary ucr_onecr_contradiction : forall ad m ths tid1 tid2,
+  unique_critical_regions m ths ->
+  (* --- *)
+  tid1 <> tid2 ->
+  one_cr ad ths[tid1] ->
+  one_cr ad ths[tid2] ->
+  False.
+Proof.
+  intros * Hucr **. specialize (Hucr ad) as [? Htrue].
+  destruct (m[ad].X); aspecialize;
+  eauto using nocr_onecr_contradiction.
+  specialize Htrue as [tid [? ?]].
+  destruct (nat_eq_dec tid1 tid), (nat_eq_dec tid2 tid); subst;
+  eauto using nocr_onecr_contradiction.
+Qed.
+
+(* preservation ------------------------------------------------------------ *)
 
 Local Lemma ucr_preservation_none : forall m ths tid t,
   forall_threads ths valid_blocks ->

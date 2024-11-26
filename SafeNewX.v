@@ -18,7 +18,7 @@ Inductive safe_newx : tm -> Prop :=
   | snx_ref   : forall ad T,   safe_newx <{&ad : T      }>
   | snx_newR   : forall t T,   safe_newx t  ->
                                safe_newx <{new t : r&T  }>
-  | snx_newX   : forall t T,   no_wrefs t         ->
+  | snx_newX   : forall t T,   no_wrefs  t  ->
                                safe_newx t  ->
                                safe_newx <{new t : x&T  }>
   | snx_newW   : forall t T,   safe_newx t  ->

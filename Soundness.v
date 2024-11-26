@@ -354,7 +354,7 @@ Theorem limited_progress : forall m1 t1,
     \/ (exists m2 t2 ad t, m1 / t1 ==[e_write ad t ]==> m2 / t2)
     \/ (exists m2 t2 ad t, m1[ad].X = false ->
                            m1 / t1 ==[e_acq ad t   ]==> m2 / t2)
-    \/ (exists m2 t2 ad,   m1[ad].X = true ->
+    \/ (exists m2 t2 ad,   m1[ad].X = true -> (* TODO *)
                            m1 / t1 ==[e_rel ad     ]==> m2 / t2)
     \/ (exists t2 tid t,   t1 --[e_spawn tid t]--> t2)).
 Proof.

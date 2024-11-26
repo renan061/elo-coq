@@ -5,7 +5,24 @@
 Se não é guardado: prova antiga.
 
 (OK)
-guards adX ad m := exists T, m[adx].T = x&T /\ (write_)access m m[adx].t ad.
+guards adx ad m := exists T, m[adx].T = x&T /\ access m m[adx].t ad.
+
+xguards adx ad m := guards adx ad m \/ exists t, xaccess adx ad m t.
+
+Invariante guard_exclusive :
+    guards adx  ad m ->
+    guards adx' ad m ->
+    adx = adx'.
+
+Invariante guard_xaccess :
+    guards  adx  ad m ->
+    xaccess adx' ad m t ->
+    adx = adx'.
+     
+Invariante xguard_exclusive :
+    xguards adx  ad m ->
+    xguards adx' ad m ->
+    adx = adx'.
 
 (OK)
 inCR t ad := ...
