@@ -335,15 +335,13 @@ Ltac sigma := repeat sigma_once.
 (* ------------------------------------------------------------------------- *)
 
 Local Ltac split_set_add_get l i1 i2 :=
-  destruct (nat_eq_dec i1 i2);
-  decompose sum (lt_eq_lt_dec i2 (#l)); subst;
-  sigma; try lia.
+  nat_eq_dec i1 i2; lt_eq_gt i2 (#l); sigma; try lia.
 
 Local Ltac split_set_get_eq l i :=
   decompose sum (le_lt_dec (#l) i); sigma.
 
 Local Ltac split_set_get i1 i2 :=
-  destruct (nat_eq_dec i1 i2); subst; sigma; try lia.
+  nat_eq_dec i1 i2; sigma; try lia.
 
 Local Ltac split_add_get l i :=
   decompose sum (lt_eq_lt_dec i (#l)); subst; sigma.

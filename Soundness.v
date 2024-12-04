@@ -1,53 +1,34 @@
 From Coq Require Import Lia.
 From Coq Require Import Lists.List.
 
-From Elo Require Import Properties1.
 From Elo Require Import Core.
+From Elo Require Import SyntacticProperties.
 
+From Elo Require Import WellTypedTerm.
 From Elo Require Import ConsistentInits.
 From Elo Require Import ConsistentRefs.
-
-Local Lemma safe_preserves_inclusion : forall Gamma1 Gamma2,
-  Gamma1 includes Gamma2 ->
-  (safe Gamma1) includes (safe Gamma2).
-Proof.
-  unfold inclusion, safe. intros * H *.
-  destruct (Gamma1 k) eqn:E1; destruct (Gamma2 k) eqn:E2;
-  solve [ intros F; inv F
-        | eapply H in E2; rewrite E1 in E2; inv E2; trivial
-        ].
-Qed.
-
-Local Lemma update_safe_includes_safe_update : forall Gamma k T,
-  (safe Gamma)[k <== T] includes (safe Gamma[k <== T]).
-Proof.
-  intros ? ? ? k' ? H. unfold safe in H. 
-  destruct (str_eq_dec k k'); subst.
-  - rewrite lookup_update_eq in *. destruct T; inv H; trivial.
-  - rewrite lookup_update_neq in *; trivial.
-Qed.
-
-Local Lemma context_weakening : forall Gamma1 Gamma2 t T,
-  Gamma2 |-- t is T ->
-  Gamma1 includes Gamma2 ->
-  Gamma1  |-- t is T.
-Proof.
-  intros. generalize dependent Gamma1.
-  ind_typeof; intros; eauto using type_of,
-                                  safe_preserves_inclusion,
-                                  MapInclusion.update_inclusion.
-Qed.
-
-Local Corollary context_weakening_empty : forall Gamma t T,
-  empty |-- t is T ->
-  Gamma |-- t is T.
-Proof.
-  intros. eapply (context_weakening _ empty); trivial. discriminate.
-Qed.
 
 (* ------------------------------------------------------------------------- *)
 (* preservation                                                              *)
 (* ------------------------------------------------------------------------- *)
+
+(* TODO *)
+Lemma aux_inc1 : forall Gamma k T1 T2,
+  (safe Gamma)[k <== T2] includes (safe Gamma[k <== T1])[k <== T2].
+Proof.
+  intros * k' ? H. unfold safe in H. str_eq_dec k k'.
+  - rewrite lookup_update_eq in *. trivial.
+  - repeat (rewrite lookup_update_neq in *; trivial).
+    rewrite lookup_update_neq in H; trivial.
+Qed.
+
+Lemma aux_inc2 : forall Gamma k k' T T',
+  k <> k' ->
+  (safe Gamma)[k' <== T'][k <== T] includes (safe Gamma[k <== T])[k' <== T'].
+Proof.
+  eauto using update_safe_includes_safe_update,
+    MapInc.trans, MapInc.update_inclusion, MapInc.update_permutation.
+Qed.
 
 Local Lemma typeof_subst : forall t tx T Tx Gamma x,
   Gamma[x <== Tx] |-- t is T ->
@@ -55,15 +36,16 @@ Local Lemma typeof_subst : forall t tx T Tx Gamma x,
   Gamma |-- <{[x := tx] t}> is T.
 Proof.
   intros ?. induction t; intros * Htype ?; invc_typeof; eauto using type_of;
-  eauto using update_safe_includes_safe_update, context_weakening, type_of;
-  eauto using context_weakening_empty, type_of;
-  simpl; destruct str_eq_dec; subst;
-  eauto using MapInclusion.update_overwrite, context_weakening, type_of;
-  eauto using MapInclusion.update_permutation, context_weakening, type_of;
-  match goal with | H : _[_ <== _] _ = _ |- _ => rename H into Hty end.
+  simpl; try destruct _str_eq_dec; subst;
+  eauto using type_of, context_weakening_empty, context_weakening,
+    update_safe_includes_safe_update,
+    MapInc.update_overwrite, MapInc.update_permutation;
+  try match goal with | H : _[_ <== _] _ = _ |- _ => rename H into Hty end.
   - rewrite lookup_update_eq in Hty.
     invc Hty. eauto using context_weakening_empty.
   - rewrite lookup_update_neq in Hty; eauto using type_of.
+  - eauto using aux_inc1, context_weakening, type_of.
+  - eauto 6 using aux_inc2, context_weakening, type_of.
 Qed.
 
 Local Lemma typeof_preservation_mstep : forall m1 m2 t1 t2 e T,
@@ -90,12 +72,10 @@ Local Lemma typeof_preservation_mem_mstep : forall m1 m2 t1 t2 t1' t2' e ad T,
   empty |-- t2' is T.
 Proof.
   intros * [T' ?] **. rename ad into ad'.
-  assert (ad' < #m1) by
-    (decompose sum (lt_eq_lt_dec ad' (#m1)); subst; sigma; upsilon; eauto).
+  assert (ad' < #m1) by (lt_eq_gt (#m1) ad'; sigma; upsilon; auto).
   invc_mstep; try invc_eq; trivial;
   sigma; try omicron; repeat invc_eq; trivial; upsilon.
-  + assert (m1[ad'].t = None) by eauto using insert_then_uninitialized.
-    invc_eq.
+  + assert (m1[ad'].t = None) by eauto using insert_then_uninitialized. invc_eq.
   + gendep T'. gendep t1'. ind_tstep; intros;
     repeat invc_typeof; repeat invc_ci; repeat invc_cr; eauto.
     invc_eq. apply_deterministic_typing. assumption.
@@ -255,7 +235,6 @@ Qed.
 
 *)
 Local Ltac destruct_IH :=
-  repeat auto_specialize;
   match goal with
   | H : safe empty = empty -> _ |- _ =>
     specialize (H empty_eq_safe_empty); destruct_IH
@@ -324,23 +303,6 @@ Local Ltac invc_value_typeof :=
     invc H; invc_typeof
   end.
 
-(*
-Local Ltac solve_progress :=
-  try solve [left; repeat eexists; eauto using value, tstep, mstep];
-  match goal with
-  | Hval : value ?t1, _ : _ |-- ?t1 is `?T --> _`, _ : _ |-- ?t2 is ?T |- _ =>
-    invc Hval; invc_typeof
-  | Hval : value ?t1, _ : _ |-- ?t1 is `Safe ?T`, _ : _ |-- ?t2 is ?T |- _ =>
-    invc Hval; invc_typeof
-  | Hval : value ?t, _ : _ |-- ?t is _ |- _ =>
-    invc Hval; invc_typeof; repeat invc_vr
-  | Hmstep : _ / _ ==[?e]==> ?m2 / _ |- _ =>
-    left; exists e, m2; eexists; invc_mstep; eauto using value, tstep, mstep
-  | Htstep : _ --[e_spawn _ _]--> _ |- _ =>
-    right; repeat eexists; eauto using value, tstep
-  end.
-*)
-
 Theorem limited_progress : forall m1 t1,
   valid_addresses m1 t1 ->
   consistent_references m1 t1 ->
@@ -361,42 +323,51 @@ Proof.
   intros * ? ? [T ?]. remember empty as Gamma.
   ind_typeof; eauto using value; right; invc_vad; invc_cr;
   try solve [subst; discriminate].
-  - repeat (destruct_IH; try solve [solve_inductive_progress_case]).
+  - repeat spec.
+    repeat (destruct_IH; try solve [solve_inductive_progress_case]).
     pick_none.
     invc_value_typeof.
     repeat eexists. eauto using tstep, mstep.
   - pick_alloc. repeat eexists. eauto using tstep, mstep.
   - pick_alloc. repeat eexists. eauto using tstep, mstep.
   - pick_alloc. repeat eexists. eauto using tstep, mstep.
-  - destruct_IH; try solve [solve_inductive_progress_case].
+  - repeat spec.
+    destruct_IH; try solve [solve_inductive_progress_case].
     pick_insert.
     invc_value_typeof;
     repeat eexists; eauto using tstep, mstep, value.
-  - destruct_IH; try solve [solve_inductive_progress_case].
+  - repeat spec.
+    destruct_IH; try solve [solve_inductive_progress_case].
     pick_insert.
     invc_value_typeof;
     repeat eexists; eauto using tstep, mstep, value.
-  - destruct_IH; try solve [solve_inductive_progress_case].
+  - repeat spec.
+    destruct_IH; try solve [solve_inductive_progress_case].
     pick_insert.
     invc_value_typeof;
     repeat eexists; eauto using tstep, mstep, value.
-  - destruct_IH; try solve [solve_inductive_progress_case].
+  - repeat spec.
+    destruct_IH; try solve [solve_inductive_progress_case].
     pick_read.
     invc_value_typeof. invc_vad. invc_cr.
     repeat eexists. eauto using tstep, mstep.
-  - destruct_IH; try solve [solve_inductive_progress_case].
+  - repeat spec.
+    destruct_IH; try solve [solve_inductive_progress_case].
     pick_read.
     invc_value_typeof. invc_vad. invc_cr.
     repeat eexists. eauto using tstep, mstep.
-  - repeat (destruct_IH; try solve [solve_inductive_progress_case]).
+  - repeat spec.
+    repeat (destruct_IH; try solve [solve_inductive_progress_case]).
     pick_write.
     invc_value_typeof. invc_vad. invc_cr.
     repeat eexists. eauto using tstep, mstep.
-  - repeat (destruct_IH; try solve [solve_inductive_progress_case]).
+  - repeat spec.
+    repeat (destruct_IH; try solve [solve_inductive_progress_case]).
     pick_acq.
-    repeat invc_value_typeof. repeat invc_vad. repeat invc_cr.
-    repeat eexists. intros. eauto using tstep, mstep.
-  - repeat (destruct_IH; try solve [solve_inductive_progress_case]).
+    invc_value_typeof. invc_vad. invc_cr.
+    repeat eexists. eauto using tstep, mstep.
+  - repeat spec.
+    repeat (destruct_IH; try solve [solve_inductive_progress_case]).
     pick_rel.
     repeat eexists. intros. eauto using tstep, mstep.
   - pick_spawn.

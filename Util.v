@@ -17,13 +17,11 @@ Ltac invc H := inv H; clear H.
 Ltac duplicate H H' := specialize H as H'.
 Ltac dup H H' := duplicate H H'.
 
-Ltac auto_specialize := (* TODO: deprecated *)
+Ltac spec :=
   match goal with
   | P : ?x, H : ?x -> _ |- _ => specialize (H P)
   | H : ?x = ?x -> _ |- _ => specialize (H eq_refl) 
   end.
-
-Ltac aspecialize := auto_specialize.
 
 Ltac clean :=
   match goal with
@@ -68,30 +66,30 @@ From Coq Require Arith.Compare_dec.
 From Coq Require Arith.Peano_dec.
 From Coq Require Strings.String.
 
-Definition bool_eq_dec  := Bool.bool_dec.
-Definition nat_eq_dec   := Peano_dec.eq_nat_dec.
-Definition str_eq_dec   := String.string_dec.
-Definition lt_eq_lt_dec := Compare_dec.lt_eq_lt_dec.
+Lemma _opt_dec : forall {A} (o : option A), {o = None} + {o <> None}.
+Proof. intros. destruct o; auto. Qed.
 
-Ltac lt_eq_gt n1 n2 := decompose sum (lt_eq_lt_dec n1 n2); subst.
+Ltac opt_dec o := destruct (_opt_dec o); subst.
 
-Lemma opt_dec : forall {A} (o : option A),
-  {o = None} + {exists a, o = Some a}.
-Proof.
-  destruct o; eauto.
-Qed.
+Definition _bool_eq_dec  := Bool.bool_dec.
+Definition _nat_eq_dec   := Peano_dec.eq_nat_dec.
+Definition _str_eq_dec   := String.string_dec.
+Definition _lt_eq_lt_dec := Compare_dec.lt_eq_lt_dec.
+
+Ltac bool_eq_dec b1 b2 := destruct (_bool_eq_dec b1 b2); subst.
+Ltac nat_eq_dec  n1 n2 := destruct (_nat_eq_dec  n1 n2); subst.
+Ltac str_eq_dec  s1 s2 := destruct (_str_eq_dec  s1 s2); subst.
+Ltac lt_eq_gt    n1 n2 := decompose sum (_lt_eq_lt_dec n1 n2); subst.
 
 Lemma alt_opt_dec : forall {A} (o : option A),
-  {o = None} + {o <> None}.
-Proof.
-  intros. destruct o; eauto.
-Qed.
+  {o = None} + {exists a, o = Some a}.
+Proof. destruct o; eauto. Qed.
 
 (* misc *)
 
 Lemma ge_iff_le : forall m n,
   m >= n <-> n <= m.
 Proof.
-  intros; split; destruct n; eauto.
+  intros; split; destruct n; auto.
 Qed.
 

@@ -1,3 +1,5 @@
+From Coq Require Import Lia.
+
 From Elo Require Import Core.
 
 From Elo Require Import Properties1.
@@ -18,9 +20,7 @@ Inductive access (ad : addr) : tm -> Prop :=
   | acc_call2 : forall t1 t2,   access ad t2 ->
                                 access ad <{call t1 t2      }>
 
-  | acc_refR  : forall T,       access ad <{&ad  : r&T      }>
-
-  | acc_refW  : forall T,       access ad <{&ad  : w&T      }>
+  | acc_ref   : forall T,       access ad <{&ad  : w&T      }>
 
   | acc_new   : forall t T,     access ad t  ->
                                 access ad <{new t : T       }>
@@ -77,7 +77,7 @@ Proof. eauto using classic_decidable. Qed.
 
 (* lemmas ------------------------------------------------------------------ *)
 
-Lemma acc_ad_bounds : forall ad m t,
+Lemma acc_vad_ad_bounds : forall ad m t,
   valid_addresses m t ->
   (* --- *)
   access ad t ->
@@ -86,12 +86,64 @@ Proof.
   intros * ? Hacc. induction Hacc; invc_vad; auto.
 Qed.
 
-Lemma noref_acc_contradiction : forall t ad,
-  no_ref ad t ->
-  access ad t ->
+Corollary acc_vad_contradiction1 : forall m t,
+  valid_addresses m t ->
+  (* --- *)
+  access (#m) t ->
   False.
 Proof.
-  intros * ? H. induction H; invc_noref; auto.
+  intros. assert (#m < #m) by eauto using acc_vad_ad_bounds. lia.
+Qed.
+
+Corollary acc_vad_contradiction2 : forall ad m t,
+  valid_addresses m t ->
+  (* --- *)
+  access ad t ->
+  #m < ad ->
+  False.
+Proof.
+  intros. assert (ad < #m) by eauto using acc_vad_ad_bounds. lia.
+Qed.
+
+Corollary acc_vad_contradiction3 : forall ad m t,
+  valid_addresses m t ->
+  (* --- *)
+  access ad t ->
+  #m <= ad ->
+  False.
+Proof.
+  intros * ? ? H. eapply Lt.le_lt_or_eq in H as [? | ?]; subst;
+  eauto using acc_vad_contradiction1, acc_vad_contradiction2.
+Qed.
+
+Lemma acc_noref_contradiction : forall ad t,
+  access ad t ->
+  no_ref ad t ->
+  False.
+Proof.
+  intros * H **. induction H; invc_noref; auto.
+Qed.
+
+Lemma acc_nowref_contradiction : forall ad m t T,
+  consistent_references m t ->
+  (* --- *)
+  m[ad].T = `w&T` ->
+  access ad t ->
+  no_wref ad t ->
+  False.
+Proof.
+  intros * ? ? H **. induction H; invc_cr; invc_nowref; auto.
+Qed.
+
+Corollary acc_nowrefs_contradiction : forall ad m t T,
+  consistent_references m t ->
+  (* --- *)
+  m[ad].T = `w&T` ->
+  access ad t ->
+  no_wrefs  t ->
+  False.
+Proof.
+  unfold no_wrefs. eauto using acc_nowref_contradiction.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -178,7 +230,7 @@ Proof. eauto using classic_decidable. Qed.
 
 (* lemmas ------------------------------------------------------------------ *)
 
-Lemma xacc_adx_bounds : forall adx ad m t,
+Lemma xacc_vad_adx_bounds : forall adx ad m t,
   valid_addresses m t ->
   (* --- *)
   xaccess adx ad t ->
@@ -187,13 +239,31 @@ Proof.
   intros * ? Hxacc. induction Hxacc; invc_vad; auto.
 Qed.
 
-Lemma xacc_ad_bounds : forall adx ad m t,
+Lemma xacc_vad_ad_bounds : forall adx ad m t,
   valid_addresses m t ->
   (* --- *)
   xaccess adx ad t ->
   ad < #m.
 Proof.
-  intros * ? Hacc. induction Hacc; invc_vad; eauto using acc_ad_bounds.
+  intros * ? Hacc. induction Hacc; invc_vad; eauto using acc_vad_ad_bounds.
+Qed.
+
+Corollary xacc_vad_adx_contradiction1 : forall m ad t,
+  valid_addresses m t ->
+  (* --- *)
+  xaccess (#m) ad t ->
+  False.
+Proof.
+  intros. assert (#m < #m) by eauto using xacc_vad_adx_bounds. lia.
+Qed.
+
+Corollary xacc_vad_ad_contradiction1 : forall m adx t,
+  valid_addresses m t ->
+  (* --- *)
+  xaccess adx (#m) t ->
+  False.
+Proof.
+  intros. assert (#m < #m) by eauto using xacc_vad_ad_bounds. lia.
 Qed.
 
 Lemma xacc_noinit_nocr_contradiction : forall adx ad t,
@@ -237,7 +307,7 @@ Corollary oneinit_xor_onecr_from_xacc : forall adx ad m ths tid,
   (one_init adx ths[tid]) \x/ (one_cr adx ths[tid]).
 Proof.
   intros * ? ? ? Hice **. 
-  assert (adx < #m) by eauto using xacc_adx_bounds.
+  assert (adx < #m) by eauto using xacc_vad_adx_bounds.
   assert (tid < #ths) by (lt_eq_gt (#ths) tid; sigma; try invc_xacc; trivial).
   split; eauto using oneinit_or_onecr_from_xacc,
     noinit_or_oneinit_from_ui, nocr_or_onecr_from_ucr.

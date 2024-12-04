@@ -114,7 +114,7 @@ Definition inclusion {A} (m m' : map A) := forall k v,
 
 Infix "includes" := inclusion (at level 70, no associativity).
 
-Module MapInclusion.
+Module MapInc.
   Lemma refl : forall {A} (m : map A),
     m includes m.
   Proof.
@@ -152,5 +152,5 @@ Module MapInclusion.
     unfold inclusion, update, update'. intros.
     destruct string_dec; trivial.
   Qed.
-End MapInclusion.
+End MapInc.
 

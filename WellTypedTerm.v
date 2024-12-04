@@ -7,9 +7,7 @@ From Elo Require Import Core.
 Definition well_typed_term (t : tm) :=
   exists T, empty |-- t is T.
 
-(* ------------------------------------------------------------------------- *)
-(* tactics                                                                   *)
-(* ------------------------------------------------------------------------- *)
+(* inversion --------------------------------------------------------------- *)
 
 Local Ltac solve_wtt_inversion := 
   intros * [? ?]; try split;
@@ -57,9 +55,10 @@ Local Lemma inv_wtt_asg : forall t1 t2,
   well_typed_term t1 /\ well_typed_term t2.
 Proof. solve_wtt_inversion. Qed.
 
-Local Lemma inv_wtt_acq : forall t1 t2,
-  well_typed_term <{acq t1 t2}> ->
-  well_typed_term t1 /\ well_typed_term t2.
+Local Lemma inv_wtt_acq : forall t1 x t2,
+  well_typed_term <{acq t1 x t2}> ->
+  well_typed_term t1 /\
+  (exists Tx T, empty |-- t1 is `x&Tx` /\ empty[x <== Tx] |-- t2 is T).
 Proof. solve_wtt_inversion. Qed.
 
 Local Lemma inv_wtt_cr : forall ad t,
@@ -87,7 +86,7 @@ Ltac invc_wtt :=
   | H : wtt <{init _ _ : _}> |- _ => eapply inv_wtt_init  in H
   | H : wtt <{* _         }> |- _ => eapply inv_wtt_load  in H
   | H : wtt <{_ := _      }> |- _ => eapply inv_wtt_asg   in H as [? ?]
-  | H : wtt <{acq _ _     }> |- _ => eapply inv_wtt_acq   in H as [? ?]
+  | H : wtt <{acq _ _ _   }> |- _ => eapply inv_wtt_acq   in H as [? [? [? ?]]]
   | H : wtt <{cr _ _      }> |- _ => eapply inv_wtt_cr    in H
   | H : wtt <{spawn _     }> |- _ => eapply inv_wtt_spawn in H
   end.
@@ -101,7 +100,7 @@ Lemma wtt_insert_term : forall t1 t2 ad t,
   t1 --[e_insert ad t]--> t2 ->
   well_typed_term t.
 Proof.
-  intros. ind_tstep; invc_wtt; eauto.
+  intros. ind_tstep; invc_wtt; auto.
 Qed.
 
 Lemma wtt_write_term : forall t1 t2 ad t,
@@ -109,6 +108,14 @@ Lemma wtt_write_term : forall t1 t2 ad t,
   t1 --[e_write ad t]--> t2 ->
   well_typed_term t.
 Proof.
-  intros. ind_tstep; invc_wtt; eauto.
+  intros. ind_tstep; invc_wtt; auto.
+Qed.
+
+Lemma wtt_spawn_term : forall t1 t2 tid t,
+  well_typed_term t1 ->
+  t1 --[e_spawn tid t]--> t2 ->
+  well_typed_term t.
+Proof.
+  intros. ind_tstep; invc_wtt; auto.
 Qed.
 

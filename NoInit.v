@@ -28,9 +28,9 @@ Inductive no_init (ad : addr) : tm -> Prop :=
   | noinit_asg   : forall t1 t2,   no_init ad t1 ->
                                    no_init ad t2 ->
                                    no_init ad <{t1 := t2      }>
-  | noinit_acq   : forall t1 t2,   no_init ad t1 ->
+  | noinit_acq   : forall t1 x t2, no_init ad t1 ->
                                    no_init ad t2 ->
-                                   no_init ad <{acq t1 t2     }>
+                                   no_init ad <{acq t1 x t2   }>
   | noinit_cr    : forall ad' t,   no_init ad t  ->
                                    no_init ad <{cr ad' t      }>
   | noinit_spawn : forall t,       no_init ad t  ->
@@ -48,11 +48,11 @@ Local Ltac _noinit tt :=
   | H : no_init _   <{call _ _      }> |- _ => tt H
   | H : no_init _   <{&_ : _        }> |- _ => clear H
   | H : no_init _   <{new _ : _     }> |- _ => tt H
-  | H : no_init ?ad <{init ?ad _ : _}> |- _ => invc H; eauto
+  | H : no_init ?ad <{init ?ad _ : _}> |- _ => invc H; auto
   | H : no_init _   <{init _ _ : _  }> |- _ => tt H
   | H : no_init _   <{* _           }> |- _ => tt H
   | H : no_init _   <{_ := _        }> |- _ => tt H
-  | H : no_init _   <{acq _ _       }> |- _ => tt H
+  | H : no_init _   <{acq _ _ _     }> |- _ => tt H
   | H : no_init _   <{cr _ _        }> |- _ => tt H
   | H : no_init _   <{spawn _       }> |- _ => tt H
   end.
@@ -63,15 +63,15 @@ Ltac invc_noinit := _noinit invc.
 (* decidability ------------------------------------------------------------ *)
 
 Lemma noinit_dec : forall ad t,
-  {no_init ad t} + {no_init ad t -> False}.
+  Decidable.decidable (no_init ad t).
 Proof.
-  intros. induction t; eauto using no_init;
-  try destruct IHt; try destruct IHt1, IHt2; eauto using no_init;
-  try solve [right; intros; invc_noinit; eauto].
-  match goal with ad1 : addr, ad2 : addr |- _ =>
-    destruct (nat_eq_dec ad1 ad2); subst
-  end;
-  eauto using no_init; right; intros; invc_noinit.
+  unfold Decidable.decidable. unfold not. intros.
+  induction t; auto using no_init;
+  (destruct IHt || destruct IHt1, IHt2); auto using no_init;
+  try solve [right; intros; invc_noinit; auto].
+  match goal with ad1 : addr, ad2 : addr |- _ => nat_eq_dec ad1 ad2 end;
+  auto using no_init.
+  right. intros. invc_noinit.
 Qed.
 
 (* lemmas ------------------------------------------------------------------ *)
@@ -81,7 +81,7 @@ Lemma noinit_insert_term : forall t1 t2 ad ad' t,
   t1 --[e_insert ad t]--> t2 ->
   no_init ad' t.
 Proof.
-  intros. ind_tstep; invc_noinit; eauto using no_init.
+  intros. ind_tstep; invc_noinit; auto using no_init.
 Qed.
 
 Lemma noinit_write_term : forall t1 t2 ad ad' t,
@@ -89,7 +89,7 @@ Lemma noinit_write_term : forall t1 t2 ad ad' t,
   t1 --[e_write ad t]--> t2 ->
   no_init ad' t.
 Proof.
-  intros. ind_tstep; invc_noinit; eauto using no_init.
+  intros. ind_tstep; invc_noinit; auto using no_init.
 Qed.
 
 Lemma noinit_insert_contradiction : forall t1 t2 ad t,
@@ -97,7 +97,7 @@ Lemma noinit_insert_contradiction : forall t1 t2 ad t,
   t1 --[e_insert ad t]--> t2 ->
   False.
 Proof.
-  intros. ind_tstep; invc_noinit; eauto.
+  intros. ind_tstep; invc_noinit; auto.
 Qed.
 
 Lemma noinit_from_vad1 : forall m t,
@@ -113,9 +113,7 @@ Lemma noinit_from_vad2 : forall ad m t,
   no_init ad t.
 Proof.
   intros. induction t; invc_vad; auto using no_init.
-  match goal with |- no_init ?ad1 <{init ?ad2 _ : _}> =>
-    destruct (nat_eq_dec ad1 ad2); subst
-  end;
+  match goal with |- no_init ?ad1 <{init ?ad2 _ : _}> => nat_eq_dec ad1 ad2 end;
   auto using no_init. lia.
 Qed.
 
@@ -127,13 +125,13 @@ Lemma noinit_subst : forall ad x tx t,
   no_init ad <{[x := tx] t}>.
 Proof.
   intros. induction t; invc_noinit;
-  simpl in *; try destruct str_eq_dec; eauto using no_init.
+  simpl in *; try destruct _str_eq_dec; auto using no_init.
 Qed.
 
 (* preservation ------------------------------------------------------------ *)
 
 Local Ltac solve_noinit_preservation :=
-  intros; ind_tstep; repeat invc_noinit; eauto using noinit_subst, no_init.
+  intros; ind_tstep; repeat invc_noinit; auto using noinit_subst, no_init.
 
 Lemma noinit_preservation_none : forall ad t1 t2,
   no_init ad t1 ->
@@ -204,7 +202,7 @@ Definition no_inits (t : tm) := forall ad, no_init ad t.
 (* inversion --------------------------------------------------------------- *)
 
 Local Ltac solve_inv_noinits :=
-  unfold no_inits; intros; try split; intros; aspecialize; invc_noinit; eauto.
+  unfold no_inits; intros; try split; intros; spec; invc_noinit; auto.
 
 Local Lemma inv_noinits_fun : forall x Tx t,
   no_inits <{fn x Tx t}> -> no_inits t.
@@ -230,8 +228,8 @@ Local Lemma inv_noinits_asg : forall t1 t2,
   no_inits <{t1 := t2}> -> no_inits t1 /\ no_inits t2.
 Proof. solve_inv_noinits. Qed.
 
-Local Lemma inv_noinits_acq : forall t1 t2,
-  no_inits <{acq t1 t2}> -> no_inits t1 /\ no_inits t2.
+Local Lemma inv_noinits_acq : forall t1 x t2,
+  no_inits <{acq t1 x t2}> -> no_inits t1 /\ no_inits t2.
 Proof. solve_inv_noinits. Qed.
 
 Local Lemma inv_noinits_cr : forall ad t,
@@ -251,10 +249,10 @@ Ltac invc_noinits :=
   | H : no_inits <{call _ _    }> |- _ => eapply inv_noinits_call  in H as [? ?]
   | H : no_inits <{& _ : _     }> |- _ => clear H
   | H : no_inits <{new _ : _   }> |- _ => eapply inv_noinits_new   in H
-  | H : no_inits <{init _ _ : _}> |- _ => eapply inv_noinits_init  in H; eauto
+  | H : no_inits <{init _ _ : _}> |- _ => eapply inv_noinits_init  in H; auto
   | H : no_inits <{* _         }> |- _ => eapply inv_noinits_load  in H
   | H : no_inits <{_ := _      }> |- _ => eapply inv_noinits_asg   in H as [? ?]
-  | H : no_inits <{acq _ _     }> |- _ => eapply inv_noinits_acq   in H as [? ?]
+  | H : no_inits <{acq _ _ _   }> |- _ => eapply inv_noinits_acq   in H as [? ?]
   | H : no_inits <{cr _ _      }> |- _ => eapply inv_noinits_cr    in H
   | H : no_inits <{spawn _     }> |- _ => eapply inv_noinits_spawn in H
   end.
@@ -291,6 +289,6 @@ Corollary noinits_subst : forall x tx t,
   no_inits tx ->
   no_inits <{[x := tx] t}>.
 Proof.
-  intros ** ?. eauto using noinit_subst.
+  intros ** ?. auto using noinit_subst.
 Qed.
 

@@ -1,11 +1,13 @@
 From Coq Require Import Lia.
 
 From Elo Require Import Core.
-From Elo Require Import Properties1.
 
+From Elo Require Import ValidAddresses.
 From Elo Require Import NoRef.
-From Elo Require Import NoUninitRefs.
+From Elo Require Import NoInit.
+From Elo Require Import ValidBlocks.
 From Elo Require Import OneInit.
+From Elo Require Import NoUninitRefs.
 
 (* ------------------------------------------------------------------------- *)
 (* unique-initializers                                                       *)
@@ -24,9 +26,8 @@ Corollary noinit_or_oneinit_from_ui : forall ad m ths tid,
   no_init ad ths[tid] \/ one_init ad ths[tid].
 Proof.
   intros * Had Hui. specialize (Hui ad Had) as [? Hnone].
-  destruct (alt_opt_dec m[ad].t); aspecialize; eauto.
-  specialize Hnone as [tid' [? ?]].
-  destruct (nat_eq_dec tid' tid); subst; eauto.
+  opt_dec (m[ad].t); spec; auto.
+  specialize Hnone as [tid' [? ?]]. nat_eq_dec tid' tid; auto.
 Qed.
 
 Corollary ui_oneinit_contradiction : forall ad m ths tid1 tid2,
@@ -39,10 +40,10 @@ Corollary ui_oneinit_contradiction : forall ad m ths tid1 tid2,
   False.
 Proof.
   intros * Hui Had **. specialize (Hui ad Had) as [? Hnone].
-  destruct (alt_opt_dec m[ad].t); aspecialize;
+  opt_dec (m[ad].t); spec;
   eauto using noinit_oneinit_contradiction.
   specialize Hnone as [tid [? ?]].
-  destruct (nat_eq_dec tid1 tid), (nat_eq_dec tid2 tid); subst;
+  nat_eq_dec tid1 tid; nat_eq_dec tid2 tid;
   eauto using noinit_oneinit_contradiction.
 Qed.
 
@@ -58,7 +59,7 @@ Local Lemma ui_preservation_none : forall m ths tid t,
 Proof.
   intros until 1.
   intros ? Hui ? ad Had. specialize (Hui ad Had) as [Hfall Hfone].
-  split; intros; aspecialize.
+  split; intros; spec.
   - intros ?. omicron; eauto using noinit_preservation_none.
   - specialize Hfone as [tid' [? ?]]. exists tid'. split; intros; omicron;
     eauto using noinit_preservation_none, oneinit_preservation_none.
@@ -75,7 +76,7 @@ Proof.
   intros until 1.
   intros ? Hui ? ad Had. omicron.
   - specialize (Hui ad) as [Hfall Hfone]; trivial.
-    split; intros; upsilon; aspecialize.
+    split; intros; upsilon; spec.
     + intros ?. omicron; eauto using noinit_preservation_alloc.
     + specialize Hfone as [tid' [? ?]]. exists tid'.
       assert (ad < #m) by eauto using oneinit_ad_bound.
@@ -97,11 +98,10 @@ Local Lemma ui_preservation_insert : forall m ths tid t ad te,
 Proof.
   intros until 2.
   intros ? Hui ? ad' Had'. sigma. specialize (Hui ad' Had') as [Hfall Hfone].
-  assert (ad < #m) by eauto using vad_insert_addr.
-  destruct (alt_opt_dec m[ad'].t); aspecialize; split; intros.
+  assert (ad < #m) by eauto using vad_insert_address.
+  opt_dec (m[ad'].t); spec; split; intros.
   - specialize Hfone as [tid'' [? ?]].
-    intros tid'. repeat omicron;
-    destruct (nat_eq_dec tid'' tid'); subst;
+    intros tid'. repeat omicron; nat_eq_dec tid'' tid';
     eauto using oneinit_to_noinit;
     exfalso; eauto using noinit_insert_contradiction.
   - specialize Hfone as [tid'' [? ?]].
@@ -123,7 +123,7 @@ Local Lemma ui_preservation_read : forall m ths tid t ad te,
 Proof.
   intros until 1.
   intros ? Hui ? ad' Had'. specialize (Hui ad' Had') as [Hfall Hfone].
-  split; intros; upsilon; aspecialize.
+  split; intros; upsilon; spec.
   - intros ?. omicron; eauto using noinit_preservation_read.
   - specialize Hfone as [tid' [? ?]]. exists tid'.
     split; intros; omicron;
@@ -142,9 +142,9 @@ Local Lemma ui_preservation_write : forall m ths tid t ad te,
 Proof.
   intros until 2. intros Hnur.
   intros ? Hui ? ad' Had'. sigma. specialize (Hui ad' Had') as [Hfall Hfone].
-  assert (ad < #m) by eauto using vad_write_addr.
-  split; intros; repeat omicron; try discriminate; try aspecialize.
-  - destruct (alt_opt_dec m[ad'].t) as [Hmad' | Hmad']; aspecialize.
+  assert (ad < #m) by eauto using vad_write_address.
+  split; intros; repeat omicron; try discriminate; try spec.
+  - destruct (_opt_dec m[ad'].t) as [Hmad' | Hmad']; spec.
     + destruct (Hnur ad' Hmad').
       exfalso. eauto using noref_write_contradiction.
     + intros ?. omicron; eauto using noinit_preservation_write.
@@ -163,7 +163,7 @@ Local Lemma ui_preservation_acq : forall m ths tid ad t te,
 Proof.
   intros until 1.
   intros ? Hui ? ad' Had'. sigma. specialize (Hui ad' Had') as [Hfall Hfone].
-  split; intros; upsilon; aspecialize.
+  split; intros; upsilon; spec.
   - intros ?. omicron; eauto using noinit_preservation_acq.
   - specialize Hfone as [tid' [? ?]]. exists tid'.
     split; intros; omicron;
@@ -178,7 +178,7 @@ Local Lemma ui_preservation_rel : forall m ths tid ad t,
 Proof.
   intros *.
   intros ? Hui ? ad' Had'. sigma. specialize (Hui ad' Had') as [Hfall Hfone].
-  split; intros; upsilon; aspecialize.
+  split; intros; upsilon; spec.
   - intros ?. omicron; eauto using noinit_preservation_rel.
   - specialize Hfone as [tid' [? ?]]. exists tid'.
     split; intros; omicron;
@@ -195,7 +195,7 @@ Local Lemma ui_preservation_spawn : forall m ths tid t te,
 Proof.
   intros until 1.
   intros ? Hui ? ad' Had'. specialize (Hui ad' Had') as [Hfall Hfone].
-  split; intros; upsilon; aspecialize.
+  split; intros; upsilon; spec.
   - intros ?. omicron; try constructor;
     eauto using noinit_preservation_spawn, noinit_preservation_spawned.
   - specialize Hfone as [tid' [? ?]]. exists tid'.

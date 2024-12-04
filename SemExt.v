@@ -21,7 +21,7 @@ Ltac _typeof tt :=
   | H : _ |-- <{init _ _ : _}> is _ |- _ => tt H
   | H : _ |-- <{* _         }> is _ |- _ => tt H
   | H : _ |-- <{_ := _      }> is _ |- _ => tt H
-  | H : _ |-- <{acq _ _     }> is _ |- _ => tt H
+  | H : _ |-- <{acq _ _ _   }> is _ |- _ => tt H
   | H : _ |-- <{cr _ _      }> is _ |- _ => tt H
   | H : _ |-- <{spawn _     }> is _ |- _ => tt H
   end.
@@ -38,16 +38,23 @@ Ltac ind_typeof := match goal with H : _ |-- _ is _ |- _ => induction H end.
 Ltac _tstep tt := match goal with H : _     --[_]-->    _     |- _ => tt H end.
 Ltac _mstep tt := match goal with H : _ / _ ==[_]==>    _ / _ |- _ => tt H end.
 Ltac _cstep tt := match goal with H : _ / _ ~~[_, _]~~> _ / _ |- _ => tt H end.
-Ltac _ustep tt := match goal with H : _ / _ ~~[_]~~>*   _ / _ |- _ => tt H end.
+
+Ltac _ostep tt :=
+  match goal with H : _ / _ / _ /_ ~~[_, _]~~> _ / _ / _ / _ |- _ => tt H end.
+
+Ltac _ustep tt :=
+  match goal with H : _ / _ ~~[_]~~>*   _ / _ |- _ => tt H end.
 
 Ltac inv_tstep := _tstep inv.
 Ltac inv_mstep := _mstep inv.
 Ltac inv_cstep := _cstep inv.
+Ltac inv_ostep := _ostep inv.
 Ltac inv_ustep := _ustep inv.
 
 Ltac invc_tstep := _tstep invc.
 Ltac invc_mstep := _mstep invc.
 Ltac invc_cstep := _cstep invc.
+Ltac invc_ostep := _ostep invc.
 Ltac invc_ustep := _ustep invc.
 
 Ltac ind_tstep :=
@@ -80,13 +87,13 @@ Qed.
 Lemma tm_eq_dec : forall (t1 t2 : tm),
   {t1 = t2} + {t1 <> t2}.
 Proof.
-  intros. decide equality; eauto using nat_eq_dec, str_eq_dec, typ_eq_dec.
+  intros. decide equality; eauto using _nat_eq_dec, _str_eq_dec, typ_eq_dec.
 Qed.
 
 Lemma eff_eq_dec : forall (e1 e2 : eff),
   {e1 = e2} + {e1 <> e2}.
 Proof.
-  intros. decide equality; eauto using nat_eq_dec, typ_eq_dec, tm_eq_dec.
+  intros. decide equality; eauto using _nat_eq_dec, typ_eq_dec, tm_eq_dec.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -116,12 +123,14 @@ Lemma deterministic_typing : forall Gamma t T1 T2,
   T1 = T2.
 Proof.
   intros * Htype1. generalize dependent T2.
-  induction Htype1; intros ? Htype2; inv Htype2; eauto;
+  induction Htype1; intros ? Htype2; inv Htype2; trivial;
   repeat match goal with
-  | IH : forall _, _ |-- ?t is _ -> _, H : _ |-- ?t is _ |- _ =>
+  | IH : forall _, _ |-- ?t is _ -> _
+  , H  : _ |-- ?t is _ |- _ =>
     eapply IH in H; subst
-  end;
-  congruence.
+  end; try congruence.
+  repeat match goal with H : `x&?T1` = `x&?T2` |- _ => invc H end.
+  auto.
 Qed.
 
 Ltac apply_deterministic_typing :=
@@ -141,8 +150,7 @@ Lemma tstep_tid_bound : forall t ths tid e,
   ths[tid] --[e]--> t ->
   tid < #ths.
 Proof.
-  intros. decompose sum (lt_eq_lt_dec tid (#ths)); subst; trivial;
-  sigma; inv_tstep.
+  intros. lt_eq_gt tid (#ths); trivial; sigma; inv_tstep.
 Qed.
 
 Lemma mstep_tid_bound : forall m m' t' ths tid e,
@@ -157,6 +165,46 @@ Lemma cstep_tid_bound : forall m m' ths ths' tid e,
   tid < #ths.
 Proof.
   intros. inv_cstep; trivial.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* context weakening                                                         *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma safe_preserves_inclusion : forall Gamma1 Gamma2,
+  Gamma1 includes Gamma2 ->
+  (safe Gamma1) includes (safe Gamma2).
+Proof.
+  unfold inclusion, safe. intros * H *.
+  destruct (Gamma1 k) eqn:E1; destruct (Gamma2 k) eqn:E2;
+  solve [ intros F; inv F
+        | eapply H in E2; rewrite E1 in E2; inv E2; trivial
+        ].
+Qed.
+
+Lemma update_safe_includes_safe_update : forall Gamma k T,
+  (safe Gamma)[k <== T] includes (safe Gamma[k <== T]).
+Proof.
+  intros ? ? ? k' ? H. unfold safe in H. str_eq_dec k k'.
+  - rewrite lookup_update_eq in *. destruct T; inv H; trivial.
+  - rewrite lookup_update_neq in *; trivial.
+Qed.
+
+Lemma context_weakening : forall Gamma1 Gamma2 t T,
+  Gamma2 |-- t is T ->
+  Gamma1 includes Gamma2 ->
+  Gamma1 |-- t is T.
+Proof.
+  intros. generalize dependent Gamma1.
+  ind_typeof; intros;
+  eauto 6 using type_of, safe_preserves_inclusion, MapInc.update_inclusion.
+Qed.
+
+Corollary context_weakening_empty : forall Gamma t T,
+  empty |-- t is T ->
+  Gamma |-- t is T.
+Proof.
+  intros. eapply (context_weakening _ empty); trivial. discriminate.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -176,8 +224,8 @@ Lemma ctx_eqv_typeof : forall Gamma1 Gamma2 t T,
   Gamma1 |-- t is T ->
   Gamma2 |-- t is T.
 Proof.
-  intros. generalize dependent Gamma2. ind_typeof; intros;
-  eauto using MapEqv.lookup, MapEqv.update_eqv, type_of, ctx_eqv_safe.
+  intros. gendep Gamma2. ind_typeof; intros;
+  eauto 6 using MapEqv.lookup, MapEqv.update_eqv, type_of, ctx_eqv_safe.
 Qed.
 
 Lemma ctx_eqv_safe_lookup : forall Gamma x,
@@ -186,8 +234,6 @@ Lemma ctx_eqv_safe_lookup : forall Gamma x,
 Proof.
   unfold safe. intros * H. rewrite H. reflexivity.
 Qed.
-
-(* ------------------------------------------------------------------------- *)
 
 Lemma empty_eq_safe_empty :
   empty = safe empty.
@@ -198,4 +244,38 @@ Proof. eauto. Qed.
   | H : safe empty |-- _ is _ |- _ => rewrite empty_eq_safe_empty in H
   | _ : _ |- safe empty |-- _ is _ => rewrite empty_eq_safe_empty
   end : core.
+
+(* ------------------------------------------------------------------------- *)
+(* lookup-update on types                                                    *)
+(* ------------------------------------------------------------------------- *)
+
+Corollary safe_safe_lookup_update_eq_some : forall Gamma x T,
+  safe Gamma[x <== `Safe T`] x = Some `Safe T`.
+Proof.
+  intros. unfold safe. rewrite lookup_update_eq. reflexivity.
+Qed.
+
+Corollary safe_refW_lookup_update_eq_none : forall Gamma x T,
+  safe Gamma[x <== `w&T`] x = None.
+Proof.
+  intros. unfold safe. rewrite lookup_update_eq. reflexivity.
+Qed.
+
+Corollary safe_fun_lookup_update_eq_none : forall Gamma x T1 T2,
+  safe Gamma[x <== `T1 --> T2`] x = None.
+Proof.
+  intros. unfold safe. rewrite lookup_update_eq. reflexivity.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* misc. tactics                                                             *)
+(* ------------------------------------------------------------------------- *)
+
+Ltac value_does_not_step :=
+  match goal with
+  | H1 : value ?t
+  , H2 : ?t --[_]--> _
+  |- _ =>
+    solve [invc H1; inv H2]
+  end.
 

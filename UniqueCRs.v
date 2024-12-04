@@ -1,5 +1,15 @@
 From Elo Require Import Core.
-From Elo Require Import Properties1.
+
+From Elo Require Import ValidAddresses.
+(*
+From Elo Require Import NoRef.
+*)
+From Elo Require Import NoCR.
+From Elo Require Import ValidBlocks.
+From Elo Require Import OneCR.
+(*
+From Elo Require Import NoUninitRefs.
+*)
 
 (* ------------------------------------------------------------------------- *)
 (* unique-critical-regions                                                   *)
@@ -16,9 +26,9 @@ Corollary nocr_or_onecr_from_ucr : forall ad m ths tid,
   no_cr ad ths[tid] \/ one_cr ad ths[tid].
 Proof.
   intros * Hucr. specialize (Hucr ad) as [? Htrue].
-  destruct (m[ad].X); aspecialize; eauto.
+  destruct (m[ad].X); spec; eauto.
   specialize Htrue as [tid' [? ?]].
-  destruct (nat_eq_dec tid' tid); subst; eauto.
+  nat_eq_dec tid' tid; auto.
 Qed.
 
 Corollary ucr_onecr_contradiction : forall ad m ths tid1 tid2,
@@ -30,10 +40,10 @@ Corollary ucr_onecr_contradiction : forall ad m ths tid1 tid2,
   False.
 Proof.
   intros * Hucr **. specialize (Hucr ad) as [? Htrue].
-  destruct (m[ad].X); aspecialize;
+  destruct (m[ad].X); spec;
   eauto using nocr_onecr_contradiction.
   specialize Htrue as [tid [? ?]].
-  destruct (nat_eq_dec tid1 tid), (nat_eq_dec tid2 tid); subst;
+  nat_eq_dec tid1 tid; nat_eq_dec tid2 tid;
   eauto using nocr_onecr_contradiction.
 Qed.
 
@@ -49,7 +59,7 @@ Local Lemma ucr_preservation_none : forall m ths tid t,
 Proof.
   intros until 1.
   intros ? Hucr ? ad. specialize (Hucr ad) as [Hfall Hfone].
-  split; intros; aspecialize.
+  split; intros; spec.
   - intros ?. omicron; eauto using nocr_preservation_none.
   - specialize Hfone as [tid' [? ?]]. exists tid'. split; intros; omicron;
     eauto using nocr_preservation_none, onecr_preservation_none.
@@ -63,7 +73,7 @@ Local Lemma ucr_preservation_alloc : forall m ths tid t T,
 Proof.
   intros *.
   intros ? Hucr ? ad. specialize (Hucr ad) as [Hfall Hfone].
-  split; intros; upsilon; aspecialize.
+  split; intros; upsilon; spec.
   - intros ?. omicron; eauto using nocr_preservation_alloc.
   - specialize Hfone as [tid' [? ?]]. exists tid'.
     split; intros; omicron;
@@ -81,8 +91,8 @@ Local Lemma ucr_preservation_insert : forall m ths tid t ad te,
 Proof.
   intros until 2.
   intros ? Hucr ? ad'. specialize (Hucr ad') as [Hfall Hfone].
-  assert (ad < #m) by eauto using vad_insert_addr.
-  split; intros; repeat omicron; aspecialize; upsilon;
+  assert (ad < #m) by eauto using vad_insert_address.
+  split; intros; repeat omicron; spec; upsilon;
   eauto using nocr_preservation_insert;
   specialize Hfone as [tid' [? ?]]; exists tid'; split; intros;
   omicron; eauto using nocr_preservation_insert, onecr_preservation_insert.
@@ -98,7 +108,7 @@ Local Lemma ucr_preservation_read : forall m ths tid t ad te,
 Proof.
   intros until 1.
   intros ? Hucr ? ad'. specialize (Hucr ad') as [Hfall Hfone].
-  split; intros; upsilon; aspecialize.
+  split; intros; upsilon; spec.
   - intros ?. omicron; eauto using nocr_preservation_read.
   - specialize Hfone as [tid' [? ?]]. exists tid'.
     split; intros; omicron;
@@ -116,8 +126,8 @@ Local Lemma ucr_preservation_write : forall m ths tid t ad te,
 Proof.
   intros until 2.
   intros ? Hucr ? ad'. specialize (Hucr ad') as [Hfall Hfone].
-  assert (ad < #m) by eauto using vad_write_addr.
-  split; intros; repeat omicron; aspecialize; upsilon;
+  assert (ad < #m) by eauto using vad_write_address.
+  split; intros; repeat omicron; spec; upsilon;
   eauto using nocr_preservation_write;
   specialize Hfone as [tid' [? ?]]; exists tid'; split; intros;
   omicron; eauto using nocr_preservation_write, onecr_preservation_write.
@@ -135,7 +145,7 @@ Local Lemma ucr_preservation_acq : forall m ths tid ad t te,
 Proof.
   intros until 3.
   intros ? Hucr ? ad'. specialize (Hucr ad') as [Hfall Hfone].
-  split; intros; repeat omicron; aspecialize; upsilon;
+  split; intros; repeat omicron; spec; upsilon;
   eauto using nocr_preservation_acq.
   - exists tid. sigma. split.
     + eauto using nocr_to_onecr.
@@ -156,20 +166,18 @@ Proof.
   intros ? Hucr ? ad'. destruct (Hucr ad') as [Hfall Hfone].
   assert (Had : m[ad].X = true). { (* This is cool *)
     destruct (m[ad].X) eqn:Heq; trivial.
-    specialize (Hucr ad) as [? _]. aspecialize.
+    specialize (Hucr ad) as [? _]. spec.
     exfalso. eauto using nocr_rel_contradiction.
   } 
-  split; intros; try intros tid'; repeat omicron; aspecialize; upsilon;
+  split; intros; try intros tid'; repeat omicron; spec; upsilon;
   eauto using nocr_preservation_rel;
   specialize Hfone as [tid'' [? ?]].
-  - destruct (nat_eq_dec tid'' tid'); subst; eauto using onecr_to_nocr.
+  - nat_eq_dec tid'' tid'; eauto using onecr_to_nocr.
     exfalso. eauto using nocr_rel_contradiction.
-  - destruct (nat_eq_dec tid'' tid'); subst;
-    eauto using nocr_rel_contradiction.
-  - exists tid''.
-    destruct (nat_eq_dec tid'' tid); subst; sigma;
+  - nat_eq_dec tid'' tid'; eauto using nocr_rel_contradiction.
+  - exists tid''. nat_eq_dec tid'' tid; sigma;
     split; eauto using onecr_preservation_rel; intros.
-    + sigma. eauto.
+    + sigma. auto.
     + omicron; eauto using nocr_preservation_rel.
 Qed.
 
@@ -186,7 +194,7 @@ Local Lemma ucr_preservation_spawn : forall m ths tid t te,
 Proof.
   intros until 1.
   intros ? Hucr ? ad'. destruct (Hucr ad') as [Hfall Hfone].
-  split; intros; repeat omicron; aspecialize; upsilon.
+  split; intros; repeat omicron; spec; upsilon.
   - eapply_in_tstep nocr_preservation_spawn; eauto using no_cr.
   - eauto using nocr_preservation_spawned.
   - specialize Hfone as [tid' [? ?]]. exists tid'. omicron;

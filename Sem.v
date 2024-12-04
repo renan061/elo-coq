@@ -45,7 +45,7 @@ Inductive tm : Set :=
   | tm_init  : addr -> tm -> ty -> tm
   | tm_load  : tm   -> tm
   | tm_asg   : tm   -> tm -> tm
-  | tm_acq   : tm   -> tm -> tm
+  | tm_acq   : tm   -> id -> tm -> tm
   | tm_cr    : addr -> tm -> tm
   (* concurrency *)
   | tm_spawn : tm -> tm
@@ -95,7 +95,7 @@ Notation "'init' ad t : T"  := (tm_init ad t T)    (in custom elo_tm at level 0,
 Notation "'*' t"            := (tm_load t)        (in custom elo_tm at level 0).
 Notation "t1 ':=' t2"       := (tm_asg t1 t2)     (in custom elo_tm at level 70,
                                                               no associativity).
-Notation "'acq' t1 t2"      := (tm_acq t1 t2)     (in custom elo_tm at level 0).
+Notation "'acq' t1 x t2"    := (tm_acq t1 x t2)   (in custom elo_tm at level 0).
 Notation "'cr' ad t"        := (tm_cr ad t)       (in custom elo_tm at level 0).
 Notation "'spawn' t"        := (tm_spawn t)       (in custom elo_tm at level 0).
 
@@ -112,6 +112,12 @@ Reserved Notation "m / t '==[' e ']==>' m' / t'" (at level 40,
 
 Reserved Notation "m / ths '~~[' tid , e ']~~>' m' / ths'" (at level 40,
   ths at next level, tid at next level, e at next level, m' at next level).
+
+Reserved Notation "m / ths / o / r '~~[' tid , e ']~~>' m' / ths' / o' / r' "
+  (at level 40,
+    ths at next level, o    at next level, r  at next level,
+    tid at next level, e    at next level,
+    m'  at next level, ths' at next level, o' at next level).
 
 Reserved Notation "m / ths '~~[' tc ']~~>*' m' / ths' " (at level 40,
   ths at next level, tc at next level, m' at next level).
@@ -152,13 +158,13 @@ Inductive cell : Type :=
 
 Notation "'(' t ',' T ',' X ')'" := (cell_triple t T X).
 
-Definition gett (c : cell) := let (t, _, _) := c in t.
-Definition getT (c : cell) := let (_, T, _) := c in T.
-Definition getX (c : cell) := let (_, _, X) := c in X.
+Definition get_cell_t (c : cell) := let (t, _, _) := c in t.
+Definition get_cell_T (c : cell) := let (_, T, _) := c in T.
+Definition get_cell_X (c : cell) := let (_, _, X) := c in X.
 
-Notation " c '.t' " := (gett c) (at level 9).
-Notation " c '.T' " := (getT c) (at level 9).
-Notation " c '.X' " := (getX c) (at level 9).
+Notation " c '.t' " := (get_cell_t c) (at level 9).
+Notation " c '.T' " := (get_cell_T c) (at level 9).
+Notation " c '.X' " := (get_cell_X c) (at level 9).
 
 (* ------------------------------------------------------------------------- *)
 (* aliases                                                                   *)
@@ -169,15 +175,15 @@ Definition mem     := list cell.
 Definition threads := list tm.
 Definition trace   := list (nat * eff).
 
-Notation tm_default   := <{unit}>.
-Notation ty_default   := `Unit`.
-Notation cell_default := (None, ty_default, false).
+Notation tm_default     := <{unit}>.
+Notation ty_default     := `Unit`.
+Notation cell_default   := (None, ty_default, false).
 
 (* ------------------------------------------------------------------------- *)
 (* typing                                                                    *)
 (* ------------------------------------------------------------------------- *)
 
-(* Filters out of the context all variables with non-immutable types. *)
+(* Filters out of the context all variables with types that are not safe. *)
 Definition safe (Gamma : ctx) : ctx :=
   fun k => 
     match Gamma k with
@@ -227,15 +233,15 @@ Inductive type_of : ctx -> tm -> ty -> Prop :=
     Gamma |-- <{new t : w&T}> is `w&T`
 
   | T_initR : forall Gamma ad t T,
-    empty |-- t is `Safe T` ->
+    Gamma |-- t is `Safe T` ->
     Gamma |-- <{init ad t : r&T}> is `r&T`
 
   | T_initX : forall Gamma ad t T,
-    empty |-- t is T ->
+    Gamma |-- t is T ->
     Gamma |-- <{init ad t : x&T}> is `x&T`
 
   | T_initW : forall Gamma ad t T,
-    empty |-- t is T ->
+    Gamma |-- t is T ->
     Gamma |-- <{init ad t : w&T}> is `w&T`
 
   | T_loadR : forall Gamma t T,
@@ -251,14 +257,14 @@ Inductive type_of : ctx -> tm -> ty -> Prop :=
     Gamma |-- t2 is T ->
     Gamma |-- <{t1 := t2}> is `Unit`
 
-  | T_acq : forall Gamma t1 t2 T1 T2,
-    Gamma |-- t1 is `x&T1` ->
-    safe Gamma |-- t2 is `T1 --> Safe T2` ->
-    Gamma |-- <{acq t1 t2}> is `Safe T2`
+  | T_acq : forall Gamma t1 x t2 Tx T,
+    Gamma |-- t1 is `x&Tx` ->
+    (safe Gamma)[x <== Tx] |-- t2 is `Safe T` ->
+    Gamma |-- <{acq t1 x t2}> is `Safe T`
 
   | T_cr : forall Gamma ad t T,
-    empty |-- t is T ->
-    Gamma |-- <{cr ad t}> is T
+    Gamma |-- t is `Safe T` -> (* TODO: ask why not empty? same with init *)
+    Gamma |-- <{cr ad t}> is `Safe T` (* TODO: can I leave this? *)
 
   | T_spawn : forall Gamma t T,
     safe Gamma |-- t is T ->
@@ -287,10 +293,12 @@ Fixpoint subst (x : id) (tx t : tm) : tm :=
   | <{init ad t' : T}> => <{init ad ([x := tx] t') : T}>
   | <{*t'           }> => <{* ([x := tx] t')}>
   | <{t1 := t2      }> => <{([x := tx] t1) := ([x := tx] t2)}>
-  | <{acq t1 t2     }> => <{acq ([x := tx] t1) ([x := tx] t2)}>
+  | <{acq t1 x' t2  }> => if x =? x'
+                            then <{acq ([x := tx] t1) x' t2            }>
+                            else <{acq ([x := tx] t1) x' ([x := tx] t2)}>
   | <{cr ad t'      }> => <{cr ad ([x := tx] t')}>
   (* concurrency *)
-  | <{spawn t'       }> => <{spawn ([x := tx] t')}>
+  | <{spawn t'      }> => <{spawn ([x := tx] t')}>
   end
   where "'[' x ':=' tx ']' t" := (subst x tx t) (in custom elo_tm).
 
@@ -349,17 +357,12 @@ Inductive tstep : tm -> eff -> tm -> Prop :=
     <{&ad : T := t}> --[e_write ad t]--> <{unit}>
 
   (* acq *)
-  | ts_acq1 : forall t1 t1' t2 e,
+  | ts_acq1 : forall t1 t1' x t2 e,
     t1 --[e]--> t1' ->
-    <{acq t1 t2}> --[e]--> <{acq t1' t2}>
+    <{acq t1 x t2}> --[e]--> <{acq t1' x t2}>
 
-  | ts_acq2 : forall t1 t2 t2' e,
-    value t1 ->
-    t2 --[e]--> t2' ->
-    <{acq t1 t2}> --[e]--> <{acq t1 t2'}>
-
-  | ts_acq : forall ad T x Tx t tx,
-    <{acq (&ad : T) (fn x Tx t)}> --[e_acq ad tx]--> <{cr ad ([x := tx] t)}>
+  | ts_acq : forall ad T x t tx,
+    <{acq (&ad : T) x t}> --[e_acq ad tx]--> <{cr ad ([x := tx] t)}>
 
   (* cr *)
   | ts_cr1 : forall ad t t' e,
@@ -441,7 +444,7 @@ Inductive mstep : mem -> tm -> eff -> mem -> tm -> Prop :=
   where "m / t '==[' e ']==>' m' / t'" := (mstep m t e m' t').
 
 (* ------------------------------------------------------------------------- *)
-(* operational semantics -- step                                             *)
+(* operational semantics -- concurrent step                                  *)
 (* ------------------------------------------------------------------------- *)
 
 Notation " ths '[' tid ']' " := (ths[tid] or tm_default)
@@ -453,12 +456,87 @@ Inductive cstep : mem -> threads -> nat -> eff -> mem -> threads -> Prop :=
     m1 / ths[tid] ==[e]==> m2 / t ->
     m1 / ths ~~[tid, e]~~> m2 / ths[tid <- t]
 
-  | cs_spawn : forall m t te ths tid e,
+  | cs_spawn : forall m t te ths tid,
     tid < #ths ->
     ths[tid] --[e_spawn (#ths) te]--> t ->
-    m / ths ~~[tid, e]~~> m / (ths[tid <- t] +++ te)
+    m / ths ~~[tid, e_spawn (#ths) te]~~> m / (ths[tid <- t] +++ te)
 
   where "m / ths '~~[' tid , e ']~~>' m' / ths'" := (cstep m ths tid e m' ths').
+
+(* ------------------------------------------------------------------------- *)
+(* operational semantics -- ownership step                                   *)
+(* ------------------------------------------------------------------------- *)
+
+Inductive owner : Set :=
+  | o_none
+  | o_thread  : nat  -> owner
+  | o_monitor : addr -> owner
+  .
+
+Definition stack := list.
+
+Definition regions : Type := list (stack addr). (* #regions = #threads *)
+Definition owners  : Type := list owner.        (* #owners  = #mem     *)
+
+Definition regions_peek (r : regions) (tid : nat) : owner :=
+  match r[tid] or nil with
+  | nil     => o_thread tid
+  | ad :: _ => o_monitor ad
+  end.
+
+Definition regions_push (r : regions) (tid : nat) (ad : addr) :=
+  r[tid <- (ad :: r[tid] or nil)].
+
+Definition regions_pop (r : regions) (tid : nat) :=
+  r[tid <- tail (r[tid] or nil)].
+
+Inductive ostep : mem -> threads -> owners -> regions ->
+                  nat -> eff     ->
+                  mem -> threads -> owners -> regions ->
+                  Prop :=
+
+  | os_none : forall m1 m2 ths1 ths2 o r tid e,
+    e = e_none ->
+    m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+    m1 / ths1 / o / r ~~[tid, e]~~> m2 / ths2 / o / r
+
+  | os_alloc : forall m1 m2 ths1 ths2 o r tid e ad T,
+    e = e_alloc ad T ->
+    m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+    m1 / ths1 / o / r ~~[tid, e]~~> m2 / ths2 / (o +++ (regions_peek r tid)) / r
+
+  | os_insert : forall m1 m2 ths1 ths2 o r tid e ad t,
+    e = e_insert ad t ->
+    m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+    m1 / ths1 / o / r ~~[tid, e]~~> m2 / ths2 / o / r
+
+  | os_read : forall m1 m2 ths1 ths2 o r tid e ad t,
+    e = e_read ad t ->
+    m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+    m1 / ths1 / o / r ~~[tid, e]~~> m2 / ths2 / o / r
+
+  | os_write : forall m1 m2 ths1 ths2 o r tid e ad t,
+    e = e_write ad t ->
+    m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+    m1 / ths1 / o / r ~~[tid, e]~~> m2 / ths2 / o / r
+
+  | os_acq : forall m1 m2 ths1 ths2 o r tid e ad t,
+    e = e_acq ad t ->
+    m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+    m1 / ths1 / o / r ~~[tid, e]~~> m2 / ths2 / o / (regions_push r tid ad)
+
+  | os_rel : forall m1 m2 ths1 ths2 o r tid e ad,
+    e = e_rel ad ->
+    m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+    m1 / ths1 / o / r ~~[tid, e]~~> m2 / ths2 / o / (regions_pop r tid)
+
+  | os_spawn : forall m1 m2 ths1 ths2 o r tid e tid' t,
+    e = e_spawn tid' t ->
+    m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+    m1 / ths1 / o / r ~~[tid, e]~~> m2 / ths2 / o / (r +++ nil)
+
+  where "m / ths / o / r '~~[' tid , e ']~~>' m' / ths' / o' / r'" :=
+    (ostep m ths o r tid e m' ths' o' r').
 
 (* ------------------------------------------------------------------------- *)
 (* multistep                                                                 *)

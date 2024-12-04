@@ -1,6 +1,6 @@
 From Elo Require Import Core.
-From Elo Require Import Properties1.
 
+From Elo Require Import ValidAddresses.
 From Elo Require Import NoRef.
 
 (* ------------------------------------------------------------------------- *)
@@ -31,7 +31,7 @@ Local Ltac simpl_nur :=
     | _ : _ --[e_insert ?ad _]--> _ |- _ => assert (ad < #m)
     | _ : _ --[e_write  ?ad _]--> _ |- _ => assert (ad < #m)
     end;
-    eauto using vad_insert_addr, vad_write_addr
+    eauto using vad_insert_address, vad_write_address
   end;
   upsilon;
   match goal with
@@ -60,56 +60,56 @@ Proof.
   simpl_nur. eauto using noref_preservation_alloc.
 Qed.
 
-Lemma nur_preservation_insert : forall m ths tid t ad te,
+Lemma nur_preservation_insert : forall m ths tid t ad' t',
   forall_threads ths (valid_addresses m) ->
   (* --- *)
   no_uninitialized_references m ths ->
-  ths[tid] --[e_insert ad te]--> t ->
-  no_uninitialized_references m[ad.t <- te] ths[tid <- t].
+  ths[tid] --[e_insert ad' t']--> t ->
+  no_uninitialized_references m[ad'.t <- t'] ths[tid <- t].
 Proof.
   simpl_nur. eauto using noref_insert_term, noref_preservation_insert.
 Qed.
 
-Lemma nur_preservation_read : forall m ths tid t ad te,
-  m[ad].t = Some te ->
+Lemma nur_preservation_read : forall m ths tid t ad' t',
+  m[ad'].t = Some t' ->
   no_uninitialized_references m ths ->
-  ths[tid] --[e_read ad te]--> t ->
+  ths[tid] --[e_read ad' t']--> t ->
   no_uninitialized_references m ths[tid <- t].
 Proof.
   simpl_nur. eauto using noref_preservation_read.
 Qed.
 
-Lemma nur_preservation_write : forall m ths tid t ad te,
+Lemma nur_preservation_write : forall m ths tid t ad' t',
   forall_threads ths (valid_addresses m) ->
   (* --- *)
   no_uninitialized_references m ths ->
-  ths[tid] --[e_write ad te]--> t ->
-  no_uninitialized_references m[ad.t <- te] ths[tid <- t].
+  ths[tid] --[e_write ad' t']--> t ->
+  no_uninitialized_references m[ad'.t <- t'] ths[tid <- t].
 Proof.
   simpl_nur. eauto using noref_write_term, noref_preservation_write.
 Qed.
 
-Lemma nur_preservation_acq : forall m ths tid t ad te,
-  m[ad].t = Some te ->
+Lemma nur_preservation_acq : forall m ths tid t ad' t',
+  m[ad'].t = Some t' ->
   no_uninitialized_references m ths ->
-  ths[tid] --[e_acq ad te]--> t ->
-  no_uninitialized_references m[ad.X <- true] ths[tid <- t].
+  ths[tid] --[e_acq ad' t']--> t ->
+  no_uninitialized_references m[ad'.X <- true] ths[tid <- t].
 Proof.
   simpl_nur. eauto using noref_preservation_acq.
 Qed.
 
-Lemma nur_preservation_rel : forall m ths tid t ad,
+Lemma nur_preservation_rel : forall m ths tid t ad',
   no_uninitialized_references m ths ->
-  ths[tid] --[e_rel ad]--> t ->
-  no_uninitialized_references m[ad.X <- false] ths[tid <- t].
+  ths[tid] --[e_rel ad']--> t ->
+  no_uninitialized_references m[ad'.X <- false] ths[tid <- t].
 Proof.
   simpl_nur. eauto using noref_preservation_rel.
 Qed.
 
-Lemma nur_preservation_spawn : forall m ths tid t te,
+Lemma nur_preservation_spawn : forall m ths tid t t',
   no_uninitialized_references m ths ->
-  ths[tid] --[e_spawn (#ths) te]--> t ->
-  no_uninitialized_references m (ths[tid <- t] +++ te).
+  ths[tid] --[e_spawn (#ths) t']--> t ->
+  no_uninitialized_references m (ths[tid <- t] +++ t').
 Proof.
   simpl_nur. eauto using noref_preservation_spawn, noref_preservation_spawned.
 Qed.

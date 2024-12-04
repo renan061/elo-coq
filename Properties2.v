@@ -5,6 +5,7 @@ From Elo Require Export UniqueInits.
 From Elo Require Export UniqueCRs.
 From Elo Require Export ConsistentInits.
 From Elo Require Export ConsistentRefs.
+From Elo Require Export ValidSpawns.
 From Elo Require Export Soundness.
 From Elo Require Export InitCR.
 

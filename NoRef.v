@@ -1,5 +1,4 @@
 From Elo Require Import Core.
-From Elo Require Import Properties1.
 
 (* ------------------------------------------------------------------------- *)
 (* no-ref                                                                    *)
@@ -25,9 +24,9 @@ Inductive no_ref (ad : addr) : tm -> Prop :=
   | noref_asg   : forall t1 t2,   no_ref ad t1 ->
                                   no_ref ad t2 ->
                                   no_ref ad <{t1 := t2      }>
-  | noref_acq   : forall t1 t2,   no_ref ad t1 ->
+  | noref_acq   : forall t1 x t2, no_ref ad t1 ->
                                   no_ref ad t2 ->
-                                  no_ref ad <{acq t1 t2     }>
+                                  no_ref ad <{acq t1 x t2   }>
   | noref_cr    : forall ad' t,   no_ref ad t  ->
                                   no_ref ad <{cr ad' t      }>
   | noref_spawn : forall t,       no_ref ad t ->
@@ -43,13 +42,13 @@ Local Ltac _noref tt :=
   | H : no_ref _   <{var _       }> |- _ => clear H
   | H : no_ref _   <{fn _ _ _    }> |- _ => tt H
   | H : no_ref _   <{call _ _    }> |- _ => tt H
-  | H : no_ref ?ad <{& ?ad : _   }> |- _ => invc H; eauto
+  | H : no_ref ?ad <{& ?ad : _   }> |- _ => invc H; auto
   | H : no_ref _   <{&_ : _      }> |- _ => tt H
   | H : no_ref _   <{new _ : _   }> |- _ => tt H
   | H : no_ref _   <{init _ _ : _}> |- _ => tt H
   | H : no_ref _   <{* _         }> |- _ => tt H
   | H : no_ref _   <{_ := _      }> |- _ => tt H
-  | H : no_ref _   <{acq _ _     }> |- _ => tt H
+  | H : no_ref _   <{acq _ _ _   }> |- _ => tt H
   | H : no_ref _   <{cr _ _      }> |- _ => tt H
   | H : no_ref _   <{spawn _     }> |- _ => tt H
   end.
@@ -64,7 +63,7 @@ Lemma noref_insert_term : forall m t1 t2 ad t,
   t1 --[e_insert ad t]--> t2 ->
   no_ref m t.
 Proof.
-  intros. ind_tstep; invc_noref; eauto.
+  intros. ind_tstep; invc_noref; auto.
 Qed.
 
 Lemma noref_write_term : forall m t1 t2 ad t,
@@ -72,7 +71,7 @@ Lemma noref_write_term : forall m t1 t2 ad t,
   t1 --[e_write ad t]--> t2 ->
   no_ref m t.
 Proof.
-  intros. ind_tstep; invc_noref; eauto.
+  intros. ind_tstep; invc_noref; auto.
 Qed.
 
 Lemma noref_write_contradiction : forall t1 t2 ad t,
@@ -80,7 +79,7 @@ Lemma noref_write_contradiction : forall t1 t2 ad t,
   t1 --[e_write ad t]--> t2 ->
   False.
 Proof.
-  intros. ind_tstep; repeat invc_noref; eauto.
+  intros. ind_tstep; repeat invc_noref; auto.
 Qed.
 
 Lemma noref_acq_contradiction : forall t1 t2 ad t,
@@ -88,7 +87,7 @@ Lemma noref_acq_contradiction : forall t1 t2 ad t,
   t1 --[e_acq ad t]--> t2 ->
   False.
 Proof.
-  intros. ind_tstep; repeat invc_noref; eauto.
+  intros. ind_tstep; repeat invc_noref; auto.
 Qed.
 
 (* preservation lemmas ----------------------------------------------------- *)
@@ -99,13 +98,13 @@ Lemma noref_subst : forall ad x tx t,
   no_ref ad <{[x := tx] t}>.
 Proof. 
   intros. induction t; invc_noref;
-  simpl in *; try destruct str_eq_dec; eauto using no_ref.
+  simpl in *; try destruct _str_eq_dec; auto using no_ref.
 Qed.
 
 (* preservation ------------------------------------------------------------ *)
 
 Local Ltac solve_noref_preservation :=
-  intros; ind_tstep; repeat invc_noref; eauto using noref_subst, no_ref.
+  intros; ind_tstep; repeat invc_noref; auto using noref_subst, no_ref.
 
 Lemma noref_preservation_none : forall ad t1 t2,
   no_ref ad t1 ->

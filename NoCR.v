@@ -1,3 +1,5 @@
+From Coq Require Import Lia.
+
 From Elo Require Import Core.
 
 From Elo Require Import ValidAddresses.
@@ -25,9 +27,9 @@ Inductive no_cr (ad : addr) : tm -> Prop :=
   | nocr_asg   : forall t1 t2,   no_cr ad t1 ->
                                  no_cr ad t2 ->
                                  no_cr ad <{t1 := t2      }>
-  | nocr_acq   : forall t1 t2,   no_cr ad t1 ->
+  | nocr_acq   : forall t1 x t2, no_cr ad t1 ->
                                  no_cr ad t2 ->
-                                 no_cr ad <{acq t1 t2     }>
+                                 no_cr ad <{acq t1 x t2   }>
   | nocr_cr    : forall ad' t,   ad <> ad'   ->
                                  no_cr ad t  ->
                                  no_cr ad <{cr ad' t      }>
@@ -49,8 +51,8 @@ Local Ltac _nocr tt :=
   | H : no_cr _   <{init _ _ : _}> |- _ => tt H
   | H : no_cr _   <{* _         }> |- _ => tt H
   | H : no_cr _   <{_ := _      }> |- _ => tt H
-  | H : no_cr _   <{acq _ _     }> |- _ => tt H
-  | H : no_cr ?ad <{cr ?ad _    }> |- _ => invc H; eauto
+  | H : no_cr _   <{acq _ _ _   }> |- _ => tt H
+  | H : no_cr ?ad <{cr ?ad _    }> |- _ => invc H; auto
   | H : no_cr _   <{cr _ _      }> |- _ => tt H
   | H : no_cr _   <{spawn _     }> |- _ => tt H
   end.
@@ -68,11 +70,21 @@ Proof.
   intros. ind_tstep; invc_nocr; auto.
 Qed.
 
-Lemma nocr_from_vad : forall m t,
+Lemma nocr_from_vad1 : forall m t,
   valid_addresses m t ->
   no_cr (#m) t.
 Proof.
   intros. induction t; invc_vad; auto using no_cr.
+Qed.
+
+Lemma nocr_from_vad2 : forall ad m t,
+  valid_addresses m t ->
+  #m < ad ->
+  no_cr ad t.
+Proof.
+  intros. induction t; invc_vad; auto using no_cr.
+  match goal with |- no_cr ?ad1 <{cr ?ad2 _}> => nat_eq_dec ad1 ad2 end;
+  auto using no_cr. lia.
 Qed.
 
 (* preservation lemmas ----------------------------------------------------- *)
@@ -82,15 +94,14 @@ Lemma nocr_subst : forall ad x tx t,
   no_cr ad tx ->
   no_cr ad <{[x := tx] t}>.
 Proof.
-  intros. induction t; simpl in *; trivial;
-  try (destruct str_eq_dec; subst); trivial;
-  invc_nocr; eauto using no_cr.
+  intros. induction t; simpl; try destruct _str_eq_dec;
+  invc_nocr; auto using no_cr.
 Qed.
 
 (* preservation ------------------------------------------------------------ *)
 
 Local Ltac solve_nocr_preservation :=
-  intros; ind_tstep; repeat invc_nocr; eauto using nocr_subst, no_cr.
+  intros; ind_tstep; repeat invc_nocr; auto using nocr_subst, no_cr.
 
 Lemma nocr_preservation_none : forall t1 t2 ad,
   no_cr ad t1 ->
@@ -161,8 +172,7 @@ Definition no_crs (t : tm) := forall ad, no_cr ad t.
 (* inversion --------------------------------------------------------------- *)
 
 Local Ltac solve_inv_nocrs :=
-  unfold no_crs; intros * H; try split;
-  intros **; auto_specialize; invc_nocr; eauto.
+  unfold no_crs; intros * H; try split; intros; spec; invc_nocr; auto.
 
 Local Lemma inv_nocrs_fun : forall x Tx t,
   no_crs <{fn x Tx t}> -> no_crs t.
@@ -188,8 +198,8 @@ Local Lemma inv_nocrs_asg : forall t1 t2,
   no_crs <{t1 := t2}> -> no_crs t1 /\ no_crs t2.
 Proof. solve_inv_nocrs. Qed.
 
-Local Lemma inv_nocrs_acq : forall t1 t2,
-  no_crs <{acq t1 t2}> -> no_crs t1 /\ no_crs t2.
+Local Lemma inv_nocrs_acq : forall t1 x t2,
+  no_crs <{acq t1 x t2}> -> no_crs t1 /\ no_crs t2.
 Proof. solve_inv_nocrs. Qed.
 
 Local Lemma inv_nocrs_cr : forall ad t,
@@ -212,8 +222,8 @@ Ltac invc_nocrs :=
   | H : no_crs <{init _ _ : _}> |- _ => eapply inv_nocrs_init   in H
   | H : no_crs <{* _         }> |- _ => eapply inv_nocrs_load   in H
   | H : no_crs <{_ := _      }> |- _ => eapply inv_nocrs_asg    in H as [? ?]
-  | H : no_crs <{acq _ _     }> |- _ => eapply inv_nocrs_acq    in H as [? ?]
-  | H : no_crs <{cr _ _      }> |- _ => eapply inv_nocrs_cr     in H; eauto
+  | H : no_crs <{acq _ _ _   }> |- _ => eapply inv_nocrs_acq    in H as [? ?]
+  | H : no_crs <{cr _ _      }> |- _ => eapply inv_nocrs_cr     in H; auto
   | H : no_crs <{spawn _     }> |- _ => eapply inv_nocrs_spawn  in H
   end.
 
@@ -223,7 +233,7 @@ Corollary nocr_from_nocrs : forall ad t,
   no_crs t ->
   no_cr ad t.
 Proof.
-  unfold no_crs. auto.
+  unfold no_crs. trivial.
 Qed.
 
 (* preservation lemmas ----------------------------------------------------- *)
@@ -233,6 +243,6 @@ Corollary nocrs_subst : forall x tx t,
   no_crs tx ->
   no_crs <{[x := tx] t}>.
 Proof.
-  intros ** ?. eauto using nocr_subst.
+  intros ** ?. auto using nocr_subst.
 Qed.
 

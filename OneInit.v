@@ -3,7 +3,7 @@ From Elo Require Import Core.
 From Elo Require Import ValidAddresses.
 From Elo Require Import NoInit.
 From Elo Require Import ValidBlocks.
-From Elo Require Import Inheritance1.
+From Elo Require Import InheritanceNoInit.
 
 (* ------------------------------------------------------------------------- *)
 (* one-init                                                                  *)
@@ -31,12 +31,12 @@ Inductive one_init (ad : addr) : tm -> Prop :=
   | oneinit_asg2     : forall t1 t2,   no_init  ad t1 ->
                                        one_init ad t2 ->
                                        one_init ad <{t1 := t2      }>
-  | oneinit_acq1     : forall t1 t2,   one_init ad t1 ->
+  | oneinit_acq1     : forall t1 x t2, one_init ad t1 ->
                                        no_init  ad t2 ->
-                                       one_init ad <{acq t1 t2     }>
-  | oneinit_acq2     : forall t1 t2,   no_init  ad t1 ->
+                                       one_init ad <{acq t1 x t2   }>
+  | oneinit_acq2     : forall t1 x t2, no_init  ad t1 ->
                                        one_init ad t2 ->
-                                       one_init ad <{acq t1 t2     }>
+                                       one_init ad <{acq t1 x t2   }>
   | oneinit_cr       : forall ad' t,   one_init ad t  ->
                                        one_init ad <{cr ad' t      }>
   .
@@ -55,7 +55,7 @@ Local Ltac _oneinit tt :=
   | H : one_init _ <{init _ _ : _}> |- _ => tt H
   | H : one_init _ <{* _         }> |- _ => tt H
   | H : one_init _ <{_ := _      }> |- _ => tt H
-  | H : one_init _ <{acq _ _     }> |- _ => tt H
+  | H : one_init _ <{acq _ _ _   }> |- _ => tt H
   | H : one_init _ <{cr _ _      }> |- _ => tt H
   | H : one_init _ <{spawn _     }> |- _ => inv H
   end.
@@ -71,7 +71,7 @@ Lemma oneinit_ad_bound : forall ad m t,
   one_init ad t ->
   ad < #m.
 Proof.
-  intros. induction t; invc_vad; invc_oneinit; eauto.
+  intros. induction t; invc_vad; invc_oneinit; auto.
 Qed.
 
 Lemma noinit_oneinit_contradiction : forall ad t,
@@ -79,7 +79,7 @@ Lemma noinit_oneinit_contradiction : forall ad t,
   one_init ad t ->
   False.
 Proof.
-  intros * H ?. induction t; invc_noinit; invc_oneinit; eauto.
+  intros. induction t; invc_noinit; invc_oneinit; auto.
 Qed.
 
 Corollary noinits_oneinit_contradiction : forall ad t,
@@ -95,7 +95,7 @@ Lemma noinit_to_oneinit : forall t1 t2 ad T,
   t1 --[e_alloc ad T]--> t2 ->
   one_init ad t2.
 Proof.
-  intros. ind_tstep; invc_noinit; eauto using one_init.
+  intros. ind_tstep; invc_noinit; auto using one_init.
 Qed.
 
 Lemma oneinit_to_noinit : forall t1 t2 ad t,
@@ -103,7 +103,7 @@ Lemma oneinit_to_noinit : forall t1 t2 ad t,
   t1 --[e_insert ad t]--> t2 ->
   no_init ad t2.
 Proof.
-  intros. ind_tstep; invc_oneinit; eauto using no_init;
+  intros. ind_tstep; invc_oneinit; auto using no_init;
   exfalso; eauto using noinit_insert_contradiction.
 Qed.
 
@@ -114,14 +114,15 @@ Local Lemma oneinit_subst : forall ad x tx t,
   one_init ad t  ->
   one_init ad <{[x := tx] t}>.
 Proof.
-  intros. induction t; invc_oneinit; eauto using noinit_subst, one_init.
+  intros. induction t; simpl; try destruct _str_eq_dec;
+  invc_oneinit; eauto using noinit_subst, one_init.
 Qed.
 
 (* preservation ------------------------------------------------------------ *)
 
 Local Ltac solve_oneinit_preservation L :=
   intros; ind_tstep; try invc_vb; repeat invc_oneinit;
-  eauto using L, one_init;
+  eauto using L, oneinit_subst, one_init;
   exfalso; eauto using noinits_from_value, noinits_oneinit_contradiction.
 
 Lemma oneinit_preservation_none : forall ad t1 t2,
@@ -132,43 +133,43 @@ Lemma oneinit_preservation_none : forall ad t1 t2,
   one_init ad t2.
 Proof. solve_oneinit_preservation noinit_preservation_none. Qed.
 
-Lemma oneinit_preservation_alloc : forall ad t1 t2 ad' T,
+Lemma oneinit_preservation_alloc : forall ad t1 t2 ad' T',
   ad <> ad' ->
   one_init ad t1 ->
-  t1 --[e_alloc ad' T]--> t2 ->
+  t1 --[e_alloc ad' T']--> t2 ->
   one_init ad t2.
 Proof. solve_oneinit_preservation noinit_preservation_alloc. Qed.
 
-Lemma oneinit_preservation_insert : forall ad t1 t2 ad' t,
+Lemma oneinit_preservation_insert : forall ad t1 t2 ad' t',
   valid_blocks t1 ->
   (* --- *)
   ad <> ad' ->
   one_init ad t1 ->
-  t1 --[e_insert ad' t]--> t2 ->
+  t1 --[e_insert ad' t']--> t2 ->
   one_init ad t2.
 Proof. solve_oneinit_preservation noinit_preservation_insert. Qed.
 
-Lemma oneinit_preservation_read : forall ad t1 t2 ad' t,
-  no_inits t ->
+Lemma oneinit_preservation_read : forall ad t1 t2 ad' t',
+  no_inits t' ->
   (* --- *)
   one_init ad t1 ->
-  t1 --[e_read ad' t]--> t2 ->
+  t1 --[e_read ad' t']--> t2 ->
   one_init ad t2.
 Proof. solve_oneinit_preservation noinit_preservation_read. Qed.
 
-Lemma oneinit_preservation_write : forall ad t1 t2 ad' t,
+Lemma oneinit_preservation_write : forall ad t1 t2 ad' t',
   valid_blocks t1 ->
   (* --- *)
   one_init ad t1 ->
-  t1 --[e_write ad' t]--> t2 ->
+  t1 --[e_write ad' t']--> t2 ->
   one_init ad t2.
 Proof. solve_oneinit_preservation noinit_preservation_write. Qed.
 
-Lemma oneinit_preservation_acq : forall ad t1 t2 ad' t,
-  no_inits t ->
+Lemma oneinit_preservation_acq : forall ad t1 t2 ad' t',
+  no_inits t' ->
   (* --- *)
   one_init ad t1 ->
-  t1 --[e_acq ad' t]--> t2 ->
+  t1 --[e_acq ad' t']--> t2 ->
   one_init ad t2.
 Proof. solve_oneinit_preservation noinit_preservation_acq. Qed.
 
@@ -201,54 +202,54 @@ Lemma oneinit_inheritance_none : forall ad t1 t2,
   one_init ad t1.
 Proof. solve_oneinit_inheritance noinit_inheritance_none. Qed.
 
-Lemma oneinit_inheritance_alloc : forall ad ad' t1 t2 T,
+Lemma oneinit_inheritance_alloc : forall ad t1 t2 ad' T',
   ad <> ad' ->
   one_init ad t2 ->
-  t1 --[e_alloc ad' T]--> t2 ->
+  t1 --[e_alloc ad' T']--> t2 ->
   one_init ad t1.
 Proof. solve_oneinit_inheritance noinit_inheritance_alloc. Qed.
 
-Lemma oneinit_inheritance_insert : forall ad ad' t t1 t2,
+Lemma oneinit_inheritance_insert : forall ad t1 t2 ad' t',
   valid_blocks t1 ->
   (* --- *)
   ad <> ad' ->
   one_init ad t2 ->
-  t1 --[e_insert ad' t]--> t2 ->
+  t1 --[e_insert ad' t']--> t2 ->
   one_init ad t1.
 Proof. solve_oneinit_inheritance noinit_inheritance_insert. Qed.
 
-Lemma oneinit_inheritance_read : forall ad ad' t t1 t2,
-  no_inits t ->
+Lemma oneinit_inheritance_read : forall ad t1 t2 ad' t',
+  no_inits t' ->
   (* --- *)
   one_init ad t2 ->
-  t1 --[e_read ad' t]--> t2 ->
+  t1 --[e_read ad' t']--> t2 ->
   one_init ad t1.
 Proof. solve_oneinit_inheritance noinit_inheritance_read. Qed.
 
-Lemma oneinit_inheritance_write : forall ad ad' t t1 t2,
+Lemma oneinit_inheritance_write : forall ad t1 t2 ad' t',
   valid_blocks t1 ->
   (* --- *)
   one_init ad t2 ->
-  t1 --[e_write ad' t]--> t2 ->
+  t1 --[e_write ad' t']--> t2 ->
   one_init ad t1.
 Proof. solve_oneinit_inheritance noinit_inheritance_write. Qed.
 
-Lemma oneinit_inheritance_acq : forall ad ad' t t1 t2,
+Lemma oneinit_inheritance_acq : forall ad t1 t2 ad' t',
   valid_blocks t1 ->
-  no_inits t ->
+  no_inits t' ->
   (* --- *)
   one_init ad t2 ->
-  t1 --[e_acq ad' t]--> t2 ->
+  t1 --[e_acq ad' t']--> t2 ->
   one_init ad t1.
 Proof. solve_oneinit_inheritance noinit_inheritance_acq. Qed.
 
-Lemma oneinit_inheritance_rel : forall ad ad' t1 t2,
+Lemma oneinit_inheritance_rel : forall ad t1 t2 ad',
   one_init ad t2 ->
   t1 --[e_rel ad']--> t2 ->
   one_init ad t1.
 Proof. solve_oneinit_inheritance noinit_inheritance_rel. Qed.
 
-Lemma oneinit_inheritance_spawn : forall ad tid t t1 t2,
+Lemma oneinit_inheritance_spawn : forall ad t1 t2 tid t,
   valid_blocks t1 ->
   (* --- *)
   one_init ad t2 ->
