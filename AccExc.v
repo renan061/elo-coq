@@ -1,9 +1,10 @@
 From Elo Require Import Core.
 
-From Elo Require Import Properties1.
-From Elo Require Import Properties2.
+From Elo Require Import SyntacticProperties.
+From Elo Require Import TypeProperties.
 
-From Elo Require Import AccessCore.
+From Elo Require Import ConsistentRegions.
+From Elo Require Import Access.
 From Elo Require Import AccessInheritance.
 From Elo Require Import AccessExclusivity.
 
@@ -43,12 +44,12 @@ Proof.
   exfalso; eauto using acc_vad_contradiction1.
 Qed.
 
-Local Lemma accexc_preservation_insert : forall m ths tid t t' ad',
+Local Lemma accexc_preservation_insert : forall m ths tid t ad' t' T',
   forall_threads ths (consistent_inits m) ->
   no_uninitialized_references m ths ->
   (* --- *)
   acc_exclusivity m ths ->
-  ths[tid] --[e_insert ad' t']--> t ->
+  ths[tid] --[e_insert ad' t' T']--> t ->
   acc_exclusivity m[ad'.t <- t'] ths[tid <- t].
 Proof.
   intros ** ? **.
@@ -59,14 +60,23 @@ Proof.
   exfalso; eauto using acc_noref_contradiction.
 Qed.
 
-Local Lemma accexc_preservation_read : forall m ths tid t t' ad',
+Local Lemma accexc_preservation_read : forall o m ths tid t t' ad',
+  forall_threads_consistent_regions o ths ->
+  forall_memory_consistent_regions  o m ->
+  (* --- *)
   m[ad'].t = Some t' ->
   acc_exclusivity m ths ->
   ths[tid] --[e_read ad' t']--> t ->
   acc_exclusivity m ths[tid <- t].
 Proof.
-  intros ** ? **. repeat omicron; try invc_acc; eauto.
-  - admit.
+  intros * Hcreg Hmcreg ** ? **.
+  repeat omicron; try invc_acc; eauto;
+  destruct (acc_dec ad ths[tid2]); eauto.
+  - specialize (Hcreg tid2).
+    specialize (Hmcreg ad' t'); spec; specialize Hmcreg as [_ [_ Hmcreg]].
+    specialize (Hmcreg T).
+
+    admit.
   - admit.
 Abort.
 
@@ -102,13 +112,13 @@ Local Lemma accexc_preservation_rel : forall m ths tid t ad',
 Proof.
   intros ** ? **.
   repeat (omicron; upsilon; try invc_acc); eauto.
-  - destruct (acc_dec ad ths[tid2]); eauto. admit.
-  - admit.
+  - destruct (acc_dec ad ths[tid2]); eauto. admit. (* t não pode ter accesso *)
+  - admit.  (* t não pode ter accesso *)
 Abort.
 
 Local Lemma accexc_preservation_spawn : forall m ths tid t t',
   forall_threads ths (consistent_references m) ->
-  forall_threads ths valid_spawns ->
+  forall_threads ths safe_spawns ->
   (* --- *)
   acc_exclusivity m ths ->
   ths[tid] --[e_spawn (#ths) t']--> t ->
@@ -127,7 +137,7 @@ Theorem accexc_preservation : forall m1 m2 ths1 ths2 tid e,
   forall_threads ths1 well_typed_term ->
   forall_threads ths1 (consistent_inits m1) ->
   forall_threads ths1 (consistent_references m1) ->
-  forall_threads ths1 valid_spawns ->
+  forall_threads ths1 safe_spawns ->
   no_uninitialized_references m1 ths1 ->
   (* --- *)
   acc_exclusivity m1 ths1 ->
@@ -137,7 +147,7 @@ Proof.
   intros. invc_cstep; try invc_mstep.
   - auto using accexc_preservation_none.
   - auto using accexc_preservation_alloc.
-  - auto using accexc_preservation_insert.
+  - eauto using accexc_preservation_insert.
   - admit.
   - auto using accexc_preservation_write.
   - eauto using accexc_preservation_acq.

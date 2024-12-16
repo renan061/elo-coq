@@ -18,7 +18,8 @@ Inductive valid_blocks : tm -> Prop :=
                                valid_blocks t2 ->
                                valid_blocks <{call t1 t2   }>
   | vb_ref   : forall ad T,    valid_blocks <{&ad : T      }>
-  | vb_new   : forall T t,     valid_blocks t  ->
+  | vb_new   : forall T t,     no_inits     t  ->
+                               no_crs       t  ->
                                valid_blocks <{new t : T    }>
   | vb_init  : forall ad T t,  valid_blocks t  ->
                                valid_blocks <{init ad t : T}>
@@ -70,9 +71,9 @@ Proof.
   intros. induction t; invc_noinits; invc_nocrs; auto using valid_blocks.
 Qed.
 
-Lemma vb_insert_term : forall t1 t2 ad t,
+Lemma vb_insert_term : forall t1 t2 ad t T,
   valid_blocks t1 ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_insert ad t T]--> t2 ->
   valid_blocks t.
 Proof.
   intros. ind_tstep; invc_vb; auto using valid_blocks.
@@ -190,9 +191,9 @@ Lemma vb_preservation_alloc : forall t1 t2 ad T,
   valid_blocks t2.
 Proof. solve_vb_preservation. Qed.
 
-Lemma vb_preservation_insert : forall t1 t2 ad t,
+Lemma vb_preservation_insert : forall t1 t2 ad t T,
   valid_blocks t1 ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_insert ad t T]--> t2 ->
   valid_blocks t2.
 Proof. solve_vb_preservation. Qed.
 

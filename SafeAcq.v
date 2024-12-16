@@ -68,9 +68,9 @@ Proof.
   intros. induction t; invc_nowrefs; auto using safe_acq.
 Qed.
 
-Lemma sacq_insert_term : forall t1 t2 ad t,
+Lemma sacq_insert_term : forall t1 t2 ad t T,
   safe_acq t1 ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_insert ad t T]--> t2 ->
   safe_acq t.
 Proof.
   intros. ind_tstep; invc_sacq; auto using safe_acq.
@@ -100,8 +100,11 @@ Proof.
   invc_typeof; inv_sacq;
   eauto using safe_acq,
     MapEqv.update_permutation, ctx_eqv_typeof,
-    update_safe_includes_safe_update, context_weakening,
+    update_safe_includes_safe_update,
+    context_weakening, context_weakening_empty,
     nowrefs_subst2.
+  Unshelve.
+  eauto.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -126,9 +129,9 @@ Proof.
   intros. ind_tstep; intros; invc_sacq; eauto using safe_acq.
 Qed.
 
-Local Lemma sacq_preservation_insert : forall t1 t2 ad t,
+Local Lemma sacq_preservation_insert : forall t1 t2 ad t T,
   safe_acq t1 ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_insert ad t T]--> t2 ->
   safe_acq t2.
 Proof.
   intros. ind_tstep; intros; invc_sacq; eauto using safe_acq.

@@ -71,13 +71,6 @@ Qed.
 
 (* lemmas ------------------------------------------------------------------ *)
 
-Lemma todo : forall t1 x t2,
-  ~ has_var x (tm_acq t1 x t2) ->
-  ~ has_var x t1.
-Proof.
-  intros * H ?. eapply H. eauto using has_var.
-Qed.
-
 Lemma hasvar_subst : forall x t tx,
   ~ (has_var x t) ->
   t = <{[x := tx] t}>.
@@ -152,4 +145,144 @@ Proof.
     rewrite lookup_update_neq; auto using safe_fun_lookup_update_eq_none.
   - erewrite hasvar_subst; trivial.
 Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* not-has-var                                                               *)
+(* ------------------------------------------------------------------------- *)
+
+Local Ltac solve_cons_nhv := 
+  intros ** ?; invc_hasvar; eauto.
+
+Lemma nhv_unit : forall x,
+  ~ has_var x <{unit}>.
+Proof. solve_cons_nhv. Qed.
+
+Lemma nhv_nat : forall x n,
+  ~ has_var x <{nat n}>.
+Proof. solve_cons_nhv. Qed.
+
+Lemma nhv_var : forall x x',
+  x <> x' -> ~ has_var x <{var x'}>.
+Proof. solve_cons_nhv. Qed.
+
+Lemma nhv_fun : forall x x' Tx t,
+  ~ has_var x t -> ~ has_var x <{fn x' Tx t}>.
+Proof. solve_cons_nhv. Qed.
+
+Lemma nhv_call : forall x t1 t2,
+  ~ has_var x t1 -> ~ has_var x t2 -> ~ has_var x <{call t1 t2}>.
+Proof. solve_cons_nhv. Qed.
+
+Lemma nhv_ref : forall x ad T,
+  ~ has_var x <{&ad : T}>.
+Proof. solve_cons_nhv. Qed.
+
+Lemma nhv_new : forall x t T,
+  ~ has_var x t -> ~ has_var x <{new t : T}>.
+Proof. solve_cons_nhv. Qed.
+
+Lemma nhv_init : forall x ad t T,
+  ~ has_var x t -> ~ has_var x <{init ad t : T}>.
+Proof. solve_cons_nhv. Qed.
+
+Lemma nhv_load : forall x t,
+  ~ has_var x t -> ~ has_var x <{*t}>.
+Proof. solve_cons_nhv. Qed.
+
+Lemma nhv_asg : forall x t1 t2,
+  ~ has_var x t1 -> ~ has_var x t2 -> ~ has_var x <{t1 := t2}>.
+Proof. solve_cons_nhv. Qed.
+
+Lemma nhv_acq : forall x x' t1 t2,
+  ~ has_var x t1 -> ~ has_var x t2 -> ~ has_var x <{acq t1 x' t2}>.
+Proof. solve_cons_nhv. Qed.
+
+Lemma nhv_cr : forall x ad t,
+  ~ has_var x t -> ~ has_var x <{cr ad t}>.
+Proof. solve_cons_nhv. Qed.
+
+Lemma nhv_spawn : forall x t,
+  ~ has_var x t -> ~ has_var x <{spawn t}>.
+Proof. solve_cons_nhv. Qed.
+
+#[export] Hint Resolve
+  nhv_unit  nhv_nat
+  nhv_var   nhv_fun   nhv_call
+  nhv_ref   nhv_new   nhv_init nhv_load  nhv_asg
+  nhv_acq   nhv_cr
+  nhv_spawn
+  : not_has_var.
+
+(* inversion --------------------------------------------------------------- *)
+
+Local Lemma inv_nhv_var : forall x x',
+  ~ has_var x <{var x'}> ->
+  x <> x'.
+Proof. intros. str_eq_dec x' x; eauto using has_var. Qed.
+
+Local Lemma inv_nhv_fun : forall x x' Tx t,
+  ~ has_var x <{fn x' Tx t}> ->
+  (x = x') \/ (x <> x' /\ ~ has_var x t).
+Proof. intros. str_eq_dec x x'; eauto 6 using has_var. Qed.
+
+Local Lemma inv_nhv_call : forall x t1 t2,
+  ~ has_var x <{call t1 t2}> ->
+  ~ has_var x t1 /\ ~ has_var x t2.
+Proof. intros. split; eauto using has_var. Qed.
+
+Local Lemma inv_nhv_new : forall x t T,
+  ~ has_var x <{new t : T}> ->
+  ~ has_var x t.
+Proof. eauto using has_var. Qed.
+
+Local Lemma inv_nhv_init : forall x ad t T,
+  ~ has_var x <{init ad t : T}> ->
+  ~ has_var x t.
+Proof. eauto using has_var. Qed.
+
+Local Lemma inv_nhv_load : forall x t,
+  ~ has_var x <{*t}> ->
+  ~ has_var x t.
+Proof. eauto using has_var. Qed.
+
+Local Lemma inv_nhv_asg : forall x t1 t2,
+  ~ has_var x <{t1 := t2}> ->
+  ~ has_var x t1 /\ ~ has_var x t2.
+Proof. intros. split; eauto using has_var. Qed.
+
+Local Lemma inv_nhv_acq : forall x t1 x' t2,
+  ~ has_var x <{acq t1 x' t2}> ->
+  ~ has_var x t1 /\ (x = x' \/ (x <> x' /\ ~ has_var x t2)).
+Proof.
+  intros. str_eq_dec x' x; split; eauto 6 using has_var.
+Qed.
+
+Local Lemma inv_nhv_cr : forall x ad t,
+  ~ has_var x <{cr ad t}> ->
+  ~ has_var x t.
+Proof. eauto using has_var. Qed.
+
+Local Lemma inv_nhv_spawn : forall x t,
+  ~ has_var x <{spawn t}> ->
+  ~ has_var x t.
+Proof. eauto using has_var. Qed.
+
+Ltac invc_nhv :=
+  match goal with
+  | H : ~ has_var _ <{unit        }> |- _ => clear H
+  | H : ~ has_var _ <{nat _       }> |- _ => clear H
+  | H : ~ has_var _ <{var _       }> |- _ => eapply inv_nhv_var   in H; auto
+  | H : ~ has_var _ <{fn _ _ _    }> |- _ => eapply inv_nhv_fun   in H
+                                             as [? | [? ?]]; subst
+  | H : ~ has_var _ <{call _ _    }> |- _ => eapply inv_nhv_call  in H as [? ?]
+  | H : ~ has_var _ <{& _ : _     }> |- _ => clear H
+  | H : ~ has_var _ <{new _ : _   }> |- _ => eapply inv_nhv_new   in H
+  | H : ~ has_var _ <{init _ _ : _}> |- _ => eapply inv_nhv_init  in H
+  | H : ~ has_var _ <{* _         }> |- _ => eapply inv_nhv_load  in H
+  | H : ~ has_var _ <{_ := _      }> |- _ => eapply inv_nhv_asg   in H as [? ?]
+  | H : ~ has_var _ <{acq _ _ _   }> |- _ => eapply inv_nhv_acq   in H
+                                             as [? [? | [? ?]]]; subst
+  | H : ~ has_var _ <{cr _ _      }> |- _ => eapply inv_nhv_acq   in H
+  | H : ~ has_var _ <{spawn _     }> |- _ => eapply inv_nhv_spawn in H
+  end.
 

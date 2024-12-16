@@ -74,10 +74,10 @@ Ltac invc_ci := _ci invc.
 
 (* theorems ---------------------------------------------------------------- *)
 
-Theorem insert_then_uninitialized : forall m ad t t1 t2,
+Theorem insert_then_uninitialized : forall m t1 t2 ad t T,
   consistent_inits m t1 ->
   (* --- *)
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_insert ad t T]--> t2 ->
   m[ad].t = None.
 Proof.
   intros. ind_tstep; invc_ci; auto.
@@ -92,9 +92,9 @@ Proof.
   intros. induction t; invc_noinits; auto using consistent_inits.
 Qed.
 
-Lemma ci_insert_term : forall m t1 t2 ad t,
+Lemma ci_insert_term : forall m t1 t2 ad t T,
   consistent_inits m t1 ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_insert ad t T]--> t2 ->
   consistent_inits m t.
 Proof.
   intros. ind_tstep; invc_ci; auto.
@@ -108,17 +108,17 @@ Proof.
   intros. ind_tstep; invc_ci; auto.
 Qed.
 
-Local Corollary oneinit_from_ui : forall m ths tid t ad te,
+Local Corollary oneinit_from_ui : forall m ths tid t ad' t' T',
   forall_threads ths (valid_addresses m) ->
   (* --- *)
   unique_initializers m ths ->
-  ths[tid] --[e_insert ad te]--> t ->
-  one_init ad ths[tid].
+  ths[tid] --[e_insert ad' t' T']--> t ->
+  one_init ad' ths[tid].
 Proof.
   intros * ? Hui ?.
-  assert (Had : ad < #m) by eauto using vad_insert_address.
-  specialize (Hui ad Had) as [Hfall Hfone].
-  opt_dec (m[ad].t); spec.
+  assert (Had' : ad' < #m) by eauto using vad_insert_address.
+  specialize (Hui ad' Had') as [Hfall Hfone].
+  opt_dec (m[ad'].t); spec.
   - specialize Hfone as [tid' [? ?]].
     nat_eq_dec tid' tid; trivial.
     exfalso. eauto using noinit_insert_contradiction.
@@ -217,11 +217,11 @@ Proof.
   constructor; sigma; eauto using ci_mem_add.
 Qed.
 
-Lemma ci_preservation_insert : forall m t1 t2 ad t,
+Lemma ci_preservation_insert : forall m t1 t2 ad t T,
   one_init ad t1 ->
   (* --- *)
   consistent_inits m t1 ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_insert ad t T]--> t2 ->
   consistent_inits m[ad.t <- t] t2.
 Proof.
   intros. assert (consistent_inits m t) by eauto using ci_insert_term.

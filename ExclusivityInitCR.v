@@ -1,10 +1,7 @@
 From Elo Require Import Core.
-From Elo Require Import Properties1.
 
-From Elo Require Import NoRef.
-From Elo Require Import NoUninitRefs.
-From Elo Require Import UniqueInits.
-From Elo Require Import UniqueCRs.
+From Elo Require Import SyntacticProperties.
+
 From Elo Require Import ConsistentInits.
 
 (* ------------------------------------------------------------------------- *)
@@ -17,19 +14,19 @@ Definition init_cr_exclusivity (ths : threads) := forall ad tid1 tid2,
 
 (* auxiliary --------------------------------------------------------------- *)
 
-Theorem oneinit_from_insert : forall m ths tid t ad te,
+Theorem oneinit_from_insert : forall m ths tid t ad' t' T',
   forall_threads ths (valid_addresses m) ->
   forall_threads ths (consistent_inits m) ->
   unique_initializers m ths ->
   (* --- *)
-  ths[tid] --[e_insert ad te]--> t ->
-  one_init ad ths[tid].
+  ths[tid] --[e_insert ad' t' T']--> t ->
+  one_init ad' ths[tid].
 Proof.
   intros * ? ? Hui **.
-  assert (Had   : ad < #m) by eauto using vad_insert_addr.
-  assert (Hnone : m[ad].t = None) by eauto using insert_then_uninitialized.
-  specialize (Hui ad Had) as [_ Hui]. specialize (Hui Hnone) as [tid' [? ?]].
-  destruct (nat_eq_dec tid' tid); subst; trivial.
+  assert (Had'  : ad' < #m) by eauto using vad_insert_address.
+  assert (Hnone : m[ad'].t = None) by eauto using insert_then_uninitialized.
+  specialize (Hui ad' Had') as [_ Hui]. specialize (Hui Hnone) as [tid' [? ?]].
+  nat_eq_dec tid' tid; trivial.
   exfalso. eauto using noinit_insert_contradiction.
 Qed.
 
@@ -42,7 +39,7 @@ Proof.
   intros * Hucr **. specialize (Hucr ad) as [Hfalse Htrue].
   destruct (m[ad].X) eqn:?.
   - specialize (Htrue eq_refl) as [tid' [? ?]]; clear Hfalse.
-    destruct (nat_eq_dec tid' tid); subst; trivial.
+    nat_eq_dec tid' tid; trivial.
     exfalso. eauto using nocr_rel_contradiction.
   - specialize (Hfalse eq_refl); clear Htrue.
     exfalso. eauto using nocr_rel_contradiction.
@@ -75,14 +72,14 @@ Proof.
   intros until 2.
   intros Hice ? ad tid1 tid2.
   destruct (Hice ad tid1 tid2) as [? ?].
-  assert (forall tid, no_cr (#m) ths[tid]) by eauto using nocr_from_vad.
-  split; intros; repeat omicron; auto; destruct (nat_eq_dec ad (#m)); subst;
+  assert (forall tid, no_cr (#m) ths[tid]) by eauto using nocr_from_vad1.
+  split; intros; repeat omicron; auto; nat_eq_dec (#m) ad;
   eauto using nocr_preservation_alloc, oneinit_inheritance_alloc;
   eauto using noinit_preservation_alloc, onecr_inheritance_alloc;
   exfalso; eauto using onecr_inheritance_alloc, nocr_onecr_contradiction.
 Qed.
 
-Lemma ice_preservation_insert : forall m ths tid t ad te,
+Lemma ice_preservation_insert : forall m ths tid t ad' t' T',
   forall_threads ths (valid_addresses m) ->
   forall_threads ths valid_blocks ->
   forall_threads ths (consistent_inits m) ->
@@ -90,13 +87,13 @@ Lemma ice_preservation_insert : forall m ths tid t ad te,
   unique_critical_regions m ths ->
   (* --- *)
   init_cr_exclusivity ths ->
-  ths[tid] --[e_insert ad te]--> t ->
+  ths[tid] --[e_insert ad' t' T']--> t ->
   init_cr_exclusivity ths[tid <- t].
 Proof.
-  intros until 5. rename ad into ad'.
+  intros until 5.
   intros Hice ? ad tid1 tid2.
   destruct (Hice ad tid1 tid2) as [? ?].
-  split; intros; repeat omicron; auto; destruct (nat_eq_dec ad' ad); subst;
+  split; intros; repeat omicron; auto; nat_eq_dec ad' ad;
   eauto using nocr_preservation_insert, oneinit_inheritance_insert;
   eauto using noinit_preservation_insert, onecr_inheritance_insert;
   exfalso.
@@ -107,8 +104,8 @@ Proof.
     assert (no_init ad t) by eauto using oneinit_to_noinit.
     eauto using noinit_oneinit_contradiction.
   - assert (one_cr ad ths[tid2]) by eauto using onecr_inheritance_insert.
-    aspecialize. eauto using noinit_insert_contradiction.
-  - aspecialize. eauto using noinit_insert_contradiction.
+    eauto using noinit_insert_contradiction.
+  - eauto using noinit_insert_contradiction.
 Qed.
 
 Lemma ice_preservation_read : forall m ths tid t ad te,
@@ -141,7 +138,7 @@ Proof.
   intros until 1. rename ad into ad'.
   intros Hice ? ad tid1 tid2.
   destruct (Hice ad tid1 tid2) as [? ?].
-  split; intros; repeat omicron; auto; destruct (nat_eq_dec ad' ad); subst;
+  split; intros; repeat omicron; auto; nat_eq_dec ad' ad;
   eauto using nocr_preservation_write, oneinit_inheritance_write;
   eauto using noinit_preservation_write, onecr_inheritance_write.
 Qed.
@@ -186,7 +183,7 @@ Proof.
   specialize (Hnoinits ad' _ Hsome).
   specialize (Hnocrs ad' _ Hsome).
   specialize (Hice ad tid1 tid2) as [? ?].
-  split; intros; repeat omicron; auto; destruct (nat_eq_dec ad' ad); subst;
+  split; intros; repeat omicron; auto; nat_eq_dec ad' ad;
   eauto using nocr_preservation_acq, oneinit_inheritance_acq;
   eauto using noinit_preservation_acq, onecr_inheritance_acq.
   - exfalso. eapply noref_acq_contradiction; eauto.
@@ -194,9 +191,9 @@ Proof.
     eapply noref_from_oneinit; eauto.
   - exfalso. eapply noref_acq_contradiction; eauto.
     eapply noref_from_oneinit; eauto.
-  - specialize (Hui ad Had) as [Hnone _]. aspecialize.
+  - specialize (Hui ad Had) as [Hnone _]. spec.
     eauto using noinit_preservation_acq.
-  - specialize (Hui ad Had) as [Hnone _]. aspecialize.
+  - specialize (Hui ad Had) as [Hnone _]. spec.
     eauto.
 Qed.
 
@@ -210,7 +207,7 @@ Proof.
   intros until 1. rename ad into ad'.
   intros Hice ? ad tid1 tid2.
   destruct (Hice ad tid1 tid2) as [? ?].
-  split; intros; repeat omicron; auto;  destruct (nat_eq_dec ad' ad); subst;
+  split; intros; repeat omicron; auto; nat_eq_dec ad' ad;
   eauto using nocr_preservation_rel, oneinit_inheritance_rel;
   eauto using noinit_preservation_rel, onecr_inheritance_rel;
   eauto using onecr_from_rel;

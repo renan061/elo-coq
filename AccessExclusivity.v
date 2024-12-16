@@ -1,9 +1,10 @@
 From Elo Require Import Core.
 
-From Elo Require Import Properties1.
-From Elo Require Import Properties2.
+From Elo Require Import SyntacticProperties.
+From Elo Require Import TypeProperties.
 
-From Elo Require Import AccessCore.
+From Elo Require Import Access.
+From Elo Require Import XAccess.
 
 (* ------------------------------------------------------------------------- *)
 (* exclusivity promises                                                      *)

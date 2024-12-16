@@ -76,9 +76,9 @@ Qed.
 
 (* lemmas ------------------------------------------------------------------ *)
 
-Lemma noinit_insert_term : forall t1 t2 ad ad' t,
+Lemma noinit_insert_term : forall t1 t2 ad ad' t T,
   no_init ad' t1 ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_insert ad t T]--> t2 ->
   no_init ad' t.
 Proof.
   intros. ind_tstep; invc_noinit; auto using no_init.
@@ -92,9 +92,9 @@ Proof.
   intros. ind_tstep; invc_noinit; auto using no_init.
 Qed.
 
-Lemma noinit_insert_contradiction : forall t1 t2 ad t,
+Lemma noinit_insert_contradiction : forall t1 t2 ad t T,
   no_init ad t1 ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_insert ad t T]--> t2 ->
   False.
 Proof.
   intros. ind_tstep; invc_noinit; auto.
@@ -146,10 +146,10 @@ Lemma noinit_preservation_alloc : forall ad t1 t2 ad' T,
   no_init ad t2.
 Proof. solve_noinit_preservation. Qed.
 
-Lemma noinit_preservation_insert : forall ad t1 t2 ad' t,
+Lemma noinit_preservation_insert : forall ad t1 t2 ad' t' T',
   ad <> ad' ->
   no_init ad t1 ->
-  t1 --[e_insert ad' t]--> t2 ->
+  t1 --[e_insert ad' t' T']--> t2 ->
   no_init ad t2.
 Proof. solve_noinit_preservation. Qed.
 
@@ -266,9 +266,9 @@ Proof.
   unfold no_inits. auto.
 Qed.
 
-Corollary noinits_insert_term : forall t1 t2 ad t,
+Corollary noinits_insert_term : forall t1 t2 ad t T,
   no_inits t1 ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_insert ad t T]--> t2 ->
   no_inits t.
 Proof.
   unfold no_inits. eauto using noinit_insert_term.

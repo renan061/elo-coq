@@ -28,8 +28,8 @@ Local Ltac simpl_nur :=
   intros ** ? ?;
   try match goal with _ : forall_threads _ (valid_addresses ?m) |- _ =>
     match goal with
-    | _ : _ --[e_insert ?ad _]--> _ |- _ => assert (ad < #m)
-    | _ : _ --[e_write  ?ad _]--> _ |- _ => assert (ad < #m)
+    | _ : _ --[e_insert ?ad _ _]--> _ |- _ => assert (ad < #m)
+    | _ : _ --[e_write  ?ad _  ]--> _ |- _ => assert (ad < #m)
     end;
     eauto using vad_insert_address, vad_write_address
   end;
@@ -60,11 +60,11 @@ Proof.
   simpl_nur. eauto using noref_preservation_alloc.
 Qed.
 
-Lemma nur_preservation_insert : forall m ths tid t ad' t',
+Lemma nur_preservation_insert : forall m ths tid t ad' t' T',
   forall_threads ths (valid_addresses m) ->
   (* --- *)
   no_uninitialized_references m ths ->
-  ths[tid] --[e_insert ad' t']--> t ->
+  ths[tid] --[e_insert ad' t' T']--> t ->
   no_uninitialized_references m[ad'.t <- t'] ths[tid <- t].
 Proof.
   simpl_nur. eauto using noref_insert_term, noref_preservation_insert.

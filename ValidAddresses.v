@@ -59,9 +59,9 @@ Ltac invc_vad := _vad invc.
 
 (* lemmas ------------------------------------------------------------------ *)
 
-Lemma vad_insert_term : forall m t1 t2 ad t,
+Lemma vad_insert_term : forall m t1 t2 ad t T,
   valid_addresses m t1 ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_insert ad t T]--> t2 ->
   valid_addresses m t.
 Proof.
   intros. ind_tstep; invc_vad; auto.
@@ -75,9 +75,9 @@ Proof.
   intros. ind_tstep; invc_vad; auto.
 Qed.
 
-Lemma vad_insert_address : forall m t1 t2 ad t,
+Lemma vad_insert_address : forall m t1 t2 ad t T,
   valid_addresses m t1 ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_insert ad t T]--> t2 ->
   ad < #m.
 Proof.
   intros. ind_tstep; invc_vad; auto.
@@ -151,9 +151,9 @@ Lemma vad_preservation_alloc : forall m t1 t2 T,
   valid_addresses (m +++ (None, T, false)) t2.
 Proof. solve_vad_preservation. Qed.
 
-Lemma vad_preservation_insert : forall m t1 t2 ad t,
+Lemma vad_preservation_insert : forall m t1 t2 ad t T,
   valid_addresses m t1 ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_insert ad t T]--> t2 ->
   valid_addresses (m[ad.t <- t]) t2.
 Proof. solve_vad_preservation. Qed.
 

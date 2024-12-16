@@ -1,15 +1,9 @@
 From Elo Require Import Core.
 
 From Elo Require Import ValidAddresses.
-(*
-From Elo Require Import NoRef.
-*)
 From Elo Require Import NoCR.
 From Elo Require Import ValidBlocks.
 From Elo Require Import OneCR.
-(*
-From Elo Require Import NoUninitRefs.
-*)
 
 (* ------------------------------------------------------------------------- *)
 (* unique-critical-regions                                                   *)
@@ -80,18 +74,18 @@ Proof.
     eauto using nocr_preservation_alloc, onecr_preservation_alloc.
 Qed.
 
-Local Lemma ucr_preservation_insert : forall m ths tid t ad te,
+Local Lemma ucr_preservation_insert : forall m ths tid t ad' t' T',
   forall_threads ths (valid_addresses m) ->
   forall_threads ths valid_blocks ->
   (* --- *)
   tid < #ths ->
   unique_critical_regions m ths ->
-  ths[tid] --[e_insert ad te]--> t ->
-  unique_critical_regions m[ad.t <- te] ths[tid <- t].
+  ths[tid] --[e_insert ad' t' T']--> t ->
+  unique_critical_regions m[ad'.t <- t'] ths[tid <- t].
 Proof.
   intros until 2.
-  intros ? Hucr ? ad'. specialize (Hucr ad') as [Hfall Hfone].
-  assert (ad < #m) by eauto using vad_insert_address.
+  intros ? Hucr ? ad. specialize (Hucr ad) as [Hfall Hfone].
+  assert (ad' < #m) by eauto using vad_insert_address.
   split; intros; repeat omicron; spec; upsilon;
   eauto using nocr_preservation_insert;
   specialize Hfone as [tid' [? ?]]; exists tid'; split; intros;

@@ -76,9 +76,9 @@ Ltac invc_cr := _cr invc.
 
 (* lemmas ------------------------------------------------------------------ *)
 
-Lemma cr_insert_term : forall m t1 t2 ad t,
+Lemma cr_insert_term : forall m t1 t2 ad t T,
   consistent_references m t1 ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_insert ad t T]--> t2 ->
   consistent_references m t.
 Proof.
   intros. ind_tstep; invc_cr; auto.
@@ -118,14 +118,14 @@ Proof.
   lt_eq_gt (#m) ad; trivial; sigma; discriminate.
 Qed.
 
-Lemma consistent_insert : forall m t1 t2 ad t,
+Lemma consistent_insert : forall m t1 t2 ad' t' T',
   well_typed_term t1 ->
   consistent_inits m t1 ->
   (* --- *)
-  t1 --[e_insert ad t]--> t2 ->
-  (exists T, empty |-- t is `Safe T` /\ m[ad].T = `r&T`) \/
-  (exists T, empty |-- t is T        /\ m[ad].T = `x&T`) \/
-  (exists T, empty |-- t is T        /\ m[ad].T = `w&T`).
+  t1 --[e_insert ad' t' T']--> t2 ->
+  (exists T, empty |-- t' is `Safe T` /\ m[ad'].T = `r&T`) \/
+  (exists T, empty |-- t' is T        /\ m[ad'].T = `x&T`) \/
+  (exists T, empty |-- t' is T        /\ m[ad'].T = `w&T`).
 Proof.
   intros * [T ?] **. gendep T.
   ind_tstep; intros; invc_typeof; invc_ci; eauto.
@@ -245,13 +245,13 @@ Proof.
   eauto using cr_mem_add, consistent_references.
 Qed.
 
-Lemma cr_preservation_mem_insert : forall m t1 t2 ad t,
+Lemma cr_preservation_mem_insert : forall m t1 t2 ad t T,
   well_typed_term t1 ->
   consistent_inits m t1 ->
   consistent_references m t1 ->
   (* --- *)
   forall_memory m (consistent_references m) ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_insert ad t T]--> t2 ->
   forall_memory m[ad.t <- t] (consistent_references m[ad.t <- t]).
 Proof.
   intros ** ? ? Had.
@@ -262,21 +262,21 @@ Proof.
   upsilon; eauto using cr_mem_setR, cr_mem_setX, cr_mem_setW, cr_insert_term. 
 Qed.
 
-Lemma cr_preservation_insert : forall m t1 t2 ad t,
+Lemma cr_preservation_insert : forall m t1 t2 ad t T,
   well_typed_term t1 ->
   consistent_inits m t1 ->
   (* --- *)
   ad < #m ->
   consistent_references m t1 ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_insert ad t T]--> t2 ->
   consistent_references (m[ad.t <- t]) t2.
 Proof.
   intros * Hwtt **.
   assert (
-    (exists T, empty |-- t is `Safe T` /\ m[ad].T = `r&T`) \/
-    (exists T, empty |-- t is T        /\ m[ad].T = `x&T`) \/
-    (exists T, empty |-- t is T        /\ m[ad].T = `w&T`)
-  ) as [[T [? ?]] | [[T [? ?]] | [T [? ?]]]]
+    (exists T', empty |-- t is `Safe T'` /\ m[ad].T = `r&T'`) \/
+    (exists T', empty |-- t is T'        /\ m[ad].T = `x&T'`) \/
+    (exists T', empty |-- t is T'        /\ m[ad].T = `w&T'`)
+  ) as [[T' [? ?]] | [[T' [? ?]] | [T' [? ?]]]]
     by eauto using consistent_insert;
   clear Hwtt;
   ind_tstep; invc_ci; invc_cr;
@@ -285,14 +285,14 @@ Proof.
   sigma; upsilon; trivial.
 Qed.
 
-Lemma cr_preservation_unt_insert : forall m t1 t2 tu ad t,
+Lemma cr_preservation_unt_insert : forall m t1 t2 tu ad t T,
   well_typed_term t1 ->
   consistent_inits m t1 ->
   consistent_references m t1 ->
   (* --- *)
   ad < #m ->
   consistent_references m tu ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_insert ad t T]--> t2 ->
   consistent_references m[ad.t <- t] tu.
 Proof.
   intros.

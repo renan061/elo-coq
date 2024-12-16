@@ -113,11 +113,11 @@ Reserved Notation "m / t '==[' e ']==>' m' / t'" (at level 40,
 Reserved Notation "m / ths '~~[' tid , e ']~~>' m' / ths'" (at level 40,
   ths at next level, tid at next level, e at next level, m' at next level).
 
-Reserved Notation "m / ths / o / r '~~[' tid , e ']~~>' m' / ths' / o' / r' "
+Reserved Notation "m / ths / o '~~[' tid , e ']~~>' m' / ths' / o'"
   (at level 40,
-    ths at next level, o    at next level, r  at next level,
+    ths at next level, o    at next level,
     tid at next level, e    at next level,
-    m'  at next level, ths' at next level, o' at next level).
+    m'  at next level, ths' at next level).
 
 Reserved Notation "m / ths '~~[' tc ']~~>*' m' / ths' " (at level 40,
   ths at next level, tc at next level, m' at next level).
@@ -140,7 +140,7 @@ Inductive value : tm -> Prop :=
 Inductive eff : Set :=
   | e_none
   | e_alloc  (ad : addr) (T : ty)
-  | e_insert (ad : addr) (t : tm)
+  | e_insert (ad : addr) (t : tm) (T : ty)
   | e_read   (ad : addr) (t : tm)
   | e_write  (ad : addr) (t : tm)
   | e_acq    (ad : addr) (t : tm)
@@ -263,8 +263,8 @@ Inductive type_of : ctx -> tm -> ty -> Prop :=
     Gamma |-- <{acq t1 x t2}> is `Safe T`
 
   | T_cr : forall Gamma ad t T,
-    Gamma |-- t is `Safe T` -> (* TODO: ask why not empty? same with init *)
-    Gamma |-- <{cr ad t}> is `Safe T` (* TODO: can I leave this? *)
+    empty |-- t is T ->
+    Gamma |-- <{cr ad t}> is T
 
   | T_spawn : forall Gamma t T,
     safe Gamma |-- t is T ->
@@ -332,7 +332,7 @@ Inductive tstep : tm -> eff -> tm -> Prop :=
 
   | ts_init : forall ad t T,
     value t ->
-    <{init ad t : T}> --[e_insert ad t]--> <{&ad : T}>
+    <{init ad t : T}> --[e_insert ad t T]--> <{&ad : T}>
 
   (* load *)
   | ts_load1 : forall t t' e,
@@ -413,10 +413,10 @@ Inductive mstep : mem -> tm -> eff -> mem -> tm -> Prop :=
     t1 --[e_alloc ad T]--> t2 ->
     m / t1 ==[e_alloc ad T]==> (m +++ (None, T, false)) / t2
 
-  | ms_insert : forall m t1 t2 ad t,
+  | ms_insert : forall m t1 t2 ad t T,
     ad < #m ->
-    t1 --[e_insert ad t]--> t2 ->
-    m / t1 ==[e_insert ad t]==> m[ad.t <- t] / t2
+    t1 --[e_insert ad t T]--> t2 ->
+    m / t1 ==[e_insert ad t T]==> m[ad.t <- t] / t2
 
   | ms_read : forall m t1 t2 ad t,
     ad < #m ->
@@ -467,76 +467,96 @@ Inductive cstep : mem -> threads -> nat -> eff -> mem -> threads -> Prop :=
 (* operational semantics -- ownership step                                   *)
 (* ------------------------------------------------------------------------- *)
 
-Inductive owner : Set :=
-  | o_none
-  | o_thread  : nat  -> owner
-  | o_monitor : addr -> owner
+Inductive region : Set :=
+  | R_invalid
+  | R_tid  : nat  -> region
+  | R_ad   : addr -> region
   .
 
-Definition stack := list.
+Definition owners := list region. (* #owners = #mem *)
 
-Definition regions : Type := list (stack addr). (* #regions = #threads *)
-Definition owners  : Type := list owner.        (* #owners  = #mem     *)
+Notation " o '[' ad '].R' " := (o[ad] or R_invalid)
+  (at level 9, ad at next level).
 
-Definition regions_peek (r : regions) (tid : nat) : owner :=
-  match r[tid] or nil with
-  | nil     => o_thread tid
-  | ad :: _ => o_monitor ad
+Definition is_value (t : tm) :=
+  match t with
+  | <{unit    }> => true
+  | <{nat _   }> => true
+  | <{fn _ _ _}> => true
+  | <{&_ : _  }> => true
+  | _            => false
   end.
 
-Definition regions_push (r : regions) (tid : nat) (ad : addr) :=
-  r[tid <- (ad :: r[tid] or nil)].
+Definition is_refX  (T : ty) :=
+  match T with
+  | `x&_` => true
+  | _     => false
+  end.
 
-Definition regions_pop (r : regions) (tid : nat) :=
-  r[tid <- tail (r[tid] or nil)].
+(* get-current-region *)
+Fixpoint gcr (t' : tm) (r : region) : region :=
+  match t' with
+  | <{unit         }> => r
+  | <{nat _        }> => r
+  | <{var _        }> => r
+  | <{fn _ _ _     }> => r
+  | <{call t1 t2   }> => if is_value t1 then gcr t2 r else gcr t1 r
+  | <{&_ : _       }> => r
+  | <{new _ : _    }> => r
+  | <{init ad t : T}> => if is_refX T then gcr t (R_ad ad) else gcr t r
+  | <{*t           }> => gcr t r
+  | <{t1 := t2     }> => if is_value t1 then gcr t2 r else gcr t1 r
+  | <{acq t1 _ _   }> => gcr t1 r
+  | <{cr ad t      }> => gcr t (R_ad ad)
+  | <{spawn _      }> => r
+  end.
 
-Inductive ostep : mem -> threads -> owners -> regions ->
-                  nat -> eff     ->
-                  mem -> threads -> owners -> regions ->
-                  Prop :=
+Inductive ostep :
+  mem -> threads -> owners -> nat -> eff -> mem -> threads -> owners -> Prop :=
 
-  | os_none : forall m1 m2 ths1 ths2 o r tid e,
+  | os_none : forall m1 m2 ths1 ths2 o tid e,
     e = e_none ->
     m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
-    m1 / ths1 / o / r ~~[tid, e]~~> m2 / ths2 / o / r
+    m1 / ths1 / o ~~[tid, e]~~> m2 / ths2 / o
 
-  | os_alloc : forall m1 m2 ths1 ths2 o r tid e ad T,
+  | os_alloc : forall m1 m2 ths1 ths2 o1 o2 tid e ad T,
     e = e_alloc ad T ->
+    o2 = o1 +++ gcr ths1[tid] (R_tid tid) ->
     m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
-    m1 / ths1 / o / r ~~[tid, e]~~> m2 / ths2 / (o +++ (regions_peek r tid)) / r
+    m1 / ths1 / o1 ~~[tid, e]~~> m2 / ths2 / o2
 
-  | os_insert : forall m1 m2 ths1 ths2 o r tid e ad t,
-    e = e_insert ad t ->
+  | os_insert : forall m1 m2 ths1 ths2 o tid e ad t T,
+    e = e_insert ad t T ->
     m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
-    m1 / ths1 / o / r ~~[tid, e]~~> m2 / ths2 / o / r
+    m1 / ths1 / o ~~[tid, e]~~> m2 / ths2 / o
 
-  | os_read : forall m1 m2 ths1 ths2 o r tid e ad t,
+  | os_read : forall m1 m2 ths1 ths2 o tid e ad t,
     e = e_read ad t ->
     m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
-    m1 / ths1 / o / r ~~[tid, e]~~> m2 / ths2 / o / r
+    m1 / ths1 / o ~~[tid, e]~~> m2 / ths2 / o
 
-  | os_write : forall m1 m2 ths1 ths2 o r tid e ad t,
+  | os_write : forall m1 m2 ths1 ths2 o tid e ad t,
     e = e_write ad t ->
     m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
-    m1 / ths1 / o / r ~~[tid, e]~~> m2 / ths2 / o / r
+    m1 / ths1 / o ~~[tid, e]~~> m2 / ths2 / o
 
-  | os_acq : forall m1 m2 ths1 ths2 o r tid e ad t,
+  | os_acq : forall m1 m2 ths1 ths2 o tid e ad t,
     e = e_acq ad t ->
     m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
-    m1 / ths1 / o / r ~~[tid, e]~~> m2 / ths2 / o / (regions_push r tid ad)
+    m1 / ths1 / o ~~[tid, e]~~> m2 / ths2 / o
 
-  | os_rel : forall m1 m2 ths1 ths2 o r tid e ad,
+  | os_rel : forall m1 m2 ths1 ths2 o tid e ad,
     e = e_rel ad ->
     m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
-    m1 / ths1 / o / r ~~[tid, e]~~> m2 / ths2 / o / (regions_pop r tid)
+    m1 / ths1 / o ~~[tid, e]~~> m2 / ths2 / o
 
-  | os_spawn : forall m1 m2 ths1 ths2 o r tid e tid' t,
-    e = e_spawn tid' t ->
+  | os_spawn : forall m1 m2 ths1 ths2 o tid e tid' t',
+    e = e_spawn tid' t' ->
     m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
-    m1 / ths1 / o / r ~~[tid, e]~~> m2 / ths2 / o / (r +++ nil)
+    m1 / ths1 / o ~~[tid, e]~~> m2 / ths2 / o
 
-  where "m / ths / o / r '~~[' tid , e ']~~>' m' / ths' / o' / r'" :=
-    (ostep m ths o r tid e m' ths' o' r').
+  where "m / ths / o '~~[' tid , e ']~~>' m' / ths' / o'" :=
+    (ostep m ths o tid e m' ths' o').
 
 (* ------------------------------------------------------------------------- *)
 (* multistep                                                                 *)

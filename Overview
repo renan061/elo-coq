@@ -1,3 +1,14 @@
+TODO:
+    - Exemplo!
+
+
+
+
+
+
+
+
+
 
 (tidW, write ad) ~~~~~~~~~~~~~~~~~[tc]~~~~~~~~~~~~~~~~~>* (tidR, read ad)
                   (tidW, rel adx)      (tidR, acq adx)

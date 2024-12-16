@@ -87,19 +87,19 @@ Proof.
   - lia.
 Qed.
 
-Local Lemma ui_preservation_insert : forall m ths tid t ad te,
+Local Lemma ui_preservation_insert : forall m ths tid t ad' t' T',
   forall_threads ths (valid_addresses m) ->
   forall_threads ths valid_blocks ->
   (* --- *)
   tid < #ths ->
   unique_initializers m ths ->
-  ths[tid] --[e_insert ad te]--> t ->
-  unique_initializers m[ad.t <- te] ths[tid <- t].
+  ths[tid] --[e_insert ad' t' T']--> t ->
+  unique_initializers m[ad'.t <- t'] ths[tid <- t].
 Proof.
   intros until 2.
-  intros ? Hui ? ad' Had'. sigma. specialize (Hui ad' Had') as [Hfall Hfone].
+  intros ? Hui ? ad Had. sigma. specialize (Hui ad Had) as [Hfall Hfone].
   assert (ad < #m) by eauto using vad_insert_address.
-  opt_dec (m[ad'].t); spec; split; intros.
+  opt_dec (m[ad].t); spec; split; intros.
   - specialize Hfone as [tid'' [? ?]].
     intros tid'. repeat omicron; nat_eq_dec tid'' tid';
     eauto using oneinit_to_noinit;

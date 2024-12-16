@@ -58,9 +58,9 @@ Ltac invc_noref := _noref invc.
 
 (* lemmas ------------------------------------------------------------------ *)
 
-Lemma noref_insert_term : forall m t1 t2 ad t,
+Lemma noref_insert_term : forall m t1 t2 ad t T,
   no_ref m t1 ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_insert ad t T]--> t2 ->
   no_ref m t.
 Proof.
   intros. ind_tstep; invc_noref; auto.
@@ -118,10 +118,10 @@ Lemma noref_preservation_alloc : forall ad t1 t2 ad' T,
   no_ref ad t2.
 Proof. solve_noref_preservation. Qed.
 
-Lemma noref_preservation_insert : forall ad t1 t2 ad' t,
+Lemma noref_preservation_insert : forall ad t1 t2 ad' t' T',
   ad <> ad' ->
   no_ref ad t1 ->
-  t1 --[e_insert ad' t]--> t2 ->
+  t1 --[e_insert ad' t' T']--> t2 ->
   no_ref ad t2.
 Proof. solve_noref_preservation. Qed.
 

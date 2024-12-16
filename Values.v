@@ -4,8 +4,8 @@ From Elo Require Import Sem.
 From Elo Require Import SemExt.
 From Elo Require Import Upsilon.
 
-Lemma value_insert_term : forall t1 t2 ad t,
-  t1 --[e_insert ad t]--> t2 ->
+Lemma value_insert_term : forall t1 t2 ad t T,
+  t1 --[e_insert ad t T]--> t2 ->
   value t.
 Proof.
   intros. ind_tstep; auto.

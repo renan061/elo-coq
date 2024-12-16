@@ -66,9 +66,9 @@ Ltac invc_snx := _snx invc.
 
 (* lemmas ------------------------------------------------------------------ *)
 
-Lemma snx_insert_term : forall t1 t2 ad t,
+Lemma snx_insert_term : forall t1 t2 ad t T,
   safe_newx t1 ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_insert ad t T]--> t2 ->
   safe_newx t.
 Proof.
   intros. ind_tstep; invc_snx; auto using safe_newx.
@@ -95,12 +95,14 @@ Local Lemma snx_subst : forall Gamma x tx t Tx T,
 Proof.
   intros. gendep Gamma. gendep T.
   induction t; intros; simpl; try destruct _str_eq_dec;
-  invc_typeof; invc_snx;
+  invc_typeof; invc_snx; try spec;
   eauto 8 using safe_newx,
     MapEqv.update_permutation, ctx_eqv_typeof,
     MapInc.update_inclusion, update_safe_includes_safe_update,
-    context_weakening,
+    context_weakening, context_weakening_empty,
     nowrefs_subst1.
+  Unshelve.
+  eauto.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -125,9 +127,9 @@ Proof.
   intros. ind_tstep; intros; invc_snx; auto using safe_newx.
 Qed.
 
-Local Lemma snx_preservation_insert : forall t1 t2 ad t,
+Local Lemma snx_preservation_insert : forall t1 t2 ad t T,
   safe_newx t1 ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_insert ad t T]--> t2 ->
   safe_newx t2.
 Proof.
   intros. ind_tstep; intros; invc_snx; auto using safe_newx.

@@ -40,7 +40,7 @@ Ltac _mstep tt := match goal with H : _ / _ ==[_]==>    _ / _ |- _ => tt H end.
 Ltac _cstep tt := match goal with H : _ / _ ~~[_, _]~~> _ / _ |- _ => tt H end.
 
 Ltac _ostep tt :=
-  match goal with H : _ / _ / _ /_ ~~[_, _]~~> _ / _ / _ / _ |- _ => tt H end.
+  match goal with H : _ / _ / _ ~~[_, _]~~> _ / _ / _ |- _ => tt H end.
 
 Ltac _ustep tt :=
   match goal with H : _ / _ ~~[_]~~>*   _ / _ |- _ => tt H end.

@@ -132,11 +132,11 @@ Lemma onecr_preservation_alloc : forall ad t1 t2 ad' T',
   one_cr ad t2.
 Proof. solve_onecr_preservation nocr_preservation_alloc. Qed.
 
-Lemma onecr_preservation_insert : forall ad t1 t2 ad' t',
+Lemma onecr_preservation_insert : forall ad t1 t2 ad' t' T',
   valid_blocks t1 ->
   (* --- *)
   one_cr ad t1 ->
-  t1 --[e_insert ad' t']--> t2 ->
+  t1 --[e_insert ad' t' T']--> t2 ->
   one_cr ad t2.
 Proof. solve_onecr_preservation nocr_preservation_insert. Qed.
 
@@ -201,11 +201,11 @@ Lemma onecr_inheritance_alloc : forall ad t1 t2 ad' T',
   one_cr ad t1.
 Proof. solve_onecr_inheritance nocr_inheritance_alloc. Qed.
 
-Lemma onecr_inheritance_insert : forall ad t1 t2 ad' t',
+Lemma onecr_inheritance_insert : forall ad t1 t2 ad' t' T',
   valid_blocks t1 ->
   (* --- *)
   one_cr ad t2 ->
-  t1 --[e_insert ad' t']--> t2 ->
+  t1 --[e_insert ad' t' T']--> t2 ->
   one_cr ad t1.
 Proof. solve_onecr_inheritance nocr_inheritance_insert. Qed.
 

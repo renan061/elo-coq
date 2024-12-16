@@ -115,9 +115,9 @@ Lemma nocr_preservation_alloc : forall t1 t2 ad ad' T,
   no_cr ad t2.
 Proof. solve_nocr_preservation. Qed.
 
-Lemma nocr_preservation_insert : forall t1 t2 ad ad' t,
+Lemma nocr_preservation_insert : forall t1 t2 ad ad' t' T',
   no_cr ad t1 ->
-  t1 --[e_insert ad' t]--> t2 ->
+  t1 --[e_insert ad' t' T']--> t2 ->
   no_cr ad t2.
 Proof. solve_nocr_preservation. Qed.
 

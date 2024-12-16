@@ -2,7 +2,7 @@
 
 COQC= coqc -Q . Elo
 
-all: core syntactic-properties type-properties
+all: core syntactic-properties type-properties access
 
 core:
 	# core
@@ -38,21 +38,21 @@ type-properties:
 	$(COQC) WellTypedTerm.v
 	$(COQC) ConsistentInits.v
 	$(COQC) ConsistentRefs.v
+	$(COQC) PointerTypes.v
+	$(COQC) ExclusivityInitCR.v
 	$(COQC) Soundness.v
 	$(COQC) SafeNewX.v
 	$(COQC) SafeAcq.v
+	$(COQC) SafeCR.v
+	$(COQC) SafeSpawns.v
 	$(COQC) TypeProperties.v
 
-properties2:
-	$(COQC) ValidSpawns.v
-	$(COQC) InitCR.v
-	$(COQC) Properties2.v
-
-ownership:
-	$(COQC) AccessCore.v
-	$(COQC) Ownership.v
-
 access:
+	# access 
+	$(COQC) ConsistentRegions.v
+	$(COQC) Access.v
+	$(COQC) XAccess.v
+	# WIP
 	$(COQC) AccessInheritance.v
 	$(COQC) AccessExclusivity.v
 	$(COQC) NotAccess.v
@@ -63,6 +63,7 @@ todo1:
 	$(COQC) PointerTypes.v
 	$(COQC) NotXAccess.v
 	$(COQC) Guards.v
+	$(COQC) ClusteredAddresses.v
 
 todo2:
 	$(COQC) Promise.v

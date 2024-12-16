@@ -22,6 +22,7 @@ Proof.
     rewrite lookup_update_neq in H; trivial.
 Qed.
 
+(* TODO *)
 Lemma aux_inc2 : forall Gamma k k' T T',
   k <> k' ->
   (safe Gamma)[k' <== T'][k <== T] includes (safe Gamma[k <== T])[k' <== T'].
@@ -30,7 +31,7 @@ Proof.
     MapInc.trans, MapInc.update_inclusion, MapInc.update_permutation.
 Qed.
 
-Local Lemma typeof_subst : forall t tx T Tx Gamma x,
+Lemma typeof_subst : forall t tx T Tx Gamma x,
   Gamma[x <== Tx] |-- t is T ->
   empty |-- tx is Tx ->
   Gamma |-- <{[x := tx] t}> is T.
@@ -48,6 +49,75 @@ Proof.
   - eauto 6 using aux_inc2, context_weakening, type_of.
 Qed.
 
+(* ------------------------------------------------------------------------- *)
+
+Local Ltac solve_typeof_preservation T :=
+  intros; gendep T; ind_tstep; intros;
+  repeat invc_cr; repeat invc_typeof;
+  try invc_eq; eauto using typeof_subst, type_of.
+
+Lemma typeof_preservation_none : forall T t1 t2,
+  empty |-- t1 is T ->
+  t1 --[e_none]--> t2 ->
+  empty |-- t2 is T.
+Proof. solve_typeof_preservation T. Qed.
+
+Lemma typeof_preservation_alloc : forall T t1 t2 ad' T',
+  empty |-- t1 is T ->
+  t1 --[e_alloc ad' T']--> t2 ->
+  empty |-- t2 is T.
+Proof. solve_typeof_preservation T. Qed.
+
+Lemma typeof_preservation_insert : forall T t1 t2 ad' t' T',
+  empty |-- t1 is T ->
+  t1 --[e_insert ad' t' T']--> t2 ->
+  empty |-- t2 is T.
+Proof. solve_typeof_preservation T. Qed.
+
+Lemma typeof_preservation_read : forall T m t1 t2 ad' t',
+  consistent_references m t1 ->
+  (* --- *)
+  m[ad'].t = Some t' ->
+  empty |-- t1 is T ->
+  t1 --[e_read ad' t']--> t2 ->
+  empty |-- t2 is T.
+Proof. solve_typeof_preservation T. Qed.
+
+Lemma typeof_preservation_write : forall T t1 t2 ad' t',
+  empty |-- t1 is T ->
+  t1 --[e_write ad' t']--> t2 ->
+  empty |-- t2 is T.
+Proof. solve_typeof_preservation T. Qed.
+
+Lemma typeof_preservation_acq : forall T m t1 t2 ad' t',
+  consistent_references m t1 ->
+  (* --- *)
+  m[ad'].t = Some t' ->
+  empty |-- t1 is T ->
+  t1 --[e_acq ad' t']--> t2 ->
+  empty |-- t2 is T.
+Proof. solve_typeof_preservation T. Qed.
+
+Lemma typeof_preservation_rel : forall T t1 t2 ad,
+  empty |-- t1 is T ->
+  t1 --[e_rel ad]--> t2 ->
+  empty |-- t2 is T.
+Proof. solve_typeof_preservation T. Qed.
+
+Lemma typeof_preservation_spawn : forall T t1 t2 tid t,
+  empty |-- t1 is T ->
+  t1 --[e_spawn tid t]--> t2 ->
+  empty |-- t2 is T.
+Proof. solve_typeof_preservation T. Qed.
+
+Lemma typeof_preservation_spawned : forall t1 t2 tid t T1,
+  empty |-- t1 is T1 ->
+  t1 --[e_spawn tid t]--> t2 ->
+  exists T, empty |-- t is T.
+Proof.
+  intros. gendep T1. ind_tstep; intros; invc_typeof; eauto.
+Qed.
+
 Local Lemma typeof_preservation_mstep : forall m1 m2 t1 t2 e T,
   consistent_references m1 t1 ->
   (* --- *)
@@ -55,9 +125,14 @@ Local Lemma typeof_preservation_mstep : forall m1 m2 t1 t2 e T,
   m1 / t1 ==[e]==> m2 / t2 ->
   empty |-- t2 is T.
 Proof.
-  intros. invc_mstep; gendep T; ind_tstep; intros;
-  repeat invc_cr; repeat invc_typeof;
-  try invc_eq; eauto using typeof_subst, type_of.
+  intros. invc_mstep.
+  - eauto using typeof_preservation_none.
+  - eauto using typeof_preservation_alloc.
+  - eauto using typeof_preservation_insert.
+  - eauto using typeof_preservation_read.
+  - eauto using typeof_preservation_write.
+  - eauto using typeof_preservation_acq.
+  - eauto using typeof_preservation_rel.
 Qed.
 
 Local Lemma typeof_preservation_mem_mstep : forall m1 m2 t1 t2 t1' t2' e ad T,
@@ -79,22 +154,6 @@ Proof.
   + gendep T'. gendep t1'. ind_tstep; intros;
     repeat invc_typeof; repeat invc_ci; repeat invc_cr; eauto.
     invc_eq. apply_deterministic_typing. assumption.
-Qed.
-
-Lemma typeof_preservation_spawn : forall t1 t2 tid t T,
-  empty |-- t1 is T ->
-  t1 --[e_spawn tid t]--> t2 ->
-  empty |-- t2 is T.
-Proof.
-  intros. gendep T. ind_tstep; intros; invc_typeof; eauto using type_of.
-Qed.
-
-Lemma typeof_preservation_spawned : forall t1 t2 tid t T1,
-  empty |-- t1 is T1 ->
-  t1 --[e_spawn tid t]--> t2 ->
-  exists T, empty |-- t is T.
-Proof.
-  intros. gendep T1. ind_tstep; intros; invc_typeof; eauto.
 Qed.
 
 Definition types_of (ths : threads) (Ts: list ty) :=
@@ -263,9 +322,9 @@ Local Ltac solve_inductive_progress_case :=
     destruct H as [m2 [? [? [? ?]]]];
     exists m2; repeat eexists;
     invc_mstep
-  | H : exists m2 t2 ad t, ?m1 / ?t1 ==[e_insert ad t]==> m2 / t2 |- _ =>
+  | H : exists m2 t2 ad t T, ?m1 / ?t1 ==[e_insert ad t T]==> m2 / t2 |- _ =>
     pick_insert;
-    destruct H as [m2 [? [? [? ?]]]];
+    destruct H as [m2 [? [? [? [? ?]]]]];
     exists m2; repeat eexists;
     invc_mstep
   | H : exists m2 t2 ad t, ?m1 / ?t1 ==[e_read ad t]==> m2 / t2 |- _ =>
@@ -284,11 +343,10 @@ Local Ltac solve_inductive_progress_case :=
     exists m2; repeat eexists;
     intros Hx; specialize (Hmstep Hx); 
     invc_mstep
-  | H : exists m2 t2 _, _ -> ?m1 / ?t1 ==[e_rel _]==> m2 / t2 |- _ =>
+  | H : exists m2 t2 _, ?m1 / ?t1 ==[e_rel _]==> m2 / t2 |- _ =>
     pick_rel;
     destruct H as [m2 [? [? Hmstep]]];
     exists m2; repeat eexists;
-    intros Hx; specialize (Hmstep Hx); 
     invc_mstep
   | H : exists _ _ _, _ --[e_spawn _ _]--> _ |- _ =>
     pick_spawn;
@@ -309,16 +367,15 @@ Theorem limited_progress : forall m1 t1,
   (* --- *)
   well_typed_term t1 ->
   (value t1
-    \/ (exists m2 t2,      m1 / t1 ==[e_none       ]==> m2 / t2)
-    \/ (exists m2 t2 ad T, m1 / t1 ==[e_alloc ad T ]==> m2 / t2)
-    \/ (exists m2 t2 ad t, m1 / t1 ==[e_insert ad t]==> m2 / t2)
-    \/ (exists m2 t2 ad t, m1 / t1 ==[e_read ad t  ]==> m2 / t2)
-    \/ (exists m2 t2 ad t, m1 / t1 ==[e_write ad t ]==> m2 / t2)
-    \/ (exists m2 t2 ad t, m1[ad].X = false ->
-                           m1 / t1 ==[e_acq ad t   ]==> m2 / t2)
-    \/ (exists m2 t2 ad,   m1[ad].X = true -> (* TODO *)
-                           m1 / t1 ==[e_rel ad     ]==> m2 / t2)
-    \/ (exists t2 tid t,   t1 --[e_spawn tid t]--> t2)).
+    \/ (exists m2 t2,        m1 / t1 ==[e_none         ]==> m2 / t2)
+    \/ (exists m2 t2 ad T,   m1 / t1 ==[e_alloc ad T   ]==> m2 / t2)
+    \/ (exists m2 t2 ad t T, m1 / t1 ==[e_insert ad t T]==> m2 / t2)
+    \/ (exists m2 t2 ad t,   m1 / t1 ==[e_read ad t    ]==> m2 / t2)
+    \/ (exists m2 t2 ad t,   m1 / t1 ==[e_write ad t   ]==> m2 / t2)
+    \/ (exists m2 t2 ad t,   m1[ad].X = false ->
+                             m1 / t1 ==[e_acq ad t     ]==> m2 / t2)
+    \/ (exists m2 t2 ad,     m1 / t1 ==[e_rel ad       ]==> m2 / t2)
+    \/ (exists t2 tid t,     t1 --[e_spawn tid t]--> t2)).
 Proof.
   intros * ? ? [T ?]. remember empty as Gamma.
   ind_typeof; eauto using value; right; invc_vad; invc_cr;
