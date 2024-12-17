@@ -8,4 +8,5 @@ From Elo Require Export SafeNewX.
 From Elo Require Export SafeAcq.
 From Elo Require Export SafeCR.
 From Elo Require Export SafeSpawns.
+From Elo Require Export ConsistentRegions.
 

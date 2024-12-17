@@ -45,11 +45,11 @@ type-properties:
 	$(COQC) SafeAcq.v
 	$(COQC) SafeCR.v
 	$(COQC) SafeSpawns.v
+	$(COQC) ConsistentRegions.v
 	$(COQC) TypeProperties.v
 
 access:
 	# access 
-	$(COQC) ConsistentRegions.v
 	$(COQC) Access.v
 	$(COQC) XAccess.v
 	# WIP
