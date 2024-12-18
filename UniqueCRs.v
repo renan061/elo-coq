@@ -63,7 +63,7 @@ Local Lemma ucr_preservation_alloc : forall m ths tid t T,
   tid < #ths ->
   unique_critical_regions m ths ->
   ths[tid] --[e_alloc (#m) T]--> t ->
-  unique_critical_regions (m +++ (None, T, false)) ths[tid <- t].
+  unique_critical_regions (m +++ (None, T, false, R_invalid)) ths[tid <- t].
 Proof.
   intros *.
   intros ? Hucr ? ad. specialize (Hucr ad) as [Hfall Hfone].

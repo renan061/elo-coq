@@ -170,7 +170,7 @@ Qed.
 
 Lemma cr_mem_add : forall m t T,
   consistent_references m t ->
-  consistent_references (m +++ (None, T, false)) t.
+  consistent_references (m +++ (None, T, false, R_invalid)) t.
 Proof.
   intros. induction t; invc_cr; eauto using consistent_references;
   (eapply cr_refR || eapply cr_refX || eapply cr_refW);
@@ -239,7 +239,7 @@ Qed.
 Lemma cr_preservation_alloc : forall m t1 t2 T,
   consistent_references m t1 ->
   t1 --[e_alloc (#m) T]--> t2 ->
-  consistent_references (m +++ (None, T, false)) t2.
+  consistent_references (m +++ (None, T, false, R_invalid)) t2.
 Proof.
   intros. ind_tstep; intros; invc_cr;
   eauto using cr_mem_add, consistent_references.

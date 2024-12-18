@@ -71,7 +71,7 @@ Local Lemma ui_preservation_alloc : forall m ths tid t T,
   tid < #ths ->
   unique_initializers m ths ->
   ths[tid] --[e_alloc (#m) T]--> t ->
-  unique_initializers (m +++ (None, T, false)) ths[tid <- t].
+  unique_initializers (m +++ (None, T, false, R_invalid)) ths[tid <- t].
 Proof.
   intros until 1.
   intros ? Hui ? ad Had. omicron.

@@ -210,7 +210,7 @@ Lemma ci_preservation_alloc : forall m t1 t2 T,
   (* --- *)
   consistent_inits m t1 ->
   t1 --[e_alloc (#m) T]--> t2 ->
-  consistent_inits (m +++ (None, T, false)) t2.
+  consistent_inits (m +++ (None, T, false, R_invalid)) t2.
 Proof.
   intros * ? [T ?] **. gendep T.
   ind_tstep; intros; invc_vad; invc_typeof; invc_ci;

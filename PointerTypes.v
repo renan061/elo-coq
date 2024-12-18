@@ -26,6 +26,17 @@ Proof.
   ind_tstep; intros; repeat invc_typeof; repeat invc_cr; eauto.
 Qed.
 
+Lemma ptyp_for_acq : forall m t1 t2 ad t,
+  well_typed_term t1 ->
+  consistent_references m t1 ->
+  (* --- *)
+  t1 --[e_acq ad t]--> t2 ->
+  exists T, m[ad].T = `x&T`.
+Proof.
+  intros * [T ?] **. gendep T.
+  ind_tstep; intros; repeat invc_typeof; repeat invc_cr; eauto.
+Qed.
+
 Theorem ptyp_preservation : forall m1 m2 ths1 ths2 tid e ad,
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
   ad < #m1 ->

@@ -55,7 +55,7 @@ Qed.
 Lemma nur_preservation_alloc : forall m ths tid t T,
   no_uninitialized_references m ths ->
   ths[tid] --[e_alloc (#m) T]--> t ->
-  no_uninitialized_references (m +++ (None, T, false)) ths[tid <- t].
+  no_uninitialized_references (m +++ (None, T, false, R_invalid)) ths[tid <- t].
 Proof.
   simpl_nur. eauto using noref_preservation_alloc.
 Qed.

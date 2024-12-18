@@ -148,7 +148,7 @@ Proof. solve_vad_preservation. Qed.
 Lemma vad_preservation_alloc : forall m t1 t2 T,
   valid_addresses m t1 ->
   t1 --[e_alloc (#m) T]--> t2 ->
-  valid_addresses (m +++ (None, T, false)) t2.
+  valid_addresses (m +++ (None, T, false, R_invalid)) t2.
 Proof. solve_vad_preservation. Qed.
 
 Lemma vad_preservation_insert : forall m t1 t2 ad t T,

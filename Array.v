@@ -128,6 +128,13 @@ Proof.
   - simpl. eapply PeanoNat.Nat.succ_lt_mono in H. eauto.
 Qed.
 
+Lemma add_set_eq : forall {A} (l : list A) a a',
+  (l +++ a')[#l <- a] = (l +++ a).
+Proof.
+  unfold add in *. intros. induction l as [| ? ? IH]; trivial.
+  simpl. rewrite <- IH. reflexivity.
+Qed.
+
 (* -------------------------------------------------------------------------- *)
 
 Lemma set_get_eq : forall {A} d (l : list A) i a,
@@ -276,6 +283,14 @@ Ltac sigma_once :=
     rewrite (add_get_gt d l i a Hlen) in H
   | Hlen : #?l < ?i  |-  context C [ (?l +++ ?a)[?i] or ?d ] =>
     rewrite (add_get_gt d l i a Hlen)
+  (* ---------------------------------------- *)
+  (* add-set -- (l +++ a')[i <- a]            *)
+  (* ---------------------------------------- *)
+  (* add-set-eq (i == #l) *)
+  | H : context C [ (?l +++ ?a')[#?l <- ?a] ] |- _ =>
+    rewrite (add_set_eq l a a') in H
+  | |-  context C [ (?l +++ ?a')[#?l <- ?a] ] =>
+    rewrite (add_set_eq l a a')
   (* ---------------------------------------- *)
   (* set-get -- l[j <- a][i]                  *)
   (* ---------------------------------------- *)

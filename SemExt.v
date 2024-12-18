@@ -35,15 +35,11 @@ Ltac ind_typeof := match goal with H : _ |-- _ is _ |- _ => induction H end.
 (* step inversion & induction                                                *)
 (* ------------------------------------------------------------------------- *)
 
-Ltac _tstep tt := match goal with H : _     --[_]-->    _     |- _ => tt H end.
-Ltac _mstep tt := match goal with H : _ / _ ==[_]==>    _ / _ |- _ => tt H end.
-Ltac _cstep tt := match goal with H : _ / _ ~~[_, _]~~> _ / _ |- _ => tt H end.
-
-Ltac _ostep tt :=
-  match goal with H : _ / _ / _ ~~[_, _]~~> _ / _ / _ |- _ => tt H end.
-
-Ltac _ustep tt :=
-  match goal with H : _ / _ ~~[_]~~>*   _ / _ |- _ => tt H end.
+Ltac _tstep tt := match goal with H : _     --[_]-->     _     |- _ => tt H end.
+Ltac _mstep tt := match goal with H : _ / _ ==[_]==>     _ / _ |- _ => tt H end.
+Ltac _cstep tt := match goal with H : _ / _ ~~[_, _]~~>  _ / _ |- _ => tt H end.
+Ltac _ostep tt := match goal with H : _ / _ ~~~[_, _]~~> _ / _ |- _ => tt H end.
+Ltac _ustep tt := match goal with H : _ / _ ~~[_]~~>*    _ / _ |- _ => tt H end.
 
 Ltac inv_tstep := _tstep inv.
 Ltac inv_mstep := _mstep inv.
@@ -64,7 +60,7 @@ Ltac ind_tstep :=
 
 Ltac ind_ustep :=
   match goal with H : _ / _ ~~[?tc]~~>* _ / _ |- _ =>
-    induction H as [| ? ? ? ? ? ? ? ? ? Hustep ? Hcstep]
+    induction H as [| ? ? ? ? ? ? ? ? Hustep ? Hcstep]
   end.
 
 (* ------------------------------------------------------------------------- *)

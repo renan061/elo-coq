@@ -99,10 +99,10 @@ Notation "'acq' t1 x t2"    := (tm_acq t1 x t2)   (in custom elo_tm at level 0).
 Notation "'cr' ad t"        := (tm_cr ad t)       (in custom elo_tm at level 0).
 Notation "'spawn' t"        := (tm_spawn t)       (in custom elo_tm at level 0).
 
-Reserved Notation "Gamma '|--' t 'is' T" (at level 40).
-
 Reserved Notation "'[' x ':=' tx ']' t" (in custom elo_tm at level 20,
   x constr).
+
+Reserved Notation "Gamma '|--' t 'is' T" (at level 40).
 
 Reserved Notation "t '--[' e ']-->' t'" (at level 40,
   e at next level).
@@ -113,13 +113,10 @@ Reserved Notation "m / t '==[' e ']==>' m' / t'" (at level 40,
 Reserved Notation "m / ths '~~[' tid , e ']~~>' m' / ths'" (at level 40,
   ths at next level, tid at next level, e at next level, m' at next level).
 
-Reserved Notation "m / ths / o '~~[' tid , e ']~~>' m' / ths' / o'"
-  (at level 40,
-    ths at next level, o    at next level,
-    tid at next level, e    at next level,
-    m'  at next level, ths' at next level).
+Reserved Notation "m / ths '~~~[' tid , e ']~~>' m' / ths'" (at level 40,
+  ths at next level, tid at next level, e at next level, m' at next level).
 
-Reserved Notation "m / ths '~~[' tc ']~~>*' m' / ths' " (at level 40,
+Reserved Notation "m / ths '~~[' tc ']~~>*' m' / ths'" (at level 40,
   ths at next level, tc at next level, m' at next level).
 
 (* ------------------------------------------------------------------------- *)
@@ -152,19 +149,27 @@ Inductive eff : Set :=
 (* cells                                                                     *)
 (* ------------------------------------------------------------------------- *)
 
-Inductive cell : Type :=
-  | cell_triple (t : option tm) (T : ty) (X : bool)
+Inductive region : Set :=
+  | R_invalid
+  | R_tid  : nat  -> region
+  | R_ad   : addr -> region
   .
 
-Notation "'(' t ',' T ',' X ')'" := (cell_triple t T X).
+Inductive cell : Type :=
+  | _cell (t : option tm) (T : ty) (X : bool) (R : region)
+  .
 
-Definition get_cell_t (c : cell) := let (t, _, _) := c in t.
-Definition get_cell_T (c : cell) := let (_, T, _) := c in T.
-Definition get_cell_X (c : cell) := let (_, _, X) := c in X.
+Notation "'(' t ',' T ',' X ',' R ')'" := (_cell t T X R).
+
+Definition get_cell_t (c : cell) := let (t, _, _, _) := c in t.
+Definition get_cell_T (c : cell) := let (_, T, _, _) := c in T.
+Definition get_cell_X (c : cell) := let (_, _, X, _) := c in X.
+Definition get_cell_R (c : cell) := let (_, _, _, R) := c in R.
 
 Notation " c '.t' " := (get_cell_t c) (at level 9).
 Notation " c '.T' " := (get_cell_T c) (at level 9).
 Notation " c '.X' " := (get_cell_X c) (at level 9).
+Notation " c '.R' " := (get_cell_R c) (at level 9).
 
 (* ------------------------------------------------------------------------- *)
 (* aliases                                                                   *)
@@ -177,7 +182,7 @@ Definition trace   := list (nat * eff).
 
 Notation tm_default     := <{unit}>.
 Notation ty_default     := `Unit`.
-Notation cell_default   := (None, ty_default, false).
+Notation cell_default   := (None, ty_default, false, R_invalid).
 
 (* ------------------------------------------------------------------------- *)
 (* typing                                                                    *)
@@ -395,12 +400,19 @@ Notation " m '[' ad '].T' " := ((m[ad] or cell_default).T)
 Notation " m '[' ad '].X' " := ((m[ad] or cell_default).X)
   (at level 9, ad at next level).
 
+Notation " m '[' ad '].R' " := ((m[ad] or cell_default).R)
+  (at level 9, ad at next level).
+
 Notation " m '[' ad '.t' '<-' t ']' " :=
-  (m[ad <- (Some t, m[ad].cell.T, m[ad].cell.X)])
+  (m[ad <- (Some t, m[ad].T, m[ad].X, m[ad].R)])
   (at level 9, ad at next level, t at next level).
 
 Notation " m '[' ad '.X' '<-' X ']' " :=
-  (m[ad <- (m[ad].cell.t, m[ad].cell.T, X)])
+  (m[ad <- (m[ad].t, m[ad].T, X, m[ad].R)])
+  (at level 9, ad at next level).
+
+Notation " m '[' ad '.R' '<-' R ']' " :=
+  (m[ad <- (m[ad].t, m[ad].T, m[ad].X, R)])
   (at level 9, ad at next level).
 
 Inductive mstep : mem -> tm -> eff -> mem -> tm -> Prop :=
@@ -411,7 +423,7 @@ Inductive mstep : mem -> tm -> eff -> mem -> tm -> Prop :=
   | ms_alloc : forall m t1 t2 ad T,
     ad = #m ->
     t1 --[e_alloc ad T]--> t2 ->
-    m / t1 ==[e_alloc ad T]==> (m +++ (None, T, false)) / t2
+    m / t1 ==[e_alloc ad T]==> (m +++ (None, T, false, R_invalid)) / t2
 
   | ms_insert : forall m t1 t2 ad t T,
     ad < #m ->
@@ -467,17 +479,6 @@ Inductive cstep : mem -> threads -> nat -> eff -> mem -> threads -> Prop :=
 (* operational semantics -- ownership step                                   *)
 (* ------------------------------------------------------------------------- *)
 
-Inductive region : Set :=
-  | R_invalid
-  | R_tid  : nat  -> region
-  | R_ad   : addr -> region
-  .
-
-Definition owners := list region. (* #owners = #mem *)
-
-Notation " o '[' ad '].R' " := (o[ad] or R_invalid)
-  (at level 9, ad at next level).
-
 Definition is_value (t : tm) :=
   match t with
   | <{unit    }> => true
@@ -511,52 +512,42 @@ Fixpoint gcr (t' : tm) (r : region) : region :=
   | <{spawn _      }> => r
   end.
 
-Inductive ostep :
-  mem -> threads -> owners -> nat -> eff -> mem -> threads -> owners -> Prop :=
+Inductive ostep : mem -> threads -> nat -> eff -> mem -> threads -> Prop :=
+  | os_none : forall m1 m2 ths1 ths2 tid,
+    m1 / ths1 ~~[tid, e_none]~~> m2 / ths2 ->
+    m1 / ths1 ~~~[tid, e_none]~~> m2 / ths2
 
-  | os_none : forall m1 m2 ths1 ths2 o tid e,
-    e = e_none ->
-    m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
-    m1 / ths1 / o ~~[tid, e]~~> m2 / ths2 / o
+  | os_alloc : forall m1 m2 ths1 ths2 tid ad T R,
+    R = gcr ths1[tid] (R_tid tid) ->
+    m1 / ths1 ~~[tid, e_alloc ad T]~~> m2 / ths2 ->
+    m1 / ths1 ~~~[tid, e_alloc ad T]~~> m2[ad.R <- R] / ths2
 
-  | os_alloc : forall m1 m2 ths1 ths2 o1 o2 tid e ad T,
-    e = e_alloc ad T ->
-    o2 = o1 +++ gcr ths1[tid] (R_tid tid) ->
-    m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
-    m1 / ths1 / o1 ~~[tid, e]~~> m2 / ths2 / o2
+  | os_insert : forall m1 m2 ths1 ths2 tid ad t T,
+    m1 / ths1 ~~[tid, e_insert ad t T]~~> m2 / ths2 ->
+    m1 / ths1 ~~~[tid, e_insert ad t T]~~> m2 / ths2
 
-  | os_insert : forall m1 m2 ths1 ths2 o tid e ad t T,
-    e = e_insert ad t T ->
-    m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
-    m1 / ths1 / o ~~[tid, e]~~> m2 / ths2 / o
+  | os_read : forall m1 m2 ths1 ths2 tid ad t,
+    m1 / ths1 ~~[tid, e_read ad t]~~> m2 / ths2 ->
+    m1 / ths1 ~~~[tid, e_read ad t]~~> m2 / ths2
 
-  | os_read : forall m1 m2 ths1 ths2 o tid e ad t,
-    e = e_read ad t ->
-    m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
-    m1 / ths1 / o ~~[tid, e]~~> m2 / ths2 / o
+  | os_write : forall m1 m2 ths1 ths2 tid ad t,
+    m1 / ths1 ~~[tid, e_write ad t]~~> m2 / ths2 ->
+    m1 / ths1 ~~~[tid, e_write ad t]~~> m2 / ths2
 
-  | os_write : forall m1 m2 ths1 ths2 o tid e ad t,
-    e = e_write ad t ->
-    m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
-    m1 / ths1 / o ~~[tid, e]~~> m2 / ths2 / o
+  | os_acq : forall m1 m2 ths1 ths2 tid ad t,
+    m1 / ths1 ~~[tid, e_acq ad t]~~> m2 / ths2 ->
+    m1 / ths1 ~~~[tid, e_acq ad t]~~> m2 / ths2
 
-  | os_acq : forall m1 m2 ths1 ths2 o tid e ad t,
-    e = e_acq ad t ->
-    m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
-    m1 / ths1 / o ~~[tid, e]~~> m2 / ths2 / o
+  | os_rel : forall m1 m2 ths1 ths2 tid ad,
+    m1 / ths1 ~~[tid, e_rel ad]~~> m2 / ths2 ->
+    m1 / ths1 ~~~[tid, e_rel ad]~~> m2 / ths2
 
-  | os_rel : forall m1 m2 ths1 ths2 o tid e ad,
-    e = e_rel ad ->
-    m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
-    m1 / ths1 / o ~~[tid, e]~~> m2 / ths2 / o
+  | os_spawn : forall m1 m2 ths1 ths2 tid tid' t',
+    m1 / ths1 ~~[tid, e_spawn tid' t']~~> m2 / ths2 ->
+    m1 / ths1 ~~~[tid, e_spawn tid' t']~~> m2 / ths2
 
-  | os_spawn : forall m1 m2 ths1 ths2 o tid e tid' t',
-    e = e_spawn tid' t' ->
-    m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
-    m1 / ths1 / o ~~[tid, e]~~> m2 / ths2 / o
-
-  where "m / ths / o '~~[' tid , e ']~~>' m' / ths' / o'" :=
-    (ostep m ths o tid e m' ths' o').
+  where "m / ths '~~~[' tid , e ']~~>' m' / ths'" :=
+    (ostep m ths tid e m' ths').
 
 (* ------------------------------------------------------------------------- *)
 (* multistep                                                                 *)
@@ -568,7 +559,7 @@ Inductive multistep : mem -> threads -> trace -> mem -> threads -> Prop :=
 
   | multistep_trans : forall m1 m2 m3 ths1 ths2 ths3 tid e tc,
     m1 / ths1 ~~[tc            ]~~>* m2 / ths2 ->
-    m2 / ths2 ~~[tid, e        ]~~>  m3 / ths3 ->
+    m2 / ths2 ~~~[tid, e       ]~~>  m3 / ths3 ->
     m1 / ths1 ~~[(tid, e) :: tc]~~>* m3 / ths3 
 
   where "m1 / ths1 '~~[' tc ']~~>*' m2 / ths2" :=
