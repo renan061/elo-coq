@@ -1,7 +1,9 @@
 From Elo Require Import Core.
 
-From Elo Require Import ValidAddresses.
 From Elo Require Import NoRef.
+From Elo Require Import NoInit.
+From Elo Require Import NoCR.
+From Elo Require Import ValidTerm.
 
 (* ------------------------------------------------------------------------- *)
 (* no-uninitialized-references                                               *)
@@ -22,16 +24,27 @@ Proof.
   eauto using noref_write_contradiction.
 Qed.
 
+(* preservation lemmas ----------------------------------------------------- *)
+
+Lemma nur_mem_region : forall m ths ad R,
+  no_uninitialized_references m ths ->
+  no_uninitialized_references m[ad.R <- R] ths.
+Proof.
+  intros * H. intros ad' ?. specialize (H ad').
+  repeat omicron; upsilon; destruct H; trivial;
+  split; repeat intro; repeat omicron; upsilon; eauto.
+Qed.
+
 (* preservation ------------------------------------------------------------ *)
 
 Local Ltac simpl_nur :=
   intros ** ? ?;
-  try match goal with _ : forall_threads _ (valid_addresses ?m) |- _ =>
+  try match goal with _ : forall_threads _ (valid_term ?m) |- _ =>
     match goal with
     | _ : _ --[e_insert ?ad _ _]--> _ |- _ => assert (ad < #m)
     | _ : _ --[e_write  ?ad _  ]--> _ |- _ => assert (ad < #m)
     end;
-    eauto using vad_insert_address, vad_write_address
+    eauto using vtm_insert_address, vtm_write_address
   end;
   upsilon;
   match goal with
@@ -61,7 +74,7 @@ Proof.
 Qed.
 
 Lemma nur_preservation_insert : forall m ths tid t ad' t' T',
-  forall_threads ths (valid_addresses m) ->
+  forall_threads ths (valid_term m) ->
   (* --- *)
   no_uninitialized_references m ths ->
   ths[tid] --[e_insert ad' t' T']--> t ->
@@ -80,7 +93,7 @@ Proof.
 Qed.
 
 Lemma nur_preservation_write : forall m ths tid t ad' t',
-  forall_threads ths (valid_addresses m) ->
+  forall_threads ths (valid_term m) ->
   (* --- *)
   no_uninitialized_references m ths ->
   ths[tid] --[e_write ad' t']--> t ->
@@ -114,8 +127,10 @@ Proof.
   simpl_nur. eauto using noref_preservation_spawn, noref_preservation_spawned.
 Qed.
 
-Theorem nur_preservation : forall m1 m2 ths1 ths2 tid e,
-  forall_program m1 ths1 (valid_addresses m1) ->
+(* ------------------------------------------------------------------------- *)
+
+Theorem nur_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
+  forall_program m1 ths1 (valid_term m1) ->
   (* --- *)
   no_uninitialized_references m1 ths1 ->
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
@@ -130,5 +145,44 @@ Proof.
   - eauto using nur_preservation_acq.
   - eauto using nur_preservation_rel.
   - eauto using nur_preservation_spawn.
+Qed.
+
+Theorem nur_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
+  forall_program m1 ths1 (valid_term m1) ->
+  (* --- *)
+  no_uninitialized_references m1 ths1 ->
+  m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
+  no_uninitialized_references m2 ths2.
+Proof.
+  intros. invc_ostep; eauto using nur_preservation_cstep.
+  match goal with _ : _ / _ ~~[_, _]~~> ?m / ?ths |- _ =>
+    assert (no_uninitialized_references m ths)
+  end;
+  eauto using nur_preservation_cstep, nur_mem_region.
+Qed.
+
+Theorem nur_preservation_ustep : forall m1 m2 ths1 ths2 tc,
+  forall_memory  m1 value ->
+  forall_program m1 ths1 (valid_term m1) ->
+  (* --- *)
+  no_uninitialized_references m1 ths1 ->
+  m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+  no_uninitialized_references m2 ths2.
+Proof.
+  intros. ind_ustep;
+  eauto using nur_preservation_rstep,
+    value_preservation_ustep,
+    vtm_preservation_ustep.
+Qed.
+
+Theorem nur_preservation_base : forall t,
+  no_refs  t ->
+  no_inits t ->
+  no_crs   t ->
+  (* --- *)
+  no_uninitialized_references base_m (base_t t).
+Proof.
+  unfold base_m, base_t. repeat intro. split; repeat intro; upsilon.
+  omicron; auto using no_ref. 
 Qed.
 

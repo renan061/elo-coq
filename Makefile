@@ -17,13 +17,12 @@ core:
 
 syntactic-properties:
 	# syntactic properties
-	$(COQC) ValidAddresses.v
-	$(COQC) HasVar.v
 	$(COQC) NoRef.v
-	$(COQC) NoWRef.v
 	$(COQC) NoInit.v
 	$(COQC) NoCR.v
-	$(COQC) ValidBlocks.v
+	$(COQC) HasVar.v
+	$(COQC) NoWRef.v
+	$(COQC) ValidTerm.v
 	$(COQC) InheritanceNoInit.v
 	$(COQC) InheritanceNoCR.v
 	$(COQC) OneInit.v

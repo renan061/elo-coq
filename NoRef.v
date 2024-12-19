@@ -165,3 +165,71 @@ Lemma noref_preservation_spawned : forall ad t1 t2 tid t,
   no_ref ad t.
 Proof. solve_noref_preservation. Qed.
 
+(* ------------------------------------------------------------------------- *)
+(* no-refs                                                                   *)
+(* ------------------------------------------------------------------------- *)
+
+Definition no_refs (t : tm) := forall ad, no_ref ad t.
+
+(* inversion --------------------------------------------------------------- *)
+
+Local Ltac solve_inv_norefs :=
+  unfold no_refs; intros; try split; intros; spec; invc_noref; auto.
+
+Local Lemma inv_norefs_fun : forall x Tx t,
+  no_refs <{fn x Tx t}> -> no_refs t.
+Proof. solve_inv_norefs. Qed.
+
+Local Lemma inv_norefs_call : forall t1 t2,
+  no_refs <{call t1 t2}> -> no_refs t1 /\ no_refs t2.
+Proof. solve_inv_norefs. Qed.
+
+Local Lemma inv_norefs_ref : forall ad T,
+  no_refs <{&ad : T}> -> False.
+Proof. solve_inv_norefs. Qed.
+
+Local Lemma inv_norefs_new : forall t T,
+  no_refs <{new t : T}> -> no_refs t.
+Proof. solve_inv_norefs. Qed.
+
+Local Lemma inv_norefs_init : forall ad t T,
+  no_refs <{init ad t : T}> -> no_refs t.
+Proof. solve_inv_norefs. Qed.
+
+Local Lemma inv_norefs_load : forall t,
+  no_refs <{*t}> -> no_refs t.
+Proof. solve_inv_norefs. Qed.
+
+Local Lemma inv_norefs_asg : forall t1 t2,
+  no_refs <{t1 := t2}> -> no_refs t1 /\ no_refs t2.
+Proof. solve_inv_norefs. Qed.
+
+Local Lemma inv_norefs_acq : forall t1 x t2,
+  no_refs <{acq t1 x t2}> -> no_refs t1 /\ no_refs t2.
+Proof. solve_inv_norefs. Qed.
+
+Local Lemma inv_norefs_cr : forall ad t,
+  no_refs <{cr ad t}> -> no_refs t.
+Proof. solve_inv_norefs. Qed.
+
+Local Lemma inv_norefs_spawn : forall t,
+  no_refs <{spawn t}> -> no_refs t.
+Proof. solve_inv_norefs. Qed.
+
+Ltac invc_norefs :=
+  match goal with
+  | H : no_refs <{unit        }> |- _ => clear H
+  | H : no_refs <{nat _       }> |- _ => clear H
+  | H : no_refs <{var _       }> |- _ => clear H
+  | H : no_refs <{fn _ _ _    }> |- _ => eapply inv_norefs_fun   in H
+  | H : no_refs <{call _ _    }> |- _ => eapply inv_norefs_call  in H as [? ?]
+  | H : no_refs <{& _ : _     }> |- _ => eapply inv_norefs_ref   in H; auto
+  | H : no_refs <{new _ : _   }> |- _ => eapply inv_norefs_new   in H
+  | H : no_refs <{init _ _ : _}> |- _ => eapply inv_norefs_init  in H
+  | H : no_refs <{* _         }> |- _ => eapply inv_norefs_load  in H
+  | H : no_refs <{_ := _      }> |- _ => eapply inv_norefs_asg   in H as [? ?]
+  | H : no_refs <{acq _ _ _   }> |- _ => eapply inv_norefs_acq   in H as [? ?]
+  | H : no_refs <{cr _ _      }> |- _ => eapply inv_norefs_cr    in H
+  | H : no_refs <{spawn _     }> |- _ => eapply inv_norefs_spawn in H
+  end.
+

@@ -60,7 +60,7 @@ Ltac ind_tstep :=
 
 Ltac ind_ustep :=
   match goal with H : _ / _ ~~[?tc]~~>* _ / _ |- _ =>
-    induction H as [| ? ? ? ? ? ? ? ? Hustep ? Hcstep]
+    induction H as [| ? ? ? ? ? ? ? ? ? Hustep ? Hcstep]
   end.
 
 (* ------------------------------------------------------------------------- *)
@@ -274,4 +274,18 @@ Ltac value_does_not_step :=
   |- _ =>
     solve [invc H1; inv H2]
   end.
+
+(* ------------------------------------------------------------------------- *)
+(* base                                                                      *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma forall_program_base : forall (P : tm -> Prop) t,
+  P <{unit}> ->
+  P t ->
+  forall_program (base_m) (base_t t) (fun t' => P t').
+Proof.
+  unfold base_m, base_t. intros. split.
+  - intros ? ? Had. simpl in Had. destruct ad; simpl in Had; auto.
+  - intros ad. nat_eq_dec 0 ad; simpl; trivial. repeat (destruct ad; trivial).
+Qed.
 

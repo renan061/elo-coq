@@ -1,8 +1,10 @@
 From Elo Require Import Core.
 
-From Elo Require Import ValidAddresses.
+From Elo Require Import NoRef.
+From Elo Require Import NoInit.
 From Elo Require Import NoCR.
-From Elo Require Import ValidBlocks.
+
+From Elo Require Import ValidTerm.
 From Elo Require Import OneCR.
 
 (* ------------------------------------------------------------------------- *)
@@ -41,10 +43,21 @@ Proof.
   eauto using nocr_onecr_contradiction.
 Qed.
 
+(* preservation lemmas ----------------------------------------------------- *)
+
+Lemma ucr_mem_region : forall m ths ad R,
+  unique_critical_regions m ths ->
+  unique_critical_regions m[ad.R <- R] ths.
+Proof.
+  intros * H. intros ad'. specialize (H ad').
+  repeat omicron; upsilon; destruct H; trivial;
+  split; repeat intro; repeat omicron; upsilon; spec; eauto.
+Qed.
+
 (* preservation ------------------------------------------------------------ *)
 
 Local Lemma ucr_preservation_none : forall m ths tid t,
-  forall_threads ths valid_blocks ->
+  forall_threads ths (valid_term m) ->
   (* --- *)
   tid < #ths ->
   unique_critical_regions m ths ->
@@ -75,17 +88,16 @@ Proof.
 Qed.
 
 Local Lemma ucr_preservation_insert : forall m ths tid t ad' t' T',
-  forall_threads ths (valid_addresses m) ->
-  forall_threads ths valid_blocks ->
+  forall_threads ths (valid_term m) ->
   (* --- *)
   tid < #ths ->
   unique_critical_regions m ths ->
   ths[tid] --[e_insert ad' t' T']--> t ->
   unique_critical_regions m[ad'.t <- t'] ths[tid <- t].
 Proof.
-  intros until 2.
+  intros until 1.
   intros ? Hucr ? ad. specialize (Hucr ad) as [Hfall Hfone].
-  assert (ad' < #m) by eauto using vad_insert_address.
+  assert (ad' < #m) by eauto using vtm_insert_address.
   split; intros; repeat omicron; spec; upsilon;
   eauto using nocr_preservation_insert;
   specialize Hfone as [tid' [? ?]]; exists tid'; split; intros;
@@ -110,17 +122,16 @@ Proof.
 Qed.
 
 Local Lemma ucr_preservation_write : forall m ths tid t ad te,
-  forall_threads ths (valid_addresses m) ->
-  forall_threads ths valid_blocks ->
+  forall_threads ths (valid_term m) ->
   (* --- *)
   tid < #ths ->
   unique_critical_regions m ths ->
   ths[tid] --[e_write ad te]--> t ->
   unique_critical_regions m[ad.t <- te] ths[tid <- t].
 Proof.
-  intros until 2.
+  intros until 1.
   intros ? Hucr ? ad'. specialize (Hucr ad') as [Hfall Hfone].
-  assert (ad < #m) by eauto using vad_write_address.
+  assert (ad < #m) by eauto using vtm_write_address.
   split; intros; repeat omicron; spec; upsilon;
   eauto using nocr_preservation_write;
   specialize Hfone as [tid' [? ?]]; exists tid'; split; intros;
@@ -179,7 +190,7 @@ Local Ltac eapply_in_tstep tt :=
   match goal with Htstep : _ --[_]--> _ |- _ => eapply tt in Htstep as ? end.
 
 Local Lemma ucr_preservation_spawn : forall m ths tid t te,
-  forall_threads ths valid_blocks ->
+  forall_threads ths (valid_term m) ->
   (* --- *)
   tid < #ths ->
   unique_critical_regions m ths ->
@@ -199,23 +210,63 @@ Proof.
     + eapply_in_tstep nocrs_spawn_term; eauto.
 Qed.
 
-Theorem ucr_preservation : forall m1 m2 ths1 ths2 tid e,
-  forall_memory m1 no_crs ->
-  forall_threads ths1 (valid_addresses m1) ->
-  forall_threads ths1 valid_blocks ->
+Theorem ucr_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
+  forall_memory  m1 value                ->
+  forall_program m1 ths1 (valid_term m1) ->
   (* --- *)
   unique_critical_regions m1 ths1 ->
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
   unique_critical_regions m2 ths2.
 Proof.
-  intros. invc_cstep; try invc_mstep.
+  intros * ? [? ?] **. invc_cstep; try invc_mstep.
   - eauto using ucr_preservation_none.
   - eauto using ucr_preservation_alloc.
   - eauto using ucr_preservation_insert.
-  - eauto using ucr_preservation_read.
+  - eauto using nocrs_from_value, ucr_preservation_read.
   - eauto using ucr_preservation_write.
-  - eauto using ucr_preservation_acq.
+  - eauto using nocrs_from_value, ucr_preservation_acq.
   - eauto using ucr_preservation_rel.
   - eauto using ucr_preservation_spawn.
+Qed.
+
+Theorem ucr_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
+  forall_memory  m1 value                ->
+  forall_program m1 ths1 (valid_term m1) ->
+  (* --- *)
+  unique_critical_regions m1 ths1 ->
+  m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
+  unique_critical_regions m2 ths2.
+Proof.
+  intros. invc_ostep; eauto using ucr_preservation_cstep.
+  match goal with _ : _ / _ ~~[_, _]~~> ?m / ?ths |- _ =>
+    assert (unique_critical_regions m ths)
+  end;
+  eauto using ucr_preservation_cstep, ucr_mem_region.
+Qed.
+
+Theorem ucr_preservation_ustep : forall m1 m2 ths1 ths2 tc,
+  forall_memory  m1 value                ->
+  forall_program m1 ths1 (valid_term m1) ->
+  (* --- *)
+  unique_critical_regions m1 ths1 ->
+  m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+  unique_critical_regions m2 ths2.
+Proof.
+  intros. ind_ustep;
+  eauto using ucr_preservation_rstep,
+    value_preservation_ustep,
+    vtm_preservation_ustep.
+Qed.
+
+Theorem ucr_preservation_base : forall t,
+  no_refs  t ->
+  no_inits t ->
+  no_crs   t ->
+  (* --- *)
+  unique_critical_regions base_m (base_t t).
+Proof.
+  unfold base_m, base_t. intros ** ?. split; intros Hnil.
+  - intro. omicron; auto using no_cr.
+  - simpl in Hnil. destruct ad; upsilon; auto.
 Qed.
 

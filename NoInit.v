@@ -1,8 +1,4 @@
-From Coq Require Import Lia.
-
 From Elo Require Import Core.
-
-From Elo Require Import ValidAddresses.
 
 (* ------------------------------------------------------------------------- *)
 (* no-init                                                                   *)
@@ -76,18 +72,18 @@ Qed.
 
 (* lemmas ------------------------------------------------------------------ *)
 
-Lemma noinit_insert_term : forall t1 t2 ad ad' t T,
-  no_init ad' t1 ->
-  t1 --[e_insert ad t T]--> t2 ->
-  no_init ad' t.
+Lemma noinit_insert_term : forall ad t1 t2 ad' t' T',
+  no_init ad t1 ->
+  t1 --[e_insert ad' t' T']--> t2 ->
+  no_init ad t'.
 Proof.
   intros. ind_tstep; invc_noinit; auto using no_init.
 Qed.
 
-Lemma noinit_write_term : forall t1 t2 ad ad' t,
-  no_init ad' t1 ->
-  t1 --[e_write ad t]--> t2 ->
-  no_init ad' t.
+Lemma noinit_write_term : forall ad t1 t2 ad' t',
+  no_init ad t1 ->
+  t1 --[e_write ad' t']--> t2 ->
+  no_init ad t'.
 Proof.
   intros. ind_tstep; invc_noinit; auto using no_init.
 Qed.
@@ -98,23 +94,6 @@ Lemma noinit_insert_contradiction : forall t1 t2 ad t T,
   False.
 Proof.
   intros. ind_tstep; invc_noinit; auto.
-Qed.
-
-Lemma noinit_from_vad1 : forall m t,
-  valid_addresses m t ->
-  no_init (#m) t.
-Proof.
-  intros. induction t; invc_vad; auto using no_init.
-Qed.
-
-Lemma noinit_from_vad2 : forall ad m t,
-  valid_addresses m t ->
-  #m < ad ->
-  no_init ad t.
-Proof.
-  intros. induction t; invc_vad; auto using no_init.
-  match goal with |- no_init ?ad1 <{init ?ad2 _ : _}> => nat_eq_dec ad1 ad2 end;
-  auto using no_init. lia.
 Qed.
 
 (* preservation lemmas ----------------------------------------------------- *)
@@ -139,10 +118,10 @@ Lemma noinit_preservation_none : forall ad t1 t2,
   no_init ad t2.
 Proof. solve_noinit_preservation. Qed.
 
-Lemma noinit_preservation_alloc : forall ad t1 t2 ad' T,
+Lemma noinit_preservation_alloc : forall ad t1 t2 ad' T',
   ad <> ad' ->
   no_init ad t1 ->
-  t1 --[e_alloc ad' T]--> t2 ->
+  t1 --[e_alloc ad' T']--> t2 ->
   no_init ad t2.
 Proof. solve_noinit_preservation. Qed.
 
@@ -153,25 +132,25 @@ Lemma noinit_preservation_insert : forall ad t1 t2 ad' t' T',
   no_init ad t2.
 Proof. solve_noinit_preservation. Qed.
 
-Lemma noinit_preservation_read : forall ad t1 t2 ad' t,
-  no_init ad t ->
+Lemma noinit_preservation_read : forall ad t1 t2 ad' t',
+  no_init ad t' ->
   (* --- *)
   no_init ad t1 ->
-  t1 --[e_read ad' t]--> t2 ->
+  t1 --[e_read ad' t']--> t2 ->
   no_init ad t2.
 Proof. solve_noinit_preservation. Qed.
 
-Lemma noinit_preservation_write : forall ad t1 t2 ad' t,
+Lemma noinit_preservation_write : forall ad t1 t2 ad' t',
   no_init ad t1 ->
-  t1 --[e_write ad' t]--> t2 ->
+  t1 --[e_write ad' t']--> t2 ->
   no_init ad t2.
 Proof. solve_noinit_preservation. Qed.
 
-Lemma noinit_preservation_acq : forall ad t1 t2 ad' t,
-  no_init ad t ->
+Lemma noinit_preservation_acq : forall ad t1 t2 ad' t',
+  no_init ad t' ->
   (* --- *)
   no_init ad t1 ->
-  t1 --[e_acq ad' t]--> t2 ->
+  t1 --[e_acq ad' t']--> t2 ->
   no_init ad t2.
 Proof. solve_noinit_preservation. Qed.
 
@@ -181,16 +160,16 @@ Lemma noinit_preservation_rel : forall ad t1 t2 ad',
   no_init ad t2.
 Proof. solve_noinit_preservation. Qed.
 
-Lemma noinit_preservation_spawn : forall ad t1 t2 tid t,
+Lemma noinit_preservation_spawn : forall ad t1 t2 tid' t',
   no_init ad t1 ->
-  t1 --[e_spawn tid t]--> t2 ->
+  t1 --[e_spawn tid' t']--> t2 ->
   no_init ad t2.
 Proof. solve_noinit_preservation. Qed.
 
-Lemma noinit_preservation_spawned : forall ad t1 t2 tid t,
+Lemma noinit_preservation_spawned : forall ad t1 t2 tid' t',
   no_init ad t1 ->
-  t1 --[e_spawn tid t]--> t2 ->
-  no_init ad t.
+  t1 --[e_spawn tid' t']--> t2 ->
+  no_init ad t'.
 Proof. solve_noinit_preservation. Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -266,18 +245,18 @@ Proof.
   unfold no_inits. auto.
 Qed.
 
-Corollary noinits_insert_term : forall t1 t2 ad t T,
+Corollary noinits_insert_term : forall t1 t2 ad' t' T',
   no_inits t1 ->
-  t1 --[e_insert ad t T]--> t2 ->
-  no_inits t.
+  t1 --[e_insert ad' t' T']--> t2 ->
+  no_inits t'.
 Proof.
   unfold no_inits. eauto using noinit_insert_term.
 Qed.
 
-Corollary noinits_write_term : forall t1 t2 ad t,
+Corollary noinits_write_term : forall t1 t2 ad' t',
   no_inits t1 ->
-  t1 --[e_write ad t]--> t2 ->
-  no_inits t.
+  t1 --[e_write ad' t']--> t2 ->
+  no_inits t'.
 Proof.
   unfold no_inits. eauto using noinit_write_term.
 Qed.

@@ -364,6 +364,11 @@ Local Ltac split_add_get l i :=
 Ltac omicron :=
   sigma;
   match goal with
+  (* get-singleton *)
+  | H : context C [ (_ :: nil)[?i] or _ ] |- _ =>
+    simpl in H; destruct i; try destruct i
+  |  |- context C [ (_ :: nil)[?i] or _ ] =>
+    simpl; destruct i; try destruct i
   (* set-add-get *)
   | _ : context C [ (?l[?i1 <- _] +++ _)[?i2] or _ ] |- _ =>
     split_set_add_get l i1 i2

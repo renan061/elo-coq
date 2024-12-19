@@ -565,3 +565,10 @@ Inductive multistep : mem -> threads -> trace -> mem -> threads -> Prop :=
   where "m1 / ths1 '~~[' tc ']~~>*' m2 / ths2" :=
     (multistep m1 ths1 tc m2 ths2).
 
+(* ------------------------------------------------------------------------- *)
+(* base                                                                      *)
+(* ------------------------------------------------------------------------- *)
+
+Definition base_m          : mem     := nil.
+Definition base_t (t : tm) : threads := t :: nil.
+

@@ -945,7 +945,7 @@ Proof.
 
   assert (gcr ths1[tid1] (R_tid tid1) = m1[ad].R)
     by eauto using ostep_gcr_write.
-  assert (gcr ths2[tid2] (R_tid tid2) = o2[ad].R) by admit.
+  assert (gcr ths2[tid2] (R_tid tid2) = m2[ad].R) by admit.
 Qed.
 
 

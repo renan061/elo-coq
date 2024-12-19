@@ -1,7 +1,7 @@
 From Elo Require Import Core.
 
 From Elo Require Import NoCR.
-From Elo Require Import ValidBlocks.
+From Elo Require Import ValidTerm.
 From Elo Require Import InheritanceNoCR.
 
 (* ------------------------------------------------------------------------- *)
@@ -114,12 +114,12 @@ Qed.
 (* preservation ------------------------------------------------------------ *)
 
 Local Ltac solve_onecr_preservation L :=
-  intros; ind_tstep; try invc_vb; repeat invc_onecr;
+  intros; ind_tstep; try invc_vtm; repeat invc_onecr;
   eauto using L, onecr_subst, one_cr;
   exfalso; eauto using nocrs_from_value, nocrs_onecr_contradiction.
 
-Lemma onecr_preservation_none : forall t1 t2 ad,
-  valid_blocks t1 ->
+Lemma onecr_preservation_none : forall ad m t1 t2,
+  valid_term m t1 ->
   (* --- *)
   one_cr ad t1 ->
   t1 --[e_none]--> t2 ->
@@ -132,8 +132,8 @@ Lemma onecr_preservation_alloc : forall ad t1 t2 ad' T',
   one_cr ad t2.
 Proof. solve_onecr_preservation nocr_preservation_alloc. Qed.
 
-Lemma onecr_preservation_insert : forall ad t1 t2 ad' t' T',
-  valid_blocks t1 ->
+Lemma onecr_preservation_insert : forall ad m t1 t2 ad' t' T',
+  valid_term m t1 ->
   (* --- *)
   one_cr ad t1 ->
   t1 --[e_insert ad' t' T']--> t2 ->
@@ -148,8 +148,8 @@ Lemma onecr_preservation_read : forall ad t1 t2 ad' t',
   one_cr ad t2.
 Proof. solve_onecr_preservation nocr_preservation_read. Qed.
 
-Lemma onecr_preservation_write : forall ad t1 t2 ad' t',
-  valid_blocks t1 ->
+Lemma onecr_preservation_write : forall ad m t1 t2 ad' t',
+  valid_term m t1 ->
   (* --- *)
   one_cr ad t1 ->
   t1 --[e_write ad' t']--> t2 ->
@@ -172,8 +172,8 @@ Lemma onecr_preservation_rel : forall ad t1 t2 ad',
   one_cr ad t2.
 Proof. solve_onecr_preservation nocr_preservation_rel. Qed.
 
-Lemma onecr_preservation_spawn : forall ad t1 t2 tid t,
-  valid_blocks t1 ->
+Lemma onecr_preservation_spawn : forall ad m t1 t2 tid t,
+  valid_term m t1 ->
   (* --- *)
   one_cr ad t1 ->
   t1 --[e_spawn tid t]--> t2 ->
@@ -183,12 +183,12 @@ Proof. solve_onecr_preservation nocr_preservation_spawn. Qed.
 (* inheritance ------------------------------------------------------------- *)
 
 Local Ltac solve_onecr_inheritance L :=
-  intros; ind_tstep; repeat invc_vb; try invc_onecr;
+  intros; ind_tstep; repeat invc_vtm; try invc_onecr;
   eauto using L, one_cr; exfalso;
   eauto using nocr_from_value, nocr_subst, nocr_onecr_contradiction.
 
-Lemma onecr_inheritance_none : forall ad t1 t2,
-  valid_blocks t1 ->
+Lemma onecr_inheritance_none : forall ad m t1 t2,
+  valid_term m t1 ->
   (* --- *)
   one_cr ad t2 ->
   t1 --[e_none]--> t2 ->
@@ -201,8 +201,8 @@ Lemma onecr_inheritance_alloc : forall ad t1 t2 ad' T',
   one_cr ad t1.
 Proof. solve_onecr_inheritance nocr_inheritance_alloc. Qed.
 
-Lemma onecr_inheritance_insert : forall ad t1 t2 ad' t' T',
-  valid_blocks t1 ->
+Lemma onecr_inheritance_insert : forall ad m t1 t2 ad' t' T',
+  valid_term m t1 ->
   (* --- *)
   one_cr ad t2 ->
   t1 --[e_insert ad' t' T']--> t2 ->
@@ -217,16 +217,16 @@ Lemma onecr_inheritance_read : forall ad t1 t2 ad' t',
   one_cr ad t1.
 Proof. solve_onecr_inheritance nocr_inheritance_read. Qed.
 
-Lemma onecr_inheritance_write : forall ad t1 t2 ad' t',
-  valid_blocks t1 ->
+Lemma onecr_inheritance_write : forall ad m t1 t2 ad' t',
+  valid_term m t1 ->
   (* --- *)
   one_cr ad t2 ->
   t1 --[e_write ad' t']--> t2 ->
   one_cr ad t1.
 Proof. solve_onecr_inheritance nocr_inheritance_write. Qed.
 
-Lemma onecr_inheritance_acq : forall ad t1 t2 ad' t',
-  valid_blocks t1 ->
+Lemma onecr_inheritance_acq : forall ad m t1 t2 ad' t',
+  valid_term m t1 ->
   no_crs t' ->
   (* --- *)
   ad <> ad' ->
@@ -242,8 +242,8 @@ Lemma onecr_inheritance_rel : forall ad t1 t2 ad',
   one_cr ad t1.
 Proof. solve_onecr_inheritance nocr_inheritance_rel. Qed.
 
-Lemma onecr_inheritance_spawn : forall ad t1 t2 tid t,
-  valid_blocks t1 ->
+Lemma onecr_inheritance_spawn : forall ad m t1 t2 tid t,
+  valid_term m t1 ->
   (* --- *)
   one_cr ad t2 ->
   t1 --[e_spawn tid t]--> t2 ->

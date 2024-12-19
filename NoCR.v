@@ -1,8 +1,4 @@
-From Coq Require Import Lia.
-
 From Elo Require Import Core.
-
-From Elo Require Import ValidAddresses.
 
 (* ------------------------------------------------------------------------- *)
 (* no-cr                                                                     *)
@@ -70,23 +66,6 @@ Proof.
   intros. ind_tstep; invc_nocr; auto.
 Qed.
 
-Lemma nocr_from_vad1 : forall m t,
-  valid_addresses m t ->
-  no_cr (#m) t.
-Proof.
-  intros. induction t; invc_vad; auto using no_cr.
-Qed.
-
-Lemma nocr_from_vad2 : forall ad m t,
-  valid_addresses m t ->
-  #m < ad ->
-  no_cr ad t.
-Proof.
-  intros. induction t; invc_vad; auto using no_cr.
-  match goal with |- no_cr ?ad1 <{cr ?ad2 _}> => nat_eq_dec ad1 ad2 end;
-  auto using no_cr. lia.
-Qed.
-
 (* preservation lemmas ----------------------------------------------------- *)
 
 Lemma nocr_subst : forall ad x tx t,
@@ -103,64 +82,64 @@ Qed.
 Local Ltac solve_nocr_preservation :=
   intros; ind_tstep; repeat invc_nocr; auto using nocr_subst, no_cr.
 
-Lemma nocr_preservation_none : forall t1 t2 ad,
+Lemma nocr_preservation_none : forall ad t1 t2,
   no_cr ad t1 ->
   t1 --[e_none]--> t2 ->
   no_cr ad t2.
 Proof. solve_nocr_preservation. Qed.
 
-Lemma nocr_preservation_alloc : forall t1 t2 ad ad' T,
+Lemma nocr_preservation_alloc : forall ad t1 t2 ad' T',
   no_cr ad t1 ->
-  t1 --[e_alloc ad' T]--> t2 ->
+  t1 --[e_alloc ad' T']--> t2 ->
   no_cr ad t2.
 Proof. solve_nocr_preservation. Qed.
 
-Lemma nocr_preservation_insert : forall t1 t2 ad ad' t' T',
+Lemma nocr_preservation_insert : forall ad t1 t2 ad' t' T',
   no_cr ad t1 ->
   t1 --[e_insert ad' t' T']--> t2 ->
   no_cr ad t2.
 Proof. solve_nocr_preservation. Qed.
 
-Lemma nocr_preservation_read : forall t1 t2 ad ad' t,
-  no_cr ad t ->
+Lemma nocr_preservation_read : forall ad t1 t2 ad' t',
+  no_cr ad t' ->
   (* --- *)
   no_cr ad t1 ->
-  t1 --[e_read ad' t]--> t2 ->
+  t1 --[e_read ad' t']--> t2 ->
   no_cr ad t2.
 Proof. solve_nocr_preservation. Qed.
 
-Lemma nocr_preservation_write : forall t1 t2 ad ad' t,
+Lemma nocr_preservation_write : forall ad t1 t2 ad' t',
   no_cr ad t1 ->
-  t1 --[e_write ad' t]--> t2 ->
+  t1 --[e_write ad' t']--> t2 ->
   no_cr ad t2.
 Proof. solve_nocr_preservation. Qed.
 
-Lemma nocr_preservation_acq : forall t1 t2 ad ad' t,
-  no_cr ad t ->
+Lemma nocr_preservation_acq : forall ad t1 t2 ad' t',
+  no_cr ad t' ->
   (* --- *)
   ad <> ad' ->
   no_cr ad t1 ->
-  t1 --[e_acq ad' t]--> t2 ->
+  t1 --[e_acq ad' t']--> t2 ->
   no_cr ad t2.
 Proof. solve_nocr_preservation. Qed.
 
-Lemma nocr_preservation_rel : forall t1 t2 ad ad',
+Lemma nocr_preservation_rel : forall ad t1 t2 ad',
   ad <> ad' ->
-  no_cr ad' t1 ->
-  t1 --[e_rel ad]--> t2 ->
-  no_cr ad' t2.
-Proof. solve_nocr_preservation. Qed.
-
-Lemma nocr_preservation_spawn : forall t1 t2 ad tid t,
   no_cr ad t1 ->
-  t1 --[e_spawn tid t]--> t2 ->
+  t1 --[e_rel ad']--> t2 ->
   no_cr ad t2.
 Proof. solve_nocr_preservation. Qed.
 
-Lemma nocr_preservation_spawned : forall t1 t2 ad tid t,
+Lemma nocr_preservation_spawn : forall ad t1 t2 tid' t',
   no_cr ad t1 ->
-  t1 --[e_spawn tid t]--> t2 ->
-  no_cr ad t.
+  t1 --[e_spawn tid' t']--> t2 ->
+  no_cr ad t2.
+Proof. solve_nocr_preservation. Qed.
+
+Lemma nocr_preservation_spawned : forall ad t1 t2 tid' t',
+  no_cr ad t1 ->
+  t1 --[e_spawn tid' t']--> t2 ->
+  no_cr ad t'.
 Proof. solve_nocr_preservation. Qed.
 
 (* ------------------------------------------------------------------------- *)
