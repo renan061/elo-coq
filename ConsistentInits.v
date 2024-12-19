@@ -109,14 +109,14 @@ Proof.
 Qed.
 
 Local Corollary oneinit_from_ui : forall m ths tid t ad' t' T',
-  forall_threads ths (valid_addresses m) ->
+  forall_threads ths (valid_term m) ->
   (* --- *)
   unique_initializers m ths ->
   ths[tid] --[e_insert ad' t' T']--> t ->
   one_init ad' ths[tid].
 Proof.
   intros * ? Hui ?.
-  assert (Had' : ad' < #m) by eauto using vad_insert_address.
+  assert (Had' : ad' < #m) by eauto using vtm_insert_address.
   specialize (Hui ad' Had') as [Hfall Hfone].
   opt_dec (m[ad'].t); spec.
   - specialize Hfone as [tid' [? ?]].
@@ -126,7 +126,7 @@ Proof.
 Qed.
 
 Local Corollary noinit_from_ui : forall m ths tid1 tid2 ad,
-  forall_threads ths (valid_addresses m) ->
+  forall_threads ths (valid_term m) ->
   unique_initializers m ths ->
   (* --- *)
   tid1 <> tid2 ->
@@ -154,12 +154,12 @@ Proof.
 Qed.
 
 Lemma ci_mem_add : forall m t c,
-  valid_addresses m t ->
+  valid_term m t ->
   (* --- *)
   consistent_inits m t ->
   consistent_inits (m +++ c) t.
 Proof.
-  intros. induction t; invc_vad; invc_ci; constructor; sigma; auto.
+  intros. induction t; invc_vtm; invc_ci; constructor; sigma; auto.
 Qed.
 
 Lemma ci_mem_set1 : forall m t t' ad,
@@ -194,6 +194,13 @@ Proof.
   intros. induction t; invc_ci; constructor; upsilon; auto.
 Qed.
 
+Lemma ci_mem_region : forall m t ad R,
+  consistent_inits m t ->
+  consistent_inits m[ad.R <- R] t.
+Proof.
+  intros. induction t; invc_ci; constructor; repeat omicron; auto.
+Qed.
+
 (* ------------------------------------------------------------------------- *)
 
 Lemma ci_preservation_none : forall m t1 t2,
@@ -204,110 +211,108 @@ Proof.
   intros. ind_tstep; repeat invc_ci; auto using ci_subst, consistent_inits.
 Qed.
 
-Lemma ci_preservation_alloc : forall m t1 t2 T,
-  valid_addresses m t1 ->
+Lemma ci_preservation_alloc : forall m t1 t2 T',
+  valid_term m t1 ->
   well_typed_term t1 ->
   (* --- *)
   consistent_inits m t1 ->
-  t1 --[e_alloc (#m) T]--> t2 ->
-  consistent_inits (m +++ (None, T, false, R_invalid)) t2.
+  t1 --[e_alloc (#m) T']--> t2 ->
+  consistent_inits (m +++ (None, T', false, R_invalid)) t2.
 Proof.
   intros * ? [T ?] **. gendep T.
-  ind_tstep; intros; invc_vad; invc_typeof; invc_ci;
+  ind_tstep; intros; invc_vtm; invc_typeof; invc_ci;
   constructor; sigma; eauto using ci_mem_add.
 Qed.
 
-Lemma ci_preservation_insert : forall m t1 t2 ad t T,
-  one_init ad t1 ->
+Lemma ci_preservation_insert : forall m t1 t2 ad' t' T',
+  one_init ad' t1 ->
   (* --- *)
   consistent_inits m t1 ->
-  t1 --[e_insert ad t T]--> t2 ->
-  consistent_inits m[ad.t <- t] t2.
+  t1 --[e_insert ad' t' T']--> t2 ->
+  consistent_inits m[ad'.t <- t'] t2.
 Proof.
-  intros. assert (consistent_inits m t) by eauto using ci_insert_term.
+  intros. assert (consistent_inits m t') by eauto using ci_insert_term.
   ind_tstep; invc_oneinit; invc_ci;
-  constructor; sigma; eauto using ci_mem_set1;
+  constructor; sigma; auto using ci_mem_set1;
   exfalso; eauto using noinit_insert_contradiction.
 Qed.
 
-Lemma ci_preservation_read : forall m t1 t2 ad t,
-  consistent_inits m t ->
+Lemma ci_preservation_read : forall m t1 t2 ad' t',
+  consistent_inits m t' ->
   (* --- *)
   consistent_inits m t1 ->
-  t1 --[e_read ad t]--> t2 ->
+  t1 --[e_read ad' t']--> t2 ->
   consistent_inits m t2.
 Proof.
-  intros. ind_tstep; invc_ci; eauto using consistent_inits.
+  intros. ind_tstep; invc_ci; auto using consistent_inits.
 Qed.
 
-Lemma ci_preservation_write : forall m t1 t2 ad t,
-  no_init ad t1 ->
+Lemma ci_preservation_write : forall m t1 t2 ad' t',
+  no_init ad' t1 ->
   (* --- *)
   consistent_inits m t1 ->
-  t1 --[e_write ad t]--> t2 ->
-  consistent_inits m[ad.t <- t] t2.
+  t1 --[e_write ad' t']--> t2 ->
+  consistent_inits m[ad'.t <- t'] t2.
 Proof.
   intros. ind_tstep; invc_noinit; invc_ci;
-  eauto using consistent_inits;
   constructor; sigma; eauto using ci_write_term, ci_mem_set1.
 Qed.
 
-Lemma ci_preservation_acq : forall m t1 t2 ad t,
-  consistent_inits m t ->
+Lemma ci_preservation_acq : forall m t1 t2 ad' t',
+  consistent_inits m t' ->
   (* --- *)
   consistent_inits m t1 ->
-  t1 --[e_acq ad t]--> t2 ->
-  consistent_inits m[ad.X <- true] t2.
+  t1 --[e_acq ad' t']--> t2 ->
+  consistent_inits m[ad'.X <- true] t2.
 Proof.
-  intros. eapply ci_mem_acq. ind_tstep; repeat invc_ci;
-  eauto using ci_subst, consistent_inits.
+  intros. eapply ci_mem_acq. ind_tstep; invc_ci;
+  auto using ci_subst, consistent_inits.
 Qed.
 
-Lemma ci_preservation_rel : forall m t1 t2 ad,
+Lemma ci_preservation_rel : forall m t1 t2 ad',
   consistent_inits m t1 ->
-  t1 --[e_rel ad]--> t2 ->
-  consistent_inits m[ad.X <- false] t2.
+  t1 --[e_rel ad']--> t2 ->
+  consistent_inits m[ad'.X <- false] t2.
 Proof.
-  intros. eapply ci_mem_rel. ind_tstep; repeat invc_ci;
-  eauto using consistent_inits.
+  intros. eapply ci_mem_rel. ind_tstep; invc_ci;
+  auto using consistent_inits.
 Qed.
 
-Lemma ci_preservation_spawn : forall m t1 t2 tid t,
+Lemma ci_preservation_spawn : forall m t1 t2 tid' t',
   consistent_inits m t1 ->
-  t1 --[e_spawn tid t]--> t2 ->
+  t1 --[e_spawn tid' t']--> t2 ->
   consistent_inits m t2.
 Proof.
-  intros. ind_tstep; invc_ci; eauto using consistent_inits.
+  intros. ind_tstep; invc_ci; auto using consistent_inits.
 Qed.
 
-Lemma ci_preservation_spawned : forall m t1 t2 tid t,
+Lemma ci_preservation_spawned : forall m t1 t2 tid' t',
   consistent_inits m t1 ->
-  t1 --[e_spawn tid t]--> t2 ->
-  consistent_inits m t.
+  t1 --[e_spawn tid' t']--> t2 ->
+  consistent_inits m t'.
 Proof.
-  intros. ind_tstep; invc_ci; eauto using consistent_inits.
+  intros. ind_tstep; invc_ci; auto using consistent_inits.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
 
 Corollary ci_preservation_memory : forall m1 m2 ths1 ths2 tid e,
   forall_memory  m1 value ->
-  forall_program m1 ths1 valid_blocks ->
+  forall_program m1 ths1 (valid_term m1) ->
   (* --- *)
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
-  forall_memory m2 (consistent_inits m2).
+  forall_memory  m2 (consistent_inits m2).
 Proof.
-  intros ** ? ? ?.
+  intros.
   assert (forall_memory m2 value)
-    by eauto using value_preservation.
-  assert (forall_program m2 ths2 valid_blocks) as [? _]
-    by eauto using vb_preservation.
-  eauto using noinits_from_value, ci_from_noinits.
+    by eauto using value_preservation_cstep.
+  assert (forall_program m2 ths2 (valid_term m2)) as [? ?]
+    by eauto using vtm_preservation_cstep.
+  repeat intro. eauto using noinits_from_value, ci_from_noinits.
 Qed.
 
 Corollary ci_preservation_threads : forall m1 m2 ths1 ths2 tid e,
-  forall_program m1 ths1 (valid_addresses m1) ->
-  forall_program m1 ths1 valid_blocks ->
+  forall_program m1 ths1 (valid_term m1) ->
   forall_program m1 ths1 well_typed_term ->
   no_uninitialized_references m1 ths1 ->
   unique_initializers m1 ths1 ->
@@ -317,7 +322,7 @@ Corollary ci_preservation_threads : forall m1 m2 ths1 ths2 tid e,
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
   forall_threads ths2 (consistent_inits m2).
 Proof.
-  intros * [? ?] [? ?] [? ?] ? Hui ? ? ?.
+  intros * [? ?] [? ?] ? Hui ? ? ?.
   invc_cstep; try invc_mstep.
   - upsilon. eauto using ci_preservation_none.
   - upsilon; eauto using ci_mem_add, ci_preservation_alloc.
@@ -325,7 +330,7 @@ Proof.
     upsilon; eauto using ci_preservation_insert. intros.
     assert (no_init  ad ths1[tid']) by eauto using noinit_from_ui.
     eapply ci_mem_set1; eauto using ci_from_noinits,
-      vb_insert_term, value_insert_term, noinits_from_value.
+      vtm_insert_term, value_insert_term, noinits_from_value.
   - upsilon. eauto using ci_preservation_read.
   - assert (m1[ad].t <> None) by eauto using write_then_initialized. 
     specialize (Hui ad) as [Hnoinit _]; trivial. spec.
@@ -335,10 +340,9 @@ Proof.
   - upsilon; eauto using ci_preservation_spawn, ci_preservation_spawned.
 Qed.
 
-Theorem ci_preservation : forall m1 m2 ths1 ths2 tid e,
+Theorem ci_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
   forall_memory  m1 value ->
-  forall_program m1 ths1 (valid_addresses m1) ->
-  forall_program m1 ths1 valid_blocks ->
+  forall_program m1 ths1 (valid_term m1) ->
   forall_program m1 ths1 well_typed_term ->
   no_uninitialized_references m1 ths1 ->
   unique_initializers m1 ths1 ->
@@ -347,7 +351,8 @@ Theorem ci_preservation : forall m1 m2 ths1 ths2 tid e,
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
   forall_program m2 ths2 (consistent_inits m2).
 Proof.
-  intros until 6. intros [? ?] **. split;
-  eauto using ci_preservation_memory, ci_preservation_threads.
+  intros until 5. intros Hci ?. split.
+  - eauto using ci_preservation_memory.
+  - destruct Hci. eauto using ci_preservation_threads.
 Qed.
 

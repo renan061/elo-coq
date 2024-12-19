@@ -1,8 +1,6 @@
 From Elo Require Import Core.
 
 From Elo Require Import NoRef.
-From Elo Require Import NoInit.
-From Elo Require Import NoCR.
 From Elo Require Import ValidTerm.
 
 (* ------------------------------------------------------------------------- *)
@@ -176,9 +174,7 @@ Proof.
 Qed.
 
 Theorem nur_preservation_base : forall t,
-  no_refs  t ->
-  no_inits t ->
-  no_crs   t ->
+  no_refs t ->
   (* --- *)
   no_uninitialized_references base_m (base_t t).
 Proof.
