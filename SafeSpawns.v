@@ -84,22 +84,6 @@ Proof.
   intros. ind_tstep; invc_ss; auto using safe_spawns.
 Qed.
 
-Lemma nowref_spawn_term : forall ad t1 t2 tid t,
-  safe_spawns t1 ->
-  t1 --[e_spawn tid t]--> t2 ->
-  no_wref ad t.
-Proof.
-  intros. ind_tstep; invc_ss; auto.
-Qed.
-
-Corollary nowrefs_spawn_term : forall t1 t2 tid t,
-  safe_spawns t1 ->
-  t1 --[e_spawn tid t]--> t2 ->
-  no_wrefs t.
-Proof.
-  unfold no_wrefs. eauto using nowref_spawn_term.
-Qed.
-
 (* preservation lemmas ----------------------------------------------------- *)
 
 Local Lemma nowrefs_safe_value : forall Gamma x tx t Tx T,

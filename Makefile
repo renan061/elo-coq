@@ -2,7 +2,7 @@
 
 COQC= coqc -Q . Elo
 
-all: core syntactic-properties type-properties access
+all: core syntactic-properties type-properties safety
 
 core:
 	# core
@@ -37,15 +37,19 @@ type-properties:
 	$(COQC) WellTypedTerm.v
 	$(COQC) ConsistentTerm.v
 	$(COQC) PointerTypes.v
-	$(COQC) ExclusivityInitCR.v
 	$(COQC) Soundness.v
-	$(COQC) SafeNewX.v
-	$(COQC) SafeAcq.v
-	$(COQC) SafeCR.v
-	$(COQC) SafeSpawns.v
+	$(COQC) SafeTerm.v
+	$(COQC) ExclusivityInitCR.v
 	$(COQC) TypeProperties.v
-	# TODO
+
+safety:
+	# safety
 	$(COQC) ConsistentRegions.v
+	$(COQC) Multistep.v
+
+
+
+
 
 access:
 	# access 
@@ -68,7 +72,7 @@ todo2:
 	$(COQC) Promise.v
 	$(COQC) Boundaries.v
 
-safety:
+oldsafety:
 	$(COQC) SMS.v
 	# $(COQC) Invariants.v
 	# $(COQC) Safety.

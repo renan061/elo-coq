@@ -6,85 +6,49 @@ From Elo Require Import TypeProperties.
 From Elo Require Import ConsistentRegions.
 
 (* ------------------------------------------------------------------------- *)
-(* has-invariants                                                            *)
+(* monotonic-nondecreasing                                                   *)
 (* ------------------------------------------------------------------------- *)
 
-Definition invariants m ths :=
-  forall_memory  m      value              /\
-  forall_program m ths (valid_term m)      /\
-  no_uninitialized_references m ths        /\
-  unique_initializers         m ths        /\
-  unique_critical_regions     m ths        /\
-  forall_program m ths well_typed_term     /\
-  forall_program m ths (consistent_term m) /\
-  memory_pointer_types m                   /\
-  forall_program m ths safe_term           /\
-  init_cr_exclusivity  ths                 /\
-  forall_memory_consistent_regions  m      /\
-  forall_threads_consistent_regions m ths   .
-
-Theorem invariants_preservation_base : forall t,
-  no_refs         t ->
-  no_inits        t ->
-  no_crs          t ->
-  well_typed_term t ->
-  invariants base_m (base_t t).
+Lemma cstep_nondecreasing_memory_length : forall m m' ths ths' tid e,
+  m / ths ~~[tid, e]~~> m' / ths' ->
+  #m <= #m'.
 Proof.
-  intros.
-  split; eauto using forallmemory_base.
-  split; eauto using vtm_preservation_base.
-  split; eauto using nur_preservation_base.
-  split; eauto using ui_preservation_base.
-  split; eauto using ucr_preservation_base.
-  split; eauto using wtt_preservation_base.
-  split; eauto using ctm_preservation_base.
-  split; eauto using mpt_preservation_base.
-  split; eauto using stm_preservation_base.
-  split; eauto using ice_preservation_base.
-  split; eauto using mcreg_preservation_base.
-         eauto using creg_preservation_base.
+  intros. inv_cstep; trivial. inv_mstep; trivial.
+  - rewrite add_increments_length. lia. 
+  - rewrite set_preserves_length. lia. 
 Qed.
 
-Theorem invariants_preservation_ustep : forall m1 m2 ths1 ths2 tc,
-  invariants m1 ths1 ->
-  m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
-  invariants m2 ths2.
+Lemma multistep_nondecreasing_memory_length: forall m m' ths ths' tc,
+  m / ths ~~[tc]~~>* m' / ths' ->
+  #m <= #m'.
 Proof.
-  intros * H ?. ind_ustep; trivial.
-  spec. unfold invariants in *. decompose record IHmultistep. clear IHmultistep.
-  assert (forall_memory m3 value)
-    by eauto using value_preservation_rstep.
-  assert (forall_program m3 ths3 (valid_term m3))
-    by eauto using vtm_preservation_rstep.
-  assert (no_uninitialized_references m3 ths3)
-    by eauto using nur_preservation_rstep.
-  assert (unique_initializers m3 ths3)
-    by eauto using ui_preservation_rstep.
-  assert (unique_critical_regions m3 ths3)
-    by eauto using ucr_preservation_rstep.
-  assert (forall_program m3 ths3 well_typed_term)
-    by eauto using wtt_preservation_rstep.
-  assert (forall_program m3 ths3 (consistent_term m3))
-    by eauto using ctm_preservation_rstep.
-  assert (memory_pointer_types m3)
-    by eauto using mpt_preservation_rstep.
-  assert (forall_program m3 ths3 safe_term)
-    by eauto using stm_preservation_rstep.
-  assert (init_cr_exclusivity ths3)
-    by eauto using ice_preservation_rstep.
-  assert (forall_memory_consistent_regions m3)
-    by eauto using mcreg_preservation_rstep.
-  assert (forall_threads_consistent_regions m3 ths3)
-    by eauto using creg_preservation_rstep.
-  repeat (split; trivial).
+  intros. induction_mulst; trivial.
+  assert (#m' <= #m'')
+    by eauto using cstep_nondecreasing_memory_length.
+  lia.
 Qed.
 
+Lemma multistep_nondecreasing_threads_length: forall m m' ths ths' tc,
+  m / ths ~~[tc]~~>* m' / ths' ->
+  #ths <= #ths'.
+Proof.
+  intros. induction_mulst; trivial. inv_cstep;
+  try rewrite add_increments_length; rewrite set_preserves_length;
+  eauto using Nat.le_trans.
+Qed.
 
+(* ------------------------------------------------------------------------- *)
+(* valid-program                                                             *)
+(* ------------------------------------------------------------------------- *)
 
+Definition valid_program m ths :=
+  (  forall_memory  m value
+  /\ forall_program m ths well_typed_term
+  /\ forall_program m ths (valid_addresses m)
+  /\ forall_program m ths (consistently_typed_references m)
+  /\ forall_program m ths safe_spawns
+  /\ safe_memory_sharing m ths).
 
-
-
-(*
 Local Corollary vp_cstep_preservation : forall m m' ths ths' tid e,
   valid_program m ths ->
   m / ths ~~[tid, e]~~> m' / ths' ->
@@ -210,4 +174,4 @@ Proof.
   eauto using memtyp_multistep_preservation.
   eapply ptyp_cstep_preservation; eauto with vp. 
 Qed.
-*)
+

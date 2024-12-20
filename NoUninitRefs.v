@@ -159,20 +159,6 @@ Proof.
   eauto using nur_preservation_cstep, nur_mem_region.
 Qed.
 
-Theorem nur_preservation_ustep : forall m1 m2 ths1 ths2 tc,
-  forall_memory  m1 value ->
-  forall_program m1 ths1 (valid_term m1) ->
-  (* --- *)
-  no_uninitialized_references m1 ths1 ->
-  m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
-  no_uninitialized_references m2 ths2.
-Proof.
-  intros. ind_ustep;
-  eauto using nur_preservation_rstep,
-    value_preservation_ustep,
-    vtm_preservation_ustep.
-Qed.
-
 Theorem nur_preservation_base : forall t,
   no_refs t ->
   (* --- *)

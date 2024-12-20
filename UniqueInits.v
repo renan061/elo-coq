@@ -251,22 +251,6 @@ Proof.
   eauto using ui_preservation_cstep, ui_mem_region.
 Qed.
 
-Theorem ui_preservation_ustep : forall m1 m2 ths1 ths2 tc,
-  forall_memory  m1 value                ->
-  forall_program m1 ths1 (valid_term m1) ->
-  no_uninitialized_references m1 ths1    ->
-  (* --- *)
-  unique_initializers m1 ths1 ->
-  m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
-  unique_initializers m2 ths2.
-Proof.
-  intros. ind_ustep;
-  eauto 6 using ui_preservation_rstep,
-    value_preservation_ustep,
-    vtm_preservation_ustep,
-    nur_preservation_ustep.
-Qed.
-
 Theorem ui_preservation_base : forall t,
   no_inits t ->
   (* --- *)

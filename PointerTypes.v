@@ -76,8 +76,23 @@ Proof.
   intros ? ?; omicron; eauto using wtt_alloc_type. lia.
 Qed.
 
-Theorem mpt_base :
-  memory_pointer_types nil.
+Theorem mpt_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
+  forall_program m1 ths1 well_typed_term ->
+  (* --- *)
+  memory_pointer_types m1 ->
+  m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
+  memory_pointer_types m2.
 Proof.
-  intros ** ? Hlt. inv Hlt.
+  intros * [_ ?] **. invc_ostep; eauto using mpt_preservation_cstep.
+  match goal with _ : _ / _ ~~[_, _]~~> ?m / ?ths |- _ =>
+    assert (memory_pointer_types m) by eauto using mpt_preservation_cstep
+  end.
+  repeat intro. omicron; upsilon; auto.
 Qed.
+
+Theorem mpt_preservation_base :
+  memory_pointer_types base_m.
+Proof.
+  unfold base_m. intros ? H. destruct ad; invc H.
+Qed.
+

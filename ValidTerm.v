@@ -409,17 +409,6 @@ Proof.
   split; repeat intro; repeat omicron; upsilon; eauto using vtm_mem_region.
 Qed.
 
-Theorem vtm_preservation_ustep : forall m1 m2 ths1 ths2 tc,
-  forall_memory  m1 value ->
-  (* --- *)
-  forall_program m1 ths1 (valid_term m1) ->
-  m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
-  forall_program m2 ths2 (valid_term m2).
-Proof.
-  intros. ind_ustep;
-  eauto using value_preservation_ustep, vtm_preservation_rstep.
-Qed.
-
 Theorem vtm_preservation_base : forall t,
   no_refs  t ->
   no_inits t ->
@@ -427,6 +416,6 @@ Theorem vtm_preservation_base : forall t,
   (* --- *)
   forall_program base_m (base_t t) (valid_term base_m).
 Proof.
-  auto using forall_program_base, vtm_from_base, valid_term.
+  auto using forallprogram_base, vtm_from_base, valid_term.
 Qed.
 

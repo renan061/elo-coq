@@ -104,20 +104,16 @@ Proof.
   - eauto using noinit_insert_contradiction.
 Qed.
 
-Lemma ice_preservation_read : forall m ths tid t ad te,
-  forall_memory m no_inits ->
-  forall_memory m no_crs ->
+Lemma ice_preservation_read : forall m ths tid t ad' t',
+  no_inits t' ->
+  no_crs   t' ->
   forall_threads ths (valid_term m) ->
   (* --- *)
-  m[ad].t = Some te ->
   init_cr_exclusivity ths ->
-  ths[tid] --[e_read ad te]--> t ->
+  ths[tid] --[e_read ad' t']--> t ->
   init_cr_exclusivity ths[tid <- t].
 Proof.
-  intros * Hnoinits Hnocrs ?. rename ad into ad'.
-  intros Had' Hice ? ad tid1 tid2.
-  specialize (Hnoinits ad' _ Had').
-  specialize (Hnocrs ad' _ Had').
+  intros until 3. intros Hice ? ad tid1 tid2.
   destruct (Hice ad tid1 tid2) as [? ?].
   split; intros; repeat omicron; auto;
   eauto using nocr_preservation_read, oneinit_inheritance_read;
@@ -159,25 +155,22 @@ Proof.
   specialize (Hnur ad Hnone) as [_ ?]. assumption.
 Qed.
 
-Lemma ice_preservation_acq : forall m ths tid t ad te,
-  forall_memory m no_inits ->
-  forall_memory m no_crs ->
+Lemma ice_preservation_acq : forall m ths tid t ad' t',
+  no_inits t' ->
+  no_crs   t' ->
   forall_threads ths (valid_term m) ->
   forall_threads ths (consistent_term m) ->
   no_uninitialized_references m ths ->
   unique_initializers m ths ->
   (* --- *)
-  m[ad].t = Some te ->
+  m[ad'].t = Some t' ->
   init_cr_exclusivity ths ->
-  ths[tid] --[e_acq ad te]--> t ->
+  ths[tid] --[e_acq ad' t']--> t ->
   init_cr_exclusivity ths[tid <- t].
 Proof.
-  intros * Hnoinits Hnocrs ? ? Hnur Hui. rename ad into ad'.
-  intros Hsome Hice ? ad tid1 tid2.
+  intros until 5. intros Hui ? Hice ? ad tid1 tid2.
   assert (m[ad'].t <> None) by auto.
   assert (Had : ad' < #m) by (lt_eq_gt ad' (#m); sigma; upsilon; eauto).
-  specialize (Hnoinits ad' _ Hsome).
-  specialize (Hnocrs ad' _ Hsome).
   specialize (Hice ad tid1 tid2) as [? ?].
   split; intros; repeat omicron; auto; nat_eq_dec ad' ad;
   eauto using nocr_preservation_acq, oneinit_inheritance_acq;
@@ -232,27 +225,52 @@ Proof.
   exfalso; eauto using noinit_oneinit_contradiction, nocr_onecr_contradiction.
 Qed.
 
-Theorem ice_preservation : forall m1 m2 ths1 ths2 tid e,
-  forall_memory m1 no_inits ->
-  forall_memory m1 no_crs ->
-  forall_threads ths1 (valid_term m1) ->
-  forall_threads ths1 (consistent_term m1) ->
-  no_uninitialized_references m1 ths1 ->
-  unique_initializers m1 ths1 ->
-  unique_critical_regions m1 ths1 ->
+(* ------------------------------------------------------------------------- *)
+
+Theorem ice_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
+  forall_memory  m1      value                ->
+  forall_program m1 ths1 (valid_term m1)      ->
+  forall_program m1 ths1 (consistent_term m1) ->
+  no_uninitialized_references m1 ths1         ->
+  unique_initializers m1 ths1                 ->
+  unique_critical_regions m1 ths1             ->
   (* --- *)
-  init_cr_exclusivity ths1 ->
-  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+  init_cr_exclusivity ths1                    ->
+  m1 / ths1 ~~[tid, e]~~> m2 / ths2           ->
   init_cr_exclusivity ths2.
 Proof.
-  intros. invc_cstep; try invc_mstep.
+  intros * ? [? ?] [? ?] **. invc_cstep; try invc_mstep.
   - eauto using ice_preservation_none.
   - eauto using ice_preservation_alloc.
   - eauto using ice_preservation_insert.
-  - eauto using ice_preservation_read.
+  - eauto 8 using noinits_from_value, nocrs_from_value, ice_preservation_read.
   - eauto using ice_preservation_write.
-  - eauto using ice_preservation_acq.
+  - eauto 8 using noinits_from_value, nocrs_from_value, ice_preservation_acq.
   - eauto using ice_preservation_rel.
   - eauto using ice_preservation_spawn.
+Qed.
+
+Theorem ice_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
+  forall_memory  m1      value                ->
+  forall_program m1 ths1 (valid_term m1)      ->
+  forall_program m1 ths1 (consistent_term m1) ->
+  no_uninitialized_references m1 ths1         ->
+  unique_initializers m1 ths1                 ->
+  unique_critical_regions m1 ths1             ->
+  (* --- *)
+  init_cr_exclusivity ths1                    ->
+  m1 / ths1 ~~~[tid, e]~~> m2 / ths2          ->
+  init_cr_exclusivity ths2.
+Proof.
+  intros. invc_ostep; eauto using ice_preservation_cstep.
+Qed.
+
+Theorem ice_preservation_base : forall t,
+  no_inits t ->
+  no_crs   t ->
+  init_cr_exclusivity (base_t t).
+Proof.
+  unfold base_t. repeat intro. split; intro; simpl;
+  repeat (destruct tid2; eauto using no_init, no_cr).
 Qed.
 

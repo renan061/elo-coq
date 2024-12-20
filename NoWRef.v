@@ -1,5 +1,6 @@
 From Elo Require Import Core.
 
+From Elo Require Import NoRef.
 From Elo Require Import HasVar.
 
 (* ------------------------------------------------------------------------- *)
@@ -153,6 +154,14 @@ Ltac invc_nowrefs :=
   end.
 
 (* lemmas ------------------------------------------------------------------ *)
+
+Lemma nowrefs_from_norefs : forall t,
+  no_refs  t ->
+  no_wrefs t.
+Proof.
+  intros. induction t; intros; invc_norefs;
+  intro; repeat spec; eauto using no_wref.
+Qed.
 
 Corollary nowrefs_from_type : forall Gamma t T,
   value t ->

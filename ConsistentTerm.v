@@ -427,32 +427,12 @@ Proof.
   split; repeat intro; repeat omicron; upsilon; eauto using ctm_mem_region.
 Qed.
 
-Theorem ctm_preservation_ustep : forall m1 m2 ths1 ths2 tc,
-  forall_memory  m1 value ->
-  forall_program m1 ths1 (valid_term m1) ->
-  forall_program m1 ths1 well_typed_term ->
-  no_uninitialized_references m1 ths1 ->
-  unique_initializers         m1 ths1 ->
-  (* --- *)
-  forall_program m1 ths1 (consistent_term m1) ->
-  m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
-  forall_program m2 ths2 (consistent_term m2).
-Proof.
-  intros. ind_ustep; trivial.
-  eapply ctm_preservation_rstep in Hcstep;
-  eauto using ctm_preservation_rstep,
-    value_preservation_ustep,
-    vtm_preservation_ustep,
-    nur_preservation_ustep,
-    ui_preservation_ustep.
-Abort.
-
 Theorem ctm_preservation_base : forall t,
   no_refs  t ->
   no_inits t ->
   (* --- *)
   forall_program base_m (base_t t) (consistent_term base_m).
 Proof.
-  eauto using forall_program_base, ctm_from_norefs_noinits, consistent_term.
+  eauto using forallprogram_base, ctm_from_norefs_noinits, consistent_term.
 Qed.
 

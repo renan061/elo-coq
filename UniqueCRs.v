@@ -241,20 +241,6 @@ Proof.
   eauto using ucr_preservation_cstep, ucr_mem_region.
 Qed.
 
-Theorem ucr_preservation_ustep : forall m1 m2 ths1 ths2 tc,
-  forall_memory  m1 value                ->
-  forall_program m1 ths1 (valid_term m1) ->
-  (* --- *)
-  unique_critical_regions m1 ths1 ->
-  m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
-  unique_critical_regions m2 ths2.
-Proof.
-  intros. ind_ustep;
-  eauto using ucr_preservation_rstep,
-    value_preservation_ustep,
-    vtm_preservation_ustep.
-Qed.
-
 Theorem ucr_preservation_base : forall t,
   no_crs t ->
   (* --- *)

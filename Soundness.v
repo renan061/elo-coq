@@ -213,7 +213,7 @@ Proof.
     exists (T :: Ts). split; simpl; try lia. destruct i; trivial.
 Qed.
 
-Corollary wtt_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
+Lemma wtt_preservation_threads : forall m1 m2 ths1 ths2 tid e,
   forall_threads ths1 (consistent_term m1) ->
   (* --- *)
   forall_threads ths1 well_typed_term ->
@@ -227,7 +227,7 @@ Proof.
   intros ?; eexists; eauto.
 Qed.
 
-Lemma wtt_preservation_mem_cstep : forall m1 m2 ths1 ths2 tid e,
+Lemma wtt_preservation_memory : forall m1 m2 ths1 ths2 tid e,
   forall_threads ths1 well_typed_term ->
   (* --- *)
   forall_memory m1 well_typed_term ->
@@ -238,7 +238,7 @@ Proof.
   intros ? ? ?; upsilon; eauto using wtt_insert_term, wtt_write_term.
 Qed.
 
-Theorem wtt_preservation : forall m1 m2 ths1 ths2 tid e,
+Theorem wtt_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
   forall_program m1 ths1 (consistent_term m1) ->
   (* --- *)
   forall_program m1 ths1 well_typed_term ->
@@ -246,51 +246,37 @@ Theorem wtt_preservation : forall m1 m2 ths1 ths2 tid e,
   forall_program m2 ths2 well_typed_term.
 Proof.
   intros * [_ ?] [? ?] **. split;
-  eauto using wtt_preservation_mem_cstep, wtt_preservation_cstep.
+  eauto using wtt_preservation_memory, wtt_preservation_threads.
 Qed.
 
-(* ------------------------------------------------------------------------- *)
-(* soundness                                                                 *)
-(* ------------------------------------------------------------------------- *)
-
-(* TODO
-
-Corollary type_soundness : forall m m' ths ths' tid e,
-  forall_program m ths well_typed_term ->
-  forall_program m ths (valid_references m) ->
+Theorem wtt_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
+  forall_program m1 ths1 (consistent_term m1) ->
   (* --- *)
-  m / ths ~~[tid, e]~~> m' / ths' ->
-  (forall_threads ths' value \/
-    exists m'' ths'' tid' e',
-    m' / ths' ~~[tid', e']~~> m'' / ths'').
+  forall_program m1 ths1 well_typed_term ->
+  m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
+  forall_program m2 ths2 well_typed_term.
 Proof.
-  intros. destruct_forall_program.
-  eauto using progress, wtt_cstep_preservation,
-    vad_cstep_preservation,
-    ctr_cstep_preservation.
+  intros. invc_ostep; eauto using wtt_preservation_cstep.
+  match goal with _ : _ / _ ~~[_, _]~~> ?m / ?ths |- _ =>
+    assert (forall_program m ths well_typed_term) as [Hmwtt Hwtt]
+      by eauto using wtt_preservation_cstep
+  end.
+  invc_cstep. invc_mstep.
+  split; intros i; repeat intro; omicron; upsilon; auto;
+  specialize (Hmwtt i); specialize (Hwtt i); sigma; auto.
 Qed.
 
-(* ------------------------------------------------------------------------- *)
-(* TODO                                                                      *)
-(* ------------------------------------------------------------------------- *)
-
-Local Theorem typing_preservation : forall m m' ths ths' tid e,
-  forall_program m ths (valid_addresses m) ->
-  (* --- *)
-  forall_program m ths well_typed_term ->
-  forall_program m ths (consistently_typed_references m) ->
-  m / ths ~~[tid, e]~~> m' / ths' ->
-  forall_program m' ths' well_typed_term /\
-  forall_program m' ths' (consistently_typed_references m').
+Theorem wtt_preservation_base : forall t,
+  well_typed_term t ->
+  forall_program base_m (base_t t) well_typed_term.
 Proof.
-  intros * ? [? ?] [? ?]. split;
-  eauto using wtt_cstep_mem_preservation, wtt_cstep_preservation.
-  eauto 6 using ctr_preservation.
+  intros. split; eauto using forallmemory_base.
+  intros tid. simpl. unfold well_typed_term.
+  repeat (destruct tid; eauto using type_of).
 Qed.
 
 (* ------------------------------------------------------------------------- *)
 
-*)
 Local Ltac destruct_IH :=
   match goal with
   | H : safe empty = empty -> _ |- _ =>
@@ -428,65 +414,4 @@ Proof.
   - pick_spawn.
     eexists. exists 0. eexists. eauto using tstep.
 Qed.
-
-(*
-Lemma forall_array_cons {A} {default} : forall (P : A -> Prop) x xs,
-  P x ->
-  forall_array default P xs ->
-  forall_array default P (x :: xs).
-Proof.
-  unfold forall_array in *. intros. destruct i; eauto.
-Qed.
-
-Lemma forall_threads_cons : forall (P : tm -> Prop) x xs,
-  P x ->
-  forall_threads xs P ->
-  forall_threads (x :: xs) P.
-Proof.
-  unfold forall_threads. eauto using forall_array_cons.
-Qed.
-
-Lemma cstep_cons : forall m m' ths ths' t tid e,
-  m / ths ~~[tid, e]~~> m' / ths' ->
-  m / (t :: ths) ~~[S tid, e]~~> m' / (t :: ths').
-Proof.
-  intros. inv_cstep;
-  (eapply (CS_Spawn _ t') || eapply (CS_Mem _ _ t'));
-  trivial; simpl; lia.
-Qed.
-
-Theorem progress : forall m ths,
-  forall_threads ths (valid_addresses m) ->
-  forall_threads ths (consistently_typed_references m) ->
-  (* -- *)
-  forall_threads ths well_typed_term ->
-  ((forall_threads ths value)
-    \/ (exists  m' ths' tid e, m / ths ~~[tid, e]~~> m' / ths')).
-Proof.
-  intros * Hvad Hctr Hwtt. induction ths as [ | t ths IHths].
-  - left. intros [| ?]; eauto using value.
-  - inv_forall_threads Hctr.
-    destruct IHths as [? | Hcstep]; eauto.
-    + inv_forall_threads Hvad. assumption.
-    + inv_forall_threads Hwtt. assumption.
-    + assert (value t \/ ~ value t) as [? | ?] by eauto using value_dec.
-      * left. eauto using forall_threads_cons.
-      * right.
-        assert (value t
-          \/ (exists e m' t', m / t ==[e]==> m' / t')
-          \/ (exists block t', t --[EF_Spawn block]--> t'))
-          as [? | [[? [? [? ?]]] | [? [? ?]]]]. {
-            inv_forall_threads Hvad.
-            inv_forall_threads Hwtt.
-            eauto using basic_progress.
-          }
-        ** contradiction.
-        ** do 2 eexists. exists 0. eexists.
-           eapply CS_Mem; eauto using mstep. simpl. lia.
-        ** do 2 eexists. exists 0. eexists.
-           eapply CS_Spawn; eauto using tstep. simpl. lia.
-    + right. destruct Hcstep as [? [? [? [? ?]]]]. do 4 eexists.
-      eauto using cstep_cons.
-Qed.
-*)
 

@@ -196,14 +196,14 @@ Qed.
 Local Lemma creg_preservation_alloc : forall m R t1 t2 T,
   well_typed_term t1 ->
   valid_term m t1 ->
-  safe_newx t1 ->
+  safe_term t1 ->
   (* --- *)
   consistent_regions m R t1 ->
   t1 --[e_alloc (#m) T]--> t2 ->
   consistent_regions (m +++ (None, T, false, gcr t1 R)) R t2.
 Proof.
   intros * [T' ?] **. gendep R. gendep T'.
-  ind_tstep; intros; invc_typeof; invc_vtm; invc_snx; invc_creg;
+  ind_tstep; intros; invc_typeof; invc_vtm; invc_stm; invc_creg;
   try solve [constructor; sigma; try omicron;
              simpl; eauto using creg_from_nowrefs_noinits, creg_mem_add];
   constructor; eauto using creg_mem_add.
@@ -223,7 +223,7 @@ Proof.
 Qed.
 
 Local Lemma creg_preservation_read : forall m R t1 t2 ad t,
-  forall_memory m no_inits ->
+  no_inits t ->
   well_typed_term t1 ->
   consistent_term m t1 ->
   forall_memory_consistent_regions m ->
@@ -253,7 +253,7 @@ Local Lemma creg_preservation_acq : forall m R t1 t2 ad t,
   valid_term m t1 ->
   well_typed_term t1 ->
   consistent_term m t1 ->
-  safe_acq t1 ->
+  safe_term t1 ->
   forall_memory_consistent_regions m ->
   (* --- *)
   m[ad].t = Some t ->
@@ -263,7 +263,7 @@ Local Lemma creg_preservation_acq : forall m R t1 t2 ad t,
 Proof.
   intros * ? [T ?] **. gendep R. gendep T.
   ind_tstep; intros;
-  repeat invc_typeof; repeat invc_vtm; repeat invc_ctm; inv_sacq;
+  repeat invc_typeof; repeat invc_vtm; repeat invc_ctm; invc_stm;
   repeat invc_creg;
   constructor; eauto; repeat omicron; eauto using creg_mem_acq.
   invc_eq.
@@ -273,14 +273,14 @@ Qed.
 
 Local Lemma creg_preservation_rel : forall m R t1 t2 ad,
   valid_term m t1 ->
-  safe_cr t1 ->
+  safe_term t1 ->
   (* --- *)
   consistent_regions m R t1 ->
   t1 --[e_rel ad]--> t2 ->
   consistent_regions m[ad.X <- false] R t2.
 Proof.
   intros. gendep R. ind_tstep; intros;
-  invc_vtm; invc_scr; invc_creg;
+  invc_vtm; invc_stm; invc_creg;
   try constructor; eauto using creg_mem_rel; repeat omicron; eauto.
   match goal with H : exists _, _ |- _ => destruct H end.
   eauto using nowrefs_from_type, noinits_from_value, creg_from_nowrefs_noinits.
@@ -298,7 +298,7 @@ Qed.
 Local Corollary creg_preservation_spawned : forall m R t1 t2 tid t,
   well_typed_term t1 ->
   valid_term m t1 ->
-  safe_spawns t1 ->
+  safe_term t1 ->
   (* --- *)
   t1 --[e_spawn tid t]--> t2 ->
   consistent_regions m R t.
@@ -307,27 +307,26 @@ Proof.
   eauto using nowrefs_spawn_term, noinits_spawn_term, creg_from_nowrefs_noinits.
 Qed.
 
-Theorem creg_preservation : forall m1 m2 ths1 ths2 tid e,
-  forall_memory  m1   no_inits ->
-  forall_threads ths1 well_typed_term ->
-  forall_threads ths1 (valid_term m1) ->
-  forall_threads ths1 (consistent_term m1) ->
-  forall_threads ths1 safe_newx ->
-  forall_threads ths1 safe_acq ->
-  forall_threads ths1 safe_cr ->
-  forall_threads ths1 safe_spawns ->
+(* ------------------------------------------------------------------------- *)
+
+Theorem creg_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
+  forall_memory  m1      value                ->
+  forall_program m1 ths1 well_typed_term      ->
+  forall_program m1 ths1 (valid_term m1)      ->
+  forall_program m1 ths1 (consistent_term m1) ->
+  forall_program m1 ths1 safe_term            ->
   (* --- *)
   forall_memory_consistent_regions  m1 ->
   forall_threads_consistent_regions m1 ths1 ->
   m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
   forall_threads_consistent_regions m2 ths2.
 Proof.
-  intros ** tid'. nat_eq_dec tid' tid.
+  intros * ? [? ?] [? ?] [? ?] [? ?] ** tid'. nat_eq_dec tid' tid.
   - invc_ostep; invc_cstep; try invc_mstep; sigma.
     + eauto using creg_preservation_none.
     + upsilon. eauto using creg_preservation_alloc.
     + eauto using creg_preservation_insert.
-    + eauto using creg_preservation_read.
+    + eauto using noinits_from_value, creg_preservation_read.
     + eauto using creg_preservation_write.
     + eauto using creg_preservation_acq.
     + eauto using creg_preservation_rel.
@@ -339,6 +338,19 @@ Proof.
     + eauto using creg_mem_acq.
     + eauto using creg_mem_rel.
     + omicron; eauto using creg_preservation_spawned, consistent_regions.
+Qed.
+
+Theorem creg_preservation_base : forall t,
+  no_refs         t ->
+  no_inits        t ->
+  no_crs          t ->
+  well_typed_term t ->
+  forall_threads_consistent_regions base_m (base_t t).
+Proof.
+  unfold base_t. intros * ? ? ? [T ?] tid. simpl.
+  destruct tid.
+  - eauto using nowrefs_from_norefs, creg_from_nowrefs_noinits.
+  - destruct tid; eauto using consistent_regions. 
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -482,24 +494,30 @@ Proof.
   destruct_mcreg ad''; eauto using creg_mem_rel.
 Qed.
 
-Theorem mcreg_preservation : forall m1 m2 ths1 ths2 tid e,
-  forall_memory  m1   (valid_term m1) ->
-  memory_pointer_types m1 ->
-  forall_threads ths1 well_typed_term ->
-  forall_threads ths1 (consistent_term m1) ->
+Theorem mcreg_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
+  forall_program m1 ths1 (valid_term m1)      ->
+  forall_program m1 ths1 well_typed_term      ->
+  forall_program m1 ths1 (consistent_term m1) ->
+  memory_pointer_types m1                     ->
   (* --- *)
-  forall_threads_consistent_regions m1 ths1 ->
-  forall_memory_consistent_regions  m1 ->
-  m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
+  forall_threads_consistent_regions m1 ths1   ->
+  forall_memory_consistent_regions  m1        ->
+  m1 / ths1 ~~~[tid, e]~~> m2 / ths2          ->
   forall_memory_consistent_regions  m2.
 Proof.
-  intros until 4. intros ? Hmcreg ?.
+  intros * [? ?] [? ?] [? ?] ? ? Hmcreg ?.
   invc_ostep; invc_cstep; try invc_mstep; auto.
   - sigma. upsilon. eauto using mcreg_preservation_alloc.
   - eauto using mcreg_preservation_insert.
   - eauto using mcreg_preservation_write.
   - eauto using mcreg_preservation_acq.
   - eauto using mcreg_preservation_rel.
+Qed.
+
+Theorem mcreg_preservation_base :
+  forall_memory_consistent_regions base_m.
+Proof.
+  intros ad ? H. invc H. destruct ad; upsilon; auto.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -943,6 +961,37 @@ Proof.
   assert (gcr ths1[tid1] (R_tid tid1) = m1[ad].R)
     by eauto using ostep_gcr_write.
   assert (gcr ths2[tid2] (R_tid tid2) = m2[ad].R) by admit.
-Qed.
+Abort.
 
 
+
+(*
+
+
+ths1, tid1, READ ad   ---- tc1  REL tc2 ACQ tc3 ------->*   ths2, tid2, WRITE ad
+
+m[ad].R = R_ad adx
+
+one_init adx ths1[tid1] \/ one_cr adx ths1[tid1]
+
+one_init adx ths2[tid2] \/ one_cr adx ths2[tid2]
+
+
+init tid1 adx
+init tid2 adx
+
+
+init tid1 adx  X
+cr   tid2 adx
+
+
+cr   tid1 adx
+init tid2 adx
+
+
+cr tid1 adx  X
+cr tid2 adx
+
+
+
+*)
