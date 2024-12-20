@@ -1,6 +1,5 @@
 From Elo Require Export WellTypedTerm.
-From Elo Require Export ConsistentInits.
-From Elo Require Export ConsistentRefs.
+From Elo Require Export ConsistentTerm.
 From Elo Require Export PointerTypes.
 From Elo Require Export ExclusivityInitCR.
 From Elo Require Export Soundness.

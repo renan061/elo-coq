@@ -5,8 +5,7 @@ From Elo Require Import Core.
 From Elo Require Import SyntacticProperties.
 
 From Elo Require Import WellTypedTerm.
-From Elo Require Import ConsistentInits.
-From Elo Require Import ConsistentRefs.
+From Elo Require Import ConsistentTerm.
 
 (* ------------------------------------------------------------------------- *)
 (* preservation                                                              *)
@@ -53,7 +52,7 @@ Qed.
 
 Local Ltac solve_typeof_preservation T :=
   intros; gendep T; ind_tstep; intros;
-  repeat invc_cr; repeat invc_typeof;
+  repeat invc_ctm; repeat invc_typeof;
   try invc_eq; eauto using typeof_subst, type_of.
 
 Lemma typeof_preservation_none : forall T t1 t2,
@@ -75,7 +74,7 @@ Lemma typeof_preservation_insert : forall T t1 t2 ad' t' T',
 Proof. solve_typeof_preservation T. Qed.
 
 Lemma typeof_preservation_read : forall T m t1 t2 ad' t',
-  consistent_references m t1 ->
+  consistent_term m t1 ->
   (* --- *)
   m[ad'].t = Some t' ->
   empty |-- t1 is T ->
@@ -90,7 +89,7 @@ Lemma typeof_preservation_write : forall T t1 t2 ad' t',
 Proof. solve_typeof_preservation T. Qed.
 
 Lemma typeof_preservation_acq : forall T m t1 t2 ad' t',
-  consistent_references m t1 ->
+  consistent_term m t1 ->
   (* --- *)
   m[ad'].t = Some t' ->
   empty |-- t1 is T ->
@@ -119,7 +118,7 @@ Proof.
 Qed.
 
 Local Lemma typeof_preservation_mstep : forall m1 m2 t1 t2 e T,
-  consistent_references m1 t1 ->
+  consistent_term m1 t1 ->
   (* --- *)
   empty |-- t1 is T ->
   m1 / t1 ==[e]==> m2 / t2 ->
@@ -137,8 +136,7 @@ Qed.
 
 Local Lemma typeof_preservation_mem_mstep : forall m1 m2 t1 t2 t1' t2' e ad T,
   well_typed_term t1 ->
-  consistent_inits m1 t1 ->
-  consistent_references m1 t1 ->
+  consistent_term m1 t1 ->
   (* --- *)
   m1[ad].t = Some t1' ->
   m2[ad].t = Some t2' ->
@@ -152,7 +150,7 @@ Proof.
   sigma; try omicron; repeat invc_eq; trivial; upsilon.
   + assert (m1[ad'].t = None) by eauto using insert_then_uninitialized. invc_eq.
   + gendep T'. gendep t1'. ind_tstep; intros;
-    repeat invc_typeof; repeat invc_ci; repeat invc_cr; eauto.
+    repeat invc_typeof; repeat invc_ctm; repeat invc_ctm; eauto.
     invc_eq. apply_deterministic_typing. assumption.
 Qed.
 
@@ -162,7 +160,7 @@ Definition types_of (ths : threads) (Ts: list ty) :=
 Notation "'|--' ths 'is' Ts" := (types_of ths Ts) (at level 40).
 
 Theorem typeof_preservation : forall m1 m2 ths1 ths2 Ts tid e,
-  forall_threads ths1 (consistent_references m1) ->
+  forall_threads ths1 (consistent_term m1) ->
   (* --- *)
   |-- ths1 is Ts ->
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
@@ -216,7 +214,7 @@ Proof.
 Qed.
 
 Corollary wtt_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
-  forall_threads ths1 (consistent_references m1) ->
+  forall_threads ths1 (consistent_term m1) ->
   (* --- *)
   forall_threads ths1 well_typed_term ->
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
@@ -241,7 +239,7 @@ Proof.
 Qed.
 
 Theorem wtt_preservation : forall m1 m2 ths1 ths2 tid e,
-  forall_program m1 ths1 (consistent_references m1) ->
+  forall_program m1 ths1 (consistent_term m1) ->
   (* --- *)
   forall_program m1 ths1 well_typed_term ->
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
@@ -362,8 +360,8 @@ Local Ltac invc_value_typeof :=
   end.
 
 Theorem limited_progress : forall m1 t1,
-  valid_addresses m1 t1 ->
-  consistent_references m1 t1 ->
+  valid_term      m1 t1 ->
+  consistent_term m1 t1 ->
   (* --- *)
   well_typed_term t1 ->
   (value t1
@@ -378,7 +376,7 @@ Theorem limited_progress : forall m1 t1,
     \/ (exists t2 tid t,     t1 --[e_spawn tid t]--> t2)).
 Proof.
   intros * ? ? [T ?]. remember empty as Gamma.
-  ind_typeof; eauto using value; right; invc_vad; invc_cr;
+  ind_typeof; eauto using value; right; invc_vtm; invc_ctm;
   try solve [subst; discriminate].
   - repeat spec.
     repeat (destruct_IH; try solve [solve_inductive_progress_case]).
@@ -406,22 +404,22 @@ Proof.
   - repeat spec.
     destruct_IH; try solve [solve_inductive_progress_case].
     pick_read.
-    invc_value_typeof. invc_vad. invc_cr.
+    invc_value_typeof. invc_vtm. invc_ctm.
     repeat eexists. eauto using tstep, mstep.
   - repeat spec.
     destruct_IH; try solve [solve_inductive_progress_case].
     pick_read.
-    invc_value_typeof. invc_vad. invc_cr.
+    invc_value_typeof. invc_vtm. invc_ctm.
     repeat eexists. eauto using tstep, mstep.
   - repeat spec.
     repeat (destruct_IH; try solve [solve_inductive_progress_case]).
     pick_write.
-    invc_value_typeof. invc_vad. invc_cr.
+    invc_value_typeof. invc_vtm. invc_ctm.
     repeat eexists. eauto using tstep, mstep.
   - repeat spec.
     repeat (destruct_IH; try solve [solve_inductive_progress_case]).
     pick_acq.
-    invc_value_typeof. invc_vad. invc_cr.
+    invc_value_typeof. invc_vtm. invc_ctm.
     repeat eexists. eauto using tstep, mstep.
   - repeat spec.
     repeat (destruct_IH; try solve [solve_inductive_progress_case]).

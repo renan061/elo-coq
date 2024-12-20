@@ -3,7 +3,7 @@ From Elo Require Import Core.
 From Elo Require Import SyntacticProperties.
 
 From Elo Require Import WellTypedTerm.
-From Elo Require Import ConsistentRefs.
+From Elo Require Import ConsistentTerm.
 
 (* ------------------------------------------------------------------------- *)
 (* safe-newx                                                                 *)
@@ -158,7 +158,7 @@ Local Lemma snx_preservation_acq : forall m t1 t2 ad t,
   forall_memory m value ->
   forall_memory m safe_newx ->
   well_typed_term t1 ->
-  consistent_references m t1 ->
+  consistent_term m t1 ->
   (* --- *)
   m[ad].t = Some t ->
   safe_newx t1 ->
@@ -167,7 +167,7 @@ Local Lemma snx_preservation_acq : forall m t1 t2 ad t,
 Proof.
   intros * ? ? [T ?] **. gendep T.
   ind_tstep; intros;
-  repeat invc_typeof; repeat invc_cr; repeat invc_snx;
+  repeat invc_typeof; repeat invc_ctm; repeat invc_snx;
   try invc_eq; eauto using snx_subst, safe_newx.
 Qed.
 
@@ -198,7 +198,7 @@ Qed.
 Theorem snx_preservation : forall m1 m2 ths1 ths2 tid e,
   forall_memory  m1   value ->
   forall_threads ths1 well_typed_term ->
-  forall_threads ths1 (consistent_references m1) ->
+  forall_threads ths1 (consistent_term m1) ->
   (* --- *)
   forall_program m1 ths1 safe_newx ->
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->

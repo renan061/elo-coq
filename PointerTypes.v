@@ -3,38 +3,37 @@ From Coq Require Import Lia.
 From Elo Require Import Core.
 
 From Elo Require Import WellTypedTerm.
-From Elo Require Import ConsistentInits.
-From Elo Require Import ConsistentRefs.
+From Elo Require Import ConsistentTerm.
 
 Lemma ptyp_for_insert : forall m t1 t2 ad t T,
-  consistent_inits m t1 ->
+  consistent_term m t1 ->
   (* --- *)
   t1 --[e_insert ad t T]--> t2 ->
   m[ad].T = T.
 Proof.
-  intros. ind_tstep; invc_ci; auto.
+  intros. ind_tstep; invc_ctm; auto.
 Qed.
 
 Lemma ptyp_for_write : forall m t1 t2 ad t,
   well_typed_term t1 ->
-  consistent_references m t1 ->
+  consistent_term m t1 ->
   (* --- *)
   t1 --[e_write ad t]--> t2 ->
   exists T, m[ad].T = `w&T`.
 Proof.
   intros * [T ?] **. gendep T.
-  ind_tstep; intros; repeat invc_typeof; repeat invc_cr; eauto.
+  ind_tstep; intros; repeat invc_typeof; repeat invc_ctm; eauto.
 Qed.
 
 Lemma ptyp_for_acq : forall m t1 t2 ad t,
   well_typed_term t1 ->
-  consistent_references m t1 ->
+  consistent_term m t1 ->
   (* --- *)
   t1 --[e_acq ad t]--> t2 ->
   exists T, m[ad].T = `x&T`.
 Proof.
   intros * [T ?] **. gendep T.
-  ind_tstep; intros; repeat invc_typeof; repeat invc_cr; eauto.
+  ind_tstep; intros; repeat invc_typeof; repeat invc_ctm; eauto.
 Qed.
 
 Theorem ptyp_preservation : forall m1 m2 ths1 ths2 tid e ad,
@@ -64,15 +63,9 @@ Ltac destruct_mpt ad :=
     specialize (H ad Hlt) as [[?T ?HptypR] | [[?T ?HptypX] | [?T ?HptypW]]]
   end.
 
-(* preservation------------------------------------------------------------- *)
+(* preservation ------------------------------------------------------------ *)
 
-Theorem mpt_base :
-  memory_pointer_types nil.
-Proof.
-  intros ** ? Hlt. inv Hlt.
-Qed.
-
-Theorem mpt_preservation : forall m1 m2 ths1 ths2 tid e,
+Theorem mpt_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
   forall_threads ths1 well_typed_term ->
   (* --- *)
   memory_pointer_types m1 ->
@@ -83,3 +76,8 @@ Proof.
   intros ? ?; omicron; eauto using wtt_alloc_type. lia.
 Qed.
 
+Theorem mpt_base :
+  memory_pointer_types nil.
+Proof.
+  intros ** ? Hlt. inv Hlt.
+Qed.

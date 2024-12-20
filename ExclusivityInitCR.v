@@ -2,7 +2,7 @@ From Elo Require Import Core.
 
 From Elo Require Import SyntacticProperties.
 
-From Elo Require Import ConsistentInits.
+From Elo Require Import ConsistentTerm.
 
 (* ------------------------------------------------------------------------- *)
 (* init-cr-exclusivity                                                       *)
@@ -15,15 +15,15 @@ Definition init_cr_exclusivity (ths : threads) := forall ad tid1 tid2,
 (* auxiliary --------------------------------------------------------------- *)
 
 Theorem oneinit_from_insert : forall m ths tid t ad' t' T',
-  forall_threads ths (valid_addresses m) ->
-  forall_threads ths (consistent_inits m) ->
+  forall_threads ths (valid_term m) ->
+  forall_threads ths (consistent_term m) ->
   unique_initializers m ths ->
   (* --- *)
   ths[tid] --[e_insert ad' t' T']--> t ->
   one_init ad' ths[tid].
 Proof.
   intros * ? ? Hui **.
-  assert (Had'  : ad' < #m) by eauto using vad_insert_address.
+  assert (Had'  : ad' < #m) by eauto using vtm_insert_address.
   assert (Hnone : m[ad'].t = None) by eauto using insert_then_uninitialized.
   specialize (Hui ad' Had') as [_ Hui]. specialize (Hui Hnone) as [tid' [? ?]].
   nat_eq_dec tid' tid; trivial.
@@ -47,8 +47,8 @@ Qed.
 
 (* preservation ------------------------------------------------------------ *)
 
-Lemma ice_preservation_none : forall ths tid t,
-  forall_threads ths valid_blocks ->
+Lemma ice_preservation_none : forall m ths tid t,
+  forall_threads ths (valid_term m) ->
   (* --- *)
   init_cr_exclusivity ths ->
   ths[tid] --[e_none]--> t ->
@@ -62,17 +62,15 @@ Proof.
 Qed.
 
 Lemma ice_preservation_alloc : forall m ths tid t T,
-  forall_threads ths (valid_addresses m) ->
-  forall_threads ths valid_blocks ->
+  forall_threads ths (valid_term m) ->
   (* --- *)
   init_cr_exclusivity ths ->
   ths[tid] --[e_alloc (#m) T]--> t ->
   init_cr_exclusivity ths[tid <- t].
 Proof.
-  intros until 2.
-  intros Hice ? ad tid1 tid2.
+  intros until 1. intros Hice ? ad tid1 tid2.
   destruct (Hice ad tid1 tid2) as [? ?].
-  assert (forall tid, no_cr (#m) ths[tid]) by eauto using nocr_from_vad1.
+  assert (forall tid, no_cr (#m) ths[tid]) by eauto using nocr_from_vtm1.
   split; intros; repeat omicron; auto; nat_eq_dec (#m) ad;
   eauto using nocr_preservation_alloc, oneinit_inheritance_alloc;
   eauto using noinit_preservation_alloc, onecr_inheritance_alloc;
@@ -80,9 +78,8 @@ Proof.
 Qed.
 
 Lemma ice_preservation_insert : forall m ths tid t ad' t' T',
-  forall_threads ths (valid_addresses m) ->
-  forall_threads ths valid_blocks ->
-  forall_threads ths (consistent_inits m) ->
+  forall_threads ths (valid_term m) ->
+  forall_threads ths (consistent_term m) ->
   unique_initializers m ths ->
   unique_critical_regions m ths ->
   (* --- *)
@@ -90,8 +87,7 @@ Lemma ice_preservation_insert : forall m ths tid t ad' t' T',
   ths[tid] --[e_insert ad' t' T']--> t ->
   init_cr_exclusivity ths[tid <- t].
 Proof.
-  intros until 5.
-  intros Hice ? ad tid1 tid2.
+  intros until 4. intros Hice ? ad tid1 tid2.
   destruct (Hice ad tid1 tid2) as [? ?].
   split; intros; repeat omicron; auto; nat_eq_dec ad' ad;
   eauto using nocr_preservation_insert, oneinit_inheritance_insert;
@@ -111,7 +107,7 @@ Qed.
 Lemma ice_preservation_read : forall m ths tid t ad te,
   forall_memory m no_inits ->
   forall_memory m no_crs ->
-  forall_threads ths valid_blocks ->
+  forall_threads ths (valid_term m) ->
   (* --- *)
   m[ad].t = Some te ->
   init_cr_exclusivity ths ->
@@ -128,8 +124,8 @@ Proof.
   eauto using noinit_preservation_read, onecr_inheritance_read.
 Qed.
 
-Lemma ice_preservation_write : forall ths tid t ad te,
-  forall_threads ths valid_blocks ->
+Lemma ice_preservation_write : forall m ths tid t ad te,
+  forall_threads ths (valid_term m) ->
   (* --- *)
   init_cr_exclusivity ths ->
   ths[tid] --[e_write ad te]--> t ->
@@ -144,15 +140,15 @@ Proof.
 Qed.
 
 Lemma oneinit_then_uninitialized : forall ad m t,
-  consistent_inits m t ->
+  consistent_term m t ->
   one_init ad t ->
   m[ad].t = None.
 Proof.
-  intros. induction t; invc_ci; invc_oneinit; auto.
+  intros. induction t; invc_ctm; invc_oneinit; auto.
 Qed.
 
 Lemma noref_from_oneinit : forall ad m ths tid,
-  forall_threads ths (consistent_inits m) ->
+  forall_threads ths (consistent_term m) ->
   no_uninitialized_references m ths ->
   (* --- *)
   one_init ad ths[tid] ->
@@ -166,8 +162,8 @@ Qed.
 Lemma ice_preservation_acq : forall m ths tid t ad te,
   forall_memory m no_inits ->
   forall_memory m no_crs ->
-  forall_threads ths valid_blocks ->
-  forall_threads ths (consistent_inits m) ->
+  forall_threads ths (valid_term m) ->
+  forall_threads ths (consistent_term m) ->
   no_uninitialized_references m ths ->
   unique_initializers m ths ->
   (* --- *)
@@ -218,8 +214,8 @@ Proof.
   - eauto using onecr_from_rel, onecr_to_nocr, nocr_onecr_contradiction.
 Qed.
 
-Lemma ice_preservation_spawn : forall ths tid t te,
-  forall_threads ths valid_blocks ->
+Lemma ice_preservation_spawn : forall m ths tid t te,
+  forall_threads ths (valid_term m) ->
   (* --- *)
   init_cr_exclusivity ths ->
   ths[tid] --[e_spawn (#ths) te]--> t ->
@@ -239,9 +235,8 @@ Qed.
 Theorem ice_preservation : forall m1 m2 ths1 ths2 tid e,
   forall_memory m1 no_inits ->
   forall_memory m1 no_crs ->
-  forall_threads ths1 (valid_addresses m1) ->
-  forall_threads ths1 valid_blocks ->
-  forall_threads ths1 (consistent_inits m1) ->
+  forall_threads ths1 (valid_term m1) ->
+  forall_threads ths1 (consistent_term m1) ->
   no_uninitialized_references m1 ths1 ->
   unique_initializers m1 ths1 ->
   unique_critical_regions m1 ths1 ->

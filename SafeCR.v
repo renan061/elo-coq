@@ -3,7 +3,7 @@ From Elo Require Import Core.
 From Elo Require Import SyntacticProperties.
 
 From Elo Require Import WellTypedTerm.
-From Elo Require Import ConsistentRefs.
+From Elo Require Import ConsistentTerm.
 From Elo Require Import Soundness.
 
 (* ------------------------------------------------------------------------- *)
@@ -129,14 +129,14 @@ Qed.
 
 Local Lemma scr_preservation_read : forall m t1 t2 ad t,
   forall_memory m safe_cr ->
-  consistent_references m t1 ->
+  consistent_term m t1 ->
   (* --- *)
   m[ad].t = Some t ->
   safe_cr t1 ->
   t1 --[e_read ad t]--> t2 ->
   safe_cr t2.
 Proof.
-  intros. ind_tstep; intros; invc_cr; invc_scr; eauto using safe_cr.
+  intros. ind_tstep; intros; invc_ctm; invc_scr; eauto using safe_cr.
   match goal with H : exists _, _ |- _ => destruct H end.
   eauto using typeof_preservation_read, safe_cr.
 Qed.
@@ -154,9 +154,9 @@ Qed.
 Local Lemma scr_preservation_acq : forall m t1 t2 ad t,
   forall_memory m value ->
   forall_memory m safe_cr ->
-  valid_blocks t1 ->
+  valid_term m t1 ->
   well_typed_term t1 ->
-  consistent_references m t1 ->
+  consistent_term m t1 ->
   (* --- *)
   m[ad].t = Some t ->
   safe_cr t1 ->
@@ -164,7 +164,7 @@ Local Lemma scr_preservation_acq : forall m t1 t2 ad t,
   safe_cr t2.
 Proof.
   intros * ? ? ? [T ?] **. gendep T. ind_tstep; intros;
-  repeat invc_vb; repeat invc_typeof; repeat invc_cr; repeat invc_scr;
+  repeat invc_vtm; repeat invc_typeof; repeat invc_ctm; repeat invc_scr;
   try invc_eq; eauto using safe_cr.
   - constructor.
     + rewrite <- empty_eq_safe_empty in *. eauto using typeof_subst.
@@ -203,9 +203,9 @@ Qed.
 
 Theorem scr_preservation : forall m1 m2 ths1 ths2 tid e,
   forall_memory  m1   value ->
-  forall_threads ths1 valid_blocks ->
+  forall_threads ths1 (valid_term m1) ->
   forall_threads ths1 well_typed_term ->
-  forall_threads ths1 (consistent_references m1) ->
+  forall_threads ths1 (consistent_term m1) ->
   (* --- *)
   forall_program m1 ths1 safe_cr ->
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
@@ -213,8 +213,8 @@ Theorem scr_preservation : forall m1 m2 ths1 ths2 tid e,
 Proof.
   intros until 4. intros [? ?] ?. split.
   - invc_cstep; try invc_mstep; trivial; intros ? ? ?; upsilon;
-    eauto using value_insert_term, vb_insert_term,
-                value_write_term,  vb_write_term,
+    eauto using value_insert_term, vtm_insert_term,
+                value_write_term,  vtm_write_term,
                 nocrs_from_value, scr_from_nocrs.
   - invc_cstep; try invc_mstep; upsilon.
     + eauto using scr_preservation_none.

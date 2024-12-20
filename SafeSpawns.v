@@ -3,7 +3,7 @@ From Elo Require Import Core.
 From Elo Require Import SyntacticProperties.
 
 From Elo Require Import WellTypedTerm.
-From Elo Require Import ConsistentRefs.
+From Elo Require Import ConsistentTerm.
 
 (* ------------------------------------------------------------------------- *)
 (* safe-spawns                                                               *)
@@ -184,7 +184,7 @@ Lemma ss_preservation_acq : forall m t1 t2 ad' t',
   forall_memory m value ->
   forall_memory m safe_spawns ->
   well_typed_term t1 ->
-  consistent_references m t1 ->
+  consistent_term m t1 ->
   (* --- *)
   m[ad'].t = Some t' ->
   safe_spawns t1 ->
@@ -192,7 +192,7 @@ Lemma ss_preservation_acq : forall m t1 t2 ad' t',
   safe_spawns t2.
 Proof.
   intros * ? ? [T ?] **. gendep T; ind_tstep; intros;
-  repeat invc_typeof; repeat invc_cr; repeat invc_ss;
+  repeat invc_typeof; repeat invc_ctm; repeat invc_ss;
   eauto using ss_subst, safe_spawns.
   invc_eq. rewrite <- empty_eq_safe_empty in *. 
   eauto using ss_subst, safe_spawns.
@@ -219,7 +219,7 @@ Proof. solve_ss_preservation. Qed.
 Theorem ss_preservation : forall m1 m2 ths1 ths2 tid e,
   forall_memory m1 value ->
   forall_threads ths1 well_typed_term ->
-  forall_threads ths1 (consistent_references m1) ->
+  forall_threads ths1 (consistent_term m1) ->
   (* --- *)
   forall_program m1 ths1 safe_spawns ->
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->

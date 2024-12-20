@@ -35,8 +35,7 @@ syntactic-properties:
 type-properties:
 	# type properties
 	$(COQC) WellTypedTerm.v
-	$(COQC) ConsistentInits.v
-	$(COQC) ConsistentRefs.v
+	$(COQC) ConsistentTerm.v
 	$(COQC) PointerTypes.v
 	$(COQC) ExclusivityInitCR.v
 	$(COQC) Soundness.v

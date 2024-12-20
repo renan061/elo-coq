@@ -3,7 +3,7 @@ From Elo Require Import Core.
 From Elo Require Import SyntacticProperties.
 
 From Elo Require Import WellTypedTerm.
-From Elo Require Import ConsistentInits.
+(* From Elo Require Import ConsistentInits. *)
 
 (* ------------------------------------------------------------------------- *)
 (* consistent-references                                                     *)
