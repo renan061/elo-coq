@@ -2,7 +2,7 @@
 
 COQC= coqc -Q . Elo
 
-all: core examples syntactic-properties type-properties safety
+all: core syntactic-properties type-properties safety examples
 
 core:
 	# core
@@ -11,6 +11,7 @@ core:
 	$(COQC) Map.v
 	$(COQC) Sem.v
 	$(COQC) SemExt.v
+	$(COQC) Kappa.v
 	$(COQC) Upsilon.v
 	$(COQC) Values.v
 	$(COQC) Core.v
@@ -40,11 +41,11 @@ type-properties:
 	$(COQC) Soundness.v
 	$(COQC) SafeTerm.v
 	$(COQC) ExclusivityInitCR.v
+	$(COQC) ConsistentRegions.v
 	$(COQC) TypeProperties.v
 
 safety:
 	# safety
-	$(COQC) ConsistentRegions.v
 	$(COQC) Multistep.v
 
 examples:

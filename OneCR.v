@@ -9,6 +9,12 @@ From Elo Require Import InheritanceNoCR.
 (* ------------------------------------------------------------------------- *)
 
 Inductive one_cr (ad : addr) : tm -> Prop :=
+  | onecr_seq1   : forall t1 t2,   one_cr ad t1 ->
+                                   no_cr  ad t2 ->
+                                   one_cr ad <{t1; t2        }>
+  | onecr_seq2   : forall t1 t2,   no_cr  ad t1 ->
+                                   one_cr ad t2 ->
+                                   one_cr ad <{t1; t2        }>
   | onecr_call1  : forall t1 t2,   one_cr ad t1 ->
                                    no_cr  ad t2 ->
                                    one_cr ad <{call t1 t2    }>
@@ -46,6 +52,7 @@ Local Ltac _onecr tt :=
   match goal with
   | H : one_cr _ <{unit        }> |- _ => inv H
   | H : one_cr _ <{nat _       }> |- _ => inv H
+  | H : one_cr _ <{_; _        }> |- _ => tt H
   | H : one_cr _ <{var _       }> |- _ => inv H
   | H : one_cr _ <{fn _ _ _    }> |- _ => inv H
   | H : one_cr _ <{call _ _    }> |- _ => tt H
@@ -183,9 +190,9 @@ Proof. solve_onecr_preservation nocr_preservation_spawn. Qed.
 (* inheritance ------------------------------------------------------------- *)
 
 Local Ltac solve_onecr_inheritance L :=
-  intros; ind_tstep; repeat invc_vtm; try invc_onecr;
-  eauto using L, one_cr; exfalso;
-  eauto using nocr_from_value, nocr_subst, nocr_onecr_contradiction.
+  intros; ind_tstep; repeat invc_vtm; try invc_onecr; eauto using L, one_cr;
+  try solve [exfalso; eauto using nocr_from_value, nocr_subst,
+    nocr_onecr_contradiction].
 
 Lemma onecr_inheritance_none : forall ad m t1 t2,
   valid_term m t1 ->
@@ -193,7 +200,10 @@ Lemma onecr_inheritance_none : forall ad m t1 t2,
   one_cr ad t2 ->
   t1 --[e_none]--> t2 ->
   one_cr ad t1.
-Proof. solve_onecr_inheritance nocr_inheritance_none. Qed.
+Proof.
+  solve_onecr_inheritance nocr_inheritance_none.
+  eapply onecr_seq2; eauto using nocr_from_value.
+Qed.
 
 Lemma onecr_inheritance_alloc : forall ad t1 t2 ad' T',
   one_cr ad t2 ->

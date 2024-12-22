@@ -295,6 +295,7 @@ Local Ltac pick_rel    := do 6 right; left.
 Local Ltac pick_spawn  := do 7 right.
 
 Local Ltac solve_inductive_progress_case :=
+  try solve [pick_none; repeat eexists; eapply ms_none; eapply ts_seq; eauto];
   match goal with
   | H : exists m2 t2, ?m1 / ?t1 ==[e_none]==> m2 / t2 |- _ =>
     pick_none;
@@ -364,6 +365,8 @@ Proof.
   intros * ? ? [T ?]. remember empty as Gamma.
   ind_typeof; eauto using value; right; invc_vtm; invc_ctm;
   try solve [subst; discriminate].
+  - repeat spec.
+    repeat (destruct_IH; try solve [solve_inductive_progress_case]).
   - repeat spec.
     repeat (destruct_IH; try solve [solve_inductive_progress_case]).
     pick_none.

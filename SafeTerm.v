@@ -13,6 +13,9 @@ From Elo Require Import Soundness.
 Inductive safe_term : tm -> Prop :=
   | stm_unit  :                 safe_term <{unit         }>
   | stm_nat   : forall n,       safe_term <{nat n        }>
+  | stm_seq   : forall t1 t2,   safe_term t1 ->
+                                safe_term t2 ->
+                                safe_term <{t1; t2       }>
   | stm_var   : forall x,       safe_term <{var x        }>
   | stm_fun   : forall x Tx t,  safe_term t  ->
                                 safe_term <{fn x Tx t    }>
@@ -52,6 +55,7 @@ Local Ltac _stm tt :=
   match goal with
   | H : safe_term <{unit        }>   |- _ => clear H
   | H : safe_term <{nat _       }>   |- _ => clear H
+  | H : safe_term <{_; _        }>   |- _ => tt H
   | H : safe_term <{var _       }>   |- _ => clear H
   | H : safe_term <{fn _ _ _    }>   |- _ => tt H
   | H : safe_term <{call _ _    }>   |- _ => tt H

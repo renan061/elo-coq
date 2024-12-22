@@ -9,6 +9,12 @@ From Elo Require Import InheritanceNoInit.
 (* ------------------------------------------------------------------------- *)
 
 Inductive one_init (ad : addr) : tm -> Prop :=
+  | oneinit_seq1     : forall t1 t2,   one_init ad t1 ->
+                                       no_init  ad t2 ->
+                                       one_init ad <{t1; t2        }>
+  | oneinit_seq2     : forall t1 t2,   no_init  ad t1 ->
+                                       one_init ad t2 ->
+                                       one_init ad <{t1; t2        }>
   | oneinit_call1    : forall t1 t2,   one_init ad t1 ->
                                        no_init  ad t2 ->
                                        one_init ad <{call t1 t2    }>
@@ -46,6 +52,7 @@ Local Ltac _oneinit tt :=
   match goal with
   | H : one_init _ <{unit        }> |- _ => inv H
   | H : one_init _ <{nat _       }> |- _ => inv H
+  | H : one_init _ <{_; _        }> |- _ => tt H
   | H : one_init _ <{var _       }> |- _ => inv H
   | H : one_init _ <{fn _ _ _    }> |- _ => inv H
   | H : one_init _ <{call _ _    }> |- _ => tt H
@@ -189,9 +196,9 @@ Proof. solve_oneinit_preservation noinit_preservation_spawn. Qed.
 (* inheritance ------------------------------------------------------------- *)
 
 Local Ltac solve_oneinit_inheritance L :=
-  intros; ind_tstep; repeat invc_vtm; try invc_oneinit;
-  eauto using L, one_init; exfalso;
-  eauto using noinit_from_value, noinit_subst, noinit_oneinit_contradiction.
+  intros; ind_tstep; repeat invc_vtm; try invc_oneinit; eauto using L, one_init;
+  try solve [exfalso; eauto using noinit_from_value, noinit_subst,
+    noinit_oneinit_contradiction].
 
 Lemma oneinit_inheritance_none : forall ad m t1 t2,
   valid_term m t1 ->
@@ -199,7 +206,10 @@ Lemma oneinit_inheritance_none : forall ad m t1 t2,
   one_init ad t2 ->
   t1 --[e_none]--> t2 ->
   one_init ad t1.
-Proof. solve_oneinit_inheritance noinit_inheritance_none. Qed.
+Proof.
+  solve_oneinit_inheritance noinit_inheritance_none.
+  eapply oneinit_seq2; eauto using noinit_from_value.
+Qed.
 
 Lemma oneinit_inheritance_alloc : forall ad t1 t2 ad' T',
   ad <> ad' ->

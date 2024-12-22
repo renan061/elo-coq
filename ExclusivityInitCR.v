@@ -274,3 +274,92 @@ Proof.
   repeat (destruct tid2; eauto using no_init, no_cr).
 Qed.
 
+(* ------------------------------------------------------------------------- *)
+(* region-exclusivity                                                        *)
+(* ------------------------------------------------------------------------- *)
+
+Definition region_exclusivity (t : tm) := forall ad,
+  (one_init ad t \/ no_init ad t) /\
+  (one_cr   ad t \/ no_cr   ad t) /\
+  (one_init ad t -> no_cr   ad t) /\
+  (one_cr   ad t -> no_init ad t).
+
+(* inversion --------------------------------------------------------------- *)
+
+Local Ltac solve_inv_regexc :=
+  intros * H; try match goal with |- _ /\ _ => split end; intros ad';
+  specialize (H ad') as [[? | ?] [[? | ?] [? ?]]]; repeat split; repeat spec;
+  try inv_oneinit; try inv_onecr; try inv_nocr; try inv_noinit; auto; intros ?;
+  exfalso; eauto using noinit_oneinit_contradiction, nocr_onecr_contradiction. 
+
+Local Lemma inv_regexc_seq : forall t1 t2,
+  region_exclusivity <{t1; t2}> ->
+  region_exclusivity t1 /\ region_exclusivity t2.
+Proof. solve_inv_regexc. Qed.
+
+Local Lemma inv_regexc_fun : forall x Tx t,
+  region_exclusivity <{fn x Tx t}> ->
+  region_exclusivity t.
+Proof. solve_inv_regexc. Qed.
+
+Local Lemma inv_regexc_call : forall t1 t2,
+  region_exclusivity <{call t1 t2}> ->
+  region_exclusivity t1 /\ region_exclusivity t2.
+Proof. solve_inv_regexc. Qed.
+
+Local Lemma inv_regexc_new : forall t T,
+  region_exclusivity <{new t : T}> ->
+  region_exclusivity t.
+Proof. solve_inv_regexc. Qed.
+
+Local Lemma inv_regexc_init : forall ad t T,
+  region_exclusivity <{init ad t : T}> ->
+  region_exclusivity t.
+Proof. solve_inv_regexc. Qed.
+
+Local Lemma inv_regexc_load : forall t,
+  region_exclusivity <{*t}> ->
+  region_exclusivity t.
+Proof. solve_inv_regexc. Qed.
+
+Local Lemma inv_regexc_asg : forall t1 t2,
+  region_exclusivity <{t1 := t2}> ->
+  region_exclusivity t1 /\ region_exclusivity t2.
+Proof. solve_inv_regexc. Qed.
+
+Local Lemma inv_regexc_acq : forall t1 x t2,
+  region_exclusivity <{acq t1 x t2}> ->
+  region_exclusivity t1 /\ region_exclusivity t2.
+Proof. solve_inv_regexc. Qed.
+
+Local Lemma inv_regexc_cr : forall ad t,
+  region_exclusivity <{cr ad t}> ->
+  region_exclusivity t.
+Proof. solve_inv_regexc. Qed.
+
+Local Lemma inv_regexc_spawn : forall t,
+  region_exclusivity <{spawn t}> ->
+  region_exclusivity t.
+Proof. solve_inv_regexc. Qed.
+
+Ltac invc_regexc :=
+  match goal with
+  | H : region_exclusivity <{unit        }> |- _ => clear H
+  | H : region_exclusivity <{nat _       }> |- _ => clear H
+  | H : region_exclusivity <{_; _        }> |- _ => eapply inv_regexc_seq   in H
+  | H : region_exclusivity <{var _       }> |- _ => clear H
+  | H : region_exclusivity <{fn _ _ _    }> |- _ => eapply inv_regexc_fun   in H
+  | H : region_exclusivity <{call _ _    }> |- _ => eapply inv_regexc_call  in H
+  | H : region_exclusivity <{& _ : _     }> |- _ => clear H
+  | H : region_exclusivity <{new _ : _   }> |- _ => eapply inv_regexc_new   in H
+  | H : region_exclusivity <{init _ _ : _}> |- _ => eapply inv_regexc_init  in H
+  | H : region_exclusivity <{* _         }> |- _ => eapply inv_regexc_load  in H
+  | H : region_exclusivity <{_ := _      }> |- _ => eapply inv_regexc_asg   in H
+  | H : region_exclusivity <{acq _ _ _   }> |- _ => eapply inv_regexc_acq   in H
+  | H : region_exclusivity <{cr _ _      }> |- _ => eapply inv_regexc_cr    in H
+  | H : region_exclusivity <{spawn _     }> |- _ => eapply inv_regexc_spawn in H
+  end;
+  repeat match goal with
+  | H : region_exclusivity _ /\ region_exclusivity _ |- _ => destruct H
+  end.
+

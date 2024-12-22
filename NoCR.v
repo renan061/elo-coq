@@ -157,11 +157,11 @@ Definition no_crs (t : tm) := forall ad, no_cr ad t.
 Local Ltac solve_inv_nocrs :=
   unfold no_crs; intros * H; try split; intros; spec; invc_nocr; auto.
 
-Local Lemma inv_nocrs_fun : forall t1 t2,
+Local Lemma inv_nocrs_seq : forall t1 t2,
   no_crs <{t1; t2}> -> no_crs t1 /\ no_crs t2.
 Proof. solve_inv_nocrs. Qed.
 
-Local Lemma inv_nocrs_seq : forall x Tx t,
+Local Lemma inv_nocrs_fun : forall x Tx t,
   no_crs <{fn x Tx t}> -> no_crs t.
 Proof. solve_inv_nocrs. Qed.
 

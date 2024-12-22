@@ -13,6 +13,11 @@ Local Ltac solve_wtt_inversion :=
   intros * [? ?]; try split;
   inv_typeof; try discriminate; eauto; eexists; eauto.
 
+Local Lemma inv_wtt_seq : forall t1 t2,
+  well_typed_term <{t1; t2}> ->
+  well_typed_term t1 /\ well_typed_term t2.
+Proof. solve_wtt_inversion. Qed.
+
 Local Lemma inv_wtt_var : forall x,
   well_typed_term <{var x}> ->
   False.
@@ -77,6 +82,7 @@ Ltac invc_wtt :=
   match goal with
   | H : wtt <{unit        }> |- _ => clear H
   | H : wtt <{nat _       }> |- _ => clear H
+  | H : wtt <{_; _        }> |- _ => eapply inv_wtt_seq   in H as [? ?]
   | H : wtt <{var _       }> |- _ => eapply inv_wtt_var   in H; contradiction
   | H : wtt <{fn _ _ _    }> |- _ => eapply inv_wtt_fun   in H as [? ?]
   | H : wtt <{call _ _    }> |- _ => eapply inv_wtt_call  in H as [? ?]
