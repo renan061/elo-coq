@@ -7,6 +7,9 @@ From Elo Require Import Core.
 Inductive no_init (ad : addr) : tm -> Prop :=
   | noinit_unit  :                 no_init ad <{unit          }>
   | noinit_nat   : forall n,       no_init ad <{nat n         }>
+  | noinit_seq   : forall t1 t2,   no_init ad t1 ->
+                                   no_init ad t2 ->
+                                   no_init ad <{t1; t2        }>
   | noinit_var   : forall x,       no_init ad <{var x         }>
   | noinit_fun   : forall x Tx t,  no_init ad t  ->
                                    no_init ad <{fn x Tx t     }>
@@ -39,6 +42,7 @@ Local Ltac _noinit tt :=
   match goal with
   | H : no_init _   <{unit          }> |- _ => clear H
   | H : no_init _   <{nat _         }> |- _ => clear H
+  | H : no_init _   <{_; _          }> |- _ => tt H
   | H : no_init _   <{var _         }> |- _ => clear H
   | H : no_init _   <{fn _ _ _      }> |- _ => tt H
   | H : no_init _   <{call _ _      }> |- _ => tt H
@@ -183,6 +187,10 @@ Definition no_inits (t : tm) := forall ad, no_init ad t.
 Local Ltac solve_inv_noinits :=
   unfold no_inits; intros; try split; intros; spec; invc_noinit; auto.
 
+Local Lemma inv_noinits_seq : forall t1 t2,
+  no_inits <{t1; t2}> -> no_inits t1 /\ no_inits t2.
+Proof. solve_inv_noinits. Qed.
+
 Local Lemma inv_noinits_fun : forall x Tx t,
   no_inits <{fn x Tx t}> -> no_inits t.
 Proof. solve_inv_noinits. Qed.
@@ -223,6 +231,7 @@ Ltac invc_noinits :=
   match goal with
   | H : no_inits <{unit        }> |- _ => clear H
   | H : no_inits <{nat _       }> |- _ => clear H
+  | H : no_inits <{_; _        }> |- _ => eapply inv_noinits_seq   in H as [? ?]
   | H : no_inits <{var _       }> |- _ => clear H
   | H : no_inits <{fn _ _ _    }> |- _ => eapply inv_noinits_fun   in H
   | H : no_inits <{call _ _    }> |- _ => eapply inv_noinits_call  in H as [? ?]

@@ -7,6 +7,9 @@ From Elo Require Import Core.
 Inductive no_ref (ad : addr) : tm -> Prop :=
   | noref_unit  :                 no_ref ad <{unit          }>
   | noref_nat   : forall n,       no_ref ad <{nat n         }>
+  | noref_seq   : forall t1 t2,   no_ref ad t1 ->
+                                  no_ref ad t2 ->
+                                  no_ref ad <{t1; t2        }>
   | noref_var   : forall x,       no_ref ad <{var x         }>
   | noref_fun   : forall x Tx t,  no_ref ad t  ->
                                   no_ref ad <{fn x Tx t     }>
@@ -39,6 +42,7 @@ Local Ltac _noref tt :=
   match goal with
   | H : no_ref _   <{unit        }> |- _ => clear H
   | H : no_ref _   <{nat _       }> |- _ => clear H
+  | H : no_ref _   <{_; _        }> |- _ => tt H
   | H : no_ref _   <{var _       }> |- _ => clear H
   | H : no_ref _   <{fn _ _ _    }> |- _ => tt H
   | H : no_ref _   <{call _ _    }> |- _ => tt H
@@ -176,6 +180,10 @@ Definition no_refs (t : tm) := forall ad, no_ref ad t.
 Local Ltac solve_inv_norefs :=
   unfold no_refs; intros; try split; intros; spec; invc_noref; auto.
 
+Local Lemma inv_norefs_seq : forall t1 t2,
+  no_refs <{t1; t2}> -> no_refs t1 /\ no_refs t2.
+Proof. solve_inv_norefs. Qed.
+
 Local Lemma inv_norefs_fun : forall x Tx t,
   no_refs <{fn x Tx t}> -> no_refs t.
 Proof. solve_inv_norefs. Qed.
@@ -220,6 +228,7 @@ Ltac invc_norefs :=
   match goal with
   | H : no_refs <{unit        }> |- _ => clear H
   | H : no_refs <{nat _       }> |- _ => clear H
+  | H : no_refs <{_; _        }> |- _ => eapply inv_norefs_seq   in H as [? ?]
   | H : no_refs <{var _       }> |- _ => clear H
   | H : no_refs <{fn _ _ _    }> |- _ => eapply inv_norefs_fun   in H
   | H : no_refs <{call _ _    }> |- _ => eapply inv_norefs_call  in H as [? ?]

@@ -2,7 +2,7 @@
 
 COQC= coqc -Q . Elo
 
-all: core syntactic-properties type-properties safety
+all: core examples syntactic-properties type-properties safety
 
 core:
 	# core
@@ -47,35 +47,9 @@ safety:
 	$(COQC) ConsistentRegions.v
 	$(COQC) Multistep.v
 
-
-
-
-
-access:
-	# access 
-	$(COQC) Access.v
-	$(COQC) XAccess.v
-	# WIP
-	$(COQC) AccessInheritance.v
-	$(COQC) AccessExclusivity.v
-	$(COQC) NotAccess.v
-	$(COQC) AccExc.v
-
-todo1:
-	$(COQC) HasRef.v
-	$(COQC) PointerTypes.v
-	$(COQC) NotXAccess.v
-	$(COQC) Guards.v
-	$(COQC) ClusteredAddresses.v
-
-todo2:
-	$(COQC) Promise.v
-	$(COQC) Boundaries.v
-
-oldsafety:
-	$(COQC) SMS.v
-	# $(COQC) Invariants.v
-	# $(COQC) Safety.
+examples:
+	# examples
+	$(COQC) Examples.v
 
 clean:
 	rm -f .lia.cache .*.aux *.vo *.vok *.vos *.glob

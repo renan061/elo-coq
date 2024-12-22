@@ -16,14 +16,14 @@ Definition addr := nat.
 (* safe type *)
 Inductive sty : Set :=
   | ty_unit
-  | ty_num
-  | ty_refR : sty -> sty        (* read reference    *)
-  | ty_refX : ty  -> sty        (* monitor reference *)
+  | ty_nat
+  | ty_refR : sty -> sty      (* read reference    *)
+  | ty_refX : ty  -> sty      (* monitor reference *)
 
 (* type *)
 with ty : Set :=
   | ty_safe : sty -> ty
-  | ty_refW : ty  -> ty         (* write reference   *)
+  | ty_refW : ty  -> ty       (* write reference   *)
   | ty_fun  : ty  -> ty -> ty
   .
 
@@ -47,6 +47,8 @@ Inductive tm : Set :=
   | tm_asg   : tm   -> tm -> tm
   | tm_acq   : tm   -> id -> tm -> tm
   | tm_cr    : addr -> tm -> tm
+  (* utility *)
+  | tm_seq   : tm   -> tm -> tm
   (* concurrency *)
   | tm_spawn : tm -> tm
   .
@@ -63,7 +65,7 @@ Notation "x"     := x (in custom elo_ty at level 0, x constr at level 0).
 
 (* safe types *)
 Notation "'Unit'" := (ty_safe ty_unit)            (in custom elo_ty at level 0).
-Notation "'Num'"  := (ty_safe ty_num)             (in custom elo_ty at level 0).
+Notation "'Nat'"  := (ty_safe ty_nat)             (in custom elo_ty at level 0).
 Notation "'r&' T" := (ty_safe (ty_refR T))        (in custom elo_ty at level 5).
 Notation "'x&' T" := (ty_safe (ty_refX T))        (in custom elo_ty at level 5).
 
@@ -81,6 +83,7 @@ Notation "x"       := x (in custom elo_tm at level 0, x constr at level 0).
 
 Notation "'unit'"           := (tm_unit)          (in custom elo_tm at level 0).
 Notation "'nat' n"          := (tm_nat n)         (in custom elo_tm at level 0).
+Notation "t1 ';' t2"        := (tm_seq t1 t2)     (in custom elo_tm at level 0).
 Notation "'var' x"          := (tm_var x)         (in custom elo_tm at level 0).
 Notation "'fn' x Tx t"      := (tm_fun x Tx t)     (in custom elo_tm at level 0,
                                                             x constr at level 0,
@@ -98,6 +101,12 @@ Notation "t1 ':=' t2"       := (tm_asg t1 t2)     (in custom elo_tm at level 70,
 Notation "'acq' t1 x t2"    := (tm_acq t1 x t2)   (in custom elo_tm at level 0).
 Notation "'cr' ad t"        := (tm_cr ad t)       (in custom elo_tm at level 0).
 Notation "'spawn' t"        := (tm_spawn t)       (in custom elo_tm at level 0).
+
+(* syntactic sugars *)
+Notation "'let' x ':' Tx '=' tx 'in' t" := <{call (fn x Tx t) tx}>
+  (in custom elo_tm at level 10,
+           x constr at level 0,
+   Tx custom elo_ty at level 0).
 
 Reserved Notation "'[' x ':=' tx ']' t" (in custom elo_tm at level 20,
   x constr).
@@ -200,8 +209,13 @@ Inductive type_of : ctx -> tm -> ty -> Prop :=
   | T_unit : forall Gamma,
     Gamma |-- <{unit}> is `Unit`
 
-  | T_num : forall Gamma n,
-    Gamma |-- <{nat n}> is `Num`
+  | T_nat : forall Gamma n,
+    Gamma |-- <{nat n}> is `Nat`
+
+  | T_seq : forall Gamma t1 t2 T1 T2,
+    Gamma |-- t1 is T1 ->
+    Gamma |-- t2 is T2 ->
+    Gamma |-- <{t1; t2}> is T2
 
   | T_var : forall Gamma x T,
     Gamma x = Some T ->
@@ -288,6 +302,8 @@ Fixpoint subst (x : id) (tx t : tm) : tm :=
   match t with
   | <{unit          }> => t
   | <{nat _         }> => t
+  (* utility *)
+  | <{t1; t2        }> => <{([x := tx] t1); ([x := tx] t2)}>
   (* functions *)
   | <{var x'        }> => if x =? x' then tx else t
   | <{fn x' Tx t'   }> => if x =? x' then t  else <{fn x' Tx ([x := tx] t')}>
@@ -312,6 +328,15 @@ Fixpoint subst (x : id) (tx t : tm) : tm :=
 (* ------------------------------------------------------------------------- *)
 
 Inductive tstep : tm -> eff -> tm -> Prop :=
+  (* seq *)
+  | ts_seq1 : forall t1 t1' t2 e,
+    t1 --[e]--> t1' ->
+    <{t1; t2}> --[e]--> <{t1'; t2}>
+
+  | ts_seq : forall t1 t2,
+    value t1 ->
+    <{t1; t2}> --[e_none]--> t2
+
   (* call *)
   | ts_call1 : forall t1 t1' t2 e,
     t1 --[e]--> t1' ->
@@ -378,7 +403,7 @@ Inductive tstep : tm -> eff -> tm -> Prop :=
     value t ->
     <{cr ad t}> --[e_rel ad]--> t
 
-  (* Spawn *)
+  (* spawn *)
   | ts_spawn : forall tid t,
     <{spawn t}> --[e_spawn tid t]--> <{unit}>
 
@@ -499,6 +524,7 @@ Fixpoint gcr (t' : tm) (r : region) : region :=
   match t' with
   | <{unit         }> => r
   | <{nat _        }> => r
+  | <{t1; t2       }> => if is_value t1 then gcr t2 r else gcr t1 r
   | <{var _        }> => r
   | <{fn _ _ _     }> => r
   | <{call t1 t2   }> => if is_value t1 then gcr t2 r else gcr t1 r

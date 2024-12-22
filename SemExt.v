@@ -13,6 +13,7 @@ Ltac _typeof tt :=
   match goal with
   | H : _ |-- <{unit        }> is _ |- _ => tt H
   | H : _ |-- <{nat _       }> is _ |- _ => tt H
+  | H : _ |-- <{_; _        }> is _ |- _ => tt H
   | H : _ |-- <{var _       }> is _ |- _ => tt H
   | H : _ |-- <{fn _ _ _    }> is _ |- _ => tt H
   | H : _ |-- <{call _ _    }> is _ |- _ => tt H
@@ -295,5 +296,4 @@ Proof.
   - intros ? ? Had. simpl in Had. destruct ad; simpl in Had; auto.
   - intros ad. nat_eq_dec 0 ad; simpl; trivial. repeat (destruct ad; trivial).
 Qed.
-
 

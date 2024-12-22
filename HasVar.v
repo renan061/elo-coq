@@ -5,33 +5,37 @@ From Elo Require Import Core.
 (* ------------------------------------------------------------------------- *)
 
 Inductive has_var (x : id) : tm  -> Prop :=
-  | hasvar_var :                   has_var x <{var x        }>
-  | hasvar_fun : forall x' Tx t,   x <> x'      ->
-                                   has_var x t  ->
-                                   has_var x <{fn x' Tx t   }>
-  | hasvar_call1 : forall t1 t2,   has_var x t1 ->
-                                   has_var x <{call t1 t2   }>
-  | hasvar_call2 : forall t1 t2,   has_var x t2 ->
-                                   has_var x <{call t1 t2   }>
-  | hasvar_new : forall t T,       has_var x t  ->
-                                   has_var x <{new t : T    }>
-  | hasvar_init : forall ad t T,   has_var x t  ->
-                                   has_var x <{init ad t : T}>
-  | hasvar_load : forall t,        has_var x t  ->
-                                   has_var x <{*t           }>
-  | hasvar_asg1 : forall t1 t2,    has_var x t1 ->
-                                   has_var x <{t1 := t2     }>
-  | hasvar_asg2 : forall t1 t2,    has_var x t2 ->
-                                   has_var x <{t1 := t2     }>
-  | hasvar_acq1 : forall t1 x' t2, has_var x t1 ->
-                                   has_var x <{acq t1 x' t2 }>
-  | hasvar_acq2 : forall t1 x' t2, x <> x'      ->
-                                   has_var x t2 ->
-                                   has_var x <{acq t1 x' t2 }>
-  | hasvar_cr : forall ad t,       has_var x t  ->
-                                   has_var x <{cr ad t      }>
-  | hasvar_spawn : forall t,       has_var x t  ->
-                                   has_var x <{spawn t      }>
+  | hasvar_seq1  : forall t1 t2,    has_var x t1 ->
+                                    has_var x <{t1; t2       }>
+  | hasvar_seq2  : forall t1 t2,    has_var x t2 ->
+                                    has_var x <{t1; t2       }>
+  | hasvar_var   :                  has_var x <{var x        }>
+  | hasvar_fun   : forall x' Tx t,  x <> x'      ->
+                                    has_var x t  ->
+                                    has_var x <{fn x' Tx t   }>
+  | hasvar_call1 : forall t1 t2,    has_var x t1 ->
+                                    has_var x <{call t1 t2   }>
+  | hasvar_call2 : forall t1 t2,    has_var x t2 ->
+                                    has_var x <{call t1 t2   }>
+  | hasvar_new   : forall t T,      has_var x t  ->
+                                    has_var x <{new t : T    }>
+  | hasvar_init  : forall ad t T,   has_var x t  ->
+                                    has_var x <{init ad t : T}>
+  | hasvar_load  : forall t,        has_var x t  ->
+                                    has_var x <{*t           }>
+  | hasvar_asg1  : forall t1 t2,    has_var x t1 ->
+                                    has_var x <{t1 := t2     }>
+  | hasvar_asg2  : forall t1 t2,    has_var x t2 ->
+                                    has_var x <{t1 := t2     }>
+  | hasvar_acq1  : forall t1 x' t2, has_var x t1 ->
+                                    has_var x <{acq t1 x' t2 }>
+  | hasvar_acq2  : forall t1 x' t2, x <> x'      ->
+                                    has_var x t2 ->
+                                    has_var x <{acq t1 x' t2 }>
+  | hasvar_cr    : forall ad t,     has_var x t  ->
+                                    has_var x <{cr ad t      }>
+  | hasvar_spawn : forall t,        has_var x t  ->
+                                    has_var x <{spawn t      }>
   .
 
 (* inversion --------------------------------------------------------------- *)
@@ -40,6 +44,7 @@ Local Ltac _hasvar tt :=
   match goal with
   | H : has_var _  <{unit          }> |- _ => invc H
   | H : has_var _  <{nat _         }> |- _ => invc H
+  | H : has_var _  <{_; _          }> |- _ => tt H
   | H : has_var ?x <{var ?x        }> |- _ => clear H
   | H : has_var _  <{var _         }> |- _ => tt H
   | H : has_var _  <{fn _ _ _      }> |- _ => tt H
@@ -161,6 +166,10 @@ Lemma nhv_nat : forall x n,
   ~ has_var x <{nat n}>.
 Proof. solve_cons_nhv. Qed.
 
+Lemma nhv_seq : forall x t1 t2,
+  ~ has_var x t1 -> ~ has_var x t2 -> ~ has_var x <{t1; t2}>.
+Proof. solve_cons_nhv. Qed.
+
 Lemma nhv_var : forall x x',
   x <> x' -> ~ has_var x <{var x'}>.
 Proof. solve_cons_nhv. Qed.
@@ -207,6 +216,7 @@ Proof. solve_cons_nhv. Qed.
 
 #[export] Hint Resolve
   nhv_unit  nhv_nat
+  nhv_seq
   nhv_var   nhv_fun   nhv_call
   nhv_ref   nhv_new   nhv_init nhv_load  nhv_asg
   nhv_acq   nhv_cr
@@ -214,6 +224,11 @@ Proof. solve_cons_nhv. Qed.
   : not_has_var.
 
 (* inversion --------------------------------------------------------------- *)
+
+Local Lemma inv_nhv_seq : forall x t1 t2,
+  ~ has_var x <{t1; t2}> ->
+  ~ has_var x t1 /\ ~ has_var x t2.
+Proof. intros. split; eauto using has_var. Qed.
 
 Local Lemma inv_nhv_var : forall x x',
   ~ has_var x <{var x'}> ->
@@ -271,6 +286,7 @@ Ltac invc_nhv :=
   match goal with
   | H : ~ has_var _ <{unit        }> |- _ => clear H
   | H : ~ has_var _ <{nat _       }> |- _ => clear H
+  | H : ~ has_var _ <{_; _        }> |- _ => eapply inv_nhv_seq   in H as [? ?]
   | H : ~ has_var _ <{var _       }> |- _ => eapply inv_nhv_var   in H; auto
   | H : ~ has_var _ <{fn _ _ _    }> |- _ => eapply inv_nhv_fun   in H
                                              as [? | [? ?]]; subst
