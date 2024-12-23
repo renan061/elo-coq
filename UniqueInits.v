@@ -20,11 +20,14 @@ Definition unique_initializers (m : mem) (ths : threads) := forall ad,
 (* lemmas ------------------------------------------------------------------ *)
 
 Corollary noinit_or_oneinit_from_ui : forall ad m ths tid,
-  ad < #m ->
+  forall_threads ths (valid_term m) ->
+  (* --- *)
   unique_initializers m ths ->
   no_init ad ths[tid] \/ one_init ad ths[tid].
 Proof.
-  intros * Had Hui. specialize (Hui ad Had) as [? Hnone].
+  intros * ? Hui. lt_eq_gt ad (#m);
+  eauto using noinit_from_vtm1, noinit_from_vtm2.
+  specialize (Hui ad). spec. specialize Hui as [? Hnone].
   opt_dec (m[ad].t); spec; auto.
   specialize Hnone as [tid' [? ?]]. nat_eq_dec tid' tid; auto.
 Qed.

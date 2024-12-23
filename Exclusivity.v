@@ -275,91 +275,105 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* region-exclusivity                                                        *)
+(* term-init-cr-exc                                                          *)
 (* ------------------------------------------------------------------------- *)
 
-Definition region_exclusivity (t : tm) := forall ad,
-  (one_init ad t \/ no_init ad t) /\
-  (one_cr   ad t \/ no_cr   ad t) /\
+Definition term_init_cr_exc (t : tm) := forall ad,
+  (no_init ad t \/ one_init ad t) /\
+  (no_cr   ad t \/ one_cr   ad t) /\
   (one_init ad t -> no_cr   ad t) /\
   (one_cr   ad t -> no_init ad t).
 
 (* inversion --------------------------------------------------------------- *)
 
-Local Ltac solve_inv_regexc :=
+Local Ltac solve_inv_tice :=
   intros * H; try match goal with |- _ /\ _ => split end; intros ad';
   specialize (H ad') as [[? | ?] [[? | ?] [? ?]]]; repeat split; repeat spec;
   try inv_oneinit; try inv_onecr; try inv_nocr; try inv_noinit; auto; intros ?;
   exfalso; eauto using noinit_oneinit_contradiction, nocr_onecr_contradiction. 
 
-Local Lemma inv_regexc_seq : forall t1 t2,
-  region_exclusivity <{t1; t2}> ->
-  region_exclusivity t1 /\ region_exclusivity t2.
-Proof. solve_inv_regexc. Qed.
+Local Lemma inv_tice_seq : forall t1 t2,
+  term_init_cr_exc <{t1; t2}> ->
+  term_init_cr_exc t1 /\ term_init_cr_exc t2.
+Proof. solve_inv_tice. Qed.
 
-Local Lemma inv_regexc_fun : forall x Tx t,
-  region_exclusivity <{fn x Tx t}> ->
-  region_exclusivity t.
-Proof. solve_inv_regexc. Qed.
+Local Lemma inv_tice_fun : forall x Tx t,
+  term_init_cr_exc <{fn x Tx t}> ->
+  term_init_cr_exc t.
+Proof. solve_inv_tice. Qed.
 
-Local Lemma inv_regexc_call : forall t1 t2,
-  region_exclusivity <{call t1 t2}> ->
-  region_exclusivity t1 /\ region_exclusivity t2.
-Proof. solve_inv_regexc. Qed.
+Local Lemma inv_tice_call : forall t1 t2,
+  term_init_cr_exc <{call t1 t2}> ->
+  term_init_cr_exc t1 /\ term_init_cr_exc t2.
+Proof. solve_inv_tice. Qed.
 
-Local Lemma inv_regexc_new : forall t T,
-  region_exclusivity <{new t : T}> ->
-  region_exclusivity t.
-Proof. solve_inv_regexc. Qed.
+Local Lemma inv_tice_new : forall t T,
+  term_init_cr_exc <{new t : T}> ->
+  term_init_cr_exc t.
+Proof. solve_inv_tice. Qed.
 
-Local Lemma inv_regexc_init : forall ad t T,
-  region_exclusivity <{init ad t : T}> ->
-  region_exclusivity t.
-Proof. solve_inv_regexc. Qed.
+Local Lemma inv_tice_init : forall ad t T,
+  term_init_cr_exc <{init ad t : T}> ->
+  term_init_cr_exc t.
+Proof. solve_inv_tice. Qed.
 
-Local Lemma inv_regexc_load : forall t,
-  region_exclusivity <{*t}> ->
-  region_exclusivity t.
-Proof. solve_inv_regexc. Qed.
+Local Lemma inv_tice_load : forall t,
+  term_init_cr_exc <{*t}> ->
+  term_init_cr_exc t.
+Proof. solve_inv_tice. Qed.
 
-Local Lemma inv_regexc_asg : forall t1 t2,
-  region_exclusivity <{t1 := t2}> ->
-  region_exclusivity t1 /\ region_exclusivity t2.
-Proof. solve_inv_regexc. Qed.
+Local Lemma inv_tice_asg : forall t1 t2,
+  term_init_cr_exc <{t1 := t2}> ->
+  term_init_cr_exc t1 /\ term_init_cr_exc t2.
+Proof. solve_inv_tice. Qed.
 
-Local Lemma inv_regexc_acq : forall t1 x t2,
-  region_exclusivity <{acq t1 x t2}> ->
-  region_exclusivity t1 /\ region_exclusivity t2.
-Proof. solve_inv_regexc. Qed.
+Local Lemma inv_tice_acq : forall t1 x t2,
+  term_init_cr_exc <{acq t1 x t2}> ->
+  term_init_cr_exc t1 /\ term_init_cr_exc t2.
+Proof. solve_inv_tice. Qed.
 
-Local Lemma inv_regexc_cr : forall ad t,
-  region_exclusivity <{cr ad t}> ->
-  region_exclusivity t.
-Proof. solve_inv_regexc. Qed.
+Local Lemma inv_tice_cr : forall ad t,
+  term_init_cr_exc <{cr ad t}> ->
+  term_init_cr_exc t.
+Proof. solve_inv_tice. Qed.
 
-Local Lemma inv_regexc_spawn : forall t,
-  region_exclusivity <{spawn t}> ->
-  region_exclusivity t.
-Proof. solve_inv_regexc. Qed.
+Local Lemma inv_tice_spawn : forall t,
+  term_init_cr_exc <{spawn t}> ->
+  term_init_cr_exc t.
+Proof. solve_inv_tice. Qed.
 
-Ltac invc_regexc :=
+Ltac invc_tice :=
   match goal with
-  | H : region_exclusivity <{unit        }> |- _ => clear H
-  | H : region_exclusivity <{nat _       }> |- _ => clear H
-  | H : region_exclusivity <{_; _        }> |- _ => eapply inv_regexc_seq   in H
-  | H : region_exclusivity <{var _       }> |- _ => clear H
-  | H : region_exclusivity <{fn _ _ _    }> |- _ => eapply inv_regexc_fun   in H
-  | H : region_exclusivity <{call _ _    }> |- _ => eapply inv_regexc_call  in H
-  | H : region_exclusivity <{& _ : _     }> |- _ => clear H
-  | H : region_exclusivity <{new _ : _   }> |- _ => eapply inv_regexc_new   in H
-  | H : region_exclusivity <{init _ _ : _}> |- _ => eapply inv_regexc_init  in H
-  | H : region_exclusivity <{* _         }> |- _ => eapply inv_regexc_load  in H
-  | H : region_exclusivity <{_ := _      }> |- _ => eapply inv_regexc_asg   in H
-  | H : region_exclusivity <{acq _ _ _   }> |- _ => eapply inv_regexc_acq   in H
-  | H : region_exclusivity <{cr _ _      }> |- _ => eapply inv_regexc_cr    in H
-  | H : region_exclusivity <{spawn _     }> |- _ => eapply inv_regexc_spawn in H
+  | H : term_init_cr_exc <{unit        }> |- _ => clear H
+  | H : term_init_cr_exc <{nat _       }> |- _ => clear H
+  | H : term_init_cr_exc <{_; _        }> |- _ => eapply inv_tice_seq   in H
+  | H : term_init_cr_exc <{var _       }> |- _ => clear H
+  | H : term_init_cr_exc <{fn _ _ _    }> |- _ => eapply inv_tice_fun   in H
+  | H : term_init_cr_exc <{call _ _    }> |- _ => eapply inv_tice_call  in H
+  | H : term_init_cr_exc <{& _ : _     }> |- _ => clear H
+  | H : term_init_cr_exc <{new _ : _   }> |- _ => eapply inv_tice_new   in H
+  | H : term_init_cr_exc <{init _ _ : _}> |- _ => eapply inv_tice_init  in H
+  | H : term_init_cr_exc <{* _         }> |- _ => eapply inv_tice_load  in H
+  | H : term_init_cr_exc <{_ := _      }> |- _ => eapply inv_tice_asg   in H
+  | H : term_init_cr_exc <{acq _ _ _   }> |- _ => eapply inv_tice_acq   in H
+  | H : term_init_cr_exc <{cr _ _      }> |- _ => eapply inv_tice_cr    in H
+  | H : term_init_cr_exc <{spawn _     }> |- _ => eapply inv_tice_spawn in H
   end;
   repeat match goal with
-  | H : region_exclusivity _ /\ region_exclusivity _ |- _ => destruct H
+  | H : term_init_cr_exc _ /\ term_init_cr_exc _ |- _ => destruct H
   end.
+
+(* ------------------------------------------------------------------------- *)
+
+Theorem tice_from_ice : forall m ths,
+  forall_threads ths (valid_term m) ->
+  unique_initializers m ths ->
+  unique_critical_regions m ths ->
+  (* --- *)
+  init_cr_exclusivity ths ->
+  forall_threads ths term_init_cr_exc.
+Proof.
+  intros * ? Hui Hucr Hice tid ad. specialize (Hice ad tid tid) as [? ?].
+  eauto 6 using noinit_or_oneinit_from_ui, nocr_or_onecr_from_ucr.
+Qed.
 

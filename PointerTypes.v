@@ -5,6 +5,24 @@ From Elo Require Import Core.
 From Elo Require Import WellTypedTerm.
 From Elo Require Import ConsistentTerm.
 
+Theorem rstep_nondecreasing_memory_size : forall m1 m2 ths1 ths2 tid e ad,
+  ad < #m1 ->
+  m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
+  ad < #m2.
+Proof.
+  intros. invc_ostep; invc_cstep; try invc_mstep; trivial; sigma; lia.
+Qed.
+
+Theorem ustep_nondecreasing_memory_size : forall m1 m2 ths1 ths2 tc ad,
+  ad < #m1 ->
+  m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+  ad < #m2.
+Proof.
+  intros. ind_ustep; eauto using rstep_nondecreasing_memory_size.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+
 Lemma ptyp_for_insert : forall m t1 t2 ad t T,
   consistent_term m t1 ->
   (* --- *)
@@ -36,12 +54,31 @@ Proof.
   ind_tstep; intros; repeat invc_typeof; repeat invc_ctm; eauto.
 Qed.
 
-Theorem ptyp_preservation : forall m1 m2 ths1 ths2 tid e ad,
+Theorem ptyp_preservation_cstep : forall m1 m2 ths1 ths2 tid e ad,
   m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
   ad < #m1 ->
   m1[ad].T = m2[ad].T.
 Proof.
   intros. invc_cstep; trivial. invc_mstep; sigma; trivial; omicron; trivial.
+Qed.
+
+Theorem ptyp_preservation_rstep : forall m1 m2 ths1 ths2 tid e ad,
+  m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
+  ad < #m1 ->
+  m1[ad].T = m2[ad].T.
+Proof.
+  intros. invc_ostep; eauto using ptyp_preservation_cstep.
+  repeat omicron; upsilon; eauto using ptyp_preservation_cstep.
+  invc_cstep. invc_mstep. sigma. reflexivity.
+Qed.
+
+Theorem ptyp_preservation_ustep : forall m1 m2 ths1 ths2 tc ad,
+  m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+  ad < #m1 ->
+  m1[ad].T = m2[ad].T.
+Proof.
+  intros. ind_ustep; trivial. rewrite IHmultistep;
+  eauto using ustep_nondecreasing_memory_size, ptyp_preservation_rstep.
 Qed.
 
 (* ------------------------------------------------------------------------- *)

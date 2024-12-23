@@ -109,8 +109,13 @@ Corollary des_forallprogram_threads : forall m ths P,
   forall_program m ths P -> forall_threads ths P.
 Proof. intros * [? ?]. assumption. Qed.
 
+#[export] Hint Resolve
+  des_forallprogram_memory
+  des_forallprogram_threads
+  : inva.
+
 Ltac solve_inva_des :=
-  unfold invariants; intros * H; decompose record H; assumption.
+  unfold invariants; intros * H; decompose record H; trivial.
 
 Corollary des_inva_value : forall m ths,
   invariants m ths -> forall_memory m value.
@@ -152,6 +157,10 @@ Corollary des_inva_ice : forall m ths,
   invariants m ths -> init_cr_exclusivity ths.
 Proof. solve_inva_des. Qed.
 
+Corollary des_inva_tice : forall m ths,
+  invariants m ths -> forall_threads ths term_init_cr_exc.
+Proof. solve_inva_des. eauto using tice_from_ice with inva. Qed.
+
 Corollary des_inva_mcreg : forall m ths,
   invariants m ths -> forall_memory_consistent_regions m.
 Proof. solve_inva_des. Qed.
@@ -173,6 +182,7 @@ Proof. solve_inva_des. Qed.
   des_inva_mpt
   des_inva_stm
   des_inva_ice
+  des_inva_tice
   des_inva_mcreg
   des_inva_creg
   : inva.

@@ -40,7 +40,7 @@ type-properties:
 	$(COQC) PointerTypes.v
 	$(COQC) Soundness.v
 	$(COQC) SafeTerm.v
-	$(COQC) ExclusivityInitCR.v
+	$(COQC) Exclusivity.v
 	$(COQC) ConsistentRegions.v
 	$(COQC) TypeProperties.v
 

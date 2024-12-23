@@ -3,6 +3,12 @@ From Elo Require Import Core.
 From Elo Require Import NoRef.
 From Elo Require Import ValidTerm.
 
+(* TODO:
+  Transformar em no_uninitialized_addresses e incluir no_cr. (???)
+
+  Criar NoAddress, que exclui refs e crs.
+*)
+
 (* ------------------------------------------------------------------------- *)
 (* no-uninitialized-references                                               *)
 (* ------------------------------------------------------------------------- *)
@@ -12,14 +18,24 @@ Definition no_uninitialized_references (m : mem) (ths : threads) :=
 
 (* theorems ---------------------------------------------------------------- *)
 
-Theorem write_then_initialized : forall m ths tid t ad te,
+Theorem write_then_initialized : forall m ths tid t ad' t',
   no_uninitialized_references m ths ->
   (* --- *)
-  ths[tid] --[e_write ad te]--> t ->
-  m[ad].t <> None.
+  ths[tid] --[e_write ad' t']--> t ->
+  m[ad'].t <> None.
 Proof.
-  intros * Hnur ? Had. specialize (Hnur ad Had) as [? ?].
+  intros * Hnur ? Had. specialize (Hnur ad' Had) as [? ?].
   eauto using noref_write_contradiction.
+Qed.
+
+Theorem acq_then_initialized : forall m ths tid t ad' t',
+  no_uninitialized_references m ths ->
+  (* --- *)
+  ths[tid] --[e_acq ad' t']--> t ->
+  m[ad'].t <> None.
+Proof.
+  intros * Hnur ? Had. specialize (Hnur ad' Had) as [? ?].
+  eauto using noref_acq_contradiction.
 Qed.
 
 (* preservation lemmas ----------------------------------------------------- *)
