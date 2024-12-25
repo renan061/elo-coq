@@ -12,7 +12,7 @@ Definition init_cr_exclusivity (ths : threads) := forall ad tid1 tid2,
   (one_init ad ths[tid1] -> no_cr   ad ths[tid2]) /\
   (one_cr   ad ths[tid1] -> no_init ad ths[tid2]).
 
-(* auxiliary --------------------------------------------------------------- *)
+(* theorems ---------------------------------------------------------------- *)
 
 Theorem oneinit_from_insert : forall m ths tid t ad' t' T',
   forall_threads ths (valid_term m) ->
@@ -30,14 +30,14 @@ Proof.
   exfalso. eauto using noinit_insert_contradiction.
 Qed.
 
-Theorem onecr_from_rel : forall m ths tid t ad,
+Theorem onecr_from_rel : forall m ths tid t ad',
   unique_critical_regions m ths ->
   (* --- *)
-  ths[tid] --[e_rel ad]--> t ->
-  one_cr ad ths[tid].
+  ths[tid] --[e_rel ad']--> t ->
+  one_cr ad' ths[tid].
 Proof.
-  intros * Hucr **. specialize (Hucr ad) as [Hfalse Htrue].
-  destruct (m[ad].X) eqn:?.
+  intros * Hucr **. specialize (Hucr ad') as [Hfalse Htrue].
+  destruct (m[ad'].X) eqn:?.
   - specialize (Htrue eq_refl) as [tid' [? ?]]; clear Hfalse.
     nat_eq_dec tid' tid; trivial.
     exfalso. eauto using nocr_rel_contradiction.
@@ -363,7 +363,7 @@ Ltac invc_tice :=
   | H : term_init_cr_exc _ /\ term_init_cr_exc _ |- _ => destruct H
   end.
 
-(* ------------------------------------------------------------------------- *)
+(* theorems ---------------------------------------------------------------- *)
 
 Theorem tice_from_ice : forall m ths,
   forall_threads ths (valid_term m) ->
@@ -375,5 +375,22 @@ Theorem tice_from_ice : forall m ths,
 Proof.
   intros * ? Hui Hucr Hice tid ad. specialize (Hice ad tid tid) as [? ?].
   eauto 6 using noinit_or_oneinit_from_ui, nocr_or_onecr_from_ucr.
+Qed.
+
+Theorem nocr_from_acq : forall m ths tid t ad' t',
+  forall_memory  m   value          ->
+  forall_memory  m   (valid_term m) ->
+  term_init_cr_exc ths[tid]         ->
+  term_init_cr_exc t                ->
+  (* --- *)
+  m[ad'].t = Some t'                ->
+  ths[tid] --[e_acq ad' t']--> t    ->
+  no_cr ad' ths[tid].
+Proof.
+  intros * ? ? Htice1 Htice2 **.
+  specialize (Htice1 ad') as [_ [[Hnocr1 | Honecr1] _]]; trivial.
+  specialize (Htice2 ad') as [_ [[Hnocr2 | Honecr2] _]];
+  exfalso; eauto using nocrs_from_value, nocr_acq_contradiction,
+    onecr_to_onecr_contradiction.
 Qed.
 

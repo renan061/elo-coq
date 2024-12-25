@@ -69,6 +69,18 @@ Local Ltac _onecr tt :=
 Ltac inv_onecr  := _onecr inv.
 Ltac invc_onecr := _onecr invc.
 
+(* preservation lemmas ----------------------------------------------------- *)
+
+Lemma onecr_subst : forall ad x tx t,
+  no_cr  ad tx -> 
+  one_cr ad t  ->
+  one_cr ad <{[x := tx] t}>.
+Proof.
+  intros. induction t; invc_onecr;
+  simpl; try destruct _str_eq_dec;
+  auto using nocr_subst, one_cr.
+Qed.
+
 (* lemmas ------------------------------------------------------------------ *)
 
 Lemma nocr_onecr_contradiction : forall ad t,
@@ -106,16 +118,16 @@ Proof.
   exfalso; eauto using nocr_rel_contradiction.
 Qed.
 
-(* preservation lemmas ----------------------------------------------------- *)
-
-Local Lemma onecr_subst : forall ad x tx t,
-  no_cr  ad tx -> 
-  one_cr ad t  ->
-  one_cr ad <{[x := tx] t}>.
+Lemma onecr_to_onecr_contradiction : forall t1 t2 ad' t',
+  no_crs t' ->
+  (* --- *)
+  t1 --[e_acq ad' t']--> t2 ->
+  one_cr ad' t1 ->
+  one_cr ad' t2 ->
+  False.
 Proof.
-  intros. induction t; invc_onecr;
-  simpl; try destruct _str_eq_dec;
-  auto using nocr_subst, one_cr.
+  intros. ind_tstep; repeat invc_onecr;
+  eauto using onecr_subst, nocr_to_onecr, nocr_onecr_contradiction.
 Qed.
 
 (* preservation ------------------------------------------------------------ *)

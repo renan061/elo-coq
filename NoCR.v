@@ -60,7 +60,28 @@ Local Ltac _nocr tt :=
 Ltac inv_nocr  := _nocr inv.
 Ltac invc_nocr := _nocr invc.
 
+(* decidability ------------------------------------------------------------ *)
+
+Lemma nocr_dec : forall ad t,
+  Decidable.decidable (no_cr ad t).
+Proof.
+  unfold Decidable.decidable. unfold not. intros.
+  induction t; auto using no_cr;
+  (destruct IHt || destruct IHt1, IHt2); auto using no_cr;
+  try solve [right; intros; invc_nocr; auto].
+  match goal with ad1 : addr, ad2 : addr |- _ => nat_eq_dec ad1 ad2 end;
+  auto using no_cr. right. intros. invc_nocr.
+Qed.
+
 (* lemmas ------------------------------------------------------------------ *)
+
+Lemma nocr_acq_contradiction : forall t1 t2 ad t,
+  no_cr ad t2 ->
+  t1 --[e_acq ad t]--> t2 ->
+  False.
+Proof.
+  intros. ind_tstep; invc_nocr; auto.
+Qed.
 
 Lemma nocr_rel_contradiction : forall t1 t2 ad,
   no_cr ad t1 ->

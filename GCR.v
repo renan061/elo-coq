@@ -6,6 +6,7 @@ From Elo Require Import SyntacticProperties.
 From Elo Require Import TypeProperties.
 
 From Elo Require Import Multistep.
+From Elo Require Import InheritanceOneCR.
 
 #[export] Hint Extern 8 =>
   match goal with
@@ -344,7 +345,81 @@ Proof.
   repeat spec.
   (* WIP *)
   eapply IHmultistep. clear IHmultistep.
+Abort.
+
+Local Lemma onecr_multistep_onecr_aux1 :
+  forall m1 m2 ths1 ths2 tid1 tid2 tc ad,
+    invariants m1 ths1 ->
+    invariants m2 ths2 ->
+    (* --- *)
+    ad < #m1 ->
+    tid1 <> tid2 ->
+    one_cr ad ths1[tid1] ->
+    m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+    one_cr ad ths2[tid2] ->
+    exists t, In (tid2, (e_acq ad t)) tc.
+Proof.
+  intros. ind_ustep; eauto using ui_oneinit_contradiction with inva.
+  - exfalso.
+    assert (Hucr : unique_critical_regions m ths) by eauto with inva.
+    specialize (Hucr ad) as [Hfalse Htrue].
+    destruct (m[ad].X); spec.
+    + specialize Htrue as [tid [? ?]].
+      nat_eq_dec tid1 tid; nat_eq_dec tid2 tid;
+      eauto using nocr_onecr_contradiction.
+    + eauto using nocr_onecr_contradiction.
+  - assert (invariants m2 ths2) by eauto using invariants_preservation_ustep.
+    repeat spec.
+    assert (exists t, (e <> e_acq ad t /\ one_cr ad ths2[tid2]) \/
+                      (e =  e_acq ad t /\ tid = tid2))
+      as [t [[? ?] | [? ?]]]
+      by eauto using onecr_inheritance_rstep.
+    + destruct IHmultistep; trivial. eexists. right. eauto.
+    + subst. exists t. left. eauto.
 Qed.
+
+Local Lemma onecr_multistep_onecr_aux2 :
+  forall m1 m2 ths1 ths2 tid1 tid2 tc ad t,
+    invariants m1 ths1 ->
+    invariants m2 ths2 ->
+    (* --- *)
+    ad < #m1 ->
+    tid1 <> tid2 ->
+    one_cr ad ths1[tid1] ->
+    m1 / ths1 ~~[(tid2, e_acq ad t) :: tc]~~>* m2 / ths2 ->
+    In (tid1, e_rel ad) tc.
+Proof.
+  intros. invc H4.
+  (* O que isso diz é que m3[ad].X = false *)
+Abort.
+
+Local Lemma onecr_multistep_onecr_aux3 :
+  forall m1 m2 ths1 ths2 tid1 tid2 tc ad,
+    invariants m1 ths1 ->
+    invariants m2 ths2 ->
+    (* --- *)
+    ad < #m1 ->
+    tid1 <> tid2 ->
+    one_cr ad ths1[tid1] ->
+    m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+    m2[ad].X = false ->
+    In (tid1, e_rel ad) tc.
+Proof.
+  intros. ind_ustep.
+  - exfalso.
+    assert (Hucr : unique_critical_regions m ths) by eauto with inva.
+    specialize (Hucr ad) as [Hfalse Htrue]. spec.
+    eauto using nocr_onecr_contradiction.
+  - assert (invariants m2 ths2) by eauto using invariants_preservation_ustep.
+    repeat spec.
+    (* fazer inheritance de m[ad].X = false *)
+Qed.
+
+(*
+in_split : forall x (l:list A), In x l -> exists l1 l2, l = .
+*)
+
+
 
 Theorem safety_write_read : forall m1 m2 ths1 ths2 tc tc' tid1 tid2 ad t1 t2,
   tid1 <> tid2 ->
