@@ -40,6 +40,41 @@ Proof.
   eauto using nocr_onecr_contradiction.
 Qed.
 
+Corollary ucr_onecr_equality : forall ad m ths tid1 tid2,
+  unique_critical_regions m ths ->
+  (* --- *)
+  one_cr ad ths[tid1] ->
+  one_cr ad ths[tid2] ->
+  tid1 = tid2.
+Proof.
+  intros. nat_eq_dec tid1 tid2; trivial. exfalso.
+  eauto using ucr_onecr_contradiction.
+Qed.
+
+Lemma locked_from_onecr : forall m ths tid ad,
+  unique_critical_regions m ths ->
+  (* --- *)
+  one_cr ad ths[tid] ->
+  m[ad].X = true.
+Proof.
+  intros * Hucr ?.
+  destruct (m[ad].X) eqn:Heq; trivial.
+  specialize (Hucr ad) as [? _]. spec.
+  exfalso. eauto using nocr_onecr_contradiction.
+Qed.
+
+Lemma locked_from_rel : forall m ths tid t ad,
+  unique_critical_regions m ths ->
+  (* --- *)
+  ths[tid] --[e_rel ad]--> t ->
+  m[ad].X = true.
+Proof.
+  intros * Hucr ?.
+  destruct (m[ad].X) eqn:Heq; trivial.
+  specialize (Hucr ad) as [? _]. spec.
+  exfalso. eauto using nocr_rel_contradiction.
+Qed.
+
 (* preservation lemmas ----------------------------------------------------- *)
 
 Lemma ucr_mem_region : forall m ths ad R,
@@ -166,11 +201,7 @@ Local Lemma ucr_preservation_rel : forall m ths tid ad t,
 Proof.
   intros until 1.
   intros ? Hucr ? ad'. destruct (Hucr ad') as [Hfall Hfone].
-  assert (Had : m[ad].X = true). { (* This is cool *)
-    destruct (m[ad].X) eqn:Heq; trivial.
-    specialize (Hucr ad) as [? _]. spec.
-    exfalso. eauto using nocr_rel_contradiction.
-  } 
+  assert (Had : m[ad].X = true) by eauto using locked_from_rel.
   split; intros; try intros tid'; repeat omicron; spec; upsilon;
   eauto using nocr_preservation_rel;
   specialize Hfone as [tid'' [? ?]].

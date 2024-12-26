@@ -1,262 +1,552 @@
-From Coq Require Import Lia.
 From Coq Require Import Lists.List.
 
 From Elo Require Import Core.
 
-(* ------------------------------------------------------------------------- *)
-(* monotonic-nondecreasing                                                   *)
-(* ------------------------------------------------------------------------- *)
+From Elo Require Import SyntacticProperties.
+From Elo Require Import TypeProperties.
 
-Lemma cstep_nondecreasing_memory : forall m1 m2 ths1 ths2 tid e,
-  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
-  #m1 <= #m2.
+From Elo Require Import Multistep.
+From Elo Require Import MemoryRegions.
+From Elo Require Import GCR.
+From Elo Require Import InheritanceSafety.
+
+Local Lemma in_app_head : forall {A} (l : list A) (a : A),
+  In a (l ++ a :: nil).
 Proof.
-  intros. invc_cstep; trivial. invc_mstep; trivial; sigma; lia.
+  intros. induction l; simpl; eauto.
 Qed.
 
-Lemma ustep_nondecreasing_memory : forall m1 m2 ths1 ths2 tc,
-  m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
-  #m1 <= #m2.
+Local Lemma in_app_tail : forall {A} (l : list A) (a a' : A),
+  In a l ->
+  In a (l ++ a' :: nil).
 Proof.
-  intros. ind_ustep; trivial.
-  assert (#m2 <= #m3) by eauto using cstep_nondecreasing_memory. lia.
+  intros. induction l; simpl in *; auto.
+  match goal with H : _ \/ _ |- _ => destruct H end; eauto.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* happens-before                                                            *)
+(*                                                                           *)
 (* ------------------------------------------------------------------------- *)
 
-Notation " tc '[' ev '].ev' " := (tc[ev] or tc_default)
-  (at level 9, ev at next level).
+Ltac destruct_invariants :=
+  repeat match goal with
+  | H : invariants _ _       |- _ =>
+    unfold invariants in H; decompose record H; clear H
+  | H : forall_program _ _ _ |- _ =>
+    destruct H
+  end.
 
-Notation " tc '[' ev '].tid' " := (fst (tc[ev] or tc_default))
-  (at level 9, ev at next level).
+Corollary rstep_ptyp_for_write : forall m1 m2 ths1 ths2 tid ad' t',
+  invariants m1 ths1 ->
+  (* --- *)
+  m1 / ths1 ~~~[tid, e_write ad' t']~~> m2 / ths2 ->
+  exists T, m1[ad'].T = `w&T`.
+Proof.
+  intros. destruct_invariants. invc_ostep. invc_cstep. invc_mstep.
+  eauto using  ptyp_for_write. 
+Qed.
 
-Notation " tc '[' ev '].eff' " := (snd (tc[ev] or tc_default))
-  (at level 9, ev at next level).
+Local Lemma same_pointer_type :
+  forall m1 mA mB m2 ths1 thsA thsB ths2 tc tid1 tid2 e1 e2 ad,
+    invariants m1 ths1 ->
+    (* --- *)
+    ad < #m1 ->
+    m1 / ths1 ~~~[tid1, e1]~~>  mA / thsA ->
+    mA / thsA  ~~[tc      ]~~>* mB / thsB ->
+    mB / thsB ~~~[tid2, e2]~~>  m2 / ths2 ->
+    (m1[ad].T = mA[ad].T /\ mA[ad].T = mB[ad].T /\ mB[ad].T = m2[ad].T).
+Proof.
+  intros.
+  assert (ad < #mA) by eauto using rstep_nondecreasing_memory_size.
+  assert (ad < #mB) by eauto using ustep_nondecreasing_memory_size.
+  assert (ad < #m2) by eauto using rstep_nondecreasing_memory_size.
+  assert (HtA : m1[ad].T = mA[ad].T) by eauto using ptyp_preservation_rstep.
+  assert (HtB : mA[ad].T = mB[ad].T) by eauto using ptyp_preservation_ustep.
+  assert (Ht2 : mB[ad].T = m2[ad].T) by eauto using ptyp_preservation_rstep.
+  eauto.
+Qed.
 
-Reserved Notation "evA '<<' evB 'in' tc" (at level 50).
-
-Inductive happens_before (tc : trace) : nat -> nat -> Prop :=
-  | hb_thread : forall evA evB,
-    evB < evA ->
-    tc[evA].tid = tc[evB].tid ->
-    evA << evB in tc
-
-  | hb_sync : forall evA evB tidA tidB ad t,
-    evB < evA ->
-    tc[evA].ev = (tidA, e_rel ad) ->
-    tc[evB].ev = (tidB, e_acq ad t) ->
-    evA << evB in tc
-
-  | hb_spawn : forall evA evB tid t,
-    evB < evA -> (* TODO: is this necessary? *)
-    tc[evA].eff = e_spawn tid t ->
-    tc[evB].tid = tid ->
-    evA << evB in tc
-
-  | hb_trans : forall evA evB evC,
-    evA << evB in tc ->
-    evB << evC in tc ->
-    evA << evC in tc
-
-  where "evA '<<' evB 'in' tc" := (happens_before tc evA evB).
+Local Lemma same_regions :
+  forall m1 mA mB m2 ths1 thsA thsB ths2 tc tid1 tid2 e1 e2 ad,
+    invariants m1 ths1 ->
+    (* --- *)
+    ad < #m1 ->
+    m1 / ths1 ~~~[tid1, e1]~~>  mA / thsA ->
+    mA / thsA  ~~[tc      ]~~>* mB / thsB ->
+    mB / thsB ~~~[tid2, e2]~~>  m2 / ths2 ->
+    m1[ad].R = mB[ad].R.
+Proof.
+  intros.
+  assert (ad < #mA) by eauto using rstep_nondecreasing_memory_size.
+  assert (ad < #mB) by eauto using ustep_nondecreasing_memory_size.
+  assert (HrA : m1[ad].R = mA[ad].R) by eauto using mreg_preservation_rstep.
+  assert (HrB : mA[ad].R = mB[ad].R) by eauto using mreg_preservation_ustep.
+  rewrite HrB in HrA.
+  assumption.
+Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* safety                                                                    *)
-(* ------------------------------------------------------------------------- *)
 
-Local Lemma destruct_ustep2 : forall tc m1 m3 ths1 ths3 tid e,
-  m1 / ths1 ~~[tc +++ (tid, e)]~~>* m3 / ths3 ->
+Local Lemma _destruct_ustep2 : forall tc m1 m3 ths1 ths3 tid e,
+  m1 / ths1 ~~[tc ++ (tid, e) :: nil]~~>* m3 / ths3 ->
   (exists m2 ths2,
-    m1 / ths1 ~~[tid, e]~~>  m2 / ths2 /\
-    m2 / ths2 ~~[  tc  ]~~>* m3 / ths3).
+    m1 / ths1 ~~~[tid, e]~~> m2 / ths2 /\
+    m2 / ths2 ~~[tc]~~>*     m3 / ths3 ).
 Proof.
   intros ?. induction tc; intros; invc_ustep.
-  - inv_ustep. eauto using multistep.
-  - match goal with
-    | Hustep : _ / _ ~~[ _ ]~~>* _ / _ |- _ => 
+  - invc_ustep. eauto using multistep.
+  - match goal with Hustep : _ / _ ~~[ _ ]~~>* _ / _ |- _ => 
       decompose record (IHtc _ _ _ _ _ _ Hustep); eauto using multistep
     end.
 Qed.
 
-Local Lemma destruct_ustep3 : forall tc m1 m4 ths1 ths4 tid1 tid2 e1 e2,
-  m1 / ths1  ~~[(tid2, e2) :: tc +++ (tid1, e1)]~~>* m4 / ths4 ->
-  (exists m2 ths2 m3 ths3,
-    m1 / ths1 ~~[tid1, e1]~~> m2 / ths2 /\
-    m2 / ths2 ~~[tc]~~>*      m3 / ths3 /\
-    m3 / ths3 ~~[tid2, e2]~~> m4 / ths4 ).
-Proof.
-  intros. invc_ustep.
-  match goal with H : _ / _ ~~[_]~~>* _ / _ |- _ =>
-    eapply destruct_ustep2 in H; decompose record H
+Ltac destruct_ustep2 :=
+  match goal with
+  | H : _ / _  ~~[_ ++ (_, _) :: nil]~~>* _ / _ |- _ =>
+    eapply _destruct_ustep2 in H as [? [? [? ?]]]
   end.
-  repeat eexists; eauto.
+
+Local Lemma _destruct_ustep3 : forall tc m1 m4 ths1 ths4 tid1 tid2 e1 e2,
+  m1 / ths1 ~~[(tid2, e2) :: tc ++ (tid1, e1) :: nil]~~>* m4 / ths4 ->
+  (exists m2 ths2 m3 ths3,
+    m1 / ths1 ~~~[tid1, e1]~~> m2 / ths2 /\
+    m2 / ths2 ~~[tc]~~>*      m3 / ths3 /\
+    m3 / ths3 ~~~[tid2, e2]~~> m4 / ths4 ).
+Proof.
+  intros. invc_ustep. destruct_ustep2. do 4 eexists. repeat split; eauto.
 Qed.
 
-Local Lemma unlock_requires_release : forall tc m1 m2 ths1 ths2 ad,
+Ltac destruct_ustep3 :=
+  match goal with 
+  | H : _ / _ ~~[(_, _) :: _ ++ (_, _) :: nil]~~>* _ / _ |- _ =>
+    eapply _destruct_ustep3 in H
+      as [mA [thsA [mB [thsB [H1A [HAB HB2]]]]]]
+  end.
+
+(* TODO: posso usar consistent_term *)
+Local Lemma uninitialized_from_oneinit : forall m ths tid ad,
+  forall_threads ths (valid_term m) ->
+  unique_initializers m ths ->
+  (* --- *)
+  one_init ad ths[tid] ->
+  m[ad].t = None.
+Proof.
+  intros * ? Hui ?.
+  assert (Had : ad < #m) by eauto using oneinit_ad_bound.
+  destruct (Hui ad Had). opt_dec (m[ad].t); trivial.
+  spec. exfalso. eauto using noinit_oneinit_contradiction.
+Qed.
+
+Local Lemma uninitialized_inheritance_rstep : forall m1 m2 ths1 ths2 tid e ad,
+  m2[ad].t = None ->
+  m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
+  m1[ad].t = None.
+Proof.
+  intros. invc_ostep; invc_cstep; try invc_mstep; sigma; upsilon; trivial.
+  repeat omicron; trivial.
+Qed.
+
+Local Lemma uninitialized_inheritance_ustep : forall m1 m2 ths1 ths2 tc ad,
+  m2[ad].t = None ->
+  m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+  m1[ad].t = None.
+Proof.
+  intros. ind_ustep; eauto using uninitialized_inheritance_rstep. 
+Qed.
+
+Local Lemma todo : forall m1 m2 ths1 ths2 tid1 tid2 tc ad,
+  invariants m1 ths1 ->
+  invariants m2 ths2 ->
+  (* --- *)
   ad < #m1 ->
-  m1[ad].X = true ->
+  tid1 <> tid2 ->
+  one_init ad ths1[tid1] ->
   m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
-  m2[ad].X = false ->
-  exists tid, In (tid, e_rel ad) tc.
+  one_init ad ths2[tid2] ->
+  False.
 Proof.
-  induction tc; intros * Had Hx1 ? Hx2; invc_ustep.
-  - rewrite Hx1 in Hx2. discriminate.
-  - simpl. rename m3 into m.
-    rename H4 into Hustep.
-    specialize (IHtc _ _ _ _ ad Had Hx1 Hustep). invc_cstep.
-    + assert (#m1 <= #m) by eauto using ustep_nondecreasing_memory.
-      assert (ad < #m) by lia.
-      invc_mstep.
-      * auto_specialize. destruct IHtc. eauto.
-      * sigma. auto_specialize. destruct IHtc. eauto.
-      * auto_specialize. destruct IHtc. eauto.
-      * omicron; auto_specialize; destruct IHtc; eauto.
-      * omicron; auto_specialize; destruct IHtc; eauto.
-      * omicron; eauto. auto_specialize. destruct IHtc. eauto.
-    + auto_specialize. destruct IHtc. eauto.
-Qed.
+  intros. ind_ustep; eauto using ui_oneinit_contradiction with inva.
+  assert (invariants m2 ths2) by eauto using invariants_preservation_ustep.
+  repeat spec.
+  (* WIP *)
+  eapply IHmultistep. clear IHmultistep.
+Abort.
 
-Local Lemma lock_requires_acquire : forall tc m1 m2 ths1 ths2 ad,
-  ad < #m1 ->
-  m1[ad].X = false ->
+Theorem safety_write_read : forall m1 m2 ths1 ths2 tc tc' tid1 tid2 ad t1 t2,
+  tid1 <> tid2 ->
+  invariants m1 ths1 ->
   m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
-  m2[ad].X = true ->
-  exists tid t, In (tid, e_acq ad t) tc.
+  tc = (tid2, e_read ad t2) :: tc' ++ (tid1, e_write ad t1) :: nil ->
+  False. (* TODO *)
 Proof.
-  induction tc; intros * Had Hx1 ? Hx2; invc_ustep.
-  - rewrite Hx1 in Hx2. discriminate.
-  - simpl. rename m3 into m.
-    rename H4 into Hustep.
-    specialize (IHtc _ _ _ _ ad Had Hx1 Hustep). invc_cstep.
-    + assert (#m1 <= #m) by eauto using ustep_nondecreasing_memory.
-      assert (ad < #m) by lia.
-      invc_mstep.
-      * auto_specialize. decompose record IHtc. eauto.
-      * sigma. auto_specialize. decompose record IHtc. eauto.
-      * auto_specialize. decompose record IHtc. eauto.
-      * omicron; auto_specialize; decompose record IHtc; eauto.
-      * omicron; eauto. auto_specialize. decompose record IHtc. eauto.
-      * omicron. auto_specialize. decompose record IHtc. eauto.
-    + auto_specialize. decompose record IHtc. eauto.
-Qed.
+  intros. subst. destruct_ustep3.
+  assert (invariants mA thsA) by eauto using invariants_preservation_rstep.
+  assert (invariants mB thsB) by eauto using invariants_preservation_ustep.
+  assert (invariants m2 ths2) by eauto using invariants_preservation_rstep.
 
-Local Lemma safety_wr : forall m2 m3 ths2 ths3 tc,
-  m2 / ths2 ~~[tc]~~>* m3 / ths3 ->
-  forall m1 m4 ths1 ths4 tidW tidR ad tW tR T,
-  tidW <> tidR ->
-  m1 / ths1 ~~[tidW, e_write ad tW T]~~>  m2 / ths2 ->
-  m3 / ths3 ~~[tidR, e_read ad tR   ]~~>  m4 / ths4 ->
-  exists mD thsD mC thsC mB thsB mA thsA tcX tcY tcZ ad' t,
-    m2 / ths2 ~~[tcX              ]~~>* mA / thsA /\
-    mA / thsA ~~[tidW, e_rel ad'  ]~~>  mB / thsB /\
-    mB / thsB ~~[tcY              ]~~>* mC / thsC /\
-    mC / thsC ~~[tidR, e_acq ad' t]~~>  mD / thsD /\
-    mD / thsD ~~[tcZ              ]~~>* m3 / ths3.
-Proof.
-  intros * Hustep.
-  induction Hustep as [| m2 mA m3 ths2 thsA ths3 tid e tc Hustep IH Hcstep];
-  intros * Hneq HcstepW HcstepR. 
-  - admit.
-  - 
-    inv_ustep.
-    match goal with
-    | Hustep: m2 / ths2 ~~[tc]~~>* ?m' / ?ths' |- _ =>
-      rename m' into m;
-      rename ths' into ths;
-      rename Hustep into Hustep'
-    end.
+  assert (ad < #m1) by (repeat (invc_ostep; invc_cstep; invc_mstep); trivial).
 
-    inversion Hustep
-      as [| ? mD ? ? thsD ? tidD eD ? Hustep' HcstepD]; subst;
-      clear Hustep; rename Hustep' into Hustep.
-    exists mD, thsD.
+  assert (exists T, m1[ad].T = `w&T`)
+    as [T Hptyp1]
+    by eauto using rstep_ptyp_for_write.
+  assert (m1[ad].T = mA[ad].T /\ mA[ad].T = mB[ad].T /\ mB[ad].T = m2[ad].T)
+    as [HptypA [HptypB Hptyp2]]
+    by eauto using same_pointer_type.
+  rewrite Hptyp1 in HptypA. symmetry in HptypA.
+  rewrite HptypA in HptypB. symmetry in HptypB.
+  rewrite HptypB in Hptyp2. symmetry in Hptyp2.
 
-    specialize (IHtc m1 m2 m3 m4 ths1 ths2 ths3 ths4 tidW tidR ad tW tR T
-      Hneq).
-Qed.
+  assert (Hgcr1 : gcr ths1[tid1] (R_tid tid1) = m1[ad].R)
+    by eauto 7 using rstep_gcr_write with inva.
+  assert (HgcrB : gcr thsB[tid2] (R_tid tid2) = mB[ad].R)
+    by eauto using rstep_gcr_read with inva.
 
-Local Lemma safety_wr : forall m1 m4 ths1 ths4 tc tidW tidR ad tW tR T,
-  tidW <> tidR ->
-  m1/ ths1
-    ~~[((tidR, e_read ad tR) :: tc) +++ (tidW, e_write ad tW T)]~~>*
-  m4 / ths4 ->
-  0 << (S (#tc)) in tc.
-Proof.
-  intros * Hneq Hustep.
-  eapply destruct_ustep3 in Hustep
-    as [m2 [ths2 [m3 [ths3 [HcstepW [Hustep_ HcstepR]]]]]].
-Qed.
+  assert (HR : m1[ad].R = mB[ad].R) by eauto using same_regions.
+  rewrite <- HR in *.
 
-Local Lemma safety_write_read_neq : forall m1 m2 ths1 ths2 tc,
-  m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
-  forall evW evR tidW tidR ad tW tR T,
-    evW < evR ->
-    tc[evW].ev = (tidW, e_write ad tW T) ->
-    tc[evR].ev = (tidR, e_read ad tR) ->
-    tidW <> tidR ->
-    evW << evR in tc.
-Proof.
-  intros ? ? ? ? ? ?. ind_ustep; intros * Hlt Hw Hr Hneq.
-  - invc Hw.
-    destruct evW; match goal with H : tc_default = _ |- _ => invc H end.
-  - destruct (nat_eq_dec evW (#tc)); destruct (nat_eq_dec evR (#tc)); subst.
-    + sigma. invc Hw. invc Hr.
-    + sigma. invc Hr.
-    + sigma. invc Hr.
-      destruct (nat_eq_dec evW 0); subst.
-      * admit.
-      * assert (0 < evW ) by eauto using Lt.neq_0_lt.
-        induction tc.
-        ** invc Hw. destruct evW; invc H1.
-        ** admit. (* TODO *)
-    + assert (evR < #tc) by (omicron; eauto; invc Hr).
-      assert (evW < #tc) by (omicron; eauto; invc Hw).
-      sigma.
-      specialize (IHmultistep evW evR tidW tidR ad tW tR T Hlt Hw Hr Hneq).
-      (* Prove that:
-        evW < #tc ->
-        evR < #tc ->
-        evW << evR in tc ->
-        evW << evR in (tc +++ (tid, e)) 
-      *)
-      shelve.
-Qed.
+  destruct (m1[ad].R); eauto using gcr_tid_contradiction with gcr.
+  match goal with H : R_ad ?ad' = _ |- _ => rename ad' into adx end.
 
-Theorem safety_write_read :
-  forall m1 m2 ths1 ths2 tc evW evR tidW tidR ad tW tR T,
-    m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
-    evW < evR ->
-    tc[evW].ev = (tidW, e_write ad tW T) ->
-    tc[evR].ev = (tidR, e_read ad tR) ->
-    evW << evR in tc.
-Proof.
-  intros * ? ? Hw Hr.
-  destruct (nat_eq_dec tidW tidR); subst.
-  - eapply hb_thread; eauto. rewrite Hw. rewrite Hr. trivial.
-  - eauto using safety_write_read_neq.
-Qed.
+  assert (forall_threads ths1 term_init_cr_exc) by eauto using des_inva_tice.
+  assert (forall_threads thsB term_init_cr_exc) by eauto using des_inva_tice.
+  eapply oneinit_or_onecr_from_gcr in Hgcr1 as [Honeinit1 | Honecr1];
+  eapply oneinit_or_onecr_from_gcr in HgcrB as [HoneinitB | HonecrB];
+  eauto.
+  - assert (one_init adx thsA[tid1]). {
+      repeat (invc_ostep; invc_cstep; invc_mstep). sigma.
+      destruct_invariants. eauto using oneinit_preservation_write.
+    }
+    exfalso. admit.
+  - assert (one_init adx thsA[tid1]). {
+      repeat (invc_ostep; invc_cstep; invc_mstep). sigma.
+      destruct_invariants. eauto using oneinit_preservation_write.
+    }
+    admit.
+  - assert (one_cr adx thsA[tid1]). {
+      repeat (invc_ostep; invc_cstep; invc_mstep). sigma.
+      destruct_invariants. eauto using onecr_preservation_write.
+    }
+    exfalso. admit.
+  - assert (one_cr adx thsA[tid1]). {
+      repeat (invc_ostep; invc_cstep; invc_mstep). sigma.
+      destruct_invariants. eauto using onecr_preservation_write.
+    }
+    admit.
+Abort.
+
+(* ------------------------------------------------------------------------- *)
+(* one-cr x one-cr case                                                      *)
+(* ------------------------------------------------------------------------- *)
+
 
 (*
-(* ad guards ad' in m *)
-Definition guards ad ad' m := exists T,
-  m[ad].ty = `x&T` /\ write_access ad' m m[ad].tm.
 
-Definition guard_exclusivity m := forall ad1 ad2 ad,
-  ad1 <> ad2 ->
-  guards ad1 ad m ->
-  ~ guards ad2 ad m.
+(ths1[tid1], READ ad) --[tc1 + REL + tc2 + ACQ + tc3]-->* (ths2[tid2], WRITE ad)
 
-Definition safe_memory_sharing1 m ths := forall tid1 tid2 ad,
-  tid1 <> tid2 ->
-  write_access ad m ths[tid1] ->
-  ~ write_access ad m ths[tid2].
-
-Definition safe_memory_sharing2 m ths := forall tid1 tid2 ad T,
-  tid1 <> tid2 ->
-  access ad m ths[tid1] ->
-  access ad m ths[tid2] ->
-  m[ad].ty = `w&T` ->
-  exists ad', guards ad' ad m.
 *)
+
+Local Lemma onecr_multistep_onecr_aux1 :
+  forall m1 m2 ths1 ths2 tid1 tid2 tc ad,
+    invariants m1 ths1 ->
+    invariants m2 ths2 ->
+    (* --- *)
+    tid1 <> tid2 ->
+    one_cr ad ths1[tid1] ->
+    m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+    one_cr ad ths2[tid2] ->
+    exists t, In (tid2, (e_acq ad t)) tc.
+Proof.
+  intros. ind_ustep; eauto using ui_oneinit_contradiction with inva.
+  - exfalso.
+    assert (Hucr : unique_critical_regions m ths) by eauto with inva.
+    specialize (Hucr ad) as [Hfalse Htrue].
+    destruct (m[ad].X); spec.
+    + specialize Htrue as [tid [? ?]].
+      nat_eq_dec tid1 tid; nat_eq_dec tid2 tid;
+      eauto using nocr_onecr_contradiction.
+    + eauto using nocr_onecr_contradiction.
+  - assert (invariants m2 ths2) by eauto using invariants_preservation_ustep.
+    repeat spec.
+    assert (exists t, (e <> e_acq ad t /\ one_cr ad ths2[tid2]) \/
+                      (e =  e_acq ad t /\ tid = tid2))
+      as [t [[? ?] | [? ?]]]
+      by eauto using onecr_inheritance_rstep.
+    + destruct IHmultistep; trivial. eexists. right. eauto.
+    + subst. exists t. left. eauto.
+Qed.
+
+Local Corollary onecr_multistep_onecr_aux1' :
+  forall m1 m2 ths1 ths2 tid1 tid2 tc ad,
+    invariants m1 ths1 ->
+    invariants m2 ths2 ->
+    (* --- *)
+    tid1 <> tid2 ->
+    one_cr ad ths1[tid1] ->
+    m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+    one_cr ad ths2[tid2] ->
+    exists t tc1 tc2, tc = tc2 ++ (tid2, e_acq ad t) :: tc1.
+Proof.
+  intros. Search (_ ++ _ :: _ = _).
+  assert (exists t, In (tid2, (e_acq ad t)) tc)
+    as [t Hin] by eauto using onecr_multistep_onecr_aux1.
+  apply in_split in Hin as [tc2 [tc1 Htc]].
+  exists t. exists tc1. exists tc2. assumption.
+Qed.
+
+Local Lemma destruct_ustep' : forall m1 m2 ths1 ths2 tc1 tc2 tid e,
+  m1 / ths1 ~~[tc2 ++ (tid, e) :: tc1]~~>* m2 / ths2 ->
+  exists mA mB thsA thsB,
+    m1 / ths1  ~~[tc1   ]~~>* mA / thsA /\
+    mA / thsA ~~~[tid, e]~~>  mB / thsB /\
+    mB / thsB  ~~[tc2   ]~~>* m2 / ths2.
+Proof.
+  intros.
+  gendep ths2. gendep ths1. gendep m2. gendep m1. gendep e. gendep tid.
+  induction tc2; intros.
+  - rewrite app_nil_l in *. invc_ustep. repeat eexists; eauto using multistep.
+  - invc_ustep.
+    match goal with H : _ / _ ~~[_]~~>* _ / _ |- _ =>
+      decompose record (IHtc2 _ _ _ _ _ _ H)
+    end.
+    repeat eexists; eauto using multistep.
+Qed.
+
+Local Corollary onecr_multistep_onecr_aux1'' :
+  forall m1 m2 ths1 ths2 tid1 tid2 tc1 tc2 ad t,
+    invariants m1 ths1 ->
+    invariants m2 ths2 ->
+    (* --- *)
+    tid1 <> tid2 ->
+    one_cr ad ths1[tid1] ->
+    m1 / ths1 ~~[tc2 ++ (tid2, e_acq ad t) :: tc1]~~>* m2 / ths2 ->
+    exists mA thsA,
+      m1 / ths1 ~~[tc1]~~>* mA / thsA /\
+      mA[ad].X = false.
+Proof.
+  intros * ? ? ? ? H.
+  eapply destruct_ustep' in H. decompose record H.
+  repeat eexists; eauto.
+  invc_ostep. invc_cstep. invc_mstep. assumption.
+Qed.
+
+Local Lemma onecr_multistep_onecr_aux2 :
+  forall tc m1 m2 ths1 ths2 tid ad,
+    invariants m1 ths1 ->
+    invariants m2 ths2 ->
+    (* --- *)
+    one_cr ad ths1[tid] ->
+    m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+    m2[ad].X = false ->
+    In (tid, e_rel ad) tc.
+Proof.
+  intro. induction tc using rev_ind; intros.
+  - invc_ustep.
+    assert (unique_critical_regions m2 ths2) by eauto with inva.
+    assert (Htrue : m2[ad].X = true) by eauto using locked_from_onecr.
+    rewrite Htrue in *. auto.
+  - match goal with H : _ / _ ~~[_ ++ ?e :: nil]~~>* _ / _ |- _ => 
+      destruct e as [tid' e'];
+      eapply destruct_ustep' in H as [mA [mB [thsA [thsB [H1A [? ?]]]]]]
+    end.
+    invc H1A.
+    assert (invariants mB thsB) by eauto using invariants_preservation_rstep.
+    assert ((e' <> e_rel ad /\ one_cr ad thsB[tid]) \/
+            (e' =  e_rel ad /\ tid' = tid))
+      as [[? ?] | [? ?]]
+      by eauto using onecr_preservation_rstep;
+    subst; eauto using in_app_head, in_app_tail.
+Qed.
+
+Local Lemma onecr_multistep_onecr :
+  forall tc m1 m2 ths1 ths2 tid1 tid2 ad,
+    invariants m1 ths1 ->
+    invariants m2 ths2 ->
+    (* --- *)
+    tid1 <> tid2                   ->
+    one_cr ad ths1[tid1]           ->
+    m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+    one_cr ad ths2[tid2]           ->
+    exists tc1 tc2 t,
+      tc = tc2 ++ tc1           /\
+      In (tid1, e_rel ad)   tc1 /\
+      In (tid2, e_acq ad t) tc2.
+Proof.
+  intros * ? ? ? ? Hustep ?.
+  assert (exists t tc1 tc2, tc = tc2 ++ (tid2, e_acq ad t) :: tc1)
+    as [t [tc1 [tc2 Hacq]]]
+    by eauto using onecr_multistep_onecr_aux1'.
+  subst.
+  assert (exists mA thsA, m1 / ths1 ~~[tc1]~~>* mA / thsA /\ mA[ad].X = false)
+    as [mA [thsA [H1A Hunlocked]]]
+    by eauto using onecr_multistep_onecr_aux1''.
+  assert (invariants mA thsA) by eauto using invariants_preservation_ustep.
+  exists tc1. exists (tc2 ++ (tid2, e_acq ad t) :: nil). exists t.
+  repeat split; eauto using in_app_head, onecr_multistep_onecr_aux2.
+  rewrite <- app_assoc. reflexivity.
+Qed.
+
+(* TODO -------------------------------------------------------------------- *)
+
+Local Lemma todo : forall (ev ev' : (nat * eff)) tc,
+  ~ (In ev' (ev :: tc)) ->
+  (ev <> ev') /\ (~ In ev' tc).
+Proof.
+  intros * H. split; intro.
+  - subst. eapply H. left. reflexivity.
+  - eapply H. right. assumption.
+Qed.
+
+Local Lemma todotodo : forall (tid1 tid2 : nat) (e1 e2 : eff),
+  (tid1, e1) <> (tid2, e2) ->
+  tid1 <> tid2 \/ e1 <> e2. 
+Proof.
+  intros * H. rewrite pair_equal_spec in H. eapply Decidable.not_and in H; auto.
+  unfold Decidable.decidable. nat_eq_dec tid1 tid2; auto.
+Qed.
+
+Local Lemma onecr_multistep_onecr_aux3'' :
+  forall m1 m2 ths1 ths2 tid1 tid2 tc ad t,
+    invariants m1 ths1 ->
+    invariants m2 ths2 ->
+    (* --- *)
+    ad < #m1 ->
+    tid1 <> tid2 ->
+    one_cr ad ths1[tid1] ->
+    ~ (In (tid2, e_acq ad t) tc) ->
+    m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+    no_cr ad ths2[tid2].
+Proof.
+  intros. ind_ustep.
+  - admit. (* exclusivity *)
+  - assert (invariants m2 ths2) by eauto using invariants_preservation_ustep.
+    repeat spec.
+    eapply todo in H4 as [? ?].
+    spec. clear H6.
+    eapply todotodo in H4 as [? | ?].
+    + (* Se tid <> tid2 então continua sem cr         *) admit.
+    + (* Se de um passo que não é acq continua sem cr *) admit.
+Qed.
+
+Local Lemma onecr_multistep_onecr_aux3' :
+  forall m1 m2 ths1 ths2 tid1 tid2 tc ad tid t,
+    invariants m1 ths1 ->
+    invariants m2 ths2 ->
+    (* --- *)
+    ad < #m1 ->
+    tid1 <> tid2 ->
+    one_cr ad ths1[tid1] ->
+    m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+    ~ (In (tid, e_acq ad t) tc) ->
+    m2[ad].X = false ->
+    In (tid1, e_rel ad) tc.
+Proof.
+  intros. ind_ustep.
+  - exfalso.
+    assert (Hucr : unique_critical_regions m ths) by eauto with inva.
+    specialize (Hucr ad) as [Hfalse Htrue]. spec.
+    eauto using nocr_onecr_contradiction.
+  - assert (invariants m2 ths2) by eauto using invariants_preservation_ustep.
+    eapply todo in H5 as [? ?].
+    repeat spec.
+    assert ((e <> e_rel ad /\ m2[ad].X = false) \/
+            (e =  e_rel ad /\ m2[ad].X = true ))
+      as [[? ?] | [? ?]]
+      by eauto 6 using unlocked_inheritance_rstep.
+    + spec. simpl. eauto.
+    + subst. simpl.
+Abort.
+
+Local Lemma onecr_multistep_onecr_aux3 :
+  forall m1 m2 ths1 ths2 tid1 tid2 tc ad,
+    invariants m1 ths1 ->
+    invariants m2 ths2 ->
+    (* --- *)
+    ad < #m1 ->
+    tid1 <> tid2 ->
+    one_cr ad ths1[tid1] ->
+    m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+    m2[ad].X = false ->
+    In (tid1, e_rel ad) tc.
+Proof.
+  intros. ind_ustep.
+  - exfalso.
+    assert (Hucr : unique_critical_regions m ths) by eauto with inva.
+    specialize (Hucr ad) as [Hfalse Htrue]. spec.
+    eauto using nocr_onecr_contradiction.
+  - assert (invariants m2 ths2) by eauto using invariants_preservation_ustep.
+    repeat spec.
+    assert ((e <> e_rel ad /\ m2[ad].X = false) \/
+            (e =  e_rel ad /\ m2[ad].X = true ))
+      as [[? ?] | [? ?]]
+      by eauto 6 using unlocked_inheritance_rstep.
+    + spec. simpl. eauto.
+    + subst. simpl.
+Abort.
+
+
+
+Check multistep_ind.
+
+Print multistep_ind.
+
+(*
+multistep_ind :
+  forall P : mem -> threads -> trace -> mem -> threads -> Prop,
+  (forall m ths,
+    P m ths nil m ths) ->
+  (forall m1 m2 m3 ths1 ths2 ths3 tid e tc,
+    m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+    P m1 ths1 tc m2 ths2 ->
+    m2 / ths2 ~~~[tid, e]~~> m3 / ths3 ->
+    P m1 ths1 ((tid, e) :: tc) m3 ths3) ->
+  forall m1 ths1 tc m2 ths2,
+    m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+    P m1 ths1 tc m2 ths2.
+*)
+
+Local Lemma todo : forall tcA tcB (tid1 tid2 : nat) (e1 e2 : eff),
+  (tid2, e2) :: tcB = tcA ++ (tid1, e1) :: nil ->
+  exists tc, (tid2, e2) :: tc ++ (tid1, e1) :: nil = (tid2, e2) :: tcB.
+Proof.
+  intros ? ? * H. induction tcA, tcB; intros.
+  - simpl in *. invc H. eexists. eauto.
+Abort.
+
+Lemma multistep_ind_rev :
+  forall P : mem -> threads -> trace -> mem -> threads -> Prop,
+    (forall m ths,
+      P m ths nil m ths) ->
+    (forall m1 m2 ths1 ths2 tid e,
+      P m1 ths1 ((tid, e) :: nil) m2 ths2) ->
+    (forall m1 m2 m3 ths1 ths2 ths3 tid e tc,
+      m1 / ths1 ~~~[tid, e]~~> m2 / ths2         ->
+      m2 / ths2 ~~[tc]~~>* m3 / ths3             ->
+      P m2 ths2 tc m3 ths3                       ->
+      P m1 ths1 (tc ++ (tid, e) :: nil) m3 ths3) ->
+    forall m1 ths1 tc m2 ths2,
+      m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+      P m1 ths1 tc m2 ths2.
+Proof.
+  intros P Hbase0 Hbase1 Hind ? ? tc' ? ? Hustep.
+
+  ind_ustep; trivial.
+  rename m2 into mB; rename ths2 into thsB;
+  rename m3 into m2; rename ths3 into ths2.
+
+  gendep ths2; gendep thsB; gendep ths1.
+  gendep m2;   gendep mB;   gendep m1.
+  induction tc using rev_ind; intros.
+  - invc_ustep.
+    specialize (Hind mB m2 m2 thsB ths2 ths2 tid e nil Hrstep).
+    specialize (Hind (multistep_refl m2 ths2)).
+    specialize (Hind (Hbase0 m2 ths2)).
+    rewrite app_nil_l in Hind.
+    auto.
+  - invc_ustep.
+    + eapply app_cons_not_nil in H2. auto.
+    + rename tid0 into tid'. rename e0 into e'. rename tc0 into tc'.
+      rename m3 into mA; rename ths3 into thsA.
+      rewrite H.
+      rewrite app_comm_cons. destruct x.
+Abort.
+

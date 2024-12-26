@@ -4,6 +4,38 @@ Open Scope string_scope.
 
 From Elo Require Import Core.
 
+(*
+  let m1 = new monitor(new w&Nat 3);
+  let m2 = new monitor(new w&Nat 5);
+  spawn {
+    acq m1 x {
+      let result = *x
+      x := 6
+      result
+    }
+  }
+  spawn {
+    acq m2 y {
+      let result = *y
+      x := 10
+      result
+    }
+  }
+  20
+
+
+  let m = new mon
+  acq m x {
+    ...
+    spawn {
+      acq m y {
+        ...
+      }
+    }
+  }
+
+*)
+
 Definition example1 : tm := <{
   let "m1" : x&w&Nat = new (new (nat 3) : w&Nat) : x&w&Nat in
   let "m2" : x&w&Nat = new (new (nat 5) : w&Nat) : x&w&Nat in

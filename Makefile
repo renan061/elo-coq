@@ -47,7 +47,10 @@ type-properties:
 safety:
 	# safety
 	$(COQC) Multistep.v
-	$(COQC) InheritanceOneCR.v
+	$(COQC) MemoryRegions.v
+	$(COQC) GCR.v
+	$(COQC) InheritanceSafety.v
+	$(COQC) Safety.v
 
 examples:
 	# examples
