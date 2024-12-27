@@ -83,6 +83,15 @@ Qed.
 
 (* lemmas ------------------------------------------------------------------ *)
 
+Lemma onecr_ad_bound : forall ad m t,
+  valid_term m t ->
+  (* --- *)
+  one_cr ad t ->
+  ad < #m.
+Proof.
+  intros. induction t; invc_vtm; invc_onecr; auto.
+Qed.
+
 Lemma nocr_onecr_contradiction : forall ad t,
   no_cr  ad t ->
   one_cr ad t ->

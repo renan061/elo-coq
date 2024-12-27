@@ -103,6 +103,15 @@ Qed.
 
 (* lemmas ------------------------------------------------------------------ *)
 
+Lemma oneinit_then_uninitialized : forall ad m t,
+  consistent_term m t ->
+  (* --- *)
+  one_init ad t ->
+  m[ad].t = None.
+Proof.
+  intros. induction t; invc_ctm; invc_oneinit; auto.
+Qed.
+
 Lemma ctm_from_norefs_noinits : forall m t,
   no_refs  t ->
   no_inits t ->
