@@ -11,7 +11,7 @@ From Elo Require Import ConsistentTerm.
 (* preservation                                                              *)
 (* ------------------------------------------------------------------------- *)
 
-(* TODO *)
+(* TODO: rename *)
 Lemma aux_inc1 : forall Gamma k T1 T2,
   (safe Gamma)[k <== T2] includes (safe Gamma[k <== T1])[k <== T2].
 Proof.
@@ -21,7 +21,7 @@ Proof.
     rewrite lookup_update_neq in H; trivial.
 Qed.
 
-(* TODO *)
+(* TODO: rename *)
 Lemma aux_inc2 : forall Gamma k k' T T',
   k <> k' ->
   (safe Gamma)[k' <== T'][k <== T] includes (safe Gamma[k <== T])[k' <== T'].
@@ -256,7 +256,7 @@ Theorem wtt_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
   m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
   forall_program m2 ths2 well_typed_term.
 Proof.
-  intros. invc_ostep; eauto using wtt_preservation_cstep.
+  intros. invc_rstep; eauto using wtt_preservation_cstep.
   match goal with _ : _ / _ ~~[_, _]~~> ?m / ?ths |- _ =>
     assert (forall_program m ths well_typed_term) as [Hmwtt Hwtt]
       by eauto using wtt_preservation_cstep
@@ -268,7 +268,7 @@ Qed.
 
 Theorem wtt_preservation_base : forall t,
   well_typed_term t ->
-  forall_program base_m (base_t t) well_typed_term.
+  forall_program nil (base t) well_typed_term.
 Proof.
   intros. split; eauto using forallmemory_base.
   intros tid. simpl. unfold well_typed_term.
@@ -277,75 +277,133 @@ Qed.
 
 (* ------------------------------------------------------------------------- *)
 
-Local Ltac destruct_IH :=
-  match goal with
-  | H : safe empty = empty -> _ |- _ =>
-    specialize (H empty_eq_safe_empty); destruct_IH
-  | IH : value _ \/ _ \/ _ \/ _ \/ _ \/ _ \/ _ \/ _ \/ _ |-   _ =>
-    decompose sum IH; clear IH
-  end.
-
-Local Ltac pick_none   := left.
-Local Ltac pick_alloc  := right; left.
-Local Ltac pick_insert := do 2 right; left.
-Local Ltac pick_read   := do 3 right; left.
-Local Ltac pick_write  := do 4 right; left.
-Local Ltac pick_acq    := do 5 right; left.
-Local Ltac pick_rel    := do 6 right; left.
-Local Ltac pick_spawn  := do 7 right.
-
-Local Ltac solve_inductive_progress_case :=
-  try solve [pick_none; repeat eexists; eapply ms_none; eapply ts_seq; eauto];
-  match goal with
-  | H : exists m2 t2, ?m1 / ?t1 ==[e_none]==> m2 / t2 |- _ =>
-    pick_none;
-    destruct H as [m2 [? ?]];
-    exists m2; repeat eexists;
-    invc_mstep
-  | H : exists m2 t2 ad t, ?m1 / ?t1 ==[e_alloc ad t]==> m2 / t2 |- _ =>
-    pick_alloc;
-    destruct H as [m2 [? [? [? ?]]]];
-    exists m2; repeat eexists;
-    invc_mstep
-  | H : exists m2 t2 ad t T, ?m1 / ?t1 ==[e_insert ad t T]==> m2 / t2 |- _ =>
-    pick_insert;
-    destruct H as [m2 [? [? [? [? ?]]]]];
-    exists m2; repeat eexists;
-    invc_mstep
-  | H : exists m2 t2 ad t, ?m1 / ?t1 ==[e_read ad t]==> m2 / t2 |- _ =>
-    pick_read;
-    destruct H as [m2 [? [? [? ?]]]];
-    exists m2; repeat eexists;
-    invc_mstep
-  | H : exists m2 t2 ad t, ?m1 / ?t1 ==[e_write ad t]==> m2 / t2 |- _ =>
-    pick_write;
-    destruct H as [m2 [? [? [? ?]]]];
-    exists m2; repeat eexists;
-    invc_mstep
-  | H : exists m2 t2 ad t, _ -> ?m1 / ?t1 ==[e_acq ad t]==> m2 / t2 |- _ =>
-    pick_acq;
-    destruct H as [m2 [? [? [? Hmstep]]]];
-    exists m2; repeat eexists;
-    intros Hx; specialize (Hmstep Hx); 
-    invc_mstep
-  | H : exists m2 t2 _, ?m1 / ?t1 ==[e_rel _]==> m2 / t2 |- _ =>
-    pick_rel;
-    destruct H as [m2 [? [? Hmstep]]];
-    exists m2; repeat eexists;
-    invc_mstep
-  | H : exists _ _ _, _ --[e_spawn _ _]--> _ |- _ =>
-    pick_spawn;
-    destruct H as [? [tid [te ?]]];
-    eexists; exists tid, te
-  end;
-  eauto using tstep, mstep.
-
 Local Ltac invc_value_typeof :=
   match goal with
   | H : value ?t, _ : _ |-- ?t is _ |- _ =>
     invc H; invc_typeof
   end.
 
+Ltac destructIH IH :=
+  destruct IH as [?Hval | [?t2' [
+    [?m2 [?ad' [?t' ?Hmstep]]] | [[?m2 [?e ?Hmstep]] | [?tid [?t' ?Htstep]]]
+  ]]].
+
+Theorem limited_progress : forall m1 t1,
+  valid_term      m1 t1 ->
+  consistent_term m1 t1 ->
+  (* --- *)
+  well_typed_term t1 ->
+  (value t1 \/ exists t2,
+  (exists m2 ad t, m1[ad].X = false -> m1 / t1 ==[e_acq ad t]==> m2 / t2)   \/
+  (exists m2 e, (forall ad t, e <> e_acq ad t) -> m1 / t1 ==[e]==> m2 / t2) \/
+  (exists tid t, t1 --[e_spawn tid t]--> t2)).
+Proof.
+  intros * ? ? [T ?]. remember empty as Gamma.
+  ind_typeof; invc_vtm; invc_ctm; eauto using value; right; repeat spec.
+  - destructIH IHtype_of1; eexists.
+    + right. left. eauto using tstep, mstep.
+    + left. repeat eexists. intros Hfalse.
+      specialize (Hmstep Hfalse). invc_mstep. eauto using tstep, mstep.
+    + right. left. repeat eexists. intros He.
+      specialize (Hmstep He). invc_mstep; eauto using tstep, mstep.
+    + right. right. repeat eexists. eauto using tstep.
+  - destructIH IHtype_of1.
+    + invc_value_typeof. invc_vtm. invc_ctm.
+      destruct n; eexists; right; left; eauto using tstep, mstep.
+    + eexists. left. repeat eexists. intros Hfalse.
+      specialize (Hmstep Hfalse). invc_mstep. eauto using tstep, mstep.
+    + eexists. right. left. repeat eexists. intros He.
+      specialize (Hmstep He). invc_mstep; eauto using tstep, mstep.
+    + eexists. right. right. repeat eexists. eauto using tstep.
+  - rewrite HeqGamma in *. unfold empty, Map.empty' in *. auto.
+  - destructIH IHtype_of1.
+    + invc_value_typeof. invc_vtm. invc_ctm.
+      destructIH IHtype_of2; eexists.
+      * right. left. eauto using tstep, mstep.
+      * left. repeat eexists. intros Hfalse.
+        specialize (Hmstep Hfalse). invc_mstep. eauto using value, tstep, mstep.
+      * right. left. repeat eexists. intros He.
+        specialize (Hmstep He). invc_mstep; eauto using value, tstep, mstep.
+      * right. right. repeat eexists. eauto using value, tstep.
+    + eexists. left. repeat eexists. intros Hfalse.
+      specialize (Hmstep Hfalse). invc_mstep. eauto using tstep, mstep.
+    + eexists. right. left. repeat eexists. intros He.
+      specialize (Hmstep He). invc_mstep; eauto using tstep, mstep.
+    + eexists. right. right. repeat eexists. eauto using tstep.
+  - destructIH IHtype_of; eexists; right; left; eauto using tstep, mstep.
+  - destructIH IHtype_of; eexists; right; left; eauto using tstep, mstep.
+  - destructIH IHtype_of; eexists; right; left; eauto using tstep, mstep.
+  - destructIH IHtype_of; eexists.
+    + right. left. eauto using tstep, mstep.
+    + left. repeat eexists. intros Hfalse.
+      specialize (Hmstep Hfalse). invc_mstep. eauto using tstep, mstep.
+    + right. left. repeat eexists. intros He.
+      specialize (Hmstep He). invc_mstep; eauto using tstep, mstep.
+    + right. right. repeat eexists. eauto using tstep.
+  - destructIH IHtype_of; eexists.
+    + right. left. eauto using tstep, mstep.
+    + left. repeat eexists. intros Hfalse.
+      specialize (Hmstep Hfalse). invc_mstep. eauto using tstep, mstep.
+    + right. left. repeat eexists. intros He.
+      specialize (Hmstep He). invc_mstep; eauto using tstep, mstep.
+    + right. right. repeat eexists. eauto using tstep.
+  - destructIH IHtype_of; eexists.
+    + right. left. eauto using tstep, mstep.
+    + left. repeat eexists. intros Hfalse.
+      specialize (Hmstep Hfalse). invc_mstep. eauto using tstep, mstep.
+    + right. left. repeat eexists. intros He.
+      specialize (Hmstep He). invc_mstep; eauto using tstep, mstep.
+    + right. right. repeat eexists. eauto using tstep.
+  - destructIH IHtype_of.
+    + invc_value_typeof. invc_vtm. invc_ctm.
+      eexists. right. left. eauto using tstep, mstep.
+    + eexists. left. repeat eexists. intros Hfalse.
+      specialize (Hmstep Hfalse). invc_mstep. eauto using tstep, mstep.
+    + eexists. right. left. repeat eexists. intros He.
+      specialize (Hmstep He). invc_mstep; eauto using tstep, mstep.
+    + eexists. right. right. repeat eexists. eauto using tstep.
+  - destructIH IHtype_of.
+    + invc_value_typeof. invc_vtm. invc_ctm.
+      eexists. right. left. eauto using tstep, mstep.
+    + eexists. left. repeat eexists. intros Hfalse.
+      specialize (Hmstep Hfalse). invc_mstep. eauto using tstep, mstep.
+    + eexists. right. left. repeat eexists. intros He.
+      specialize (Hmstep He). invc_mstep; eauto using tstep, mstep.
+    + eexists. right. right. repeat eexists. eauto using tstep.
+  - destructIH IHtype_of1.
+    + invc_value_typeof. invc_vtm. invc_ctm.
+      destructIH IHtype_of2; eexists.
+      * right. left. eauto using tstep, mstep.
+      * left. repeat eexists. intros Hfalse.
+        specialize (Hmstep Hfalse). invc_mstep. eauto using value, tstep, mstep.
+      * right. left. repeat eexists. intros He.
+        specialize (Hmstep He). invc_mstep; eauto using value, tstep, mstep.
+      * right. right. repeat eexists. eauto using value, tstep.
+    + eexists. left. repeat eexists. intros Hfalse.
+      specialize (Hmstep Hfalse). invc_mstep. eauto using tstep, mstep.
+    + eexists. right. left. repeat eexists. intros He.
+      specialize (Hmstep He). invc_mstep; eauto using tstep, mstep.
+    + eexists. right. right. repeat eexists. eauto using tstep.
+  - destructIH IHtype_of1.
+    + invc_value_typeof. invc_vtm. invc_ctm.
+      eexists. left. eauto using tstep, mstep.
+    + eexists. left. repeat eexists. intros Hfalse.
+      specialize (Hmstep Hfalse). invc_mstep. eauto using tstep, mstep.
+    + eexists. right. left. repeat eexists. intros He.
+      specialize (Hmstep He). invc_mstep; eauto using tstep, mstep.
+    + eexists. right. right. repeat eexists. eauto using tstep.
+  - destructIH IHtype_of; eexists.
+    + right. left. eauto using tstep, mstep.
+    + left. repeat eexists. intros Hfalse.
+      specialize (Hmstep Hfalse). invc_mstep. eauto using tstep, mstep.
+    + right. left. repeat eexists. intros He.
+      specialize (Hmstep He). invc_mstep; eauto using tstep, mstep.
+    + right. right. repeat eexists. eauto using tstep.
+  - destructIH IHtype_of; eexists;
+    right; right; exists 0; eexists; eauto using tstep.
+Qed.
+
+(*
 Theorem limited_progress : forall m1 t1,
   valid_term      m1 t1 ->
   consistent_term m1 t1 ->
@@ -417,4 +475,5 @@ Proof.
   - pick_spawn.
     eexists. exists 0. eexists. eauto using tstep.
 Qed.
+*)
 

@@ -5,35 +5,39 @@ From Elo Require Import Core.
 (* ------------------------------------------------------------------------- *)
 
 Inductive no_init (ad : addr) : tm -> Prop :=
-  | noinit_unit  :                 no_init ad <{unit          }>
-  | noinit_nat   : forall n,       no_init ad <{nat n         }>
-  | noinit_seq   : forall t1 t2,   no_init ad t1 ->
-                                   no_init ad t2 ->
-                                   no_init ad <{t1; t2        }>
-  | noinit_var   : forall x,       no_init ad <{var x         }>
-  | noinit_fun   : forall x Tx t,  no_init ad t  ->
-                                   no_init ad <{fn x Tx t     }>
-  | noinit_call  : forall t1 t2,   no_init ad t1 ->
-                                   no_init ad t2 ->
-                                   no_init ad <{call t1 t2    }>
-  | noinit_ref   : forall ad' T,   no_init ad <{&ad' : T      }>
-  | noinit_new   : forall T t,     no_init ad t  ->
-                                   no_init ad <{new t : T     }>
-  | noinit_init  : forall ad' T t, ad <> ad'     ->
-                                   no_init ad t  ->
-                                   no_init ad <{init ad' t : T}>
-  | noinit_load  : forall t,       no_init ad t  ->
-                                   no_init ad <{*t            }>
-  | noinit_asg   : forall t1 t2,   no_init ad t1 ->
-                                   no_init ad t2 ->
-                                   no_init ad <{t1 := t2      }>
-  | noinit_acq   : forall t1 x t2, no_init ad t1 ->
-                                   no_init ad t2 ->
-                                   no_init ad <{acq t1 x t2   }>
-  | noinit_cr    : forall ad' t,   no_init ad t  ->
-                                   no_init ad <{cr ad' t      }>
-  | noinit_spawn : forall t,       no_init ad t  ->
-                                   no_init ad <{spawn t       }>
+  | noinit_unit  :                  no_init ad <{unit                     }>
+  | noinit_nat   : forall n,        no_init ad <{nat n                    }>
+  | noinit_seq   : forall t1 t2,    no_init ad t1 ->
+                                    no_init ad t2 ->
+                                    no_init ad <{t1; t2                   }>
+  | noinit_if    : forall t1 t2 t3, no_init ad t1 ->
+                                    no_init ad t2 ->
+                                    no_init ad t3 ->
+                                    no_init ad <{if t1 then t2 else t3 end}>
+  | noinit_var   : forall x,        no_init ad <{var x                    }>
+  | noinit_fun   : forall x Tx t,   no_init ad t  ->
+                                    no_init ad <{fn x Tx t                }>
+  | noinit_call  : forall t1 t2,    no_init ad t1 ->
+                                    no_init ad t2 ->
+                                    no_init ad <{call t1 t2               }>
+  | noinit_ref   : forall ad' T,    no_init ad <{&ad' : T                 }>
+  | noinit_new   : forall T t,      no_init ad t  ->
+                                    no_init ad <{new t : T                }>
+  | noinit_init  : forall ad' T t,  ad <> ad'     ->
+                                    no_init ad t  ->
+                                    no_init ad <{init ad' t : T           }>
+  | noinit_load  : forall t,        no_init ad t  ->
+                                    no_init ad <{*t                       }>
+  | noinit_asg   : forall t1 t2,    no_init ad t1 ->
+                                    no_init ad t2 ->
+                                    no_init ad <{t1 := t2                 }>
+  | noinit_acq   : forall t1 x t2,  no_init ad t1 ->
+                                    no_init ad t2 ->
+                                    no_init ad <{acq t1 x t2              }>
+  | noinit_cr    : forall ad' t,    no_init ad t  ->
+                                    no_init ad <{cr ad' t                 }>
+  | noinit_spawn : forall t,        no_init ad t  ->
+                                    no_init ad <{spawn t                  }>
   .
 
 (* inversion --------------------------------------------------------------- *)
@@ -43,6 +47,7 @@ Local Ltac _noinit tt :=
   | H : no_init _   <{unit          }> |- _ => clear H
   | H : no_init _   <{nat _         }> |- _ => clear H
   | H : no_init _   <{_; _          }> |- _ => tt H
+  | H : no_init _   (tm_if _ _ _    )  |- _ => tt H
   | H : no_init _   <{var _         }> |- _ => clear H
   | H : no_init _   <{fn _ _ _      }> |- _ => tt H
   | H : no_init _   <{call _ _      }> |- _ => tt H
@@ -67,7 +72,8 @@ Lemma noinit_dec : forall ad t,
 Proof.
   unfold Decidable.decidable. unfold not. intros.
   induction t; auto using no_init;
-  (destruct IHt || destruct IHt1, IHt2); auto using no_init;
+  (destruct IHt1, IHt2, IHt3 || destruct IHt1, IHt2 || destruct IHt);
+  auto using no_init;
   try solve [right; intros; invc_noinit; auto].
   match goal with ad1 : addr, ad2 : addr |- _ => nat_eq_dec ad1 ad2 end;
   auto using no_init.
@@ -185,10 +191,14 @@ Definition no_inits (t : tm) := forall ad, no_init ad t.
 (* inversion --------------------------------------------------------------- *)
 
 Local Ltac solve_inv_noinits :=
-  unfold no_inits; intros; try split; intros; spec; invc_noinit; auto.
+  unfold no_inits; intros; repeat split; intros; spec; invc_noinit; auto.
 
 Local Lemma inv_noinits_seq : forall t1 t2,
   no_inits <{t1; t2}> -> no_inits t1 /\ no_inits t2.
+Proof. solve_inv_noinits. Qed.
+
+Local Lemma inv_noinits_if : forall t1 t2 t3,
+  no_inits (tm_if t1 t2 t3) -> no_inits t1 /\ no_inits t2 /\ no_inits t3.
 Proof. solve_inv_noinits. Qed.
 
 Local Lemma inv_noinits_fun : forall x Tx t,
@@ -228,22 +238,23 @@ Local Lemma inv_noinits_spawn : forall t,
 Proof. solve_inv_noinits. Qed.
 
 Ltac invc_noinits :=
-  match goal with
-  | H : no_inits <{unit        }> |- _ => clear H
-  | H : no_inits <{nat _       }> |- _ => clear H
-  | H : no_inits <{_; _        }> |- _ => eapply inv_noinits_seq   in H as [? ?]
-  | H : no_inits <{var _       }> |- _ => clear H
-  | H : no_inits <{fn _ _ _    }> |- _ => eapply inv_noinits_fun   in H
-  | H : no_inits <{call _ _    }> |- _ => eapply inv_noinits_call  in H as [? ?]
-  | H : no_inits <{& _ : _     }> |- _ => clear H
-  | H : no_inits <{new _ : _   }> |- _ => eapply inv_noinits_new   in H
-  | H : no_inits <{init _ _ : _}> |- _ => eapply inv_noinits_init  in H; auto
-  | H : no_inits <{* _         }> |- _ => eapply inv_noinits_load  in H
-  | H : no_inits <{_ := _      }> |- _ => eapply inv_noinits_asg   in H as [? ?]
-  | H : no_inits <{acq _ _ _   }> |- _ => eapply inv_noinits_acq   in H as [? ?]
-  | H : no_inits <{cr _ _      }> |- _ => eapply inv_noinits_cr    in H
-  | H : no_inits <{spawn _     }> |- _ => eapply inv_noinits_spawn in H
-  end.
+match goal with
+| H : no_inits <{unit        }> |- _ => clear H
+| H : no_inits <{nat _       }> |- _ => clear H
+| H : no_inits <{_; _        }> |- _ => eapply inv_noinits_seq in H as [? ?]
+| H : no_inits (tm_if _ _ _  )  |- _ => eapply inv_noinits_if  in H as [? [? ?]]
+| H : no_inits <{var _       }> |- _ => clear H
+| H : no_inits <{fn _ _ _    }> |- _ => eapply inv_noinits_fun   in H
+| H : no_inits <{call _ _    }> |- _ => eapply inv_noinits_call  in H as [? ?]
+| H : no_inits <{& _ : _     }> |- _ => clear H
+| H : no_inits <{new _ : _   }> |- _ => eapply inv_noinits_new   in H
+| H : no_inits <{init _ _ : _}> |- _ => eapply inv_noinits_init  in H; auto
+| H : no_inits <{* _         }> |- _ => eapply inv_noinits_load  in H
+| H : no_inits <{_ := _      }> |- _ => eapply inv_noinits_asg   in H as [? ?]
+| H : no_inits <{acq _ _ _   }> |- _ => eapply inv_noinits_acq   in H as [? ?]
+| H : no_inits <{cr _ _      }> |- _ => eapply inv_noinits_cr    in H
+| H : no_inits <{spawn _     }> |- _ => eapply inv_noinits_spawn in H
+end.
 
 (* lemmas ------------------------------------------------------------------ *)
 

@@ -16,65 +16,74 @@ From Elo Require Import NoCR.
   - static blocks do not contain <init>s and <cr>s.
 *)
 Inductive valid_term (m : mem) : tm -> Prop :=
-  | vtm_unit  :                 valid_term m <{unit         }> 
-  | vtm_nat   : forall n,       valid_term m <{nat n        }>
-  | vtm_seq   : forall t1 t2,   valid_term m t1 ->
-                                valid_term m t2 ->
-                                valid_term m <{t1; t2       }> 
-  | vtm_var   : forall x,       valid_term m <{var x        }>
-  | vtm_fun   : forall x Tx t,  no_inits t      ->
-                                no_crs   t      ->
-                                valid_term m t  ->
-                                valid_term m <{fn x Tx t    }>
-  | vtm_call  : forall t1 t2,   valid_term m t1 ->
-                                valid_term m t2 ->
-                                valid_term m <{call t1 t2   }> 
-  | vtm_ref   : forall ad T,    ad < #m         ->
-                                valid_term m <{&ad : T      }>
-  | vtm_init  : forall ad t T,  ad < #m         ->
-                                valid_term m t  ->
-                                valid_term m <{init ad t : T}> 
-  | vtm_new   : forall T t,     no_inits t      ->
-                                no_crs   t      ->
-                                valid_term m t  ->
-                                valid_term m <{new t : T    }>
-  | vtm_load  : forall t,       valid_term m t  ->
-                                valid_term m <{*t           }> 
-  | vtm_asg   : forall t1 t2,   valid_term m t1 ->
-                                valid_term m t2 ->
-                                valid_term m <{t1 := t2     }> 
-  | vtm_acq   : forall t1 x t2, no_inits t2     ->
-                                no_crs   t2     ->
-                                valid_term m t1 ->
-                                valid_term m t2 ->
-                                valid_term m <{acq t1 x t2  }>
-  | vtm_cr    : forall ad t,    ad < #m         ->
-                                valid_term m t  ->
-                                valid_term m <{cr ad t      }>
-  | vtm_spawn : forall t,       no_inits t      ->
-                                no_crs   t      ->
-                                valid_term m t  ->
-                                valid_term m <{spawn t      }>
+  | vtm_unit  :                  valid_term m <{unit                     }> 
+  | vtm_nat   : forall n,        valid_term m <{nat n                    }>
+  | vtm_seq   : forall t1 t2,    valid_term m t1 ->
+                                 valid_term m t2 ->
+                                 valid_term m <{t1; t2                   }> 
+  | vtm_if    : forall t1 t2 t3, no_inits t2     ->
+                                 no_crs   t2     ->
+                                 no_inits t3     ->
+                                 no_crs   t3     ->
+                                 valid_term m t1 ->
+                                 valid_term m t2 ->
+                                 valid_term m t3 ->
+                                 valid_term m <{if t1 then t2 else t3 end}> 
+  | vtm_var   : forall x,        valid_term m <{var x                    }>
+  | vtm_fun   : forall x Tx t,   no_inits t      ->
+                                 no_crs   t      ->
+                                 valid_term m t  ->
+                                 valid_term m <{fn x Tx t                }>
+  | vtm_call  : forall t1 t2,    valid_term m t1 ->
+                                 valid_term m t2 ->
+                                 valid_term m <{call t1 t2               }> 
+  | vtm_ref   : forall ad T,     ad < #m         ->
+                                 valid_term m <{&ad : T                  }>
+  | vtm_init  : forall ad t T,   ad < #m         ->
+                                 valid_term m t  ->
+                                 valid_term m <{init ad t :             T}> 
+  | vtm_new   : forall T t,      no_inits t      ->
+                                 no_crs   t      ->
+                                 valid_term m t  ->
+                                 valid_term m <{new t : T                }>
+  | vtm_load  : forall t,        valid_term m t  ->
+                                 valid_term m <{*t                       }> 
+  | vtm_asg   : forall t1 t2,    valid_term m t1 ->
+                                 valid_term m t2 ->
+                                 valid_term m <{t1 := t2                 }> 
+  | vtm_acq   : forall t1 x t2,  no_inits t2     ->
+                                 no_crs   t2     ->
+                                 valid_term m t1 ->
+                                 valid_term m t2 ->
+                                 valid_term m <{acq t1 x t2              }>
+  | vtm_cr    : forall ad t,     ad < #m         ->
+                                 valid_term m t  ->
+                                 valid_term m <{cr ad t                  }>
+  | vtm_spawn : forall t,        no_inits t      ->
+                                 no_crs   t      ->
+                                 valid_term m t  ->
+                                 valid_term m <{spawn t                  }>
   .
 
 (* inversion --------------------------------------------------------------- *)
 
 Local Ltac _vtm tt :=
   match goal with
-  | H : valid_term _ <{unit        }> |- _ => clear H
-  | H : valid_term _ <{nat _       }> |- _ => clear H
-  | H : valid_term _ <{_; _        }> |- _ => tt H
-  | H : valid_term _ <{var _       }> |- _ => clear H
-  | H : valid_term _ <{fn _ _ _    }> |- _ => tt H
-  | H : valid_term _ <{call _ _    }> |- _ => tt H
-  | H : valid_term _ <{& _ : _     }> |- _ => tt H
-  | H : valid_term _ <{new _ : _   }> |- _ => tt H
-  | H : valid_term _ <{init _ _ : _}> |- _ => tt H
-  | H : valid_term _ <{* _         }> |- _ => tt H
-  | H : valid_term _ <{_ := _      }> |- _ => tt H
-  | H : valid_term _ <{acq _ _ _   }> |- _ => tt H
-  | H : valid_term _ <{cr _ _      }> |- _ => tt H
-  | H : valid_term _ <{spawn _     }> |- _ => tt H
+  | H : valid_term _ <{unit                  }> |- _ => clear H
+  | H : valid_term _ <{nat _                 }> |- _ => clear H
+  | H : valid_term _ <{_; _                  }> |- _ => tt H
+  | H : valid_term _ <{if _ then _ else _ end}> |- _ => tt H
+  | H : valid_term _ <{var _                 }> |- _ => clear H
+  | H : valid_term _ <{fn _ _ _              }> |- _ => tt H
+  | H : valid_term _ <{call _ _              }> |- _ => tt H
+  | H : valid_term _ <{& _ : _               }> |- _ => tt H
+  | H : valid_term _ <{new _ : _             }> |- _ => tt H
+  | H : valid_term _ <{init _ _ : _          }> |- _ => tt H
+  | H : valid_term _ <{* _                   }> |- _ => tt H
+  | H : valid_term _ <{_ := _                }> |- _ => tt H
+  | H : valid_term _ <{acq _ _ _             }> |- _ => tt H
+  | H : valid_term _ <{cr _ _                }> |- _ => tt H
+  | H : valid_term _ <{spawn _               }> |- _ => tt H
   end.
 
 Ltac inv_vtm  := _vtm inv.
@@ -405,7 +414,7 @@ Theorem vtm_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
   m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
   forall_program m2 ths2 (valid_term m2).
 Proof.
-  intros. invc_ostep; eauto using vtm_preservation_cstep.
+  intros. invc_rstep; eauto using vtm_preservation_cstep.
   match goal with _ : _ / _ ~~[_, _]~~> ?m / ?ths |- _ =>
     assert (forall_program m ths (valid_term m)) as [? ?]
       by eauto using vtm_preservation_cstep
@@ -418,7 +427,7 @@ Theorem vtm_preservation_base : forall t,
   no_inits t ->
   no_crs   t ->
   (* --- *)
-  forall_program base_m (base_t t) (valid_term base_m).
+  forall_program nil (base t) (valid_term nil).
 Proof.
   auto using forallprogram_base, vtm_from_base, valid_term.
 Qed.

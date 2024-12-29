@@ -11,20 +11,21 @@ From Elo Require Import Sem.
 
 Ltac _typeof tt :=
   match goal with
-  | H : _ |-- <{unit        }> is _ |- _ => tt H
-  | H : _ |-- <{nat _       }> is _ |- _ => tt H
-  | H : _ |-- <{_; _        }> is _ |- _ => tt H
-  | H : _ |-- <{var _       }> is _ |- _ => tt H
-  | H : _ |-- <{fn _ _ _    }> is _ |- _ => tt H
-  | H : _ |-- <{call _ _    }> is _ |- _ => tt H
-  | H : _ |-- <{& _ : _     }> is _ |- _ => tt H
-  | H : _ |-- <{new _ : _   }> is _ |- _ => tt H
-  | H : _ |-- <{init _ _ : _}> is _ |- _ => tt H
-  | H : _ |-- <{* _         }> is _ |- _ => tt H
-  | H : _ |-- <{_ := _      }> is _ |- _ => tt H
-  | H : _ |-- <{acq _ _ _   }> is _ |- _ => tt H
-  | H : _ |-- <{cr _ _      }> is _ |- _ => tt H
-  | H : _ |-- <{spawn _     }> is _ |- _ => tt H
+  | H : _ |-- <{unit                  }> is _ |- _ => tt H
+  | H : _ |-- <{nat _                 }> is _ |- _ => tt H
+  | H : _ |-- <{_; _                  }> is _ |- _ => tt H
+  | H : _ |-- <{if _ then _ else _ end}> is _ |- _ => tt H
+  | H : _ |-- <{var _                 }> is _ |- _ => tt H
+  | H : _ |-- <{fn _ _ _              }> is _ |- _ => tt H
+  | H : _ |-- <{call _ _              }> is _ |- _ => tt H
+  | H : _ |-- <{& _ : _               }> is _ |- _ => tt H
+  | H : _ |-- <{new _ : _             }> is _ |- _ => tt H
+  | H : _ |-- <{init _ _ : _          }> is _ |- _ => tt H
+  | H : _ |-- <{* _                   }> is _ |- _ => tt H
+  | H : _ |-- <{_ := _                }> is _ |- _ => tt H
+  | H : _ |-- <{acq _ _ _             }> is _ |- _ => tt H
+  | H : _ |-- <{cr _ _                }> is _ |- _ => tt H
+  | H : _ |-- <{spawn _               }> is _ |- _ => tt H
   end.
 
 Ltac inv_typeof  := _typeof inv.
@@ -39,19 +40,19 @@ Ltac ind_typeof := match goal with H : _ |-- _ is _ |- _ => induction H end.
 Ltac _tstep tt := match goal with H : _     --[_]-->     _     |- _ => tt H end.
 Ltac _mstep tt := match goal with H : _ / _ ==[_]==>     _ / _ |- _ => tt H end.
 Ltac _cstep tt := match goal with H : _ / _ ~~[_, _]~~>  _ / _ |- _ => tt H end.
-Ltac _ostep tt := match goal with H : _ / _ ~~~[_, _]~~> _ / _ |- _ => tt H end.
+Ltac _rstep tt := match goal with H : _ / _ ~~~[_, _]~~> _ / _ |- _ => tt H end.
 Ltac _ustep tt := match goal with H : _ / _ ~~[_]~~>*    _ / _ |- _ => tt H end.
 
 Ltac inv_tstep := _tstep inv.
 Ltac inv_mstep := _mstep inv.
 Ltac inv_cstep := _cstep inv.
-Ltac inv_ostep := _ostep inv.
+Ltac inv_rstep := _rstep inv.
 Ltac inv_ustep := _ustep inv.
 
 Ltac invc_tstep := _tstep invc.
 Ltac invc_mstep := _mstep invc.
 Ltac invc_cstep := _cstep invc.
-Ltac invc_ostep := _ostep invc.
+Ltac invc_rstep := _rstep invc.
 Ltac invc_ustep := _ustep invc.
 
 Ltac ind_tstep :=
@@ -126,7 +127,7 @@ Proof.
   , H  : _ |-- ?t is _ |- _ =>
     eapply IH in H; subst
   end; try congruence.
-  repeat match goal with H : `x&?T1` = `x&?T2` |- _ => invc H end.
+  repeat match goal with H : `x&_` = `x&_` |- _ => invc H end.
   auto.
 Qed.
 
@@ -154,14 +155,14 @@ Lemma mstep_tid_bound : forall m m' t' ths tid e,
   m / ths[tid] ==[e]==> m' / t' ->
   tid < #ths.
 Proof.
-  intros. inv_mstep; eauto using tstep_tid_bound.
+  intros. invc_mstep; eauto using tstep_tid_bound.
 Qed.
 
 Lemma cstep_tid_bound : forall m m' ths ths' tid e,
   m / ths ~~[tid, e]~~> m' / ths' ->
   tid < #ths.
 Proof.
-  intros. inv_cstep; trivial.
+  intros. invc_cstep; trivial.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -281,18 +282,18 @@ Ltac value_does_not_step :=
 (* ------------------------------------------------------------------------- *)
 
 Lemma forallmemory_base : forall P,
-  forall_memory base_m P.
+  forall_memory nil P.
 Proof.
-  unfold base_m, forall_memory. simpl. repeat intro.
+  unfold forall_memory. simpl. repeat intro.
   destruct ad; simpl in *; auto.
 Qed.
 
 Lemma forallprogram_base : forall (P : tm -> Prop) t,
   P <{unit}> ->
   P t ->
-  forall_program (base_m) (base_t t) (fun t' => P t').
+  forall_program nil (base t) (fun t' => P t').
 Proof.
-  unfold base_m, base_t. intros. split.
+  unfold base. intros. split.
   - intros ? ? Had. simpl in Had. destruct ad; simpl in Had; auto.
   - intros ad. nat_eq_dec 0 ad; simpl; trivial. repeat (destruct ad; trivial).
 Qed.

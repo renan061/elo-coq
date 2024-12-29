@@ -11,62 +11,67 @@ From Elo Require Import Soundness.
 (* ------------------------------------------------------------------------- *)
 
 Inductive safe_term : tm -> Prop :=
-  | stm_unit  :                 safe_term <{unit         }>
-  | stm_nat   : forall n,       safe_term <{nat n        }>
-  | stm_seq   : forall t1 t2,   safe_term t1 ->
-                                safe_term t2 ->
-                                safe_term <{t1; t2       }>
-  | stm_var   : forall x,       safe_term <{var x        }>
-  | stm_fun   : forall x Tx t,  safe_term t  ->
-                                safe_term <{fn x Tx t    }>
-  | stm_call  : forall t1 t2,   safe_term t1 ->
-                                safe_term t2 ->
-                                safe_term <{call t1 t2   }>
-  | stm_ref   : forall ad T,    safe_term <{&ad : T      }>
-  | stm_newR  : forall t T,     safe_term t  ->
-                                safe_term <{new t : r&T  }>
-  | stm_newX  : forall t T,     no_wrefs  t  ->
-                                safe_term t  ->
-                                safe_term <{new t : x&T  }>
-  | stm_newW  : forall t T,     safe_term t  ->
-                                safe_term <{new t : w&T  }>
-  | stm_init  : forall ad t T,  safe_term t  ->
-                                safe_term <{init ad t : T}>
-  | stm_load  : forall t,       safe_term t  ->
-                                safe_term <{*t           }>
-  | stm_asg   : forall t1 t2,   safe_term t1 ->
-                                safe_term t2 ->
-                                safe_term <{t1 := t2     }>
-  | stm_acq   : forall t1 x t2, no_wrefs  t2 ->
-                                safe_term t1 ->
-                                safe_term t2 ->
-                                safe_term <{acq t1 x t2  }>
-  | stm_cr    : forall ad t,    (exists T, empty |-- t is `Safe T`) ->
-                                safe_term t  ->
-                                safe_term <{cr ad t      }>
-  | stm_spawn : forall t,       no_wrefs  t  ->
-                                safe_term t  ->
-                                safe_term <{spawn t      }>
+  | stm_unit  :                  safe_term <{unit                     }>
+  | stm_nat   : forall n,        safe_term <{nat n                    }>
+  | stm_seq   : forall t1 t2,    safe_term t1 ->
+                                 safe_term t2 ->
+                                 safe_term <{t1; t2                   }>
+  | stm_if    : forall t1 t2 t3, safe_term t1 ->
+                                 safe_term t2 ->
+                                 safe_term t3 ->
+                                 safe_term <{if t1 then t2 else t3 end}>
+  | stm_var   : forall x,        safe_term <{var x                    }>
+  | stm_fun   : forall x Tx t,   safe_term t  ->
+                                 safe_term <{fn x Tx t                }>
+  | stm_call  : forall t1 t2,    safe_term t1 ->
+                                 safe_term t2 ->
+                                 safe_term <{call t1 t2               }>
+  | stm_ref   : forall ad T,     safe_term <{&ad : T                  }>
+  | stm_newR  : forall t T,      safe_term t  ->
+                                 safe_term <{new t : r&T              }>
+  | stm_newX  : forall t T,      no_wrefs  t  ->
+                                 safe_term t  ->
+                                 safe_term <{new t : x&T              }>
+  | stm_newW  : forall t T,      safe_term t  ->
+                                 safe_term <{new t : w&T              }>
+  | stm_init  : forall ad t T,   safe_term t  ->
+                                 safe_term <{init ad t : T            }>
+  | stm_load  : forall t,        safe_term t  ->
+                                 safe_term <{*t                       }>
+  | stm_asg   : forall t1 t2,    safe_term t1 ->
+                                 safe_term t2 ->
+                                 safe_term <{t1 := t2                 }>
+  | stm_acq   : forall t1 x t2,  no_wrefs  t2 ->
+                                 safe_term t1 ->
+                                 safe_term t2 ->
+                                 safe_term <{acq t1 x t2              }>
+  | stm_cr    : forall ad t,     (exists T, empty |-- t is `Safe T`) ->
+                                 safe_term t  ->
+                                 safe_term <{cr ad t                  }>
+  | stm_spawn : forall t,        no_wrefs  t  ->
+                                 safe_term t  ->
+                                 safe_term <{spawn t                  }>
   .
 
 (* inversion --------------------------------------------------------------- *)
 
 Local Ltac _stm tt :=
   match goal with
-  | H : safe_term <{unit        }>   |- _ => clear H
-  | H : safe_term <{nat _       }>   |- _ => clear H
-  | H : safe_term <{_; _        }>   |- _ => tt H
-  | H : safe_term <{var _       }>   |- _ => clear H
-  | H : safe_term <{fn _ _ _    }>   |- _ => tt H
-  | H : safe_term <{call _ _    }>   |- _ => tt H
-  | H : safe_term <{& _ : _     }>   |- _ => clear H
-  | H : safe_term <{new _ : _   }>   |- _ => tt H
-  | H : safe_term <{init _ _ : _}>   |- _ => tt H
-  | H : safe_term <{* _         }>   |- _ => tt H
-  | H : safe_term <{_ := _      }>   |- _ => tt H
-  | H : safe_term <{acq _ _ _   }>   |- _ => tt H
-  | H : safe_term <{cr _ _      }>   |- _ => tt H
-  | H : safe_term <{spawn _     }>   |- _ => tt H
+  | H : safe_term <{unit                  }>   |- _ => clear H
+  | H : safe_term <{nat _                 }>   |- _ => clear H
+  | H : safe_term <{_; _                  }>   |- _ => tt H
+  | H : safe_term <{if _ then _ else _ end}>   |- _ => tt H
+  | H : safe_term <{var _                 }>   |- _ => clear H
+  | H : safe_term <{fn _ _ _              }>   |- _ => tt H
+  | H : safe_term <{call _ _              }>   |- _ => tt H
+  | H : safe_term <{& _ : _               }>   |- _ => clear H
+  | H : safe_term <{new _ : _             }>   |- _ => tt H
+  | H : safe_term <{init _ _ : _          }>   |- _ => tt H
+  | H : safe_term <{* _                   }>   |- _ => tt H
+  | H : safe_term <{_ := _                }>   |- _ => tt H
+  | H : safe_term <{acq _ _ _             }>   |- _ => tt H
+  | H : safe_term <{cr _ _                }>   |- _ => tt H
+  | H : safe_term <{spawn _               }>   |- _ => tt H
   end.
 
 Ltac inv_stm  := _stm inv.
@@ -286,7 +291,7 @@ Theorem stm_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
   m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
   forall_program m2 ths2 safe_term.
 Proof.
-  intros * ? [? ?] [? ?] **. invc_ostep; eauto using stm_preservation_cstep.
+  intros * ? [? ?] [? ?] **. invc_rstep; eauto using stm_preservation_cstep.
   match goal with _ : _ / _ ~~[_, _]~~> ?m / ?ths |- _ =>
     assert (forall_program m ths safe_term) as [Hmstm Hstm]
       by eauto using stm_preservation_cstep
@@ -300,7 +305,7 @@ Theorem stm_preservation_base : forall t,
   no_refs         t ->
   no_crs          t ->
   well_typed_term t ->
-  forall_program base_m (base_t t) safe_term.
+  forall_program nil (base t) safe_term.
 Proof.
   intros. eapply forallprogram_base;
   eauto using stm_from_norefs_nocrs_wtt, safe_term.

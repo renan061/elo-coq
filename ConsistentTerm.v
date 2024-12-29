@@ -9,82 +9,87 @@ From Elo Require Import WellTypedTerm.
 (* ------------------------------------------------------------------------- *)
 
 Inductive consistent_term (m : mem) : tm -> Prop :=
-  | ctm_unit  :                 consistent_term m <{unit           }> 
-  | ctm_nat   : forall n,       consistent_term m <{nat n          }>
-  | ctm_seq   : forall t1 t2,   consistent_term m t1    ->
-                                consistent_term m t2    ->
-                                consistent_term m <{t1; t2         }> 
-  | ctm_var   : forall x,       consistent_term m <{var x          }>
-  | ctm_fun   : forall x Tx t,  consistent_term m t     ->
-                                consistent_term m <{fn x Tx t      }>
-  | ctm_call  : forall t1 t2,   consistent_term m t1    ->
-                                consistent_term m t2    ->
-                                consistent_term m <{call t1 t2     }> 
+  | ctm_unit  :                  consistent_term m <{unit                     }> 
+  | ctm_nat   : forall n,        consistent_term m <{nat n                    }>
+  | ctm_seq   : forall t1 t2,    consistent_term m t1    ->
+                                 consistent_term m t2    ->
+                                 consistent_term m <{t1; t2                   }>
+  | ctm_if    : forall t1 t2 t3, consistent_term m t1    ->
+                                 consistent_term m t2    ->
+                                 consistent_term m t3    ->
+                                 consistent_term m <{if t1 then t2 else t3 end}> 
+  | ctm_var   : forall x,        consistent_term m <{var x                    }>
+  | ctm_fun   : forall x Tx t,   consistent_term m t     ->
+                                 consistent_term m <{fn x Tx t                }>
+  | ctm_call  : forall t1 t2,    consistent_term m t1    ->
+                                 consistent_term m t2    ->
+                                 consistent_term m <{call t1 t2               }> 
 
-  | ctm_refR  : forall ad t T,  m[ad].t = Some t        ->
-                                m[ad].T = `r&T`         ->
-                                empty |-- t is `Safe T` ->
-                                consistent_term m <{&ad : r&T      }>
+  | ctm_refR  : forall ad t T,   m[ad].t = Some t        ->
+                                 m[ad].T = `r&T`         ->
+                                 empty |-- t is `Safe T` ->
+                                 consistent_term m <{&ad : r&T                }>
 
-  | ctm_refX  : forall ad t T,  m[ad].t = Some t        ->
-                                m[ad].T = `x&T`         ->
-                                empty |-- t is T        ->
-                                consistent_term m <{&ad : x&T      }>
+  | ctm_refX  : forall ad t T,   m[ad].t = Some t        ->
+                                 m[ad].T = `x&T`         ->
+                                 empty |-- t is T        ->
+                                 consistent_term m <{&ad : x&T                }>
 
-  | ctm_refW  : forall ad t T,  m[ad].t = Some t        ->
-                                m[ad].T = `w&T`         ->
-                                empty |-- t is T        ->
-                                consistent_term m <{&ad : w&T      }>
+  | ctm_refW  : forall ad t T,   m[ad].t = Some t        ->
+                                 m[ad].T = `w&T`         ->
+                                 empty |-- t is T        ->
+                                 consistent_term m <{&ad : w&T                }>
 
-  | ctm_initR : forall ad t T,  m[ad].t = None          ->
-                                m[ad].T = `r&T`         ->
-                                consistent_term m t     ->
-                                consistent_term m <{init ad t : r&T}> 
+  | ctm_initR : forall ad t T,   m[ad].t = None          ->
+                                 m[ad].T = `r&T`         ->
+                                 consistent_term m t     ->
+                                 consistent_term m <{init ad t : r&T          }> 
 
-  | ctm_initX : forall ad t T,  m[ad].t = None          ->
-                                m[ad].T = `x&T`         ->
-                                consistent_term m t     ->
-                                consistent_term m <{init ad t : x&T}> 
+  | ctm_initX : forall ad t T,   m[ad].t = None          ->
+                                 m[ad].T = `x&T`         ->
+                                 consistent_term m t     ->
+                                 consistent_term m <{init ad t : x&T          }> 
 
-  | ctm_initW : forall ad t T,  m[ad].t = None          ->
-                                m[ad].T = `w&T`         ->
-                                consistent_term m t     ->
-                                consistent_term m <{init ad t : w&T}> 
+  | ctm_initW : forall ad t T,   m[ad].t = None          ->
+                                 m[ad].T = `w&T`         ->
+                                 consistent_term m t     ->
+                                 consistent_term m <{init ad t : w&T          }> 
 
-  | ctm_new   : forall T t,     consistent_term m t     ->
-                                consistent_term m <{new t : T      }> 
-  | ctm_load  : forall t,       consistent_term m t     ->
-                                consistent_term m <{*t             }> 
-  | ctm_asg   : forall t1 t2,   consistent_term m t1    ->
-                                consistent_term m t2    ->
-                                consistent_term m <{t1 := t2       }> 
-  | ctm_acq   : forall t1 x t2, consistent_term m t1    ->
-                                consistent_term m t2    ->
-                                consistent_term m <{acq t1 x t2    }>
-  | ctm_cr    : forall ad t,    consistent_term m t     ->
-                                consistent_term m <{cr ad t        }>
-  | ctm_spawn : forall t,       consistent_term m t     ->
-                                consistent_term m <{spawn t        }>
+  | ctm_new   : forall T t,      consistent_term m t     ->
+                                 consistent_term m <{new t : T                }> 
+  | ctm_load  : forall t,        consistent_term m t     ->
+                                 consistent_term m <{*t                       }> 
+  | ctm_asg   : forall t1 t2,    consistent_term m t1    ->
+                                 consistent_term m t2    ->
+                                 consistent_term m <{t1 := t2                 }> 
+  | ctm_acq   : forall t1 x t2,  consistent_term m t1    ->
+                                 consistent_term m t2    ->
+                                 consistent_term m <{acq t1 x t2              }>
+  | ctm_cr    : forall ad t,     consistent_term m t     ->
+                                 consistent_term m <{cr ad t                  }>
+  | ctm_spawn : forall t,        consistent_term m t     ->
+                                 consistent_term m <{spawn t                  }>
   .
 
 (* inversion --------------------------------------------------------------- *)
 
 Local Ltac _ctm tt :=
   match goal with
-  | H : consistent_term _ <{unit        }> |- _ => clear H
-  | H : consistent_term _ <{nat _       }> |- _ => clear H
-  | H : consistent_term _ <{_; _        }> |- _ => tt H
-  | H : consistent_term _ <{var _       }> |- _ => clear H
-  | H : consistent_term _ <{fn _ _ _    }> |- _ => tt H
-  | H : consistent_term _ <{call _ _    }> |- _ => tt H
-  | H : consistent_term _ <{& _ : _     }> |- _ => tt H
-  | H : consistent_term _ <{new _ : _   }> |- _ => tt H
-  | H : consistent_term _ <{init _ _ : _}> |- _ => tt H
-  | H : consistent_term _ <{* _         }> |- _ => tt H
-  | H : consistent_term _ <{_ := _      }> |- _ => tt H
-  | H : consistent_term _ <{acq _ _ _   }> |- _ => tt H
-  | H : consistent_term _ <{cr _ _      }> |- _ => tt H
-  | H : consistent_term _ <{spawn _     }> |- _ => tt H
+  | H : consistent_term _ <{unit                  }> |- _ => clear H
+  | H : consistent_term _ <{nat _                 }> |- _ => clear H
+  | H : consistent_term _ <{_; _                  }> |- _ => tt H
+  | H : consistent_term _ <{if _ then _ else _ end}> |- _ => tt H
+  | H : consistent_term _ <{var _                 }> |- _ => clear H
+  | H : consistent_term _ <{fn _ _ _              }> |- _ => tt H
+  | H : consistent_term _ <{call _ _              }> |- _ => tt H
+  | H : consistent_term _ <{& _ : _               }> |- _ => tt H
+  | H : consistent_term _ <{new _ : _             }> |- _ => tt H
+  | H : consistent_term _ <{init _ _ : _          }> |- _ => tt H
+  | H : consistent_term _ <{* _                   }> |- _ => tt H
+  | H : consistent_term _ <{_ := _                }> |- _ => tt H
+  | H : consistent_term _ <{acq _ _ _             }> |- _ => tt H
+  | H : consistent_term _ <{cr _ _                }> |- _ => tt H
+  | H : consistent_term _ <{spawn _               }> |- _ => tt H
   end.
 
 Ltac inv_ctm  := _ctm inv.
@@ -290,7 +295,7 @@ Proof.
   assert (consistent_term m t') by eauto using ctm_insert_term.
   ind_tstep; intros; invc_wtt; invc_typeof; invc_oneinit; invc_ctm;
   try solve [exfalso; eauto using noinit_insert_contradiction];
-  eauto using ctm_insert_type, ctm_mem_set, consistent_term;
+  eauto 7 using ctm_insert_type, ctm_mem_set, consistent_term;
   econstructor; sigma; eauto; try omicron; upsilon; auto; discriminate.
 Qed.
 
@@ -432,7 +437,7 @@ Theorem ctm_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
   m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
   forall_program m2 ths2 (consistent_term m2).
 Proof.
-  intros. invc_ostep; eauto using ctm_preservation_cstep.
+  intros. invc_rstep; eauto using ctm_preservation_cstep.
   match goal with _ : _ / _ ~~[_, _]~~> ?m / ?ths |- _ =>
     assert (forall_program m ths (consistent_term m)) as [? ?]
       by eauto using ctm_preservation_cstep
@@ -444,7 +449,7 @@ Theorem ctm_preservation_base : forall t,
   no_refs  t ->
   no_inits t ->
   (* --- *)
-  forall_program base_m (base_t t) (consistent_term base_m).
+  forall_program nil (base t) (consistent_term nil).
 Proof.
   eauto using forallprogram_base, ctm_from_norefs_noinits, consistent_term.
 Qed.

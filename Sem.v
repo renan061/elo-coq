@@ -35,6 +35,9 @@ Inductive tm : Set :=
   (* primitives *)
   | tm_unit
   | tm_nat   : nat  -> tm
+  (* utility *)
+  | tm_seq   : tm   -> tm -> tm
+  | tm_if    : tm   -> tm -> tm -> tm
   (* functions *)
   | tm_var   : id   -> tm
   | tm_fun   : id   -> ty -> tm -> tm
@@ -47,8 +50,6 @@ Inductive tm : Set :=
   | tm_asg   : tm   -> tm -> tm
   | tm_acq   : tm   -> id -> tm -> tm
   | tm_cr    : addr -> tm -> tm
-  (* utility *)
-  | tm_seq   : tm   -> tm -> tm
   (* concurrency *)
   | tm_spawn : tm -> tm
   .
@@ -75,20 +76,32 @@ Notation "'w&' T"      := (ty_refW T)             (in custom elo_ty at level 5).
 Notation "T1 '-->' T2" := (ty_fun T1 T2)          (in custom elo_ty at level 50,
                                                            right associativity).
 
-(* terms *)
+(* terms -------------------------------------------------------------------- *)
 Declare Custom Entry elo_tm.
 Notation "<{ t }>" := t (t custom elo_tm at level 99).
 Notation "( x )"   := x (in custom elo_tm, x at level 99).
 Notation "x"       := x (in custom elo_tm at level 0, x constr at level 0).
 
-Notation "'unit'"           := (tm_unit)          (in custom elo_tm at level 0).
-Notation "'nat' n"          := (tm_nat n)         (in custom elo_tm at level 0).
-Notation "t1 ';' t2"        := (tm_seq t1 t2)     (in custom elo_tm at level 0).
+(* primitives --------------------------------------------------------------- *)
+Notation "'unit'"  := (tm_unit)  (in custom elo_tm at level 0).
+Notation "'nat' n" := (tm_nat n) (in custom elo_tm at level 0,
+                                          n constr at level 0).
+(* utility ------------------------------------------------------------------ *)
+Notation "t1 ';' t2"                         := (tm_seq t1 t2)
+ (in custom elo_tm at level 90, right associativity)
+                                                                               .
+Notation "'if' t1 'then' t2 'else' t3 'end'" := (tm_if t1 t2 t3)
+ (in custom elo_tm at level 89,
+                t1 at level 99,
+                t2 at level 99,
+                t3 at level 99).
+(* functions ---------------------------------------------------------------- *)
 Notation "'var' x"          := (tm_var x)         (in custom elo_tm at level 0).
 Notation "'fn' x Tx t"      := (tm_fun x Tx t)     (in custom elo_tm at level 0,
                                                             x constr at level 0,
                                                    Tx custom elo_ty at level 0).
 Notation "'call' t1 t2"     := (tm_call t1 t2)    (in custom elo_tm at level 0).
+(* memory ------------------------------------------------------------------- *)
 Notation "'&' ad ':' T"     := (tm_ref ad T)       (in custom elo_tm at level 0,
                                                     T custom elo_ty at level 0).
 Notation "'new' t : T"      := (tm_new t T)        (in custom elo_tm at level 0,
@@ -100,13 +113,16 @@ Notation "t1 ':=' t2"       := (tm_asg t1 t2)     (in custom elo_tm at level 70,
                                                               no associativity).
 Notation "'acq' t1 x t2"    := (tm_acq t1 x t2)   (in custom elo_tm at level 0).
 Notation "'cr' ad t"        := (tm_cr ad t)       (in custom elo_tm at level 0).
+(* concurrency -------------------------------------------------------------- *)
 Notation "'spawn' t"        := (tm_spawn t)       (in custom elo_tm at level 0).
 
-(* syntactic sugars *)
+(* syntactic sugars --------------------------------------------------------- *)
 Notation "'let' x ':' Tx '=' tx 'in' t" := <{call (fn x Tx t) tx}>
   (in custom elo_tm at level 10,
            x constr at level 0,
    Tx custom elo_ty at level 0).
+
+(* -------------------------------------------------------------------------- *)
 
 Reserved Notation "'[' x ':=' tx ']' t" (in custom elo_tm at level 20,
   x constr).
@@ -217,6 +233,12 @@ Inductive type_of : ctx -> tm -> ty -> Prop :=
     Gamma |-- t2 is T2 ->
     Gamma |-- <{t1; t2}> is T2
 
+  | T_if : forall Gamma t1 t2 t3 T,
+    Gamma |-- t1 is `Nat` ->
+    Gamma |-- t3 is T ->
+    Gamma |-- t2 is T ->
+    Gamma |-- <{if t1 then t2 else t3 end}> is T
+
   | T_var : forall Gamma x T,
     Gamma x = Some T ->
     Gamma |-- <{var x}> is T
@@ -297,13 +319,16 @@ Inductive type_of : ctx -> tm -> ty -> Prop :=
 
 Local Infix "=?" := string_dec (at level 70, no associativity).
 
-(* TODO: could it be "t" for cr? *)
 Fixpoint subst (x : id) (tx t : tm) : tm :=
   match t with
-  | <{unit          }> => t
-  | <{nat _         }> => t
+  | <{unit                     }> => t
+  | <{nat _                    }> => t
   (* utility *)
-  | <{t1; t2        }> => <{([x := tx] t1); ([x := tx] t2)}>
+  | <{t1; t2                   }> => <{([x := tx] t1); ([x := tx] t2)}>
+  | <{if t1 then t2 else t3 end}> => <{if [x := tx]t1
+                                        then [x := tx]t2
+                                        else [x := tx]t3
+                                       end}>
   (* functions *)
   | <{var x'        }> => if x =? x' then tx else t
   | <{fn x' Tx t'   }> => if x =? x' then t  else <{fn x' Tx ([x := tx] t')}>
@@ -336,6 +361,17 @@ Inductive tstep : tm -> eff -> tm -> Prop :=
   | ts_seq : forall t1 t2,
     value t1 ->
     <{t1; t2}> --[e_none]--> t2
+
+  (* if *)
+  | ts_if1 : forall t1 t1' t2 t3 e,
+    t1 --[e]--> t1' ->
+    <{if t1 then t2 else t3 end}> --[e]--> <{if t1' then t2 else t3 end}>
+
+  | ts_ifT : forall t1 t2,
+    <{if nat 0 then t1 else t2 end}> --[e_none]--> t1
+
+  | ts_ifF : forall n t1 t2,
+    <{if nat (S n) then t1 else t2 end}> --[e_none]--> t2
 
   (* call *)
   | ts_call1 : forall t1 t1' t2 e,
@@ -501,7 +537,7 @@ Inductive cstep : mem -> threads -> nat -> eff -> mem -> threads -> Prop :=
   where "m / ths '~~[' tid , e ']~~>' m' / ths'" := (cstep m ths tid e m' ths').
 
 (* ------------------------------------------------------------------------- *)
-(* operational semantics -- ownership step                                   *)
+(* operational semantics -- region step                                      *)
 (* ------------------------------------------------------------------------- *)
 
 Definition is_value (t : tm) :=
@@ -522,12 +558,16 @@ Definition is_refX  (T : ty) :=
 (* get-current-region *)
 Fixpoint gcr (t' : tm) (r : region) : region :=
   match t' with
-  | <{unit         }> => r
-  | <{nat _        }> => r
-  | <{t1; t2       }> => if is_value t1 then gcr t2 r else gcr t1 r
-  | <{var _        }> => r
-  | <{fn _ _ _     }> => r
-  | <{call t1 t2   }> => if is_value t1 then gcr t2 r else gcr t1 r
+  | <{unit }> => r
+  | <{nat _}> => r
+
+  | <{t1; t2                   }> => if is_value t1 then gcr t2 r else gcr t1 r
+  | <{if t1 then t2 else t3 end}> => if is_value t1 then r else gcr t1 r
+
+  | <{var _     }> => r
+  | <{fn _ _ _  }> => r
+  | <{call t1 t2}> => if is_value t1 then gcr t2 r else gcr t1 r
+
   | <{&_ : _       }> => r
   | <{new _ : _    }> => r
   | <{init ad t : T}> => if is_refX T then gcr t (R_ad ad) else gcr t r
@@ -535,45 +575,46 @@ Fixpoint gcr (t' : tm) (r : region) : region :=
   | <{t1 := t2     }> => if is_value t1 then gcr t2 r else gcr t1 r
   | <{acq t1 _ _   }> => gcr t1 r
   | <{cr ad t      }> => gcr t (R_ad ad)
-  | <{spawn _      }> => r
+
+  | <{spawn _}> => r
   end.
 
-Inductive ostep : mem -> threads -> nat -> eff -> mem -> threads -> Prop :=
-  | os_none : forall m1 m2 ths1 ths2 tid,
+Inductive rstep : mem -> threads -> nat -> eff -> mem -> threads -> Prop :=
+  | rs_none : forall m1 m2 ths1 ths2 tid,
     m1 / ths1 ~~[tid, e_none]~~> m2 / ths2 ->
     m1 / ths1 ~~~[tid, e_none]~~> m2 / ths2
 
-  | os_alloc : forall m1 m2 ths1 ths2 tid ad T R,
+  | rs_alloc : forall m1 m2 ths1 ths2 tid ad T R,
     R = gcr ths1[tid] (R_tid tid) ->
     m1 / ths1 ~~[tid, e_alloc ad T]~~> m2 / ths2 ->
     m1 / ths1 ~~~[tid, e_alloc ad T]~~> m2[ad.R <- R] / ths2
 
-  | os_insert : forall m1 m2 ths1 ths2 tid ad t T,
+  | rs_insert : forall m1 m2 ths1 ths2 tid ad t T,
     m1 / ths1 ~~[tid, e_insert ad t T]~~> m2 / ths2 ->
     m1 / ths1 ~~~[tid, e_insert ad t T]~~> m2 / ths2
 
-  | os_read : forall m1 m2 ths1 ths2 tid ad t,
+  | rs_read : forall m1 m2 ths1 ths2 tid ad t,
     m1 / ths1 ~~[tid, e_read ad t]~~> m2 / ths2 ->
     m1 / ths1 ~~~[tid, e_read ad t]~~> m2 / ths2
 
-  | os_write : forall m1 m2 ths1 ths2 tid ad t,
+  | rs_write : forall m1 m2 ths1 ths2 tid ad t,
     m1 / ths1 ~~[tid, e_write ad t]~~> m2 / ths2 ->
     m1 / ths1 ~~~[tid, e_write ad t]~~> m2 / ths2
 
-  | os_acq : forall m1 m2 ths1 ths2 tid ad t,
+  | rs_acq : forall m1 m2 ths1 ths2 tid ad t,
     m1 / ths1 ~~[tid, e_acq ad t]~~> m2 / ths2 ->
     m1 / ths1 ~~~[tid, e_acq ad t]~~> m2 / ths2
 
-  | os_rel : forall m1 m2 ths1 ths2 tid ad,
+  | rs_rel : forall m1 m2 ths1 ths2 tid ad,
     m1 / ths1 ~~[tid, e_rel ad]~~> m2 / ths2 ->
     m1 / ths1 ~~~[tid, e_rel ad]~~> m2 / ths2
 
-  | os_spawn : forall m1 m2 ths1 ths2 tid tid' t',
+  | rs_spawn : forall m1 m2 ths1 ths2 tid tid' t',
     m1 / ths1 ~~[tid, e_spawn tid' t']~~> m2 / ths2 ->
     m1 / ths1 ~~~[tid, e_spawn tid' t']~~> m2 / ths2
 
   where "m / ths '~~~[' tid , e ']~~>' m' / ths'" :=
-    (ostep m ths tid e m' ths').
+    (rstep m ths tid e m' ths').
 
 (* ------------------------------------------------------------------------- *)
 (* multistep                                                                 *)
@@ -595,6 +636,5 @@ Inductive multistep : mem -> threads -> trace -> mem -> threads -> Prop :=
 (* base                                                                      *)
 (* ------------------------------------------------------------------------- *)
 
-Definition base_m          : mem     := nil.
-Definition base_t (t : tm) : threads := t :: nil.
+Definition base (t : tm) : threads := t :: nil.
 

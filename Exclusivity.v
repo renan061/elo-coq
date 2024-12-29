@@ -262,15 +262,15 @@ Theorem ice_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
   m1 / ths1 ~~~[tid, e]~~> m2 / ths2          ->
   init_cr_exclusivity ths2.
 Proof.
-  intros. invc_ostep; eauto using ice_preservation_cstep.
+  intros. invc_rstep; eauto using ice_preservation_cstep.
 Qed.
 
 Theorem ice_preservation_base : forall t,
   no_inits t ->
   no_crs   t ->
-  init_cr_exclusivity (base_t t).
+  init_cr_exclusivity (base t).
 Proof.
-  unfold base_t. repeat intro. split; intro; simpl;
+  unfold base. repeat intro. split; intro; simpl;
   repeat (destruct tid2; eauto using no_init, no_cr).
 Qed.
 
@@ -287,7 +287,7 @@ Definition term_init_cr_exc (t : tm) := forall ad,
 (* inversion --------------------------------------------------------------- *)
 
 Local Ltac solve_inv_tice :=
-  intros * H; try match goal with |- _ /\ _ => split end; intros ad';
+  intros * H; repeat match goal with |- _ /\ _ => split end; intros ad';
   specialize (H ad') as [[? | ?] [[? | ?] [? ?]]]; repeat split; repeat spec;
   try inv_oneinit; try inv_onecr; try inv_nocr; try inv_noinit; auto; intros ?;
   exfalso; eauto using noinit_oneinit_contradiction, nocr_onecr_contradiction. 
@@ -295,6 +295,11 @@ Local Ltac solve_inv_tice :=
 Local Lemma inv_tice_seq : forall t1 t2,
   term_init_cr_exc <{t1; t2}> ->
   term_init_cr_exc t1 /\ term_init_cr_exc t2.
+Proof. solve_inv_tice. Qed.
+
+Local Lemma inv_tice_if : forall t1 t2 t3,
+  term_init_cr_exc <{if t1 then t2 else t3 end}> ->
+  term_init_cr_exc t1 /\ term_init_cr_exc t2 /\ term_init_cr_exc t3.
 Proof. solve_inv_tice. Qed.
 
 Local Lemma inv_tice_fun : forall x Tx t,
@@ -347,6 +352,7 @@ Ltac invc_tice :=
   | H : term_init_cr_exc <{unit        }> |- _ => clear H
   | H : term_init_cr_exc <{nat _       }> |- _ => clear H
   | H : term_init_cr_exc <{_; _        }> |- _ => eapply inv_tice_seq   in H
+  | H : term_init_cr_exc (tm_if _ _ _  )  |- _ => eapply inv_tice_if    in H
   | H : term_init_cr_exc <{var _       }> |- _ => clear H
   | H : term_init_cr_exc <{fn _ _ _    }> |- _ => eapply inv_tice_fun   in H
   | H : term_init_cr_exc <{call _ _    }> |- _ => eapply inv_tice_call  in H

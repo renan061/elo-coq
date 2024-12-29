@@ -8,60 +8,65 @@ From Elo Require Import HasVar.
 (* ------------------------------------------------------------------------- *)
 
 Inductive no_wref (ad : addr) : tm -> Prop :=
-  | nowref_unit  :                 no_wref ad <{unit          }>
-  | nowref_nat   : forall n,       no_wref ad <{nat n         }>
-  | nowref_seq   : forall t1 t2,   no_wref ad t1 ->
-                                   no_wref ad t2 ->
-                                   no_wref ad <{t1; t2        }>
-  | nowref_var   : forall x,       no_wref ad <{var x         }>
-  | nowref_fun   : forall x Tx t,  no_wref ad t  ->
-                                   no_wref ad <{fn x Tx t     }>
-  | nowref_call  : forall t1 t2,   no_wref ad t1 ->
-                                   no_wref ad t2 ->
-                                   no_wref ad <{call t1 t2    }>
-  | nowref_refR  : forall ad' T,   no_wref ad <{&ad' : r&T    }>
-  | nowref_refX  : forall ad' T,   no_wref ad <{&ad' : x&T    }>
-  | nowref_refW  : forall ad' T,   ad <> ad'     ->
-                                   no_wref ad <{&ad' : w&T    }>
-  | nowref_new   : forall t T,     no_wref ad t  ->
-                                   no_wref ad <{new t : T     }>
-  | nowref_init  : forall ad' t T, no_wref ad t  ->
-                                   no_wref ad <{init ad' t : T}>
-  | nowref_load  : forall t,       no_wref ad t  ->
-                                   no_wref ad <{*t            }>
-  | nowref_asg   : forall t1 t2,   no_wref ad t1 ->
-                                   no_wref ad t2 ->
-                                   no_wref ad <{t1 := t2      }>
-  | nowref_acq   : forall t1 x t2, no_wref ad t1 ->
-                                   no_wref ad t2 ->
-                                   no_wref ad <{acq t1 x t2   }>
-  | nowref_cr    : forall ad' t,   no_wref ad t  ->
-                                   no_wref ad <{cr ad' t      }>
-  | nowref_spawn : forall t,       no_wref ad t  ->
-                                   no_wref ad <{spawn t       }>
+  | nowref_unit  :                  no_wref ad <{unit                     }>
+  | nowref_nat   : forall n,        no_wref ad <{nat n                    }>
+  | nowref_seq   : forall t1 t2,    no_wref ad t1 ->
+                                    no_wref ad t2 ->
+                                    no_wref ad <{t1; t2                   }>
+  | nowref_if    : forall t1 t2 t3, no_wref ad t1 ->
+                                    no_wref ad t2 ->
+                                    no_wref ad t3 ->
+                                    no_wref ad <{if t1 then t2 else t3 end}>
+  | nowref_var   : forall x,        no_wref ad <{var x                    }>
+  | nowref_fun   : forall x Tx t,   no_wref ad t  ->
+                                    no_wref ad <{fn x Tx t                }>
+  | nowref_call  : forall t1 t2,    no_wref ad t1 ->
+                                    no_wref ad t2 ->
+                                    no_wref ad <{call t1 t2               }>
+  | nowref_refR  : forall ad' T,    no_wref ad <{&ad' : r&T               }>
+  | nowref_refX  : forall ad' T,    no_wref ad <{&ad' : x&T               }>
+  | nowref_refW  : forall ad' T,    ad <> ad'     ->
+                                    no_wref ad <{&ad' : w&T               }>
+  | nowref_new   : forall t T,      no_wref ad t  ->
+                                    no_wref ad <{new t : T                }>
+  | nowref_init  : forall ad' t T,  no_wref ad t  ->
+                                    no_wref ad <{init ad' t : T           }>
+  | nowref_load  : forall t,        no_wref ad t  ->
+                                    no_wref ad <{*t                       }>
+  | nowref_asg   : forall t1 t2,    no_wref ad t1 ->
+                                    no_wref ad t2 ->
+                                    no_wref ad <{t1 := t2                 }>
+  | nowref_acq   : forall t1 x t2,  no_wref ad t1 ->
+                                    no_wref ad t2 ->
+                                    no_wref ad <{acq t1 x t2              }>
+  | nowref_cr    : forall ad' t,    no_wref ad t  ->
+                                    no_wref ad <{cr ad' t                 }>
+  | nowref_spawn : forall t,        no_wref ad t  ->
+                                    no_wref ad <{spawn t                  }>
   .
 
 (* inversion --------------------------------------------------------------- *)
 
 Local Ltac _nowref tt :=
   match goal with
-  | H : no_wref _   <{unit        }> |- _ => clear H
-  | H : no_wref _   <{nat _       }> |- _ => clear H
-  | H : no_wref _   <{_; _        }> |- _ => tt H
-  | H : no_wref _   <{var _       }> |- _ => clear H
-  | H : no_wref _   <{fn _ _ _    }> |- _ => tt H
-  | H : no_wref _   <{call _ _    }> |- _ => tt H
-  | H : no_wref _   <{&_   : r&_  }> |- _ => clear H
-  | H : no_wref _   <{&_   : x&_  }> |- _ => clear H
-  | H : no_wref ?ad <{&?ad : w&_  }> |- _ => invc H; auto
-  | H : no_wref _   <{&_   : w&_  }> |- _ => tt H
-  | H : no_wref _   <{new _ : _   }> |- _ => tt H
-  | H : no_wref _   <{init _ _ : _}> |- _ => tt H
-  | H : no_wref _   <{* _         }> |- _ => tt H
-  | H : no_wref _   <{_ := _      }> |- _ => tt H
-  | H : no_wref _   <{acq _ _ _   }> |- _ => tt H
-  | H : no_wref _   <{cr _ _      }> |- _ => tt H
-  | H : no_wref _   <{spawn _     }> |- _ => tt H
+  | H : no_wref _   <{unit                  }> |- _ => clear H
+  | H : no_wref _   <{nat _                 }> |- _ => clear H
+  | H : no_wref _   <{_; _                  }> |- _ => tt H
+  | H : no_wref _   <{if _ then _ else _ end}> |- _ => tt H
+  | H : no_wref _   <{var _                 }> |- _ => clear H
+  | H : no_wref _   <{fn _ _ _              }> |- _ => tt H
+  | H : no_wref _   <{call _ _              }> |- _ => tt H
+  | H : no_wref _   <{&_   : r&_            }> |- _ => clear H
+  | H : no_wref _   <{&_   : x&_            }> |- _ => clear H
+  | H : no_wref ?ad <{&?ad : w&_            }> |- _ => invc H; auto
+  | H : no_wref _   <{&_   : w&_            }> |- _ => tt H
+  | H : no_wref _   <{new _ : _             }> |- _ => tt H
+  | H : no_wref _   <{init _ _ : _          }> |- _ => tt H
+  | H : no_wref _   <{* _                   }> |- _ => tt H
+  | H : no_wref _   <{_ := _                }> |- _ => tt H
+  | H : no_wref _   <{acq _ _ _             }> |- _ => tt H
+  | H : no_wref _   <{cr _ _                }> |- _ => tt H
+  | H : no_wref _   <{spawn _               }> |- _ => tt H
   end.
 
 Ltac inv_nowref  := _nowref inv.
@@ -97,10 +102,14 @@ Definition no_wrefs (t : tm) := forall ad, no_wref ad t.
 (* inversion --------------------------------------------------------------- *)
 
 Local Ltac solve_inv_nowrefs :=
-  unfold no_wrefs; intros; try split; intros; spec; invc_nowref; auto.
+  unfold no_wrefs; intros; repeat split; intros; spec; invc_nowref; auto.
 
 Local Lemma inv_nowrefs_seq : forall t1 t2,
   no_wrefs <{t1; t2}> -> no_wrefs t1 /\ no_wrefs t2.
+Proof. solve_inv_nowrefs. Qed.
+
+Local Lemma inv_nowrefs_if : forall t1 t2 t3,
+  no_wrefs (tm_if t1 t2 t3) -> no_wrefs t1 /\ no_wrefs t2 /\ no_wrefs t3.
 Proof. solve_inv_nowrefs. Qed.
 
 Local Lemma inv_nowrefs_fun : forall x Tx t,
@@ -144,23 +153,24 @@ Local Lemma inv_nowrefs_spawn : forall t,
 Proof. solve_inv_nowrefs. Qed.
 
 Ltac invc_nowrefs :=
-  match goal with
-  | H : no_wrefs <{unit        }> |- _ => clear H
-  | H : no_wrefs <{nat _       }> |- _ => clear H
-  | H : no_wrefs <{_; _        }> |- _ => eapply inv_nowrefs_seq   in H as [? ?]
-  | H : no_wrefs <{var _       }> |- _ => clear H
-  | H : no_wrefs <{fn _ _ _    }> |- _ => eapply inv_nowrefs_fun   in H
-  | H : no_wrefs <{call _ _    }> |- _ => eapply inv_nowrefs_call  in H as [? ?]
-  | H : no_wrefs <{& _ : w&_   }> |- _ => eapply inv_nowrefs_refW  in H; auto
-  | H : no_wrefs <{& _ : _     }> |- _ => clear H
-  | H : no_wrefs <{new _ : _   }> |- _ => eapply inv_nowrefs_new   in H
-  | H : no_wrefs <{init _ _ : _}> |- _ => eapply inv_nowrefs_init  in H
-  | H : no_wrefs <{* _         }> |- _ => eapply inv_nowrefs_load  in H
-  | H : no_wrefs <{_ := _      }> |- _ => eapply inv_nowrefs_asg   in H as [? ?]
-  | H : no_wrefs <{acq _ _ _   }> |- _ => eapply inv_nowrefs_acq   in H as [? ?]
-  | H : no_wrefs <{cr _ _      }> |- _ => eapply inv_nowrefs_cr    in H
-  | H : no_wrefs <{spawn _     }> |- _ => eapply inv_nowrefs_spawn in H
-  end.
+match goal with
+| H : no_wrefs <{unit        }> |- _ => clear H
+| H : no_wrefs <{nat _       }> |- _ => clear H
+| H : no_wrefs <{_; _        }> |- _ => eapply inv_nowrefs_seq in H as [? ?]
+| H : no_wrefs (tm_if _ _ _  )  |- _ => eapply inv_nowrefs_if  in H as [? [? ?]]
+| H : no_wrefs <{var _       }> |- _ => clear H
+| H : no_wrefs <{fn _ _ _    }> |- _ => eapply inv_nowrefs_fun   in H
+| H : no_wrefs <{call _ _    }> |- _ => eapply inv_nowrefs_call  in H as [? ?]
+| H : no_wrefs <{& _ : w&_   }> |- _ => eapply inv_nowrefs_refW  in H; auto
+| H : no_wrefs <{& _ : _     }> |- _ => clear H
+| H : no_wrefs <{new _ : _   }> |- _ => eapply inv_nowrefs_new   in H
+| H : no_wrefs <{init _ _ : _}> |- _ => eapply inv_nowrefs_init  in H
+| H : no_wrefs <{* _         }> |- _ => eapply inv_nowrefs_load  in H
+| H : no_wrefs <{_ := _      }> |- _ => eapply inv_nowrefs_asg   in H as [? ?]
+| H : no_wrefs <{acq _ _ _   }> |- _ => eapply inv_nowrefs_acq   in H as [? ?]
+| H : no_wrefs <{cr _ _      }> |- _ => eapply inv_nowrefs_cr    in H
+| H : no_wrefs <{spawn _     }> |- _ => eapply inv_nowrefs_spawn in H
+end.
 
 (* lemmas ------------------------------------------------------------------ *)
 

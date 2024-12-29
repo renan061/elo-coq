@@ -12,42 +12,46 @@ From Elo Require Import SafeTerm.
 (* ------------------------------------------------------------------------- *)
 
 Inductive consistent_regions (m : mem) (R : region) : tm -> Prop :=
-  | creg_unit  :                 consistent_regions m R <{unit           }>
-  | creg_nat   : forall n,       consistent_regions m R <{nat n          }>
-  | creg_seq   : forall t1 t2,   consistent_regions m R t1 ->
-                                 consistent_regions m R t2 ->
-                                 consistent_regions m R <{t1; t2         }>
-  | creg_var   : forall x,       consistent_regions m R <{var x          }>
-  | creg_fun   : forall x Tx t,  consistent_regions m R t  ->
-                                 consistent_regions m R <{fn x Tx t      }>
-  | creg_call  : forall t1 t2,   consistent_regions m R t1 ->
-                                 consistent_regions m R t2 ->
-                                 consistent_regions m R <{call t1 t2     }>
-  | creg_refR  : forall ad T,    consistent_regions m R <{&ad : r&T      }>
-  | creg_refX  : forall ad T,    consistent_regions m R <{&ad : x&T      }>
-  | creg_refW  : forall ad T,    R = m[ad].R               ->
-                                 consistent_regions m R <{&ad : w&T      }>
-  | creg_new   : forall t T,     consistent_regions m R t  ->
-                                 consistent_regions m R <{new t : T      }>
-  | creg_initR : forall ad t T,  consistent_regions m R t  ->
-                                 consistent_regions m R <{init ad t : r&T}>
-  | creg_initX : forall ad t T,  consistent_regions m (R_ad ad) t ->
-                                 consistent_regions m R <{init ad t : x&T}>
-  | creg_initW : forall ad t T,  R = m[ad].R               ->
-                                 consistent_regions m R t  ->
-                                 consistent_regions m R <{init ad t : w&T}>
-  | creg_load  : forall t,       consistent_regions m R t  ->
-                                 consistent_regions m R <{*t             }>
-  | creg_asg   : forall t1 t2,   consistent_regions m R t1 ->
-                                 consistent_regions m R t2 ->
-                                 consistent_regions m R <{t1 := t2       }>
-  | creg_acq   : forall t1 x t2, consistent_regions m R t1 ->
-                                 consistent_regions m R t2 ->
-                                 consistent_regions m R <{acq t1 x t2    }>
-  | creg_cr    : forall ad t,    consistent_regions m (R_ad ad) t ->
-                                 consistent_regions m R <{cr ad t        }>
-  | creg_spawn : forall t,       consistent_regions m R t  ->
-                                 consistent_regions m R <{spawn t        }>
+  | creg_unit  :                  consistent_regions m R <{unit           }>
+  | creg_nat   : forall n,        consistent_regions m R <{nat n          }>
+  | creg_seq   : forall t1 t2,    consistent_regions m R t1 ->
+                                  consistent_regions m R t2 ->
+                                  consistent_regions m R <{t1; t2         }>
+  | creg_if    : forall t1 t2 t3, consistent_regions m R t1 ->
+                                  consistent_regions m R t2 ->
+                                  consistent_regions m R t3 ->
+                                  consistent_regions m R (tm_if t1 t2 t3  )
+  | creg_var   : forall x,        consistent_regions m R <{var x          }>
+  | creg_fun   : forall x Tx t,   consistent_regions m R t  ->
+                                  consistent_regions m R <{fn x Tx t      }>
+  | creg_call  : forall t1 t2,    consistent_regions m R t1 ->
+                                  consistent_regions m R t2 ->
+                                  consistent_regions m R <{call t1 t2     }>
+  | creg_refR  : forall ad T,     consistent_regions m R <{&ad : r&T      }>
+  | creg_refX  : forall ad T,     consistent_regions m R <{&ad : x&T      }>
+  | creg_refW  : forall ad T,     R = m[ad].R               ->
+                                  consistent_regions m R <{&ad : w&T      }>
+  | creg_new   : forall t T,      consistent_regions m R t  ->
+                                  consistent_regions m R <{new t : T      }>
+  | creg_initR : forall ad t T,   consistent_regions m R t  ->
+                                  consistent_regions m R <{init ad t : r&T}>
+  | creg_initX : forall ad t T,   consistent_regions m (R_ad ad) t ->
+                                  consistent_regions m R <{init ad t : x&T}>
+  | creg_initW : forall ad t T,   R = m[ad].R               ->
+                                  consistent_regions m R t  ->
+                                  consistent_regions m R <{init ad t : w&T}>
+  | creg_load  : forall t,        consistent_regions m R t  ->
+                                  consistent_regions m R <{*t             }>
+  | creg_asg   : forall t1 t2,    consistent_regions m R t1 ->
+                                  consistent_regions m R t2 ->
+                                  consistent_regions m R <{t1 := t2       }>
+  | creg_acq   : forall t1 x t2,  consistent_regions m R t1 ->
+                                  consistent_regions m R t2 ->
+                                  consistent_regions m R <{acq t1 x t2    }>
+  | creg_cr    : forall ad t,     consistent_regions m (R_ad ad) t ->
+                                  consistent_regions m R <{cr ad t        }>
+  | creg_spawn : forall t,        consistent_regions m R t  ->
+                                  consistent_regions m R <{spawn t        }>
   .
 
 Definition forall_threads_consistent_regions (m : mem) (ths : threads) :=
@@ -64,20 +68,21 @@ Definition forall_memory_consistent_regions (m : mem) :=
 
 Local Ltac _creg tt :=
   match goal with
-  | H : consistent_regions _ _ <{unit        }> |- _ => clear H
-  | H : consistent_regions _ _ <{nat _       }> |- _ => clear H
-  | H : consistent_regions _ _ <{_; _        }> |- _ => tt H
-  | H : consistent_regions _ _ <{var _       }> |- _ => clear H
-  | H : consistent_regions _ _ <{fn _ _ _    }> |- _ => tt H
-  | H : consistent_regions _ _ <{call _ _    }> |- _ => tt H
-  | H : consistent_regions _ _ <{& _ : _     }> |- _ => tt H
-  | H : consistent_regions _ _ <{new _ : _   }> |- _ => tt H
-  | H : consistent_regions _ _ <{init _ _ : _}> |- _ => tt H
-  | H : consistent_regions _ _ <{* _         }> |- _ => tt H
-  | H : consistent_regions _ _ <{_ := _      }> |- _ => tt H
-  | H : consistent_regions _ _ <{acq _ _ _   }> |- _ => tt H
-  | H : consistent_regions _ _ <{cr _ _      }> |- _ => tt H
-  | H : consistent_regions _ _ <{spawn _     }> |- _ => tt H
+  | H : consistent_regions _ _ <{unit                  }> |- _ => clear H
+  | H : consistent_regions _ _ <{nat _                 }> |- _ => clear H
+  | H : consistent_regions _ _ <{_; _                  }> |- _ => tt H
+  | H : consistent_regions _ _ <{if _ then _ else _ end}> |- _ => tt H
+  | H : consistent_regions _ _ <{var _                 }> |- _ => clear H
+  | H : consistent_regions _ _ <{fn _ _ _              }> |- _ => tt H
+  | H : consistent_regions _ _ <{call _ _              }> |- _ => tt H
+  | H : consistent_regions _ _ <{& _ : _               }> |- _ => tt H
+  | H : consistent_regions _ _ <{new _ : _             }> |- _ => tt H
+  | H : consistent_regions _ _ <{init _ _ : _          }> |- _ => tt H
+  | H : consistent_regions _ _ <{* _                   }> |- _ => tt H
+  | H : consistent_regions _ _ <{_ := _                }> |- _ => tt H
+  | H : consistent_regions _ _ <{acq _ _ _             }> |- _ => tt H
+  | H : consistent_regions _ _ <{cr _ _                }> |- _ => tt H
+  | H : consistent_regions _ _ <{spawn _               }> |- _ => tt H
   end.
 
 Ltac inv_creg  := _creg inv.
@@ -93,7 +98,7 @@ Lemma creg_from_nowrefs_noinits : forall Gamma m R t T,
   consistent_regions m R t.
 Proof.
   intros. gendep R. gendep T. gendep Gamma.
-  induction t; intros; invc_typeof; invc_nowrefs; invc_noinits;
+  induction t; intros; invc_typeof; try invc_nowrefs; invc_noinits;
   eauto using consistent_regions.
 Qed.
 
@@ -158,53 +163,6 @@ Proof.
   eauto using creg_subst, consistent_regions.
 Qed.
 
-Local Lemma gcr_seq_t1 : forall t1 t2 R,
-  ~ value t1 ->
-  gcr <{t1; t2}> R = gcr t1 R.
-Proof.
-  intros * H. simpl. destruct t1; auto; exfalso; auto using value.
-Qed.
-
-Local Lemma gcr_call_t1 : forall t1 t2 R,
-  ~ value t1 ->
-  gcr <{call t1 t2}> R = gcr t1 R.
-Proof.
-  intros * H. simpl. destruct t1; auto; exfalso; auto using value.
-Qed.
-
-Local Lemma gcr_call_t2 : forall t1 t2 R,
-  value t1 ->
-  gcr <{call t1 t2}> R = gcr t2 R.
-Proof.
-  intros * H. simpl. destruct t1; auto; invc H.
-Qed.
-
-Local Lemma gcr_initR : forall ad t T R,
-  gcr <{init ad t : r&T}> R = gcr t R.
-Proof. trivial. Qed.
-
-Local Lemma gcr_initX : forall ad t T R,
-  gcr <{init ad t : x&T}> R = gcr t (R_ad ad).
-Proof. trivial. Qed.
-
-Local Lemma gcr_initW : forall ad t T R,
-  gcr <{init ad t : w&T}> R = gcr t R.
-Proof. trivial. Qed.
-
-Local Lemma gcr_asg_t1 : forall t1 t2 R,
-  ~ value t1 ->
-  gcr <{t1 := t2}> R = gcr t1 R.
-Proof.
-  intros * H. simpl. destruct t1; auto; exfalso; auto using value.
-Qed.
-
-Local Lemma gcr_asg_t2 : forall t1 t2 R,
-  value t1 ->
-  gcr <{t1 := t2}> R = gcr t2 R.
-Proof.
-  intros * H. simpl. destruct t1; auto; invc H.
-Qed.
-
 Local Lemma creg_preservation_alloc : forall m R t1 t2 T,
   well_typed_term t1 ->
   valid_term m t1 ->
@@ -218,12 +176,8 @@ Proof.
   ind_tstep; intros; invc_typeof; invc_vtm; invc_stm; invc_creg;
   try solve [constructor; sigma; try omicron;
              simpl; eauto using creg_from_nowrefs_noinits, creg_mem_add];
-  constructor; eauto using creg_mem_add.
-  - rewrite gcr_seq_t1; eauto. intros ?; value_does_not_step.
-  - rewrite gcr_call_t1; eauto. intros ?; value_does_not_step.
-  - rewrite gcr_call_t2; eauto.
-  - rewrite gcr_asg_t1;  eauto. intros ?; value_does_not_step.
-  - rewrite gcr_asg_t2;  eauto.
+  constructor; kappa; eauto using creg_mem_add;
+  value_does_not_step.
 Qed.
 
 Local Lemma creg_preservation_insert : forall m R t1 t2 ad t T,
@@ -335,7 +289,7 @@ Theorem creg_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
   forall_threads_consistent_regions m2 ths2.
 Proof.
   intros * ? [? ?] [? ?] [? ?] [? ?] ** tid'. nat_eq_dec tid' tid.
-  - invc_ostep; invc_cstep; try invc_mstep; sigma.
+  - invc_rstep; invc_cstep; try invc_mstep; sigma.
     + eauto using creg_preservation_none.
     + upsilon. eauto using creg_preservation_alloc.
     + eauto using creg_preservation_insert.
@@ -344,7 +298,7 @@ Proof.
     + eauto using creg_preservation_acq.
     + eauto using creg_preservation_rel.
     + eauto using creg_preservation_spawn.
-  - invc_ostep; invc_cstep; try invc_mstep; sigma; upsilon; trivial.
+  - invc_rstep; invc_cstep; try invc_mstep; sigma; upsilon; trivial.
     + eauto using creg_mem_add.
     + eauto using creg_mem_set.
     + eauto using creg_mem_set.
@@ -358,9 +312,9 @@ Theorem creg_preservation_base : forall t,
   no_inits        t ->
   no_crs          t ->
   well_typed_term t ->
-  forall_threads_consistent_regions base_m (base_t t).
+  forall_threads_consistent_regions nil (base t).
 Proof.
-  unfold base_t. intros * ? ? ? [T ?] tid. simpl.
+  unfold base. intros * ? ? ? [T ?] tid. simpl.
   destruct tid.
   - eauto using nowrefs_from_norefs, creg_from_nowrefs_noinits.
   - destruct tid; eauto using consistent_regions. 
@@ -519,7 +473,7 @@ Theorem mcreg_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
   forall_memory_consistent_regions  m2.
 Proof.
   intros * [? ?] [? ?] [? ?] ? ? Hmcreg ?.
-  invc_ostep; invc_cstep; try invc_mstep; auto.
+  invc_rstep; invc_cstep; try invc_mstep; auto.
   - sigma. upsilon. eauto using mcreg_preservation_alloc.
   - eauto using mcreg_preservation_insert.
   - eauto using mcreg_preservation_write.
@@ -528,7 +482,7 @@ Proof.
 Qed.
 
 Theorem mcreg_preservation_base :
-  forall_memory_consistent_regions base_m.
+  forall_memory_consistent_regions nil.
 Proof.
   intros ad ? H. invc H. destruct ad; upsilon; auto.
 Qed.

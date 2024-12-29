@@ -39,7 +39,7 @@ Theorem value_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
   m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
   forall_memory m2 value.
 Proof.
-  intros. invc_ostep; eauto using value_preservation_cstep.
+  intros. invc_rstep; eauto using value_preservation_cstep.
   match goal with _ : _ / _ ~~[_, _]~~> ?m / ?ths |- _ =>
     assert (forall_memory m value) by eauto using value_preservation_cstep
   end.

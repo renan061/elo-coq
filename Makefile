@@ -49,7 +49,7 @@ safety:
 	$(COQC) Multistep.v
 	$(COQC) MemoryRegions.v
 	$(COQC) GCR.v
-	$(COQC) InheritanceSafety.v
+	$(COQC) SafetyLemmas.v
 	$(COQC) Safety.v
 
 examples:

@@ -10,7 +10,7 @@ Theorem rstep_nondecreasing_memory_size : forall m1 m2 ths1 ths2 tid e ad,
   m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
   ad < #m2.
 Proof.
-  intros. invc_ostep; invc_cstep; try invc_mstep; trivial; sigma; lia.
+  intros. invc_rstep; invc_cstep; try invc_mstep; trivial; sigma; lia.
 Qed.
 
 Theorem ustep_nondecreasing_memory_size : forall m1 m2 ths1 ths2 tc ad,
@@ -67,7 +67,7 @@ Theorem ptyp_preservation_rstep : forall m1 m2 ths1 ths2 tid e ad,
   ad < #m1 ->
   m1[ad].T = m2[ad].T.
 Proof.
-  intros. invc_ostep; eauto using ptyp_preservation_cstep.
+  intros. invc_rstep; eauto using ptyp_preservation_cstep.
   repeat omicron; upsilon; eauto using ptyp_preservation_cstep.
   invc_cstep. invc_mstep. sigma. reflexivity.
 Qed.
@@ -120,7 +120,7 @@ Theorem mpt_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
   m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
   memory_pointer_types m2.
 Proof.
-  intros * [_ ?] **. invc_ostep; eauto using mpt_preservation_cstep.
+  intros * [_ ?] **. invc_rstep; eauto using mpt_preservation_cstep.
   match goal with _ : _ / _ ~~[_, _]~~> ?m / ?ths |- _ =>
     assert (memory_pointer_types m) by eauto using mpt_preservation_cstep
   end.
@@ -128,8 +128,8 @@ Proof.
 Qed.
 
 Theorem mpt_preservation_base :
-  memory_pointer_types base_m.
+  memory_pointer_types nil.
 Proof.
-  unfold base_m. intros ? H. destruct ad; invc H.
+  intros ? H. destruct ad; invc H.
 Qed.
 

@@ -3,12 +3,6 @@ From Elo Require Import Core.
 From Elo Require Import NoRef.
 From Elo Require Import ValidTerm.
 
-(* TODO:
-  Transformar em no_uninitialized_addresses e incluir no_cr. (???)
-
-  Criar NoAddress, que exclui refs e crs.
-*)
-
 (* ------------------------------------------------------------------------- *)
 (* no-uninitialized-references                                               *)
 (* ------------------------------------------------------------------------- *)
@@ -168,7 +162,7 @@ Theorem nur_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
   m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
   no_uninitialized_references m2 ths2.
 Proof.
-  intros. invc_ostep; eauto using nur_preservation_cstep.
+  intros. invc_rstep; eauto using nur_preservation_cstep.
   match goal with _ : _ / _ ~~[_, _]~~> ?m / ?ths |- _ =>
     assert (no_uninitialized_references m ths)
   end;
@@ -178,9 +172,9 @@ Qed.
 Theorem nur_preservation_base : forall t,
   no_refs t ->
   (* --- *)
-  no_uninitialized_references base_m (base_t t).
+  no_uninitialized_references nil (base t).
 Proof.
-  unfold base_m, base_t. repeat intro. split; repeat intro; upsilon.
+  unfold base. repeat intro. split; repeat intro; upsilon.
   omicron; auto using no_ref. 
 Qed.
 

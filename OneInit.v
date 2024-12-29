@@ -9,61 +9,66 @@ From Elo Require Import InheritanceNoInit.
 (* ------------------------------------------------------------------------- *)
 
 Inductive one_init (ad : addr) : tm -> Prop :=
-  | oneinit_seq1     : forall t1 t2,   one_init ad t1 ->
-                                       no_init  ad t2 ->
-                                       one_init ad <{t1; t2        }>
-  | oneinit_seq2     : forall t1 t2,   no_init  ad t1 ->
-                                       one_init ad t2 ->
-                                       one_init ad <{t1; t2        }>
-  | oneinit_call1    : forall t1 t2,   one_init ad t1 ->
-                                       no_init  ad t2 ->
-                                       one_init ad <{call t1 t2    }>
-  | oneinit_call2    : forall t1 t2,   no_init  ad t1 ->
-                                       one_init ad t2 ->
-                                       one_init ad <{call t1 t2    }>
-  | oneinit_new      : forall T t,     one_init ad t  ->
-                                       one_init ad <{new t : T     }>
-  | oneinit_init_eq  : forall t T,     no_init  ad t  ->
-                                       one_init ad <{init ad  t : T}>
-  | oneinit_init_neq : forall ad' t T, ad <> ad'      ->
-                                       one_init ad t  ->
-                                       one_init ad <{init ad' t : T}>
-  | oneinit_load     : forall t,       one_init ad t  ->
-                                       one_init ad <{*t            }>
-  | oneinit_asg1     : forall t1 t2,   one_init ad t1 ->
-                                       no_init  ad t2 ->
-                                       one_init ad <{t1 := t2      }>
-  | oneinit_asg2     : forall t1 t2,   no_init  ad t1 ->
-                                       one_init ad t2 ->
-                                       one_init ad <{t1 := t2      }>
-  | oneinit_acq1     : forall t1 x t2, one_init ad t1 ->
-                                       no_init  ad t2 ->
-                                       one_init ad <{acq t1 x t2   }>
-  | oneinit_acq2     : forall t1 x t2, no_init  ad t1 ->
-                                       one_init ad t2 ->
-                                       one_init ad <{acq t1 x t2   }>
-  | oneinit_cr       : forall ad' t,   one_init ad t  ->
-                                       one_init ad <{cr ad' t      }>
+  | oneinit_seq1   : forall t1 t2,    one_init ad t1 ->
+                                      no_init  ad t2 ->
+                                      one_init ad <{t1; t2                   }>
+  | oneinit_seq2   : forall t1 t2,    no_init  ad t1 ->
+                                      one_init ad t2 ->
+                                      one_init ad <{t1; t2                   }>
+  | oneinit_if     : forall t1 t2 t3, one_init ad t1 ->
+                                      no_init  ad t2 ->
+                                      no_init  ad t3 ->
+                                      one_init ad <{if t1 then t2 else t3 end}>
+  | oneinit_call1  : forall t1 t2,    one_init ad t1 ->
+                                      no_init  ad t2 ->
+                                      one_init ad <{call t1 t2               }>
+  | oneinit_call2  : forall t1 t2,    no_init  ad t1 ->
+                                      one_init ad t2 ->
+                                      one_init ad <{call t1 t2               }>
+  | oneinit_new    : forall T t,      one_init ad t  ->
+                                      one_init ad <{new t : T                }>
+  | oneinit_initA  : forall t T,      no_init  ad t  ->
+                                      one_init ad <{init ad  t : T           }>
+  | oneinit_initB  : forall ad' t T,  ad <> ad'      ->
+                                      one_init ad t  ->
+                                      one_init ad <{init ad' t : T           }>
+  | oneinit_load   : forall t,        one_init ad t  ->
+                                      one_init ad <{*t                       }>
+  | oneinit_asg1   : forall t1 t2,    one_init ad t1 ->
+                                      no_init  ad t2 ->
+                                      one_init ad <{t1 := t2                 }>
+  | oneinit_asg2   : forall t1 t2,    no_init  ad t1 ->
+                                      one_init ad t2 ->
+                                      one_init ad <{t1 := t2                 }>
+  | oneinit_acq1   : forall t1 x t2,  one_init ad t1 ->
+                                      no_init  ad t2 ->
+                                      one_init ad <{acq t1 x t2              }>
+  | oneinit_acq2   : forall t1 x t2,  no_init  ad t1 ->
+                                      one_init ad t2 ->
+                                      one_init ad <{acq t1 x t2              }>
+  | oneinit_cr     : forall ad' t,    one_init ad t  ->
+                                      one_init ad <{cr ad' t                 }>
   .
 
 (* inversion --------------------------------------------------------------- *)
 
 Local Ltac _oneinit tt :=
   match goal with
-  | H : one_init _ <{unit        }> |- _ => inv H
-  | H : one_init _ <{nat _       }> |- _ => inv H
-  | H : one_init _ <{_; _        }> |- _ => tt H
-  | H : one_init _ <{var _       }> |- _ => inv H
-  | H : one_init _ <{fn _ _ _    }> |- _ => inv H
-  | H : one_init _ <{call _ _    }> |- _ => tt H
-  | H : one_init _ <{&_ : _      }> |- _ => inv H
-  | H : one_init _ <{new _ : _   }> |- _ => tt H
-  | H : one_init _ <{init _ _ : _}> |- _ => tt H
-  | H : one_init _ <{* _         }> |- _ => tt H
-  | H : one_init _ <{_ := _      }> |- _ => tt H
-  | H : one_init _ <{acq _ _ _   }> |- _ => tt H
-  | H : one_init _ <{cr _ _      }> |- _ => tt H
-  | H : one_init _ <{spawn _     }> |- _ => inv H
+  | H : one_init _ <{unit                  }> |- _ => inv H
+  | H : one_init _ <{nat _                 }> |- _ => inv H
+  | H : one_init _ <{_; _                  }> |- _ => tt H
+  | H : one_init _ <{if _ then _ else _ end}> |- _ => tt H
+  | H : one_init _ <{var _                 }> |- _ => inv H
+  | H : one_init _ <{fn _ _ _              }> |- _ => inv H
+  | H : one_init _ <{call _ _              }> |- _ => tt H
+  | H : one_init _ <{&_ : _                }> |- _ => inv H
+  | H : one_init _ <{new _ : _             }> |- _ => tt H
+  | H : one_init _ <{init _ _ : _          }> |- _ => tt H
+  | H : one_init _ <{* _                   }> |- _ => tt H
+  | H : one_init _ <{_ := _                }> |- _ => tt H
+  | H : one_init _ <{acq _ _ _             }> |- _ => tt H
+  | H : one_init _ <{cr _ _                }> |- _ => tt H
+  | H : one_init _ <{spawn _               }> |- _ => inv H
   end.
 
 Ltac inv_oneinit  := _oneinit inv.

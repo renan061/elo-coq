@@ -265,7 +265,7 @@ Theorem ucr_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
   m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
   unique_critical_regions m2 ths2.
 Proof.
-  intros. invc_ostep; eauto using ucr_preservation_cstep.
+  intros. invc_rstep; eauto using ucr_preservation_cstep.
   match goal with _ : _ / _ ~~[_, _]~~> ?m / ?ths |- _ =>
     assert (unique_critical_regions m ths)
   end;
@@ -275,9 +275,9 @@ Qed.
 Theorem ucr_preservation_base : forall t,
   no_crs t ->
   (* --- *)
-  unique_critical_regions base_m (base_t t).
+  unique_critical_regions nil (base t).
 Proof.
-  unfold base_m, base_t. intros ** ?. split; intros Hnil.
+  unfold base. intros ** ?. split; intros Hnil.
   - intro. omicron; auto using no_cr.
   - simpl in Hnil. destruct ad; upsilon; auto.
 Qed.

@@ -9,61 +9,66 @@ From Elo Require Import InheritanceNoCR.
 (* ------------------------------------------------------------------------- *)
 
 Inductive one_cr (ad : addr) : tm -> Prop :=
-  | onecr_seq1   : forall t1 t2,   one_cr ad t1 ->
-                                   no_cr  ad t2 ->
-                                   one_cr ad <{t1; t2        }>
-  | onecr_seq2   : forall t1 t2,   no_cr  ad t1 ->
-                                   one_cr ad t2 ->
-                                   one_cr ad <{t1; t2        }>
-  | onecr_call1  : forall t1 t2,   one_cr ad t1 ->
-                                   no_cr  ad t2 ->
-                                   one_cr ad <{call t1 t2    }>
-  | onecr_call2  : forall t1 t2,   no_cr  ad t1 ->
-                                   one_cr ad t2 ->
-                                   one_cr ad <{call t1 t2    }>
-  | onecr_new    : forall t T,     one_cr ad t  ->
-                                   one_cr ad <{new t : T     }>
-  | onecr_init   : forall ad' t T, one_cr ad t  ->
-                                   one_cr ad <{init ad' t : T}>
-  | onecr_load   : forall t,       one_cr ad t  ->
-                                   one_cr ad <{*t            }>
-  | onecr_asg1   : forall t1 t2,   one_cr ad t1 ->
-                                   no_cr  ad t2 ->
-                                   one_cr ad <{t1 := t2      }>
-  | onecr_asg2   : forall t1 t2,   no_cr  ad t1 ->
-                                   one_cr ad t2 ->
-                                   one_cr ad <{t1 := t2      }>
-  | onecr_acq1   : forall t1 x t2, one_cr ad t1 ->
-                                   no_cr  ad t2 ->
-                                   one_cr ad <{acq t1 x t2   }>
-  | onecr_acq2   : forall t1 x t2, no_cr  ad t1 ->
-                                   one_cr ad t2 ->
-                                   one_cr ad <{acq t1 x t2   }>
-  | onecr_cr_eq  : forall t,       no_cr  ad t  ->
-                                   one_cr ad <{cr ad t       }>
-  | onecr_cr_neq : forall ad' t,   ad <> ad'    ->
-                                   one_cr ad t  ->
-                                   one_cr ad <{cr ad' t      }>
+  | onecr_seq1   : forall t1 t2,    one_cr ad t1 ->
+                                    no_cr  ad t2 ->
+                                    one_cr ad <{t1; t2                   }>
+  | onecr_seq2   : forall t1 t2,    no_cr  ad t1 ->
+                                    one_cr ad t2 ->
+                                    one_cr ad <{t1; t2                   }>
+  | onecr_if     : forall t1 t2 t3, one_cr ad t1 ->
+                                    no_cr  ad t2 ->
+                                    no_cr  ad t3 ->
+                                    one_cr ad <{if t1 then t2 else t3 end}>
+  | onecr_call1  : forall t1 t2,    one_cr ad t1 ->
+                                    no_cr  ad t2 ->
+                                    one_cr ad <{call t1 t2               }>
+  | onecr_call2  : forall t1 t2,    no_cr  ad t1 ->
+                                    one_cr ad t2 ->
+                                    one_cr ad <{call t1 t2               }>
+  | onecr_new    : forall t T,      one_cr ad t  ->
+                                    one_cr ad <{new t : T                }>
+  | onecr_init   : forall ad' t T,  one_cr ad t  ->
+                                    one_cr ad <{init ad' t : T           }>
+  | onecr_load   : forall t,        one_cr ad t  ->
+                                    one_cr ad <{*t                       }>
+  | onecr_asg1   : forall t1 t2,    one_cr ad t1 ->
+                                    no_cr  ad t2 ->
+                                    one_cr ad <{t1 := t2                 }>
+  | onecr_asg2   : forall t1 t2,    no_cr  ad t1 ->
+                                    one_cr ad t2 ->
+                                    one_cr ad <{t1 := t2                 }>
+  | onecr_acq1   : forall t1 x t2,  one_cr ad t1 ->
+                                    no_cr  ad t2 ->
+                                    one_cr ad <{acq t1 x t2              }>
+  | onecr_acq2   : forall t1 x t2,  no_cr  ad t1 ->
+                                    one_cr ad t2 ->
+                                    one_cr ad <{acq t1 x t2              }>
+  | onecr_cr_eq  : forall t,        no_cr  ad t  ->
+                                    one_cr ad <{cr ad t                  }>
+  | onecr_cr_neq : forall ad' t,    ad <> ad'    ->
+                                    one_cr ad t  ->
+                                    one_cr ad <{cr ad' t                 }>
   .
 
 (* inversion --------------------------------------------------------------- *)
 
 Local Ltac _onecr tt :=
   match goal with
-  | H : one_cr _ <{unit        }> |- _ => inv H
-  | H : one_cr _ <{nat _       }> |- _ => inv H
-  | H : one_cr _ <{_; _        }> |- _ => tt H
-  | H : one_cr _ <{var _       }> |- _ => inv H
-  | H : one_cr _ <{fn _ _ _    }> |- _ => inv H
-  | H : one_cr _ <{call _ _    }> |- _ => tt H
-  | H : one_cr _ <{&_ : _      }> |- _ => inv H
-  | H : one_cr _ <{new _ : _   }> |- _ => tt H
-  | H : one_cr _ <{init _ _ : _}> |- _ => tt H
-  | H : one_cr _ <{* _         }> |- _ => tt H
-  | H : one_cr _ <{_ := _      }> |- _ => tt H
-  | H : one_cr _ <{acq _ _ _   }> |- _ => tt H
-  | H : one_cr _ <{cr _ _      }> |- _ => tt H
-  | H : one_cr _ <{spawn _     }> |- _ => inv H
+  | H : one_cr _ <{unit                  }> |- _ => inv H
+  | H : one_cr _ <{nat _                 }> |- _ => inv H
+  | H : one_cr _ <{_; _                  }> |- _ => tt H
+  | H : one_cr _ <{if _ then _ else _ end}> |- _ => tt H
+  | H : one_cr _ <{var _                 }> |- _ => inv H
+  | H : one_cr _ <{fn _ _ _              }> |- _ => inv H
+  | H : one_cr _ <{call _ _              }> |- _ => tt H
+  | H : one_cr _ <{&_ : _                }> |- _ => inv H
+  | H : one_cr _ <{new _ : _             }> |- _ => tt H
+  | H : one_cr _ <{init _ _ : _          }> |- _ => tt H
+  | H : one_cr _ <{* _                   }> |- _ => tt H
+  | H : one_cr _ <{_ := _                }> |- _ => tt H
+  | H : one_cr _ <{acq _ _ _             }> |- _ => tt H
+  | H : one_cr _ <{cr _ _                }> |- _ => tt H
+  | H : one_cr _ <{spawn _               }> |- _ => inv H
   end.
 
 Ltac inv_onecr  := _onecr inv.

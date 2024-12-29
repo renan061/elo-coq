@@ -8,7 +8,7 @@ From Elo Require Import TypeProperties.
 From Elo Require Import Multistep.
 From Elo Require Import MemoryRegions.
 From Elo Require Import GCR.
-From Elo Require Import InheritanceSafety.
+From Elo Require Import SafetyLemmas.
 
 Local Lemma in_app_head : forall {A} (l : list A) (a : A),
   In a (l ++ a :: nil).
@@ -42,7 +42,7 @@ Corollary rstep_ptyp_for_write : forall m1 m2 ths1 ths2 tid ad' t',
   m1 / ths1 ~~~[tid, e_write ad' t']~~> m2 / ths2 ->
   exists T, m1[ad'].T = `w&T`.
 Proof.
-  intros. destruct_invariants. invc_ostep. invc_cstep. invc_mstep.
+  intros. destruct_invariants. invc_rstep. invc_cstep. invc_mstep.
   eauto using  ptyp_for_write. 
 Qed.
 
@@ -255,7 +255,7 @@ Proof.
   intros * ? ? ? H.
   eapply destruct_ustep' in H. decompose record H.
   repeat eexists; eauto.
-  invc_ostep. invc_cstep. invc_mstep. eauto.
+  invc_rstep. invc_cstep. invc_mstep. eauto.
 Qed.
 
 Local Lemma oneinit_multistep_initialized_requires_insert :
@@ -429,7 +429,7 @@ Proof.
   intros * ? ? ? H.
   eapply destruct_ustep' in H. decompose record H.
   repeat eexists; eauto.
-  invc_ostep. invc_cstep. invc_mstep. assumption.
+  invc_rstep. invc_cstep. invc_mstep. assumption.
 Qed.
 
 Local Lemma onecr_multistep_unlocked_requires_rel :
@@ -493,7 +493,7 @@ Qed.
 (* ------------------------------------------------------------------------- *)
 
 Local Ltac _preservation L :=
-  repeat (invc_ostep; invc_cstep; invc_mstep); sigma;
+  repeat (invc_rstep; invc_cstep; invc_mstep); sigma;
   destruct_invariants; eauto using L.
 
 Theorem happens_before_from_gcrW :
@@ -562,7 +562,7 @@ Proof.
   assert (forall_memory mA value) by eauto with inva.
   assert (forall_memory mA (valid_term mA)) by eauto with inva.
   assert (no_inits t' /\ no_crs t') as [? ?]. {
-    invc_ostep; invc_cstep; invc_mstep;
+    invc_rstep; invc_cstep; invc_mstep;
     split; eauto using noinits_from_value, nocrs_from_value.
   }
   assert (forall_threads thsA term_init_cr_exc) by eauto using des_inva_tice.
@@ -609,7 +609,7 @@ Proof.
   assert (invariants mB thsB) by eauto using invariants_preservation_ustep.
   assert (invariants m2 ths2) by eauto using invariants_preservation_rstep.
 
-  assert (ad < #m1) by (repeat (invc_ostep; invc_cstep; invc_mstep); trivial).
+  assert (ad < #m1) by (repeat (invc_rstep; invc_cstep; invc_mstep); trivial).
 
   assert (exists T, m1[ad].T = `w&T`)
     as [T Hptyp1]
@@ -650,7 +650,7 @@ Proof.
   assert (invariants mB thsB) by eauto using invariants_preservation_ustep.
   assert (invariants m2 ths2) by eauto using invariants_preservation_rstep.
 
-  assert (ad < #m1) by (repeat (invc_ostep; invc_cstep; invc_mstep); trivial).
+  assert (ad < #m1) by (repeat (invc_rstep; invc_cstep; invc_mstep); trivial).
 
   assert (exists T, m1[ad].T = `w&T`)
     as [T Hptyp1]
@@ -691,7 +691,7 @@ Proof.
   assert (invariants mB thsB) by eauto using invariants_preservation_ustep.
   assert (invariants m2 ths2) by eauto using invariants_preservation_rstep.
 
-  assert (ad < #m1) by (repeat (invc_ostep; invc_cstep; invc_mstep); trivial).
+  assert (ad < #m1) by (repeat (invc_rstep; invc_cstep; invc_mstep); trivial).
 
   assert (exists T, mB[ad].T = `w&T`)
     as [T HptypB]

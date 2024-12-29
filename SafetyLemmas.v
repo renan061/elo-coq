@@ -5,8 +5,6 @@ From Elo Require Import TypeProperties.
 
 From Elo Require Import Multistep.
 
-(* TODO : rename this file *)
-
 #[local] Hint Extern 8 =>
   match goal with
   (* _ <> e_rel _ *)
@@ -51,7 +49,7 @@ Proof.
   assert (Hucr : unique_critical_regions m2 ths2) by eauto with inva.
   assert (forall_threads ths1 term_init_cr_exc) by eauto with inva.
   assert (H' : forall_threads ths2 term_init_cr_exc) by eauto with inva.
-  invc_ostep; invc_cstep; try invc_mstep.
+  invc_rstep; invc_cstep; try invc_mstep.
   - exists <{unit}>. left. split. 1: intros F; invc F.
     omicron; eauto using onecr_inheritance_none.
   - exists <{unit}>. left. split. 1: intros F; invc F.
@@ -97,7 +95,7 @@ Lemma initialized_preservation_rstep : forall m1 m2 ths1 ths2 tid e ad t,
 Proof.
   intros.
   assert (ad < #m1) by (lt_eq_gt ad (#m1); sigma; upsilon; eauto).
-  invc_ostep; invc_cstep; try invc_mstep; sigma; eauto;
+  invc_rstep; invc_cstep; try invc_mstep; sigma; eauto;
   omicron; upsilon; eauto.
 Qed.
 
@@ -131,7 +129,7 @@ Proof.
   assert (forall_threads ths1 (valid_term m1)) by eauto with inva.
   assert (forall_threads ths1 (consistent_term m1)) by eauto with inva.
   assert (unique_initializers m1 ths1) by eauto with inva.
-  invc_ostep; invc_cstep; try invc_mstep.
+  invc_rstep; invc_cstep; try invc_mstep.
   - left. intros. split; auto.
     omicron; eauto using oneinit_preservation_none.
   - left. split; try omicron; auto.
@@ -204,7 +202,7 @@ Proof.
   assert (forall_memory m1 (valid_term m1)) by eauto with inva.
   assert (forall_threads ths1 (valid_term m1)) by eauto with inva.
   assert (unique_critical_regions m1 ths1) by eauto with inva.
-  invc_ostep; invc_cstep; try invc_mstep.
+  invc_rstep; invc_cstep; try invc_mstep.
   - left. split; auto.
     omicron; eauto using onecr_preservation_none.
   - left. split; auto.

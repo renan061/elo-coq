@@ -70,7 +70,7 @@ Corollary rstep_gcr_read : forall m1 m2 ths1 ths2 tid ad' t' T',
   gcr ths1[tid] (R_tid tid) = m1[ad'].R.
 Proof.
   intros * ? Hcreg **. specialize (Hcreg tid).
-  invc_ostep. invc_cstep. invc_mstep. eauto using gcr_read.
+  invc_rstep. invc_cstep. invc_mstep. eauto using gcr_read.
 Qed.
 
 Corollary rstep_gcr_write : forall m1 m2 ths1 ths2 tid ad' t',
@@ -82,7 +82,7 @@ Corollary rstep_gcr_write : forall m1 m2 ths1 ths2 tid ad' t',
   gcr ths1[tid] (R_tid tid) = m1[ad'].R.
 Proof.
   intros * ? ? Hcreg **. specialize (Hcreg tid).
-  invc_ostep. invc_cstep. invc_mstep. eauto using gcr_write.
+  invc_rstep. invc_cstep. invc_mstep. eauto using gcr_write.
 Qed.
 
 (* ------------------------------------------------------------------------- *)

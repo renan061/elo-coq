@@ -10,12 +10,17 @@ Definition well_typed_term (t : tm) :=
 (* inversion --------------------------------------------------------------- *)
 
 Local Ltac solve_wtt_inversion := 
-  intros * [? ?]; try split;
+  intros * [? ?]; repeat split;
   inv_typeof; try discriminate; eauto; eexists; eauto.
 
 Local Lemma inv_wtt_seq : forall t1 t2,
   well_typed_term <{t1; t2}> ->
   well_typed_term t1 /\ well_typed_term t2.
+Proof. solve_wtt_inversion. Qed.
+
+Local Lemma inv_wtt_if : forall t1 t2 t3,
+  well_typed_term <{if t1 then t2 else t3 end}> ->
+  well_typed_term t1 /\ well_typed_term t2 /\ well_typed_term t3.
 Proof. solve_wtt_inversion. Qed.
 
 Local Lemma inv_wtt_var : forall x,
@@ -83,6 +88,7 @@ Ltac invc_wtt :=
   | H : wtt <{unit        }> |- _ => clear H
   | H : wtt <{nat _       }> |- _ => clear H
   | H : wtt <{_; _        }> |- _ => eapply inv_wtt_seq   in H as [? ?]
+  | H : wtt (tm_if _ _ _  )  |- _ => eapply inv_wtt_if    in H as [? [? ?]]
   | H : wtt <{var _       }> |- _ => eapply inv_wtt_var   in H; contradiction
   | H : wtt <{fn _ _ _    }> |- _ => eapply inv_wtt_fun   in H as [? ?]
   | H : wtt <{call _ _    }> |- _ => eapply inv_wtt_call  in H as [? ?]
