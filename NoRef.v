@@ -14,6 +14,9 @@ Inductive no_ref (ad : addr) : tm -> Prop :=
                                    no_ref ad t2 ->
                                    no_ref ad t3 ->
                                    no_ref ad <{if t1 then t2 else t3 end}>
+  | noref_while : forall t1 t2,    no_ref ad t1 ->
+                                   no_ref ad t2 ->
+                                   no_ref ad <{while t1 do t2 end       }>
   | noref_var   : forall x,        no_ref ad <{var x                    }>
   | noref_fun   : forall x Tx t,   no_ref ad t  ->
                                    no_ref ad <{fn x Tx t                }>
@@ -48,6 +51,7 @@ Local Ltac _noref tt :=
   | H : no_ref _   <{nat _                 }> |- _ => clear H
   | H : no_ref _   <{_; _                  }> |- _ => tt H
   | H : no_ref _   <{if _ then _ else _ end}> |- _ => tt H
+  | H : no_ref _   <{while _ do _ end      }> |- _ => tt H
   | H : no_ref _   <{var _                 }> |- _ => clear H
   | H : no_ref _   <{fn _ _ _              }> |- _ => tt H
   | H : no_ref _   <{call _ _              }> |- _ => tt H
@@ -193,6 +197,10 @@ Local Lemma inv_norefs_if : forall t1 t2 t3,
   no_refs (tm_if t1 t2 t3) -> no_refs t1 /\ no_refs t2 /\ no_refs t3.
 Proof. solve_inv_norefs. Qed.
 
+Local Lemma inv_norefs_while : forall t1 t2,
+  no_refs <{while t1 do t2 end}> -> no_refs t1 /\ no_refs t2.
+Proof. solve_inv_norefs. Qed.
+
 Local Lemma inv_norefs_fun : forall x Tx t,
   no_refs <{fn x Tx t}> -> no_refs t.
 Proof. solve_inv_norefs. Qed.
@@ -239,6 +247,7 @@ Ltac invc_norefs :=
   | H : no_refs <{nat _       }> |- _ => clear H
   | H : no_refs <{_; _        }> |- _ => eapply inv_norefs_seq in H as [? ?]
   | H : no_refs (tm_if _ _ _  )  |- _ => eapply inv_norefs_if  in H as [? [? ?]]
+  | H : no_refs (tm_while _ _ )  |- _ => eapply inv_norefs_while in H as [? ?]
   | H : no_refs <{var _       }> |- _ => clear H
   | H : no_refs <{fn _ _ _    }> |- _ => eapply inv_norefs_fun   in H
   | H : no_refs <{call _ _    }> |- _ => eapply inv_norefs_call  in H as [? ?]

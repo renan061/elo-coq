@@ -14,6 +14,9 @@ Inductive no_init (ad : addr) : tm -> Prop :=
                                     no_init ad t2 ->
                                     no_init ad t3 ->
                                     no_init ad <{if t1 then t2 else t3 end}>
+  | noinit_while : forall t1 t2,    no_init ad t1 ->
+                                    no_init ad t2 ->
+                                    no_init ad <{while t1 do t2 end       }>
   | noinit_var   : forall x,        no_init ad <{var x                    }>
   | noinit_fun   : forall x Tx t,   no_init ad t  ->
                                     no_init ad <{fn x Tx t                }>
@@ -44,22 +47,23 @@ Inductive no_init (ad : addr) : tm -> Prop :=
 
 Local Ltac _noinit tt :=
   match goal with
-  | H : no_init _   <{unit          }> |- _ => clear H
-  | H : no_init _   <{nat _         }> |- _ => clear H
-  | H : no_init _   <{_; _          }> |- _ => tt H
-  | H : no_init _   (tm_if _ _ _    )  |- _ => tt H
-  | H : no_init _   <{var _         }> |- _ => clear H
-  | H : no_init _   <{fn _ _ _      }> |- _ => tt H
-  | H : no_init _   <{call _ _      }> |- _ => tt H
-  | H : no_init _   <{&_ : _        }> |- _ => clear H
-  | H : no_init _   <{new _ : _     }> |- _ => tt H
-  | H : no_init ?ad <{init ?ad _ : _}> |- _ => invc H; auto
-  | H : no_init _   <{init _ _ : _  }> |- _ => tt H
-  | H : no_init _   <{* _           }> |- _ => tt H
-  | H : no_init _   <{_ := _        }> |- _ => tt H
-  | H : no_init _   <{acq _ _ _     }> |- _ => tt H
-  | H : no_init _   <{cr _ _        }> |- _ => tt H
-  | H : no_init _   <{spawn _       }> |- _ => tt H
+  | H : no_init _   <{unit                  }> |- _ => clear H
+  | H : no_init _   <{nat _                 }> |- _ => clear H
+  | H : no_init _   <{_; _                  }> |- _ => tt H
+  | H : no_init _   <{if _ then _ else _ end}> |- _ => tt H
+  | H : no_init _   <{while _ do _ end      }> |- _ => tt H
+  | H : no_init _   <{var _                 }> |- _ => clear H
+  | H : no_init _   <{fn _ _ _              }> |- _ => tt H
+  | H : no_init _   <{call _ _              }> |- _ => tt H
+  | H : no_init _   <{&_ : _                }> |- _ => clear H
+  | H : no_init _   <{new _ : _             }> |- _ => tt H
+  | H : no_init ?ad <{init ?ad _ : _        }> |- _ => invc H; auto
+  | H : no_init _   <{init _ _ : _          }> |- _ => tt H
+  | H : no_init _   <{* _                   }> |- _ => tt H
+  | H : no_init _   <{_ := _                }> |- _ => tt H
+  | H : no_init _   <{acq _ _ _             }> |- _ => tt H
+  | H : no_init _   <{cr _ _                }> |- _ => tt H
+  | H : no_init _   <{spawn _               }> |- _ => tt H
   end.
 
 Ltac inv_noinit  := _noinit inv.
@@ -201,6 +205,10 @@ Local Lemma inv_noinits_if : forall t1 t2 t3,
   no_inits (tm_if t1 t2 t3) -> no_inits t1 /\ no_inits t2 /\ no_inits t3.
 Proof. solve_inv_noinits. Qed.
 
+Local Lemma inv_noinits_while : forall t1 t2,
+  no_inits <{while t1 do t2 end}> -> no_inits t1 /\ no_inits t2.
+Proof. solve_inv_noinits. Qed.
+
 Local Lemma inv_noinits_fun : forall x Tx t,
   no_inits <{fn x Tx t}> -> no_inits t.
 Proof. solve_inv_noinits. Qed.
@@ -243,6 +251,7 @@ match goal with
 | H : no_inits <{nat _       }> |- _ => clear H
 | H : no_inits <{_; _        }> |- _ => eapply inv_noinits_seq in H as [? ?]
 | H : no_inits (tm_if _ _ _  )  |- _ => eapply inv_noinits_if  in H as [? [? ?]]
+| H : no_inits (tm_while _ _ )  |- _ => eapply inv_noinits_while in H as [? ?]
 | H : no_inits <{var _       }> |- _ => clear H
 | H : no_inits <{fn _ _ _    }> |- _ => eapply inv_noinits_fun   in H
 | H : no_inits <{call _ _    }> |- _ => eapply inv_noinits_call  in H as [? ?]

@@ -22,6 +22,11 @@ Local Lemma inv_wtt_if : forall t1 t2 t3,
   well_typed_term <{if t1 then t2 else t3 end}> ->
   well_typed_term t1 /\ well_typed_term t2 /\ well_typed_term t3.
 Proof. solve_wtt_inversion. Qed.
+ 
+Local Lemma inv_wtt_while : forall t1 t2,
+  well_typed_term <{while t1 do t2 end}> ->
+  well_typed_term t1 /\ well_typed_term t2.
+Proof. solve_wtt_inversion. Qed.
 
 Local Lemma inv_wtt_var : forall x,
   well_typed_term <{var x}> ->
@@ -89,6 +94,7 @@ Ltac invc_wtt :=
   | H : wtt <{nat _       }> |- _ => clear H
   | H : wtt <{_; _        }> |- _ => eapply inv_wtt_seq   in H as [? ?]
   | H : wtt (tm_if _ _ _  )  |- _ => eapply inv_wtt_if    in H as [? [? ?]]
+  | H : wtt (tm_while _ _ )  |- _ => eapply inv_wtt_while in H as [? ?]
   | H : wtt <{var _       }> |- _ => eapply inv_wtt_var   in H; contradiction
   | H : wtt <{fn _ _ _    }> |- _ => eapply inv_wtt_fun   in H as [? ?]
   | H : wtt <{call _ _    }> |- _ => eapply inv_wtt_call  in H as [? ?]

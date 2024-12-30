@@ -17,6 +17,9 @@ Inductive no_wref (ad : addr) : tm -> Prop :=
                                     no_wref ad t2 ->
                                     no_wref ad t3 ->
                                     no_wref ad <{if t1 then t2 else t3 end}>
+  | nowref_while : forall t1 t2,    no_wref ad t1 ->
+                                    no_wref ad t2 ->
+                                    no_wref ad <{while t1 do t2 end       }>
   | nowref_var   : forall x,        no_wref ad <{var x                    }>
   | nowref_fun   : forall x Tx t,   no_wref ad t  ->
                                     no_wref ad <{fn x Tx t                }>
@@ -53,6 +56,7 @@ Local Ltac _nowref tt :=
   | H : no_wref _   <{nat _                 }> |- _ => clear H
   | H : no_wref _   <{_; _                  }> |- _ => tt H
   | H : no_wref _   <{if _ then _ else _ end}> |- _ => tt H
+  | H : no_wref _   <{while _ do _ end      }> |- _ => tt H
   | H : no_wref _   <{var _                 }> |- _ => clear H
   | H : no_wref _   <{fn _ _ _              }> |- _ => tt H
   | H : no_wref _   <{call _ _              }> |- _ => tt H
@@ -112,6 +116,10 @@ Local Lemma inv_nowrefs_if : forall t1 t2 t3,
   no_wrefs (tm_if t1 t2 t3) -> no_wrefs t1 /\ no_wrefs t2 /\ no_wrefs t3.
 Proof. solve_inv_nowrefs. Qed.
 
+Local Lemma inv_nowrefs_while : forall t1 t2,
+  no_wrefs <{while t1 do t2 end}> -> no_wrefs t1 /\ no_wrefs t2.
+Proof. solve_inv_nowrefs. Qed.
+
 Local Lemma inv_nowrefs_fun : forall x Tx t,
   no_wrefs <{fn x Tx t}> -> no_wrefs t.
 Proof. solve_inv_nowrefs. Qed.
@@ -158,6 +166,7 @@ match goal with
 | H : no_wrefs <{nat _       }> |- _ => clear H
 | H : no_wrefs <{_; _        }> |- _ => eapply inv_nowrefs_seq in H as [? ?]
 | H : no_wrefs (tm_if _ _ _  )  |- _ => eapply inv_nowrefs_if  in H as [? [? ?]]
+| H : no_wrefs (tm_while _ _ )  |- _ => eapply inv_nowrefs_while in H as [? ?]
 | H : no_wrefs <{var _       }> |- _ => clear H
 | H : no_wrefs <{fn _ _ _    }> |- _ => eapply inv_nowrefs_fun   in H
 | H : no_wrefs <{call _ _    }> |- _ => eapply inv_nowrefs_call  in H as [? ?]

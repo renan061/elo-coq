@@ -58,6 +58,7 @@ Local Ltac _onecr tt :=
   | H : one_cr _ <{nat _                 }> |- _ => inv H
   | H : one_cr _ <{_; _                  }> |- _ => tt H
   | H : one_cr _ <{if _ then _ else _ end}> |- _ => tt H
+  | H : one_cr _ <{while _ do _ end      }> |- _ => tt H
   | H : one_cr _ <{var _                 }> |- _ => inv H
   | H : one_cr _ <{fn _ _ _              }> |- _ => inv H
   | H : one_cr _ <{call _ _              }> |- _ => tt H

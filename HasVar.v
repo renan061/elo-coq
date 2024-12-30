@@ -5,43 +5,47 @@ From Elo Require Import Core.
 (* ------------------------------------------------------------------------- *)
 
 Inductive has_var (x : id) : tm  -> Prop :=
-  | hasvar_seq1  : forall t1 t2,    has_var x t1 ->
-                                    has_var x <{t1; t2                   }>
-  | hasvar_seq2  : forall t1 t2,    has_var x t2 ->
-                                    has_var x <{t1; t2                   }>
-  | hasvar_if1   : forall t1 t2 t3, has_var x t1 ->
-                                    has_var x <{if t1 then t2 else t3 end}>
-  | hasvar_if2   : forall t1 t2 t3, has_var x t2 ->
-                                    has_var x <{if t1 then t2 else t3 end}>
-  | hasvar_if3   : forall t1 t2 t3, has_var x t3 ->
-                                    has_var x <{if t1 then t2 else t3 end}>
-  | hasvar_var   :                  has_var x <{var x                    }>
-  | hasvar_fun   : forall x' Tx t,  x <> x'      ->
-                                    has_var x t  ->
-                                    has_var x <{fn x' Tx t               }>
-  | hasvar_call1 : forall t1 t2,    has_var x t1 ->
-                                    has_var x <{call t1 t2               }>
-  | hasvar_call2 : forall t1 t2,    has_var x t2 ->
-                                    has_var x <{call t1 t2               }>
-  | hasvar_new   : forall t T,      has_var x t  ->
-                                    has_var x <{new t : T                }>
-  | hasvar_init  : forall ad t T,   has_var x t  ->
-                                    has_var x <{init ad t : T            }>
-  | hasvar_load  : forall t,        has_var x t  ->
-                                    has_var x <{*t                       }>
-  | hasvar_asg1  : forall t1 t2,    has_var x t1 ->
-                                    has_var x <{t1 := t2                 }>
-  | hasvar_asg2  : forall t1 t2,    has_var x t2 ->
-                                    has_var x <{t1 := t2                 }>
-  | hasvar_acq1  : forall t1 x' t2, has_var x t1 ->
-                                    has_var x <{acq t1 x' t2             }>
-  | hasvar_acq2  : forall t1 x' t2, x <> x'      ->
-                                    has_var x t2 ->
-                                    has_var x <{acq t1 x' t2             }>
-  | hasvar_cr    : forall ad t,     has_var x t  ->
-                                    has_var x <{cr ad t                  }>
-  | hasvar_spawn : forall t,        has_var x t  ->
-                                    has_var x <{spawn t                  }>
+  | hasvar_seq1   : forall t1 t2,    has_var x t1 ->
+                                     has_var x <{t1; t2                   }>
+  | hasvar_seq2   : forall t1 t2,    has_var x t2 ->
+                                     has_var x <{t1; t2                   }>
+  | hasvar_if1    : forall t1 t2 t3, has_var x t1 ->
+                                     has_var x <{if t1 then t2 else t3 end}>
+  | hasvar_if2    : forall t1 t2 t3, has_var x t2 ->
+                                     has_var x <{if t1 then t2 else t3 end}>
+  | hasvar_if3    : forall t1 t2 t3, has_var x t3 ->
+                                     has_var x <{if t1 then t2 else t3 end}>
+  | hasvar_while1 : forall t1 t2,    has_var x t1 ->
+                                     has_var x <{while t1 do t2 end       }>
+  | hasvar_while2 : forall t1 t2,    has_var x t2 ->
+                                     has_var x <{while t1 do t2 end       }>
+  | hasvar_var    :                  has_var x <{var x                    }>
+  | hasvar_fun    : forall x' Tx t,  x <> x'      ->
+                                     has_var x t  ->
+                                     has_var x <{fn x' Tx t               }>
+  | hasvar_call1  : forall t1 t2,    has_var x t1 ->
+                                     has_var x <{call t1 t2               }>
+  | hasvar_call2  : forall t1 t2,    has_var x t2 ->
+                                     has_var x <{call t1 t2               }>
+  | hasvar_new    : forall t T,      has_var x t  ->
+                                     has_var x <{new t : T                }>
+  | hasvar_init   : forall ad t T,   has_var x t  ->
+                                     has_var x <{init ad t : T            }>
+  | hasvar_load   : forall t,        has_var x t  ->
+                                     has_var x <{*t                       }>
+  | hasvar_asg1   : forall t1 t2,    has_var x t1 ->
+                                     has_var x <{t1 := t2                 }>
+  | hasvar_asg2   : forall t1 t2,    has_var x t2 ->
+                                     has_var x <{t1 := t2                 }>
+  | hasvar_acq1   : forall t1 x' t2, has_var x t1 ->
+                                     has_var x <{acq t1 x' t2             }>
+  | hasvar_acq2   : forall t1 x' t2, x <> x'      ->
+                                     has_var x t2 ->
+                                     has_var x <{acq t1 x' t2             }>
+  | hasvar_cr     : forall ad t,     has_var x t  ->
+                                     has_var x <{cr ad t                  }>
+  | hasvar_spawn  : forall t,        has_var x t  ->
+                                     has_var x <{spawn t                  }>
   .
 
 (* inversion --------------------------------------------------------------- *)
@@ -52,6 +56,7 @@ Local Ltac _hasvar tt :=
   | H : has_var _  <{nat _                 }> |- _ => invc H
   | H : has_var _  <{_; _                  }> |- _ => tt H
   | H : has_var _  <{if _ then _ else _ end}> |- _ => tt H
+  | H : has_var _  <{while _ do _ end      }> |- _ => tt H
   | H : has_var ?x <{var ?x                }> |- _ => clear H
   | H : has_var _  <{var _                 }> |- _ => tt H
   | H : has_var _  <{fn _ _ _              }> |- _ => tt H

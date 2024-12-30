@@ -29,6 +29,13 @@ Inductive valid_term (m : mem) : tm -> Prop :=
                                  valid_term m t2 ->
                                  valid_term m t3 ->
                                  valid_term m <{if t1 then t2 else t3 end}> 
+  | vtm_while  : forall t1 t2,   no_inits t1     ->
+                                 no_crs   t1     ->
+                                 no_inits t2     ->
+                                 no_crs   t2     ->
+                                 valid_term m t1 ->
+                                 valid_term m t2 ->
+                                 valid_term m <{while t1 do t2 end       }> 
   | vtm_var   : forall x,        valid_term m <{var x                    }>
   | vtm_fun   : forall x Tx t,   no_inits t      ->
                                  no_crs   t      ->
@@ -73,6 +80,7 @@ Local Ltac _vtm tt :=
   | H : valid_term _ <{nat _                 }> |- _ => clear H
   | H : valid_term _ <{_; _                  }> |- _ => tt H
   | H : valid_term _ <{if _ then _ else _ end}> |- _ => tt H
+  | H : valid_term _ <{while _ do _ end      }> |- _ => tt H
   | H : valid_term _ <{var _                 }> |- _ => clear H
   | H : valid_term _ <{fn _ _ _              }> |- _ => tt H
   | H : valid_term _ <{call _ _              }> |- _ => tt H
@@ -299,7 +307,7 @@ Qed.
 (* preservation ------------------------------------------------------------ *)
 
 Local Ltac solve_vtm_preservation :=
-  intros; ind_tstep; repeat invc_vtm; try constructor; sigma;
+  intros; ind_tstep; repeat invc_vtm; repeat constructor; sigma;
   auto using vtm_subst, vtm_mem_add, vtm_mem_set, vtm_mem_acq, vtm_mem_rel.
 
 Lemma vtm_preservation_none : forall m t1 t2,

@@ -20,6 +20,9 @@ Inductive safe_term : tm -> Prop :=
                                  safe_term t2 ->
                                  safe_term t3 ->
                                  safe_term <{if t1 then t2 else t3 end}>
+  | stm_while : forall t1 t2,    safe_term t1 ->
+                                 safe_term t2 ->
+                                 safe_term <{while t1 do t2 end       }>
   | stm_var   : forall x,        safe_term <{var x                    }>
   | stm_fun   : forall x Tx t,   safe_term t  ->
                                  safe_term <{fn x Tx t                }>
@@ -61,6 +64,7 @@ Local Ltac _stm tt :=
   | H : safe_term <{nat _                 }>   |- _ => clear H
   | H : safe_term <{_; _                  }>   |- _ => tt H
   | H : safe_term <{if _ then _ else _ end}>   |- _ => tt H
+  | H : safe_term <{while _ do _ end      }>   |- _ => tt H
   | H : safe_term <{var _                 }>   |- _ => clear H
   | H : safe_term <{fn _ _ _              }>   |- _ => tt H
   | H : safe_term <{call _ _              }>   |- _ => tt H

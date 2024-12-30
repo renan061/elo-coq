@@ -21,6 +21,9 @@ Inductive consistent_regions (m : mem) (R : region) : tm -> Prop :=
                                   consistent_regions m R t2 ->
                                   consistent_regions m R t3 ->
                                   consistent_regions m R (tm_if t1 t2 t3  )
+  | creg_while : forall t1 t2,    consistent_regions m R t1 ->
+                                  consistent_regions m R t2 ->
+                                  consistent_regions m R (tm_while t1 t2  )
   | creg_var   : forall x,        consistent_regions m R <{var x          }>
   | creg_fun   : forall x Tx t,   consistent_regions m R t  ->
                                   consistent_regions m R <{fn x Tx t      }>
@@ -72,6 +75,7 @@ Local Ltac _creg tt :=
   | H : consistent_regions _ _ <{nat _                 }> |- _ => clear H
   | H : consistent_regions _ _ <{_; _                  }> |- _ => tt H
   | H : consistent_regions _ _ <{if _ then _ else _ end}> |- _ => tt H
+  | H : consistent_regions _ _ <{while _ do _ end      }> |- _ => tt H
   | H : consistent_regions _ _ <{var _                 }> |- _ => clear H
   | H : consistent_regions _ _ <{fn _ _ _              }> |- _ => tt H
   | H : consistent_regions _ _ <{call _ _              }> |- _ => tt H

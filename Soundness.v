@@ -18,7 +18,6 @@ Proof.
   intros * k' ? H. unfold safe in H. str_eq_dec k k'.
   - rewrite lookup_update_eq in *. trivial.
   - repeat (rewrite lookup_update_neq in *; trivial).
-    rewrite lookup_update_neq in H; trivial.
 Qed.
 
 (* TODO: rename *)
@@ -315,6 +314,7 @@ Proof.
     + eexists. right. left. repeat eexists. intros He.
       specialize (Hmstep He). invc_mstep; eauto using tstep, mstep.
     + eexists. right. right. repeat eexists. eauto using tstep.
+  - eexists. right. left. eauto using tstep, mstep. 
   - rewrite HeqGamma in *. unfold empty, Map.empty' in *. auto.
   - destructIH IHtype_of1.
     + invc_value_typeof. invc_vtm. invc_ctm.

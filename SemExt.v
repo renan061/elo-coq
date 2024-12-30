@@ -15,6 +15,7 @@ Ltac _typeof tt :=
   | H : _ |-- <{nat _                 }> is _ |- _ => tt H
   | H : _ |-- <{_; _                  }> is _ |- _ => tt H
   | H : _ |-- <{if _ then _ else _ end}> is _ |- _ => tt H
+  | H : _ |-- <{while _ do _ end      }> is _ |- _ => tt H
   | H : _ |-- <{var _                 }> is _ |- _ => tt H
   | H : _ |-- <{fn _ _ _              }> is _ |- _ => tt H
   | H : _ |-- <{call _ _              }> is _ |- _ => tt H

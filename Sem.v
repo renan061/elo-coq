@@ -38,6 +38,7 @@ Inductive tm : Set :=
   (* utility *)
   | tm_seq   : tm   -> tm -> tm
   | tm_if    : tm   -> tm -> tm -> tm
+  | tm_while : tm   -> tm -> tm
   (* functions *)
   | tm_var   : id   -> tm
   | tm_fun   : id   -> ty -> tm -> tm
@@ -95,6 +96,10 @@ Notation "'if' t1 'then' t2 'else' t3 'end'" := (tm_if t1 t2 t3)
                 t1 at level 99,
                 t2 at level 99,
                 t3 at level 99).
+Notation "'while' t1 'do' t2 'end'" := (tm_while t1 t2)
+ (in custom elo_tm at level 89,
+                t1 at level 99,
+                t2 at level 99).
 (* functions ---------------------------------------------------------------- *)
 Notation "'var' x"          := (tm_var x)         (in custom elo_tm at level 0).
 Notation "'fn' x Tx t"      := (tm_fun x Tx t)     (in custom elo_tm at level 0,
@@ -235,9 +240,14 @@ Inductive type_of : ctx -> tm -> ty -> Prop :=
 
   | T_if : forall Gamma t1 t2 t3 T,
     Gamma |-- t1 is `Nat` ->
-    Gamma |-- t3 is T ->
     Gamma |-- t2 is T ->
+    Gamma |-- t3 is T ->
     Gamma |-- <{if t1 then t2 else t3 end}> is T
+
+  | T_while : forall Gamma t1 t2 T,
+    Gamma |-- t1 is `Nat` ->
+    Gamma |-- t2 is T ->
+    Gamma |-- <{while t1 do t2 end}> is `Unit`
 
   | T_var : forall Gamma x T,
     Gamma x = Some T ->
@@ -329,6 +339,7 @@ Fixpoint subst (x : id) (tx t : tm) : tm :=
                                         then [x := tx]t2
                                         else [x := tx]t3
                                        end}>
+  | <{while t1 do t2 end       }> => <{while [x := tx]t1 do [x := tx]t2 end}>
   (* functions *)
   | <{var x'        }> => if x =? x' then tx else t
   | <{fn x' Tx t'   }> => if x =? x' then t  else <{fn x' Tx ([x := tx] t')}>
@@ -367,11 +378,18 @@ Inductive tstep : tm -> eff -> tm -> Prop :=
     t1 --[e]--> t1' ->
     <{if t1 then t2 else t3 end}> --[e]--> <{if t1' then t2 else t3 end}>
 
-  | ts_ifT : forall t1 t2,
-    <{if nat 0 then t1 else t2 end}> --[e_none]--> t1
+  | ts_ifT : forall n t1 t2,
+    <{if nat (S n) then t1 else t2 end}> --[e_none]--> t1
 
-  | ts_ifF : forall n t1 t2,
-    <{if nat (S n) then t1 else t2 end}> --[e_none]--> t2
+  | ts_ifF : forall t1 t2,
+    <{if nat 0 then t1 else t2 end}> --[e_none]--> t2
+
+  (* while *)
+  | ts_while : forall t1 t2,
+    <{while t1 do t2 end}> --[e_none]--> <{if t1
+                                            then t2; while t1 do t2 end
+                                            else unit
+                                           end}>
 
   (* call *)
   | ts_call1 : forall t1 t1' t2 e,
@@ -556,27 +574,24 @@ Definition is_refX  (T : ty) :=
   end.
 
 (* get-current-region *)
-Fixpoint gcr (t' : tm) (r : region) : region :=
+Fixpoint gcr (t' : tm) (R : region) : region :=
   match t' with
-  | <{unit }> => r
-  | <{nat _}> => r
-
-  | <{t1; t2                   }> => if is_value t1 then gcr t2 r else gcr t1 r
-  | <{if t1 then t2 else t3 end}> => if is_value t1 then r else gcr t1 r
-
-  | <{var _     }> => r
-  | <{fn _ _ _  }> => r
-  | <{call t1 t2}> => if is_value t1 then gcr t2 r else gcr t1 r
-
-  | <{&_ : _       }> => r
-  | <{new _ : _    }> => r
-  | <{init ad t : T}> => if is_refX T then gcr t (R_ad ad) else gcr t r
-  | <{*t           }> => gcr t r
-  | <{t1 := t2     }> => if is_value t1 then gcr t2 r else gcr t1 r
-  | <{acq t1 _ _   }> => gcr t1 r
-  | <{cr ad t      }> => gcr t (R_ad ad)
-
-  | <{spawn _}> => r
+  | <{unit                  }> => R
+  | <{nat _                 }> => R
+  | <{t1; t2                }> => if is_value t1 then gcr t2 R else gcr t1 R
+  | <{if t then _ else _ end}> => if is_value t then R else gcr t R
+  | <{while _ do _ end      }> => R
+  | <{var _                 }> => R
+  | <{fn _ _ _              }> => R
+  | <{call t1 t2            }> => if is_value t1 then gcr t2 R else gcr t1 R
+  | <{&_ : _                }> => R
+  | <{new _ : _             }> => R
+  | <{init ad t : T         }> => if is_refX T then gcr t (R_ad ad) else gcr t R
+  | <{*t                    }> => gcr t R
+  | <{t1 := t2              }> => if is_value t1 then gcr t2 R else gcr t1 R
+  | <{acq t1 _ _            }> => gcr t1 R
+  | <{cr ad t               }> => gcr t (R_ad ad)
+  | <{spawn _               }> => R
   end.
 
 Inductive rstep : mem -> threads -> nat -> eff -> mem -> threads -> Prop :=

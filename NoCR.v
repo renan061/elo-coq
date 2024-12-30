@@ -14,6 +14,9 @@ Inductive no_cr (ad : addr) : tm -> Prop :=
                                   no_cr ad t2 ->
                                   no_cr ad t3 ->
                                   no_cr ad <{if t1 then t2 else t3 end}>
+  | nocr_while : forall t1 t2,    no_cr ad t1 ->
+                                  no_cr ad t2 ->
+                                  no_cr ad <{while t1 do t2 end       }>
   | nocr_var   : forall x,        no_cr ad <{var x                    }>
   | nocr_fun   : forall x Tx t,   no_cr ad t  ->
                                   no_cr ad <{fn x Tx t                }>
@@ -48,6 +51,7 @@ Local Ltac _nocr tt :=
   | H : no_cr _   <{nat _                 }> |- _ => clear H
   | H : no_cr _   <{_; _                  }> |- _ => tt H
   | H : no_cr _   <{if _ then _ else _ end}> |- _ => tt H
+  | H : no_cr _   <{while _ do _ end      }> |- _ => tt H
   | H : no_cr _   <{var _                 }> |- _ => clear H
   | H : no_cr _   <{fn _ _ _              }> |- _ => tt H
   | H : no_cr _   <{call _ _              }> |- _ => tt H
@@ -192,6 +196,10 @@ Local Lemma inv_nocrs_if : forall t1 t2 t3,
   no_crs (tm_if t1 t2 t3) -> no_crs t1 /\ no_crs t2 /\ no_crs t3.
 Proof. solve_inv_nocrs. Qed.
 
+Local Lemma inv_nocrs_while : forall t1 t2,
+  no_crs <{while t1 do t2 end}> -> no_crs t1 /\ no_crs t2.
+Proof. solve_inv_nocrs. Qed.
+
 Local Lemma inv_nocrs_fun : forall x Tx t,
   no_crs <{fn x Tx t}> -> no_crs t.
 Proof. solve_inv_nocrs. Qed.
@@ -234,6 +242,7 @@ Ltac invc_nocrs :=
   | H : no_crs <{nat _       }> |- _ => clear H
   | H : no_crs <{_; _        }> |- _ => eapply inv_nocrs_seq   in H as [? ?]
   | H : no_crs (tm_if _ _ _  )  |- _ => eapply inv_nocrs_if    in H as [? [? ?]]
+  | H : no_crs (tm_while _ _ )  |- _ => eapply inv_nocrs_while in H as [? ?]
   | H : no_crs <{var _       }> |- _ => clear H
   | H : no_crs <{fn _ _ _    }> |- _ => eapply inv_nocrs_fun   in H
   | H : no_crs <{call _ _    }> |- _ => eapply inv_nocrs_call  in H as [? ?]

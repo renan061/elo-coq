@@ -58,6 +58,7 @@ Local Ltac _oneinit tt :=
   | H : one_init _ <{nat _                 }> |- _ => inv H
   | H : one_init _ <{_; _                  }> |- _ => tt H
   | H : one_init _ <{if _ then _ else _ end}> |- _ => tt H
+  | H : one_init _ <{while _ do _ end      }> |- _ => inv H
   | H : one_init _ <{var _                 }> |- _ => inv H
   | H : one_init _ <{fn _ _ _              }> |- _ => inv H
   | H : one_init _ <{call _ _              }> |- _ => tt H

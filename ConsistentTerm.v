@@ -9,7 +9,7 @@ From Elo Require Import WellTypedTerm.
 (* ------------------------------------------------------------------------- *)
 
 Inductive consistent_term (m : mem) : tm -> Prop :=
-  | ctm_unit  :                  consistent_term m <{unit                     }> 
+  | ctm_unit  :                  consistent_term m <{unit                     }>
   | ctm_nat   : forall n,        consistent_term m <{nat n                    }>
   | ctm_seq   : forall t1 t2,    consistent_term m t1    ->
                                  consistent_term m t2    ->
@@ -17,13 +17,16 @@ Inductive consistent_term (m : mem) : tm -> Prop :=
   | ctm_if    : forall t1 t2 t3, consistent_term m t1    ->
                                  consistent_term m t2    ->
                                  consistent_term m t3    ->
-                                 consistent_term m <{if t1 then t2 else t3 end}> 
+                                 consistent_term m <{if t1 then t2 else t3 end}>
+  | ctm_while : forall t1 t2,    consistent_term m t1    ->
+                                 consistent_term m t2    ->
+                                 consistent_term m <{while t1 do t2 end       }>
   | ctm_var   : forall x,        consistent_term m <{var x                    }>
   | ctm_fun   : forall x Tx t,   consistent_term m t     ->
                                  consistent_term m <{fn x Tx t                }>
   | ctm_call  : forall t1 t2,    consistent_term m t1    ->
                                  consistent_term m t2    ->
-                                 consistent_term m <{call t1 t2               }> 
+                                 consistent_term m <{call t1 t2               }>
 
   | ctm_refR  : forall ad t T,   m[ad].t = Some t        ->
                                  m[ad].T = `r&T`         ->
@@ -43,25 +46,25 @@ Inductive consistent_term (m : mem) : tm -> Prop :=
   | ctm_initR : forall ad t T,   m[ad].t = None          ->
                                  m[ad].T = `r&T`         ->
                                  consistent_term m t     ->
-                                 consistent_term m <{init ad t : r&T          }> 
+                                 consistent_term m <{init ad t : r&T          }>
 
   | ctm_initX : forall ad t T,   m[ad].t = None          ->
                                  m[ad].T = `x&T`         ->
                                  consistent_term m t     ->
-                                 consistent_term m <{init ad t : x&T          }> 
+                                 consistent_term m <{init ad t : x&T          }>
 
   | ctm_initW : forall ad t T,   m[ad].t = None          ->
                                  m[ad].T = `w&T`         ->
                                  consistent_term m t     ->
-                                 consistent_term m <{init ad t : w&T          }> 
+                                 consistent_term m <{init ad t : w&T          }>
 
   | ctm_new   : forall T t,      consistent_term m t     ->
-                                 consistent_term m <{new t : T                }> 
+                                 consistent_term m <{new t : T                }>
   | ctm_load  : forall t,        consistent_term m t     ->
-                                 consistent_term m <{*t                       }> 
+                                 consistent_term m <{*t                       }>
   | ctm_asg   : forall t1 t2,    consistent_term m t1    ->
                                  consistent_term m t2    ->
-                                 consistent_term m <{t1 := t2                 }> 
+                                 consistent_term m <{t1 := t2                 }>
   | ctm_acq   : forall t1 x t2,  consistent_term m t1    ->
                                  consistent_term m t2    ->
                                  consistent_term m <{acq t1 x t2              }>
@@ -79,6 +82,7 @@ Local Ltac _ctm tt :=
   | H : consistent_term _ <{nat _                 }> |- _ => clear H
   | H : consistent_term _ <{_; _                  }> |- _ => tt H
   | H : consistent_term _ <{if _ then _ else _ end}> |- _ => tt H
+  | H : consistent_term _ <{while _ do _ end      }> |- _ => tt H
   | H : consistent_term _ <{var _                 }> |- _ => clear H
   | H : consistent_term _ <{fn _ _ _              }> |- _ => tt H
   | H : consistent_term _ <{call _ _              }> |- _ => tt H

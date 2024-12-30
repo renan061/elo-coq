@@ -302,6 +302,11 @@ Local Lemma inv_tice_if : forall t1 t2 t3,
   term_init_cr_exc t1 /\ term_init_cr_exc t2 /\ term_init_cr_exc t3.
 Proof. solve_inv_tice. Qed.
 
+Local Lemma inv_tice_while : forall t1 t2,
+  term_init_cr_exc <{while t1 do t2 end}> ->
+  term_init_cr_exc t1 /\ term_init_cr_exc t2.
+Proof. solve_inv_tice. Qed.
+
 Local Lemma inv_tice_fun : forall x Tx t,
   term_init_cr_exc <{fn x Tx t}> ->
   term_init_cr_exc t.
@@ -353,6 +358,7 @@ Ltac invc_tice :=
   | H : term_init_cr_exc <{nat _       }> |- _ => clear H
   | H : term_init_cr_exc <{_; _        }> |- _ => eapply inv_tice_seq   in H
   | H : term_init_cr_exc (tm_if _ _ _  )  |- _ => eapply inv_tice_if    in H
+  | H : term_init_cr_exc (tm_while _ _ )  |- _ => eapply inv_tice_while in H
   | H : term_init_cr_exc <{var _       }> |- _ => clear H
   | H : term_init_cr_exc <{fn _ _ _    }> |- _ => eapply inv_tice_fun   in H
   | H : term_init_cr_exc <{call _ _    }> |- _ => eapply inv_tice_call  in H
