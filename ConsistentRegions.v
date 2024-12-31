@@ -14,6 +14,12 @@ From Elo Require Import SafeTerm.
 Inductive consistent_regions (m : mem) (R : region) : tm -> Prop :=
   | creg_unit  :                  consistent_regions m R <{unit           }>
   | creg_nat   : forall n,        consistent_regions m R <{nat n          }>
+  | creg_plus  : forall t1 t2,    consistent_regions m R t1 ->
+                                  consistent_regions m R t2 ->
+                                  consistent_regions m R <{t1 + t2        }>
+  | creg_monus : forall t1 t2,    consistent_regions m R t1 ->
+                                  consistent_regions m R t2 ->
+                                  consistent_regions m R <{t1 - t2        }>
   | creg_seq   : forall t1 t2,    consistent_regions m R t1 ->
                                   consistent_regions m R t2 ->
                                   consistent_regions m R <{t1; t2         }>
@@ -73,6 +79,8 @@ Local Ltac _creg tt :=
   match goal with
   | H : consistent_regions _ _ <{unit                  }> |- _ => clear H
   | H : consistent_regions _ _ <{nat _                 }> |- _ => clear H
+  | H : consistent_regions _ _ <{_ + _                 }> |- _ => tt H
+  | H : consistent_regions _ _ <{_ - _                 }> |- _ => tt H
   | H : consistent_regions _ _ <{_; _                  }> |- _ => tt H
   | H : consistent_regions _ _ <{if _ then _ else _ end}> |- _ => tt H
   | H : consistent_regions _ _ <{while _ do _ end      }> |- _ => tt H

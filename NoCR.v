@@ -7,6 +7,12 @@ From Elo Require Import Core.
 Inductive no_cr (ad : addr) : tm -> Prop :=
   | nocr_unit  :                  no_cr ad <{unit                     }>
   | nocr_nat   : forall n,        no_cr ad <{nat n                    }>
+  | nocr_plus  : forall t1 t2,    no_cr ad t1 ->
+                                  no_cr ad t2 ->
+                                  no_cr ad <{t1 + t2                  }>
+  | nocr_monus : forall t1 t2,    no_cr ad t1 ->
+                                  no_cr ad t2 ->
+                                  no_cr ad <{t1 - t2                  }>
   | nocr_seq   : forall t1 t2,    no_cr ad t1 ->
                                   no_cr ad t2 ->
                                   no_cr ad <{t1; t2                   }>
@@ -49,6 +55,8 @@ Local Ltac _nocr tt :=
   match goal with
   | H : no_cr _   <{unit                  }> |- _ => clear H
   | H : no_cr _   <{nat _                 }> |- _ => clear H
+  | H : no_cr _   <{_ + _                 }> |- _ => tt H
+  | H : no_cr _   <{_ - _                 }> |- _ => tt H
   | H : no_cr _   <{_; _                  }> |- _ => tt H
   | H : no_cr _   <{if _ then _ else _ end}> |- _ => tt H
   | H : no_cr _   <{while _ do _ end      }> |- _ => tt H
@@ -188,6 +196,14 @@ Definition no_crs (t : tm) := forall ad, no_cr ad t.
 Local Ltac solve_inv_nocrs :=
   unfold no_crs; intros * H; repeat split; intros; spec; invc_nocr; auto.
 
+Local Lemma inv_nocrs_plus : forall t1 t2,
+  no_crs <{t1 + t2}> -> no_crs t1 /\ no_crs t2.
+Proof. solve_inv_nocrs. Qed.
+
+Local Lemma inv_nocrs_monus : forall t1 t2,
+  no_crs <{t1 - t2}> -> no_crs t1 /\ no_crs t2.
+Proof. solve_inv_nocrs. Qed.
+
 Local Lemma inv_nocrs_seq : forall t1 t2,
   no_crs <{t1; t2}> -> no_crs t1 /\ no_crs t2.
 Proof. solve_inv_nocrs. Qed.
@@ -240,6 +256,8 @@ Ltac invc_nocrs :=
   match goal with
   | H : no_crs <{unit        }> |- _ => clear H
   | H : no_crs <{nat _       }> |- _ => clear H
+  | H : no_crs <{_ + _       }> |- _ => eapply inv_nocrs_plus  in H as [? ?]
+  | H : no_crs <{_ - _       }> |- _ => eapply inv_nocrs_monus in H as [? ?]
   | H : no_crs <{_; _        }> |- _ => eapply inv_nocrs_seq   in H as [? ?]
   | H : no_crs (tm_if _ _ _  )  |- _ => eapply inv_nocrs_if    in H as [? [? ?]]
   | H : no_crs (tm_while _ _ )  |- _ => eapply inv_nocrs_while in H as [? ?]

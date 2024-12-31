@@ -13,6 +13,8 @@ Ltac _typeof tt :=
   match goal with
   | H : _ |-- <{unit                  }> is _ |- _ => tt H
   | H : _ |-- <{nat _                 }> is _ |- _ => tt H
+  | H : _ |-- <{_ + _                 }> is _ |- _ => tt H
+  | H : _ |-- <{_ - _                 }> is _ |- _ => tt H
   | H : _ |-- <{_; _                  }> is _ |- _ => tt H
   | H : _ |-- <{if _ then _ else _ end}> is _ |- _ => tt H
   | H : _ |-- <{while _ do _ end      }> is _ |- _ => tt H

@@ -7,6 +7,12 @@ From Elo Require Import Core.
 Inductive no_ref (ad : addr) : tm -> Prop :=
   | noref_unit  :                  no_ref ad <{unit                     }>
   | noref_nat   : forall n,        no_ref ad <{nat n                    }>
+  | noref_plus  : forall t1 t2,    no_ref ad t1 ->
+                                   no_ref ad t2 ->
+                                   no_ref ad <{t1 + t2                  }>
+  | noref_monus : forall t1 t2,    no_ref ad t1 ->
+                                   no_ref ad t2 ->
+                                   no_ref ad <{t1 - t2                  }>
   | noref_seq   : forall t1 t2,    no_ref ad t1 ->
                                    no_ref ad t2 ->
                                    no_ref ad <{t1; t2                   }>
@@ -49,6 +55,8 @@ Local Ltac _noref tt :=
   match goal with
   | H : no_ref _   <{unit                  }> |- _ => clear H
   | H : no_ref _   <{nat _                 }> |- _ => clear H
+  | H : no_ref _   <{_ + _                 }> |- _ => tt H
+  | H : no_ref _   <{_ - _                 }> |- _ => tt H
   | H : no_ref _   <{_; _                  }> |- _ => tt H
   | H : no_ref _   <{if _ then _ else _ end}> |- _ => tt H
   | H : no_ref _   <{while _ do _ end      }> |- _ => tt H
@@ -189,6 +197,14 @@ Definition no_refs (t : tm) := forall ad, no_ref ad t.
 Local Ltac solve_inv_norefs :=
   unfold no_refs; intros; repeat split; intros; spec; invc_noref; auto.
 
+Local Lemma inv_norefs_plus : forall t1 t2,
+  no_refs <{t1 + t2}> -> no_refs t1 /\ no_refs t2.
+Proof. solve_inv_norefs. Qed.
+
+Local Lemma inv_norefs_monus : forall t1 t2,
+  no_refs <{t1 - t2}> -> no_refs t1 /\ no_refs t2.
+Proof. solve_inv_norefs. Qed.
+
 Local Lemma inv_norefs_seq : forall t1 t2,
   no_refs <{t1; t2}> -> no_refs t1 /\ no_refs t2.
 Proof. solve_inv_norefs. Qed.
@@ -245,6 +261,8 @@ Ltac invc_norefs :=
   match goal with
   | H : no_refs <{unit        }> |- _ => clear H
   | H : no_refs <{nat _       }> |- _ => clear H
+  | H : no_refs <{_ + _       }> |- _ => eapply inv_norefs_plus  in H as [? ?]
+  | H : no_refs <{_ - _       }> |- _ => eapply inv_norefs_monus in H as [? ?]
   | H : no_refs <{_; _        }> |- _ => eapply inv_norefs_seq in H as [? ?]
   | H : no_refs (tm_if _ _ _  )  |- _ => eapply inv_norefs_if  in H as [? [? ?]]
   | H : no_refs (tm_while _ _ )  |- _ => eapply inv_norefs_while in H as [? ?]

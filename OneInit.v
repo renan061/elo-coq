@@ -9,6 +9,18 @@ From Elo Require Import InheritanceNoInit.
 (* ------------------------------------------------------------------------- *)
 
 Inductive one_init (ad : addr) : tm -> Prop :=
+  | oneinit_plus1  : forall t1 t2,    one_init ad t1 ->
+                                      no_init  ad t2 ->
+                                      one_init ad <{t1 + t2                  }>
+  | oneinit_plus2  : forall t1 t2,    no_init  ad t1 ->
+                                      one_init ad t2 ->
+                                      one_init ad <{t1 + t2                  }>
+  | oneinit_monus1 : forall t1 t2,    one_init ad t1 ->
+                                      no_init  ad t2 ->
+                                      one_init ad <{t1 - t2                  }>
+  | oneinit_monus2 : forall t1 t2,    no_init  ad t1 ->
+                                      one_init ad t2 ->
+                                      one_init ad <{t1 - t2                  }>
   | oneinit_seq1   : forall t1 t2,    one_init ad t1 ->
                                       no_init  ad t2 ->
                                       one_init ad <{t1; t2                   }>
@@ -56,6 +68,8 @@ Local Ltac _oneinit tt :=
   match goal with
   | H : one_init _ <{unit                  }> |- _ => inv H
   | H : one_init _ <{nat _                 }> |- _ => inv H
+  | H : one_init _ <{_ + _                 }> |- _ => tt H
+  | H : one_init _ <{_ - _                 }> |- _ => tt H
   | H : one_init _ <{_; _                  }> |- _ => tt H
   | H : one_init _ <{if _ then _ else _ end}> |- _ => tt H
   | H : one_init _ <{while _ do _ end      }> |- _ => inv H

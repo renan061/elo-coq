@@ -6,6 +6,38 @@ From Elo Require Import SemExt.
 (* kappa                                                                     *)
 (* ------------------------------------------------------------------------- *)
 
+Lemma kappa_plus__value : forall t1 t2 R,
+  value t1 ->
+  gcr <{t1 + t2}> R = gcr t2 R.
+Proof.
+  intros * H. simpl. destruct t1; auto; invc H.
+Qed.
+
+Lemma kappa_plus__not_value : forall t1 t2 R,
+  ~ value t1 ->
+  gcr <{t1 + t2}> R = gcr t1 R.
+Proof.
+  intros * H. simpl. destruct t1; auto; exfalso; auto using value.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+
+Lemma kappa_monus__value : forall t1 t2 R,
+  value t1 ->
+  gcr <{t1 - t2}> R = gcr t2 R.
+Proof.
+  intros * H. simpl. destruct t1; auto; invc H.
+Qed.
+
+Lemma kappa_monus__not_value : forall t1 t2 R,
+  ~ value t1 ->
+  gcr <{t1 - t2}> R = gcr t1 R.
+Proof.
+  intros * H. simpl. destruct t1; auto; exfalso; auto using value.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+
 Lemma kappa_seq__value : forall t1 t2 R,
   value t1 ->
   gcr <{t1; t2}> R = gcr t2 R.
@@ -83,6 +115,16 @@ Qed.
 (* gcr (get-current-region) simplification *)
 Ltac kappa :=
  repeat match goal with
+ | H : context C [ gcr <{?t1 + ?t2    }> ?R ],    H' : value   ?t1 |- _ =>
+   rewrite (kappa_plus__value      t1 t2 R H')   in H
+ | H : context C [ gcr <{?t1 + ?t2    }> ?R ],    H' : ~ value ?t1 |- _ =>
+   rewrite (kappa_plus__not_value  t1 t2 R H')   in H
+
+ | H : context C [ gcr <{?t1 - ?t2    }> ?R ],    H' : value   ?t1 |- _ =>
+   rewrite (kappa_monus__value     t1 t2 R H')   in H
+ | H : context C [ gcr <{?t1 - ?t2    }> ?R ],    H' : ~ value ?t1 |- _ =>
+   rewrite (kappa_monus__not_value t1 t2 R H')   in H
+
  | H : context C [ gcr <{?t1; ?t2    }> ?R ],    H' : value   ?t1 |- _ =>
    rewrite (kappa_seq__value      t1 t2 R H')    in H
  | H : context C [ gcr <{?t1; ?t2    }> ?R ],    H' : ~ value ?t1 |- _ =>
@@ -105,8 +147,12 @@ Ltac kappa :=
 
  | H : context C [gcr <{unit                }> _] |- _ => simpl in H
  | H : context C [gcr <{nat _               }> _] |- _ => simpl in H
+ | H : context C [gcr <{?t + _              }> _] |- _ => destruct (value_dec t)
+ | H : context C [gcr <{?t - _              }> _] |- _ => destruct (value_dec t)
+ | H : context C [gcr <{?t; _               }> _] |- _ => destruct (value_dec t)
  | H : context C [gcr <{?t; _               }> _] |- _ => destruct (value_dec t)
  | H : context C [gcr (tm_if ?t _ _         )  _] |- _ => destruct (value_dec t)
+ | H : context C [gcr (tm_while _ _         )  _] |- _ => simpl in H
  | H : context C [gcr <{var _               }> _] |- _ => simpl in H
  | H : context C [gcr <{fn _ _ _            }> _] |- _ => simpl in H
  | H : context C [gcr <{call ?t _           }> _] |- _ => destruct (value_dec t)
@@ -125,6 +171,16 @@ Ltac kappa :=
  | H : context C [gcr <{acq _ _ _           }> _] |- _ => simpl in H
  | H : context C [gcr <{cr _ _              }> _] |- _ => simpl in H
  | H : context C [gcr <{spawn _             }> _] |- _ => simpl in H
+
+ | H' : value   ?t1 |- context C [ gcr <{?t1 + ?t2      }> ?R ] =>
+   rewrite (kappa_plus__value     t1 t2 R H')
+ | H' : ~ value ?t1 |- context C [ gcr <{?t1 + ?t2      }> ?R ] =>
+   rewrite (kappa_plus__not_value t1 t2 R H')
+
+ | H' : value   ?t1 |- context C [ gcr <{?t1 - ?t2      }> ?R ] =>
+   rewrite (kappa_monus__value     t1 t2 R H')
+ | H' : ~ value ?t1 |- context C [ gcr <{?t1 - ?t2      }> ?R ] =>
+   rewrite (kappa_monus__not_value t1 t2 R H')
 
  | H' : value   ?t1 |- context C [ gcr <{?t1; ?t2       }> ?R ] =>
    rewrite (kappa_seq__value      t1 t2 R H')
@@ -148,8 +204,11 @@ Ltac kappa :=
 
  | |- context C [gcr <{unit                }> _] => simpl
  | |- context C [gcr <{nat _               }> _] => simpl
+ | |- context C [gcr <{?t + _              }> _] => destruct (value_dec t)
+ | |- context C [gcr <{?t - _              }> _] => destruct (value_dec t)
  | |- context C [gcr <{?t; _               }> _] => destruct (value_dec t)
  | |- context C [gcr (tm_if ?t _ _         )  _] => destruct (value_dec t)
+ | |- context C [gcr (tm_while _ _         )  _] => simpl
  | |- context C [gcr <{var _               }> _] => simpl
  | |- context C [gcr <{fn _ _ _            }> _] => simpl
  | |- context C [gcr <{call ?t _           }> _] => destruct (value_dec t)

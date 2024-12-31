@@ -9,6 +9,18 @@ From Elo Require Import InheritanceNoCR.
 (* ------------------------------------------------------------------------- *)
 
 Inductive one_cr (ad : addr) : tm -> Prop :=
+  | onecr_plus1  : forall t1 t2,    one_cr ad t1 ->
+                                    no_cr  ad t2 ->
+                                    one_cr ad <{t1 + t2                  }>
+  | onecr_plus2  : forall t1 t2,    no_cr  ad t1 ->
+                                    one_cr ad t2 ->
+                                    one_cr ad <{t1 + t2                  }>
+  | onecr_monus1 : forall t1 t2,    one_cr ad t1 ->
+                                    no_cr  ad t2 ->
+                                    one_cr ad <{t1 - t2                  }>
+  | onecr_monus2 : forall t1 t2,    no_cr  ad t1 ->
+                                    one_cr ad t2 ->
+                                    one_cr ad <{t1 - t2                  }>
   | onecr_seq1   : forall t1 t2,    one_cr ad t1 ->
                                     no_cr  ad t2 ->
                                     one_cr ad <{t1; t2                   }>
@@ -56,6 +68,8 @@ Local Ltac _onecr tt :=
   match goal with
   | H : one_cr _ <{unit                  }> |- _ => inv H
   | H : one_cr _ <{nat _                 }> |- _ => inv H
+  | H : one_cr _ <{_ + _                 }> |- _ => tt H
+  | H : one_cr _ <{_ - _                 }> |- _ => tt H
   | H : one_cr _ <{_; _                  }> |- _ => tt H
   | H : one_cr _ <{if _ then _ else _ end}> |- _ => tt H
   | H : one_cr _ <{while _ do _ end      }> |- _ => tt H

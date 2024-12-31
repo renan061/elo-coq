@@ -36,6 +36,8 @@ Inductive tm : Set :=
   | tm_unit
   | tm_nat   : nat  -> tm
   (* utility *)
+  | tm_plus  : tm   -> tm -> tm
+  | tm_monus : tm   -> tm -> tm
   | tm_seq   : tm   -> tm -> tm
   | tm_if    : tm   -> tm -> tm -> tm
   | tm_while : tm   -> tm -> tm
@@ -88,18 +90,21 @@ Notation "'unit'"  := (tm_unit)  (in custom elo_tm at level 0).
 Notation "'nat' n" := (tm_nat n) (in custom elo_tm at level 0,
                                           n constr at level 0).
 (* utility ------------------------------------------------------------------ *)
-Notation "t1 ';' t2"                         := (tm_seq t1 t2)
- (in custom elo_tm at level 90, right associativity)
-                                                                               .
+Notation "t1 '+' t2" := (tm_plus  t1 t2)
+  (in custom elo_tm at level 60, right associativity).
+Notation "t1 '-' t2" := (tm_monus t1 t2)
+  (in custom elo_tm at level 60, right associativity).
+Notation "t1 ';' t2" := (tm_seq t1 t2)
+  (in custom elo_tm at level 90, right associativity).
 Notation "'if' t1 'then' t2 'else' t3 'end'" := (tm_if t1 t2 t3)
- (in custom elo_tm at level 89,
-                t1 at level 99,
-                t2 at level 99,
-                t3 at level 99).
+  (in custom elo_tm at level 89,
+                 t1 at level 99,
+                 t2 at level 99,
+                 t3 at level 99).
 Notation "'while' t1 'do' t2 'end'" := (tm_while t1 t2)
- (in custom elo_tm at level 89,
-                t1 at level 99,
-                t2 at level 99).
+  (in custom elo_tm at level 89,
+                 t1 at level 99,
+                 t2 at level 99).
 (* functions ---------------------------------------------------------------- *)
 Notation "'var' x"          := (tm_var x)         (in custom elo_tm at level 0).
 Notation "'fn' x Tx t"      := (tm_fun x Tx t)     (in custom elo_tm at level 0,
@@ -233,6 +238,16 @@ Inductive type_of : ctx -> tm -> ty -> Prop :=
   | T_nat : forall Gamma n,
     Gamma |-- <{nat n}> is `Nat`
 
+  | T_plus : forall Gamma t1 t2,
+    Gamma |-- t1 is `Nat` ->
+    Gamma |-- t2 is `Nat` ->
+    Gamma |-- <{t1 + t2}> is `Nat`
+
+  | T_monus : forall Gamma t1 t2,
+    Gamma |-- t1 is `Nat` ->
+    Gamma |-- t2 is `Nat` ->
+    Gamma |-- <{t1 - t2}> is `Nat`
+
   | T_seq : forall Gamma t1 t2 T1 T2,
     Gamma |-- t1 is T1 ->
     Gamma |-- t2 is T2 ->
@@ -334,6 +349,8 @@ Fixpoint subst (x : id) (tx t : tm) : tm :=
   | <{unit                     }> => t
   | <{nat _                    }> => t
   (* utility *)
+  | <{t1 + t2                  }> => <{([x := tx] t1) + ([x := tx] t2)}>
+  | <{t1 - t2                  }> => <{([x := tx] t1) - ([x := tx] t2)}>
   | <{t1; t2                   }> => <{([x := tx] t1); ([x := tx] t2)}>
   | <{if t1 then t2 else t3 end}> => <{if [x := tx]t1
                                         then [x := tx]t2
@@ -372,6 +389,32 @@ Inductive tstep : tm -> eff -> tm -> Prop :=
   | ts_seq : forall t1 t2,
     value t1 ->
     <{t1; t2}> --[e_none]--> t2
+
+  (* plus *)
+  | ts_plus1 : forall t1 t1' t2 e,
+    t1 --[e]--> t1' ->
+    <{t1 + t2}> --[e]--> <{t1' + t2}>
+
+  | ts_plus2 : forall t1 t2 t2' e,
+    value t1 ->
+    t2 --[e]--> t2' ->
+    <{t1 + t2}> --[e]--> <{t1 + t2'}>
+
+  | ts_plus : forall n1 n2,
+    <{nat n1 + nat n2}> --[e_none]--> <{nat (n1 + n2)}>
+
+  (* monus *)
+  | ts_monus1 : forall t1 t1' t2 e,
+    t1 --[e]--> t1' ->
+    <{t1 - t2}> --[e]--> <{t1' - t2}>
+
+  | ts_monus2 : forall t1 t2 t2' e,
+    value t1 ->
+    t2 --[e]--> t2' ->
+    <{t1 - t2}> --[e]--> <{t1 - t2'}>
+
+  | ts_monus : forall n1 n2,
+    <{nat n1 - nat n2}> --[e_none]--> <{nat (n1 - n2)}>
 
   (* if *)
   | ts_if1 : forall t1 t1' t2 t3 e,
@@ -578,6 +621,8 @@ Fixpoint gcr (t' : tm) (R : region) : region :=
   match t' with
   | <{unit                  }> => R
   | <{nat _                 }> => R
+  | <{t1 + t2               }> => if is_value t1 then gcr t2 R else gcr t1 R
+  | <{t1 - t2               }> => if is_value t1 then gcr t2 R else gcr t1 R
   | <{t1; t2                }> => if is_value t1 then gcr t2 R else gcr t1 R
   | <{if t then _ else _ end}> => if is_value t then R else gcr t R
   | <{while _ do _ end      }> => R

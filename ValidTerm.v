@@ -18,6 +18,12 @@ From Elo Require Import NoCR.
 Inductive valid_term (m : mem) : tm -> Prop :=
   | vtm_unit  :                  valid_term m <{unit                     }> 
   | vtm_nat   : forall n,        valid_term m <{nat n                    }>
+  | vtm_plus  : forall t1 t2,    valid_term m t1 ->
+                                 valid_term m t2 ->
+                                 valid_term m <{t1 + t2                  }> 
+  | vtm_monus : forall t1 t2,    valid_term m t1 ->
+                                 valid_term m t2 ->
+                                 valid_term m <{t1 - t2                  }> 
   | vtm_seq   : forall t1 t2,    valid_term m t1 ->
                                  valid_term m t2 ->
                                  valid_term m <{t1; t2                   }> 
@@ -78,6 +84,8 @@ Local Ltac _vtm tt :=
   match goal with
   | H : valid_term _ <{unit                  }> |- _ => clear H
   | H : valid_term _ <{nat _                 }> |- _ => clear H
+  | H : valid_term _ <{_ + _                 }> |- _ => tt H
+  | H : valid_term _ <{_ - _                 }> |- _ => tt H
   | H : valid_term _ <{_; _                  }> |- _ => tt H
   | H : valid_term _ <{if _ then _ else _ end}> |- _ => tt H
   | H : valid_term _ <{while _ do _ end      }> |- _ => tt H

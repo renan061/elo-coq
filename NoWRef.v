@@ -10,6 +10,12 @@ From Elo Require Import HasVar.
 Inductive no_wref (ad : addr) : tm -> Prop :=
   | nowref_unit  :                  no_wref ad <{unit                     }>
   | nowref_nat   : forall n,        no_wref ad <{nat n                    }>
+  | nowref_plus  : forall t1 t2,    no_wref ad t1 ->
+                                    no_wref ad t2 ->
+                                    no_wref ad <{t1 + t2                  }>
+  | nowref_monus : forall t1 t2,    no_wref ad t1 ->
+                                    no_wref ad t2 ->
+                                    no_wref ad <{t1 - t2                  }>
   | nowref_seq   : forall t1 t2,    no_wref ad t1 ->
                                     no_wref ad t2 ->
                                     no_wref ad <{t1; t2                   }>
@@ -54,6 +60,8 @@ Local Ltac _nowref tt :=
   match goal with
   | H : no_wref _   <{unit                  }> |- _ => clear H
   | H : no_wref _   <{nat _                 }> |- _ => clear H
+  | H : no_wref _   <{_ + _                 }> |- _ => tt H
+  | H : no_wref _   <{_ - _                 }> |- _ => tt H
   | H : no_wref _   <{_; _                  }> |- _ => tt H
   | H : no_wref _   <{if _ then _ else _ end}> |- _ => tt H
   | H : no_wref _   <{while _ do _ end      }> |- _ => tt H
@@ -107,6 +115,14 @@ Definition no_wrefs (t : tm) := forall ad, no_wref ad t.
 
 Local Ltac solve_inv_nowrefs :=
   unfold no_wrefs; intros; repeat split; intros; spec; invc_nowref; auto.
+
+Local Lemma inv_nowrefs_plus : forall t1 t2,
+  no_wrefs <{t1 + t2}> -> no_wrefs t1 /\ no_wrefs t2.
+Proof. solve_inv_nowrefs. Qed.
+
+Local Lemma inv_nowrefs_monus : forall t1 t2,
+  no_wrefs <{t1 - t2}> -> no_wrefs t1 /\ no_wrefs t2.
+Proof. solve_inv_nowrefs. Qed.
 
 Local Lemma inv_nowrefs_seq : forall t1 t2,
   no_wrefs <{t1; t2}> -> no_wrefs t1 /\ no_wrefs t2.
@@ -164,6 +180,8 @@ Ltac invc_nowrefs :=
 match goal with
 | H : no_wrefs <{unit        }> |- _ => clear H
 | H : no_wrefs <{nat _       }> |- _ => clear H
+| H : no_wrefs <{_ + _       }> |- _ => eapply inv_nowrefs_plus  in H as [? ?]
+| H : no_wrefs <{_ - _       }> |- _ => eapply inv_nowrefs_monus in H as [? ?]
 | H : no_wrefs <{_; _        }> |- _ => eapply inv_nowrefs_seq in H as [? ?]
 | H : no_wrefs (tm_if _ _ _  )  |- _ => eapply inv_nowrefs_if  in H as [? [? ?]]
 | H : no_wrefs (tm_while _ _ )  |- _ => eapply inv_nowrefs_while in H as [? ?]

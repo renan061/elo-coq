@@ -292,6 +292,16 @@ Local Ltac solve_inv_tice :=
   try inv_oneinit; try inv_onecr; try inv_nocr; try inv_noinit; auto; intros ?;
   exfalso; eauto using noinit_oneinit_contradiction, nocr_onecr_contradiction. 
 
+Local Lemma inv_tice_plus : forall t1 t2,
+  term_init_cr_exc <{t1 + t2}> ->
+  term_init_cr_exc t1 /\ term_init_cr_exc t2.
+Proof. solve_inv_tice. Qed.
+
+Local Lemma inv_tice_monus : forall t1 t2,
+  term_init_cr_exc <{t1 - t2}> ->
+  term_init_cr_exc t1 /\ term_init_cr_exc t2.
+Proof. solve_inv_tice. Qed.
+
 Local Lemma inv_tice_seq : forall t1 t2,
   term_init_cr_exc <{t1; t2}> ->
   term_init_cr_exc t1 /\ term_init_cr_exc t2.
@@ -356,6 +366,8 @@ Ltac invc_tice :=
   match goal with
   | H : term_init_cr_exc <{unit        }> |- _ => clear H
   | H : term_init_cr_exc <{nat _       }> |- _ => clear H
+  | H : term_init_cr_exc <{_ + _       }> |- _ => eapply inv_tice_plus  in H
+  | H : term_init_cr_exc <{_ - _       }> |- _ => eapply inv_tice_monus in H
   | H : term_init_cr_exc <{_; _        }> |- _ => eapply inv_tice_seq   in H
   | H : term_init_cr_exc (tm_if _ _ _  )  |- _ => eapply inv_tice_if    in H
   | H : term_init_cr_exc (tm_while _ _ )  |- _ => eapply inv_tice_while in H

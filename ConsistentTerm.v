@@ -11,6 +11,12 @@ From Elo Require Import WellTypedTerm.
 Inductive consistent_term (m : mem) : tm -> Prop :=
   | ctm_unit  :                  consistent_term m <{unit                     }>
   | ctm_nat   : forall n,        consistent_term m <{nat n                    }>
+  | ctm_plus  : forall t1 t2,    consistent_term m t1    ->
+                                 consistent_term m t2    ->
+                                 consistent_term m <{t1 + t2                  }>
+  | ctm_monus : forall t1 t2,    consistent_term m t1    ->
+                                 consistent_term m t2    ->
+                                 consistent_term m <{t1 - t2                  }>
   | ctm_seq   : forall t1 t2,    consistent_term m t1    ->
                                  consistent_term m t2    ->
                                  consistent_term m <{t1; t2                   }>
@@ -80,6 +86,8 @@ Local Ltac _ctm tt :=
   match goal with
   | H : consistent_term _ <{unit                  }> |- _ => clear H
   | H : consistent_term _ <{nat _                 }> |- _ => clear H
+  | H : consistent_term _ <{_ + _                 }> |- _ => tt H
+  | H : consistent_term _ <{_ - _                 }> |- _ => tt H
   | H : consistent_term _ <{_; _                  }> |- _ => tt H
   | H : consistent_term _ <{if _ then _ else _ end}> |- _ => tt H
   | H : consistent_term _ <{while _ do _ end      }> |- _ => tt H

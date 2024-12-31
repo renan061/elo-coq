@@ -299,6 +299,36 @@ Theorem limited_progress : forall m1 t1,
 Proof.
   intros * ? ? [T ?]. remember empty as Gamma.
   ind_typeof; invc_vtm; invc_ctm; eauto using value; right; repeat spec.
+  - destructIH IHtype_of1.
+    + invc_value_typeof. invc_vtm. invc_ctm.
+      destructIH IHtype_of2.
+      * invc_value_typeof. invc_vtm. invc_ctm.
+        eexists. right. left. eauto using tstep, mstep.
+      * eexists. left. repeat eexists. intros Hfalse.
+        specialize (Hmstep Hfalse). invc_mstep. eauto using value, tstep, mstep.
+      * eexists. right. left. repeat eexists. intros He.
+        specialize (Hmstep He). invc_mstep; eauto using value, tstep, mstep.
+      * eexists. right. right. repeat eexists. eauto using value, tstep.
+    + eexists. left. repeat eexists. intros Hfalse.
+      specialize (Hmstep Hfalse). invc_mstep. eauto using tstep, mstep.
+    + eexists. right. left. repeat eexists. intros He.
+      specialize (Hmstep He). invc_mstep; eauto using tstep, mstep.
+    + eexists. right. right. repeat eexists. eauto using tstep.
+  - destructIH IHtype_of1.
+    + invc_value_typeof. invc_vtm. invc_ctm.
+      destructIH IHtype_of2.
+      * invc_value_typeof. invc_vtm. invc_ctm.
+        eexists. right. left. eauto using tstep, mstep.
+      * eexists. left. repeat eexists. intros Hfalse.
+        specialize (Hmstep Hfalse). invc_mstep. eauto using value, tstep, mstep.
+      * eexists. right. left. repeat eexists. intros He.
+        specialize (Hmstep He). invc_mstep; eauto using value, tstep, mstep.
+      * eexists. right. right. repeat eexists. eauto using value, tstep.
+    + eexists. left. repeat eexists. intros Hfalse.
+      specialize (Hmstep Hfalse). invc_mstep. eauto using tstep, mstep.
+    + eexists. right. left. repeat eexists. intros He.
+      specialize (Hmstep He). invc_mstep; eauto using tstep, mstep.
+    + eexists. right. right. repeat eexists. eauto using tstep.
   - destructIH IHtype_of1; eexists.
     + right. left. eauto using tstep, mstep.
     + left. repeat eexists. intros Hfalse.

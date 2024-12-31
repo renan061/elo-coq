@@ -5,6 +5,14 @@ From Elo Require Import Core.
 (* ------------------------------------------------------------------------- *)
 
 Inductive has_var (x : id) : tm  -> Prop :=
+  | hasvar_plus1  : forall t1 t2,    has_var x t1 ->
+                                     has_var x <{t1 + t2                  }>
+  | hasvar_plus2  : forall t1 t2,    has_var x t2 ->
+                                     has_var x <{t1 + t2                  }>
+  | hasvar_monus1 : forall t1 t2,    has_var x t1 ->
+                                     has_var x <{t1 - t2                  }>
+  | hasvar_monus2 : forall t1 t2,    has_var x t2 ->
+                                     has_var x <{t1 - t2                  }>
   | hasvar_seq1   : forall t1 t2,    has_var x t1 ->
                                      has_var x <{t1; t2                   }>
   | hasvar_seq2   : forall t1 t2,    has_var x t2 ->
@@ -54,6 +62,8 @@ Local Ltac _hasvar tt :=
   match goal with
   | H : has_var _  <{unit                  }> |- _ => invc H
   | H : has_var _  <{nat _                 }> |- _ => invc H
+  | H : has_var _  <{_ + _                 }> |- _ => tt H
+  | H : has_var _  <{_ - _                 }> |- _ => tt H
   | H : has_var _  <{_; _                  }> |- _ => tt H
   | H : has_var _  <{if _ then _ else _ end}> |- _ => tt H
   | H : has_var _  <{while _ do _ end      }> |- _ => tt H
