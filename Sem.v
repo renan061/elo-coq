@@ -90,7 +90,7 @@ Notation "'unit'"  := (tm_unit)  (in custom elo_tm at level 0).
 Notation "'nat' n" := (tm_nat n) (in custom elo_tm at level 0,
                                           n constr at level 0).
 (* utility ------------------------------------------------------------------ *)
-Notation "t1 '+' t2" := (tm_plus  t1 t2)
+Notation "t1 '+' t2" := (tm_plus t1 t2)
   (in custom elo_tm at level 60, right associativity).
 Notation "t1 '-' t2" := (tm_monus t1 t2)
   (in custom elo_tm at level 60, right associativity).
@@ -346,17 +346,14 @@ Local Infix "=?" := string_dec (at level 70, no associativity).
 
 Fixpoint subst (x : id) (tx t : tm) : tm :=
   match t with
-  | <{unit                     }> => t
-  | <{nat _                    }> => t
+  | <{unit          }> => t
+  | <{nat _         }> => t
   (* utility *)
-  | <{t1 + t2                  }> => <{([x := tx] t1) + ([x := tx] t2)}>
-  | <{t1 - t2                  }> => <{([x := tx] t1) - ([x := tx] t2)}>
-  | <{t1; t2                   }> => <{([x := tx] t1); ([x := tx] t2)}>
-  | <{if t1 then t2 else t3 end}> => <{if [x := tx]t1
-                                        then [x := tx]t2
-                                        else [x := tx]t3
-                                       end}>
-  | <{while t1 do t2 end       }> => <{while [x := tx]t1 do [x := tx]t2 end}>
+  | <{t1 + t2       }> => <{([x := tx] t1) + ([x := tx] t2)}>
+  | <{t1 - t2       }> => <{([x := tx] t1) - ([x := tx] t2)}>
+  | <{t1; t2        }> => <{([x := tx] t1); ([x := tx] t2)}>
+  | (tm_if t1 t2 t3 )  => tm_if <{[x := tx]t1}> <{[x := tx]t2}> <{[x := tx]t3}>
+  | (tm_while t1 t2 )  => tm_while <{[x := tx]t1}> <{[x := tx]t2}>
   (* functions *)
   | <{var x'        }> => if x =? x' then tx else t
   | <{fn x' Tx t'   }> => if x =? x' then t  else <{fn x' Tx ([x := tx] t')}>
@@ -429,10 +426,7 @@ Inductive tstep : tm -> eff -> tm -> Prop :=
 
   (* while *)
   | ts_while : forall t1 t2,
-    <{while t1 do t2 end}> --[e_none]--> <{if t1
-                                            then t2; while t1 do t2 end
-                                            else unit
-                                           end}>
+    tm_while t1 t2 --[e_none]--> tm_if t1 <{t2; while t1 do t2 end}> <{unit}>
 
   (* call *)
   | ts_call1 : forall t1 t1' t2 e,
@@ -489,7 +483,7 @@ Inductive tstep : tm -> eff -> tm -> Prop :=
     <{acq t1 x t2}> --[e]--> <{acq t1' x t2}>
 
   | ts_acq : forall ad T x t tx,
-    <{acq (&ad : T) x t}> --[e_acq ad tx]--> <{cr ad ([x := tx] t)}>
+    <{acq (&ad : T) x t}> --[e_acq ad tx]--> <{cr ad [x := tx]t}>
 
   (* cr *)
   | ts_cr1 : forall ad t t' e,

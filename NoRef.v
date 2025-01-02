@@ -133,9 +133,9 @@ Lemma noref_preservation_none : forall ad t1 t2,
   no_ref ad t2.
 Proof. solve_noref_preservation. Qed.
 
-Lemma noref_preservation_alloc : forall ad t1 t2 ad' T,
+Lemma noref_preservation_alloc : forall ad t1 t2 ad' T',
   no_ref ad t1 ->
-  t1 --[e_alloc ad' T]--> t2 ->
+  t1 --[e_alloc ad' T']--> t2 ->
   no_ref ad t2.
 Proof. solve_noref_preservation. Qed.
 
@@ -146,25 +146,25 @@ Lemma noref_preservation_insert : forall ad t1 t2 ad' t' T',
   no_ref ad t2.
 Proof. solve_noref_preservation. Qed.
 
-Lemma noref_preservation_read : forall ad t1 t2 ad' t,
-  no_ref ad t ->
+Lemma noref_preservation_read : forall ad t1 t2 ad' t',
+  no_ref ad t' ->
   (* --- *)
   no_ref ad t1 ->
-  t1 --[e_read ad' t]--> t2 ->
+  t1 --[e_read ad' t']--> t2 ->
   no_ref ad t2.
 Proof. solve_noref_preservation. Qed.
 
-Lemma noref_preservation_write : forall ad t1 t2 ad' t,
+Lemma noref_preservation_write : forall ad t1 t2 ad' t',
   no_ref ad t1 ->
-  t1 --[e_write ad' t]--> t2 ->
+  t1 --[e_write ad' t']--> t2 ->
   no_ref ad t2.
 Proof. solve_noref_preservation. Qed.
 
-Lemma noref_preservation_acq : forall ad t1 t2 ad' t,
-  no_ref ad t ->
+Lemma noref_preservation_acq : forall ad t1 t2 ad' t',
+  no_ref ad t' ->
   (* --- *)
   no_ref ad t1 ->
-  t1 --[e_acq ad' t]--> t2 ->
+  t1 --[e_acq ad' t']--> t2 ->
   no_ref ad t2.
 Proof. solve_noref_preservation. Qed.
 
@@ -174,16 +174,16 @@ Lemma noref_preservation_rel : forall ad t1 t2 ad',
   no_ref ad t2.
 Proof. solve_noref_preservation. Qed.
 
-Lemma noref_preservation_spawn : forall ad t1 t2 tid t,
+Lemma noref_preservation_spawn : forall ad t1 t2 tid' t',
   no_ref ad t1 ->
-  t1 --[e_spawn tid t]--> t2 ->
+  t1 --[e_spawn tid' t']--> t2 ->
   no_ref ad t2.
 Proof. solve_noref_preservation. Qed.
 
-Lemma noref_preservation_spawned : forall ad t1 t2 tid t,
+Lemma noref_preservation_spawned : forall ad t1 t2 tid' t',
   no_ref ad t1 ->
-  t1 --[e_spawn tid t]--> t2 ->
-  no_ref ad t.
+  t1 --[e_spawn tid' t']--> t2 ->
+  no_ref ad t'.
 Proof. solve_noref_preservation. Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -261,21 +261,25 @@ Ltac invc_norefs :=
   match goal with
   | H : no_refs <{unit        }> |- _ => clear H
   | H : no_refs <{nat _       }> |- _ => clear H
-  | H : no_refs <{_ + _       }> |- _ => eapply inv_norefs_plus  in H as [? ?]
-  | H : no_refs <{_ - _       }> |- _ => eapply inv_norefs_monus in H as [? ?]
-  | H : no_refs <{_; _        }> |- _ => eapply inv_norefs_seq in H as [? ?]
-  | H : no_refs (tm_if _ _ _  )  |- _ => eapply inv_norefs_if  in H as [? [? ?]]
-  | H : no_refs (tm_while _ _ )  |- _ => eapply inv_norefs_while in H as [? ?]
+  | H : no_refs <{_ + _       }> |- _ => eapply inv_norefs_plus  in H
+  | H : no_refs <{_ - _       }> |- _ => eapply inv_norefs_monus in H
+  | H : no_refs <{_; _        }> |- _ => eapply inv_norefs_seq   in H
+  | H : no_refs (tm_if _ _ _  )  |- _ => eapply inv_norefs_if    in H
+  | H : no_refs (tm_while _ _ )  |- _ => eapply inv_norefs_while in H
   | H : no_refs <{var _       }> |- _ => clear H
   | H : no_refs <{fn _ _ _    }> |- _ => eapply inv_norefs_fun   in H
-  | H : no_refs <{call _ _    }> |- _ => eapply inv_norefs_call  in H as [? ?]
+  | H : no_refs <{call _ _    }> |- _ => eapply inv_norefs_call  in H
   | H : no_refs <{& _ : _     }> |- _ => eapply inv_norefs_ref   in H; auto
   | H : no_refs <{new _ : _   }> |- _ => eapply inv_norefs_new   in H
   | H : no_refs <{init _ _ : _}> |- _ => eapply inv_norefs_init  in H
   | H : no_refs <{* _         }> |- _ => eapply inv_norefs_load  in H
-  | H : no_refs <{_ := _      }> |- _ => eapply inv_norefs_asg   in H as [? ?]
-  | H : no_refs <{acq _ _ _   }> |- _ => eapply inv_norefs_acq   in H as [? ?]
+  | H : no_refs <{_ := _      }> |- _ => eapply inv_norefs_asg   in H
+  | H : no_refs <{acq _ _ _   }> |- _ => eapply inv_norefs_acq   in H
   | H : no_refs <{cr _ _      }> |- _ => eapply inv_norefs_cr    in H
   | H : no_refs <{spawn _     }> |- _ => eapply inv_norefs_spawn in H
+  end;
+  repeat match goal with
+  | H : no_refs _ /\ no_refs _              |- _ => destruct H
+  | H : no_refs _ /\ no_refs _ /\ no_refs _ |- _ => destruct H as [? [? ?]]
   end.
 
