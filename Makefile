@@ -54,6 +54,7 @@ safety:
 
 examples:
 	# examples
+	$(COQC) Eval.v
 	$(COQC) Examples.v
 
 clean:

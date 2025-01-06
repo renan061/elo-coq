@@ -41,10 +41,10 @@ Ltac ind_typeof := match goal with H : _ |-- _ is _ |- _ => induction H end.
 (* ------------------------------------------------------------------------- *)
 
 Ltac _tstep tt := match goal with H : _     --[_]-->     _     |- _ => tt H end.
-Ltac _mstep tt := match goal with H : _ / _ ==[_]==>     _ / _ |- _ => tt H end.
-Ltac _cstep tt := match goal with H : _ / _ ~~[_, _]~~>  _ / _ |- _ => tt H end.
-Ltac _rstep tt := match goal with H : _ / _ ~~~[_, _]~~> _ / _ |- _ => tt H end.
-Ltac _ustep tt := match goal with H : _ / _ ~~[_]~~>*    _ / _ |- _ => tt H end.
+Ltac _mstep tt := match goal with H : _ \ _ ==[_]==>     _ \ _ |- _ => tt H end.
+Ltac _cstep tt := match goal with H : _ \ _ ~~[_, _]~~>  _ \ _ |- _ => tt H end.
+Ltac _rstep tt := match goal with H : _ \ _ ~~~[_, _]~~> _ \ _ |- _ => tt H end.
+Ltac _ustep tt := match goal with H : _ \ _ ~~[_]~~>*    _ \ _ |- _ => tt H end.
 
 Ltac inv_tstep := _tstep inv.
 Ltac inv_mstep := _mstep inv.
@@ -64,7 +64,7 @@ Ltac ind_tstep :=
   end.
 
 Ltac ind_ustep :=
-  match goal with H : _ / _ ~~[?tc]~~>* _ / _ |- _ =>
+  match goal with H : _ \ _ ~~[?tc]~~>* _ \ _ |- _ =>
     induction H as [| ? ? ? ? ? ? ? ? ? Hustep ? Hrstep]
   end.
 
@@ -155,14 +155,14 @@ Proof.
 Qed.
 
 Lemma mstep_tid_bound : forall m m' t' ths tid e,
-  m / ths[tid] ==[e]==> m' / t' ->
+  m \ ths[tid] ==[e]==> m' \ t' ->
   tid < #ths.
 Proof.
   intros. invc_mstep; eauto using tstep_tid_bound.
 Qed.
 
 Lemma cstep_tid_bound : forall m m' ths ths' tid e,
-  m / ths ~~[tid, e]~~> m' / ths' ->
+  m \ ths ~~[tid, e]~~> m' \ ths' ->
   tid < #ths.
 Proof.
   intros. invc_cstep; trivial.

@@ -7,7 +7,7 @@ From Elo Require Import ConsistentTerm.
 
 Theorem rstep_nondecreasing_memory_size : forall m1 m2 ths1 ths2 tid e ad,
   ad < #m1 ->
-  m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~~[tid, e]~~> m2 \ ths2 ->
   ad < #m2.
 Proof.
   intros. invc_rstep; invc_cstep; try invc_mstep; trivial; sigma; lia.
@@ -15,7 +15,7 @@ Qed.
 
 Theorem ustep_nondecreasing_memory_size : forall m1 m2 ths1 ths2 tc ad,
   ad < #m1 ->
-  m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+  m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
   ad < #m2.
 Proof.
   intros. ind_ustep; eauto using rstep_nondecreasing_memory_size.
@@ -55,7 +55,7 @@ Proof.
 Qed.
 
 Theorem ptyp_preservation_cstep : forall m1 m2 ths1 ths2 tid e ad,
-  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~[tid, e]~~> m2 \ ths2 ->
   ad < #m1 ->
   m1[ad].T = m2[ad].T.
 Proof.
@@ -63,7 +63,7 @@ Proof.
 Qed.
 
 Theorem ptyp_preservation_rstep : forall m1 m2 ths1 ths2 tid e ad,
-  m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~~[tid, e]~~> m2 \ ths2 ->
   ad < #m1 ->
   m1[ad].T = m2[ad].T.
 Proof.
@@ -73,7 +73,7 @@ Proof.
 Qed.
 
 Theorem ptyp_preservation_ustep : forall m1 m2 ths1 ths2 tc ad,
-  m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+  m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
   ad < #m1 ->
   m1[ad].T = m2[ad].T.
 Proof.
@@ -106,7 +106,7 @@ Theorem mpt_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
   forall_threads ths1 well_typed_term ->
   (* --- *)
   memory_pointer_types m1 ->
-  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~[tid, e]~~> m2 \ ths2 ->
   memory_pointer_types m2.
 Proof.
   intros. invc_cstep; try invc_mstep; trivial;
@@ -117,11 +117,11 @@ Theorem mpt_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
   forall_program m1 ths1 well_typed_term ->
   (* --- *)
   memory_pointer_types m1 ->
-  m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~~[tid, e]~~> m2 \ ths2 ->
   memory_pointer_types m2.
 Proof.
   intros * [_ ?] **. invc_rstep; eauto using mpt_preservation_cstep.
-  match goal with _ : _ / _ ~~[_, _]~~> ?m / ?ths |- _ =>
+  match goal with _ : _ \ _ ~~[_, _]~~> ?m \ ?ths |- _ =>
     assert (memory_pointer_types m) by eauto using mpt_preservation_cstep
   end.
   repeat intro. omicron; upsilon; auto.

@@ -1,4 +1,3 @@
-From Coq Require Import Arith.
 From Coq Require Import Strings.String.
 From Coq Require Import List.
 
@@ -142,16 +141,16 @@ Reserved Notation "Gamma '|--' t 'is' T" (at level 40).
 Reserved Notation "t '--[' e ']-->' t'" (at level 40,
   e at next level).
 
-Reserved Notation "m / t '==[' e ']==>' m' / t'" (at level 40,
+Reserved Notation "m \ t '==[' e ']==>' m' \ t'" (at level 40,
   t at next level, e at next level, m' at next level).
 
-Reserved Notation "m / ths '~~[' tid , e ']~~>' m' / ths'" (at level 40,
+Reserved Notation "m \ ths '~~[' tid , e ']~~>' m' \ ths'" (at level 40,
   ths at next level, tid at next level, e at next level, m' at next level).
 
-Reserved Notation "m / ths '~~~[' tid , e ']~~>' m' / ths'" (at level 40,
+Reserved Notation "m \ ths '~~~[' tid , e ']~~>' m' \ ths'" (at level 40,
   ths at next level, tid at next level, e at next level, m' at next level).
 
-Reserved Notation "m / ths '~~[' tc ']~~>*' m' / ths'" (at level 40,
+Reserved Notation "m \ ths '~~[' tc ']~~>*' m' \ ths'" (at level 40,
   ths at next level, tc at next level, m' at next level).
 
 (* ------------------------------------------------------------------------- *)
@@ -195,6 +194,8 @@ Inductive cell : Type :=
   .
 
 Notation "'(' t ',' T ',' X ',' R ')'" := (_cell t T X R).
+
+Definition new_cell (T : ty) := (None, T, false, R_invalid).
 
 Definition get_cell_t (c : cell) := let (t, _, _, _) := c in t.
 Definition get_cell_T (c : cell) := let (_, T, _, _) := c in T.
@@ -534,42 +535,42 @@ Notation " m '[' ad '.R' '<-' R ']' " :=
 Inductive mstep : mem -> tm -> eff -> mem -> tm -> Prop :=
   | ms_none : forall m t1 t2,
     t1 --[e_none]--> t2 ->
-    m / t1 ==[e_none]==> m / t2
+    m \ t1 ==[e_none]==> m \ t2
 
   | ms_alloc : forall m t1 t2 ad T,
     ad = #m ->
     t1 --[e_alloc ad T]--> t2 ->
-    m / t1 ==[e_alloc ad T]==> (m +++ (None, T, false, R_invalid)) / t2
+    m \ t1 ==[e_alloc ad T]==> (m +++ new_cell T) \ t2
 
   | ms_insert : forall m t1 t2 ad t T,
     ad < #m ->
     t1 --[e_insert ad t T]--> t2 ->
-    m / t1 ==[e_insert ad t T]==> m[ad.t <- t] / t2
+    m \ t1 ==[e_insert ad t T]==> m[ad.t <- t] \ t2
 
   | ms_read : forall m t1 t2 ad t,
     ad < #m ->
     m[ad].t = Some t ->
     t1 --[e_read ad t]--> t2 ->
-    m / t1 ==[e_read ad t]==> m / t2
+    m \ t1 ==[e_read ad t]==> m \ t2
 
   | ms_write : forall m t1 t2 ad t,
     ad < #m ->
     t1 --[e_write ad t]--> t2 ->
-    m / t1 ==[e_write ad t]==> m[ad.t <- t] / t2
+    m \ t1 ==[e_write ad t]==> m[ad.t <- t] \ t2
 
   | ms_acq : forall m t1 t2 ad t,
     ad < #m ->
     m[ad].t = Some t ->
     m[ad].X = false ->
     t1 --[e_acq ad t]--> t2 ->
-    m / t1 ==[e_acq ad t]==> m[ad.X <- true] / t2
+    m \ t1 ==[e_acq ad t]==> m[ad.X <- true] \ t2
 
   | ms_rel : forall m t1 t2 ad,
     ad < #m ->
     t1 --[e_rel ad]--> t2 ->
-    m / t1 ==[e_rel ad]==> m[ad.X <- false] / t2
+    m \ t1 ==[e_rel ad]==> m[ad.X <- false] \ t2
 
-  where "m / t '==[' e ']==>' m' / t'" := (mstep m t e m' t').
+  where "m \ t '==[' e ']==>' m' \ t'" := (mstep m t e m' t').
 
 (* ------------------------------------------------------------------------- *)
 (* operational semantics -- concurrent step                                  *)
@@ -581,15 +582,15 @@ Notation " ths '[' tid ']' " := (ths[tid] or tm_default)
 Inductive cstep : mem -> threads -> nat -> eff -> mem -> threads -> Prop :=
   | cs_mem : forall m1 m2 t ths tid e,
     tid < #ths ->
-    m1 / ths[tid] ==[e]==> m2 / t ->
-    m1 / ths ~~[tid, e]~~> m2 / ths[tid <- t]
+    m1 \ ths[tid] ==[e]==> m2 \ t ->
+    m1 \ ths ~~[tid, e]~~> m2 \ ths[tid <- t]
 
   | cs_spawn : forall m t te ths tid,
     tid < #ths ->
     ths[tid] --[e_spawn (#ths) te]--> t ->
-    m / ths ~~[tid, e_spawn (#ths) te]~~> m / (ths[tid <- t] +++ te)
+    m \ ths ~~[tid, e_spawn (#ths) te]~~> m \ (ths[tid <- t] +++ te)
 
-  where "m / ths '~~[' tid , e ']~~>' m' / ths'" := (cstep m ths tid e m' ths').
+  where "m \ ths '~~[' tid , e ']~~>' m' \ ths'" := (cstep m ths tid e m' ths').
 
 (* ------------------------------------------------------------------------- *)
 (* operational semantics -- region step                                      *)
@@ -635,39 +636,39 @@ Fixpoint gcr (t' : tm) (R : region) : region :=
 
 Inductive rstep : mem -> threads -> nat -> eff -> mem -> threads -> Prop :=
   | rs_none : forall m1 m2 ths1 ths2 tid,
-    m1 / ths1 ~~[tid, e_none]~~> m2 / ths2 ->
-    m1 / ths1 ~~~[tid, e_none]~~> m2 / ths2
+    m1 \ ths1 ~~[tid, e_none]~~> m2 \ ths2 ->
+    m1 \ ths1 ~~~[tid, e_none]~~> m2 \ ths2
 
   | rs_alloc : forall m1 m2 ths1 ths2 tid ad T R,
     R = gcr ths1[tid] (R_tid tid) ->
-    m1 / ths1 ~~[tid, e_alloc ad T]~~> m2 / ths2 ->
-    m1 / ths1 ~~~[tid, e_alloc ad T]~~> m2[ad.R <- R] / ths2
+    m1 \ ths1 ~~[tid, e_alloc ad T]~~> m2 \ ths2 ->
+    m1 \ ths1 ~~~[tid, e_alloc ad T]~~> m2[ad.R <- R] \ ths2
 
   | rs_insert : forall m1 m2 ths1 ths2 tid ad t T,
-    m1 / ths1 ~~[tid, e_insert ad t T]~~> m2 / ths2 ->
-    m1 / ths1 ~~~[tid, e_insert ad t T]~~> m2 / ths2
+    m1 \ ths1 ~~[tid, e_insert ad t T]~~> m2 \ ths2 ->
+    m1 \ ths1 ~~~[tid, e_insert ad t T]~~> m2 \ ths2
 
   | rs_read : forall m1 m2 ths1 ths2 tid ad t,
-    m1 / ths1 ~~[tid, e_read ad t]~~> m2 / ths2 ->
-    m1 / ths1 ~~~[tid, e_read ad t]~~> m2 / ths2
+    m1 \ ths1 ~~[tid, e_read ad t]~~> m2 \ ths2 ->
+    m1 \ ths1 ~~~[tid, e_read ad t]~~> m2 \ ths2
 
   | rs_write : forall m1 m2 ths1 ths2 tid ad t,
-    m1 / ths1 ~~[tid, e_write ad t]~~> m2 / ths2 ->
-    m1 / ths1 ~~~[tid, e_write ad t]~~> m2 / ths2
+    m1 \ ths1 ~~[tid, e_write ad t]~~> m2 \ ths2 ->
+    m1 \ ths1 ~~~[tid, e_write ad t]~~> m2 \ ths2
 
   | rs_acq : forall m1 m2 ths1 ths2 tid ad t,
-    m1 / ths1 ~~[tid, e_acq ad t]~~> m2 / ths2 ->
-    m1 / ths1 ~~~[tid, e_acq ad t]~~> m2 / ths2
+    m1 \ ths1 ~~[tid, e_acq ad t]~~> m2 \ ths2 ->
+    m1 \ ths1 ~~~[tid, e_acq ad t]~~> m2 \ ths2
 
   | rs_rel : forall m1 m2 ths1 ths2 tid ad,
-    m1 / ths1 ~~[tid, e_rel ad]~~> m2 / ths2 ->
-    m1 / ths1 ~~~[tid, e_rel ad]~~> m2 / ths2
+    m1 \ ths1 ~~[tid, e_rel ad]~~> m2 \ ths2 ->
+    m1 \ ths1 ~~~[tid, e_rel ad]~~> m2 \ ths2
 
   | rs_spawn : forall m1 m2 ths1 ths2 tid tid' t',
-    m1 / ths1 ~~[tid, e_spawn tid' t']~~> m2 / ths2 ->
-    m1 / ths1 ~~~[tid, e_spawn tid' t']~~> m2 / ths2
+    m1 \ ths1 ~~[tid, e_spawn tid' t']~~> m2 \ ths2 ->
+    m1 \ ths1 ~~~[tid, e_spawn tid' t']~~> m2 \ ths2
 
-  where "m / ths '~~~[' tid , e ']~~>' m' / ths'" :=
+  where "m \ ths '~~~[' tid , e ']~~>' m' \ ths'" :=
     (rstep m ths tid e m' ths').
 
 (* ------------------------------------------------------------------------- *)
@@ -676,14 +677,14 @@ Inductive rstep : mem -> threads -> nat -> eff -> mem -> threads -> Prop :=
 
 Inductive multistep : mem -> threads -> trace -> mem -> threads -> Prop :=
   | multistep_refl: forall m ths,
-    m / ths ~~[nil]~~>* m / ths
+    m \ ths ~~[nil]~~>* m \ ths
 
   | multistep_trans : forall m1 m2 m3 ths1 ths2 ths3 tid e tc,
-    m1 / ths1 ~~[tc            ]~~>* m2 / ths2 ->
-    m2 / ths2 ~~~[tid, e       ]~~>  m3 / ths3 ->
-    m1 / ths1 ~~[(tid, e) :: tc]~~>* m3 / ths3 
+    m1 \ ths1 ~~[tc            ]~~>* m2 \ ths2 ->
+    m2 \ ths2 ~~~[tid, e       ]~~>  m3 \ ths3 ->
+    m1 \ ths1 ~~[(tid, e) :: tc]~~>* m3 \ ths3 
 
-  where "m1 / ths1 '~~[' tc ']~~>*' m2 / ths2" :=
+  where "m1 \ ths1 '~~[' tc ']~~>*' m2 \ ths2" :=
     (multistep m1 ths1 tc m2 ths2).
 
 (* ------------------------------------------------------------------------- *)

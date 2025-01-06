@@ -287,7 +287,7 @@ Lemma ctm_preservation_alloc : forall m t1 t2 T',
   (* --- *)
   consistent_term m t1 ->
   t1 --[e_alloc (#m) T']--> t2 ->
-  consistent_term (m +++ (None, T', false, R_invalid)) t2.
+  consistent_term (m +++ new_cell T') t2.
 Proof.
   intros * ? [T ?] **. gendep T.
   ind_tstep; intros; invc_vtm; invc_typeof; invc_ctm;
@@ -379,7 +379,7 @@ Corollary ctm_preservation_memory : forall m1 m2 ths1 ths2 tid e,
   (* --- *)
   forall_memory  m1   (consistent_term m1) ->
   forall_threads ths1 (consistent_term m1) ->
-  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~[tid, e]~~> m2 \ ths2 ->
   forall_memory  m2   (consistent_term m2).
 Proof.
   intros * ? [? ?] [? ?] **.
@@ -401,7 +401,7 @@ Corollary ctm_preservation_threads : forall m1 m2 ths1 ths2 tid e,
   (* --- *)
   forall_memory  m1   (consistent_term m1) ->
   forall_threads ths1 (consistent_term m1) ->
-  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~[tid, e]~~> m2 \ ths2 ->
   forall_threads ths2 (consistent_term m2).
 Proof.
   intros * [? ?] [? ?] ? Hui ? ? ?.
@@ -431,7 +431,7 @@ Theorem ctm_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
   unique_initializers m1 ths1 ->
   (* --- *)
   forall_program m1 ths1 (consistent_term m1) ->
-  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~[tid, e]~~> m2 \ ths2 ->
   forall_program m2 ths2 (consistent_term m2).
 Proof.
   intros until 5. intros [? ?] **.
@@ -446,15 +446,16 @@ Theorem ctm_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
   unique_initializers         m1 ths1 ->
   (* --- *)
   forall_program m1 ths1 (consistent_term m1) ->
-  m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~~[tid, e]~~> m2 \ ths2 ->
   forall_program m2 ths2 (consistent_term m2).
 Proof.
   intros. invc_rstep; eauto using ctm_preservation_cstep.
-  match goal with _ : _ / _ ~~[_, _]~~> ?m / ?ths |- _ =>
+  match goal with _ : _ \ _ ~~[_, _]~~> ?m \ ?ths |- _ =>
     assert (forall_program m ths (consistent_term m)) as [? ?]
       by eauto using ctm_preservation_cstep
   end.
-  split; repeat intro; repeat omicron; upsilon; eauto using ctm_mem_region.
+  split; repeat intro; repeat omicron; upsilon;
+  auto; eauto using ctm_mem_region.
 Qed.
 
 Theorem ctm_preservation_base : forall t,

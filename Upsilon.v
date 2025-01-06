@@ -80,10 +80,10 @@ Local Lemma fp_add_step {P : tm -> Prop} : forall m ths tid t T,
   P <{unit}> ->
   P t ->
   forall_program m ths P ->
-  forall_program (m +++ (None, T, false, R_invalid)) ths[tid <- t] P.
+  forall_program (m +++ new_cell T) ths[tid <- t] P.
 Proof.
   intros * ? ? [? ?]. split.
-  - intros until 1. omicron; simpl in *; eauto.
+  - intros until 1. omicron; simpl in *; auto; eauto.
   - intros ?. repeat omicron; trivial.
 Qed.
 
@@ -95,7 +95,7 @@ Local Lemma fp_sett_step {P : tm -> Prop} :
     forall_program m[ad.t <- t1] ths[tid <- t2] P.
 Proof.
   intros * ? [? ?] [? ?]. split.
-  - intros until 1. repeat omicron; simpl in *; eauto. invc_eq; eauto.
+  - intros until 1. repeat omicron; simpl in *; auto; try invc_eq; eauto.
   - intros ?. repeat omicron; trivial.
 Qed.
 
@@ -106,7 +106,7 @@ Local Lemma fp_setx_step {P : tm -> Prop} : forall m ths ad X tid t,
   forall_program m[ad.X <- X] ths[tid <- t] P.
 Proof.
   intros * ? ? [? ?]. split.
-  - intros until 1. repeat omicron; simpl in *; eauto.
+  - intros until 1. repeat omicron; simpl in *; auto; eauto.
   - intros ?. repeat omicron; trivial.
 Qed.
 
@@ -126,7 +126,7 @@ Qed.
 (* ------------------------------------------------------------------------- *)
 
 Lemma add_getT : forall m ad T1 T2,
-  (m +++ (None, T1, false, R_invalid))[ad].T = T2 ->
+  (m +++ new_cell T1)[ad].T = T2 ->
   (ad = #m /\ T1 = T2) \/ m[ad].T = T2.
 Proof.
   intros. omicron; auto.
@@ -147,13 +147,13 @@ Proof.
 Qed.
 
 Lemma add_getx_false : forall m ad T,
-  (m +++ (None, T, false, R_invalid))[ad].X = false <-> m[ad].X = false.
+  (m +++ new_cell T)[ad].X = false <-> m[ad].X = false.
 Proof.
   intros; split; omicron; trivial.
 Qed.
 
 Lemma add_getx_true : forall m ad T,
-  (m +++ (None, T, false, R_invalid))[ad].X = true <->
+  (m +++ new_cell T)[ad].X = true <->
   (ad < #m /\ m[ad].X = true).
 Proof.
   intros. split.
@@ -164,13 +164,13 @@ Qed.
 (* ------------------------------------------------------------------------- *)
 
 Local Lemma add_gett_none : forall m ad T,
-  (m +++ (None, T, false, R_invalid))[ad].t = None <-> m[ad].t = None.
+  (m +++ new_cell T)[ad].t = None <-> m[ad].t = None.
 Proof.
   intros; split; omicron; trivial.
 Qed.
 
 Local Lemma add_gett_some : forall m t ad T,
-  (m +++ (None, T, false, R_invalid))[ad].t = Some t <->
+  (m +++ new_cell T)[ad].t = Some t <->
   (ad < #m /\ m[ad].t = Some t).
 Proof.
   intros. split.
@@ -179,14 +179,14 @@ Proof.
 Qed.
 
 Local Lemma add_get_nonone : forall m ad T,
-  (m +++ (None, T, false, R_invalid))[ad].t <> None ->
+  (m +++ new_cell T)[ad].t <> None ->
   (m[ad].t <> None /\ ad < #m).
 Proof.
   intros. omicron; simpl in *; auto.
 Qed.
 
 Local Lemma add_get_some : forall m t ad T,
-  (m +++ (None, T, false, R_invalid))[ad].t = Some t <-> m[ad].t = Some t.
+  (m +++ new_cell T)[ad].t = Some t <-> m[ad].t = Some t.
 Proof.
   intros. split; omicron; trivial.
 Qed.
@@ -229,15 +229,23 @@ Ltac upsilon' :=
   (* ---------------------------------------- *)
   | H : context C [ (_, _, _, _).t ] |- _ => simpl in H
   | |-  context C [ (_, _, _, _).t ]      => simpl
+  | H : context C [ (new_cell _).t ] |- _ => unfold new_cell in H
+  | |-  context C [ (new_cell _).t ]      => unfold new_cell
   (* ---------------------------------------- *)
   | H : context C [ (_, _, _, _).T ] |- _ => simpl in H
   | |-  context C [ (_, _, _, _).T ]      => simpl
+  | H : context C [ (new_cell _).T ] |- _ => unfold new_cell in H
+  | |-  context C [ (new_cell _).T ]      => unfold new_cell
   (* ---------------------------------------- *)
   | H : context C [ (_, _, _, _).X ] |- _ => simpl in H
   | |-  context C [ (_, _, _, _).X ]      => simpl
+  | H : context C [ (new_cell _).X ] |- _ => unfold new_cell in H
+  | |-  context C [ (new_cell _).X ]      => unfold new_cell
   (* ---------------------------------------- *)
   | H : context C [ (_, _, _, _).R ] |- _ => simpl in H
   | |-  context C [ (_, _, _, _).R ]      => simpl
+  | H : context C [ (new_cell _).R ] |- _ => unfold new_cell in H
+  | |-  context C [ (new_cell _).R ]      => unfold new_cell
   (* ---------------------------------------- *)
   (* forall-threads                           *)
   (* ---------------------------------------- *)
@@ -273,7 +281,7 @@ Ltac upsilon' :=
     eapply fp_step; eauto; try solve [constructor]
   (* ---------------------------------------- *)
   | H : forall_program ?m ?ths ?P
-  |-    forall_program (?m +++ (None, _, false, _)) ?ths[_ <- _] ?P =>
+  |-    forall_program (?m +++ new_cell _) ?ths[_ <- _] ?P =>
     eapply fp_add_step; eauto; try solve [constructor]
   (* ---------------------------------------- *)
   | H : forall_program ?m ?ths ?P
@@ -300,21 +308,21 @@ Ltac upsilon' :=
   |  |- context C [ ?m[?ad'.X <- ?X][?ad].T ] =>
     rewrite setx_getT_eq 
   (* ---------------------------------------- *)
-  | H : (_ +++ (None, _, false, _))[_].X = false |- _ =>
+  | H : (_ +++ new_cell _)[_].X = false |- _ =>
     rewrite add_getx_false in H
   (* ---------------------------------------- *)
-  | H : (_ +++ (None, _, false, _))[_].X = true  |- _ =>
+  | H : (_ +++ new_cell _)[_].X = true  |- _ =>
     eapply add_getx_true in H as [? ?]
   (* ---------------------------------------- *)
   (* memory -- t                              *)
   (* ---------------------------------------- *)
-  | H : (_ +++ (None, _, false, _))[_].t = None |- _ =>
+  | H : (_ +++ new_cell _)[_].t = None |- _ =>
     rewrite add_gett_none in H
   (* ---------------------------------------- *)
-  | H : (_ +++ (None, _, false, _))[_].t = Some _ |- _ =>
+  | H : (_ +++ new_cell _)[_].t = Some _ |- _ =>
     eapply add_gett_some in H as [? ?]
   (* ---------------------------------------- *)
-  | H : (_ +++ (None, _, false, _))[_].t <> None |- _ =>
+  | H : (_ +++ new_cell _)[_].t <> None |- _ =>
     eapply add_get_nonone in H as [?Ha ?Hb]; clear H
   (* ---------------------------------------- *)
   | Had' : ?ad' < #?m, H : ?m[?ad'.t <- ?t][?ad].t = None |- _ =>
@@ -328,7 +336,7 @@ Ltac upsilon' :=
   (* ---------------------------------------- *)
   (* memory -- T                              *)
   (* ---------------------------------------- *)
-  | H : (?m +++ (None, ?T1, false, _))[?ad].T = ?T2 |- _ =>
+  | H : (?m +++ new_cell ?T1)[?ad].T = ?T2 |- _ =>
     apply (add_getT m ad T1 T2) in H as [[? ?] | ?]; subst
   end.
 

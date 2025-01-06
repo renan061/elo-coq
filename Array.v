@@ -1,6 +1,7 @@
-From Coq Require Import Arith.Arith.
-From Coq Require Import Lists.List.
+From Coq Require Import Arith.Compare_dec.
 From Coq Require Import Lia.
+From Coq Require Import Lists.List.
+From Coq Require Import PeanoNat.
 
 From Elo Require Import Util.
 
@@ -65,14 +66,14 @@ Proof.
   intros * Hgt. generalize dependent i. induction l as [| ? ? IH]; trivial.
   intros. destruct i.
   - inv Hgt.
-  - simpl in *. eapply lt_S_n in Hgt. rewrite IH; eauto.
+  - simpl in *. eapply Nat.succ_lt_mono in Hgt. rewrite IH; eauto.
 Qed.
 
 Lemma set_invalid_ge : forall {A} (l : list A) i a,
   #l <= i ->
   l[i <- a] = l.
 Proof.
-  intros * Hge. eapply le_lt_or_eq in Hge as [? | ?]; subst;
+  intros * Hge. eapply Nat.lt_eq_cases in Hge as [? | ?]; subst;
   eauto using set_invalid_eq, set_invalid_gt.
 Qed.
 
@@ -89,14 +90,16 @@ Lemma get_default_gt : forall {A} d (l : list A) i,
   l[i] or d = d.
 Proof.
   intros * Hgt. generalize dependent i. induction l; intros;
-  destruct i; eauto using lt_S_n; inv Hgt.
+  destruct i; eauto; simpl in *.
+  - invc Hgt.
+  - eapply Nat.succ_lt_mono in Hgt. eauto.
 Qed.
 
 Lemma get_default_ge : forall {A} d (l : list A) i,
   #l <= i ->
   l[i] or d = d.
 Proof.
-  intros * Hge. eapply le_lt_or_eq in Hge as [? | ?]; subst;
+  intros * Hge. eapply Nat.lt_eq_cases in Hge as [? | ?]; subst;
   eauto using get_default_eq, get_default_gt.
 Qed.
 

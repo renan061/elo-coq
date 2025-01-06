@@ -108,7 +108,7 @@ Local Lemma ucr_preservation_alloc : forall m ths tid t T,
   tid < #ths ->
   unique_critical_regions m ths ->
   ths[tid] --[e_alloc (#m) T]--> t ->
-  unique_critical_regions (m +++ (None, T, false, R_invalid)) ths[tid <- t].
+  unique_critical_regions (m +++ new_cell T) ths[tid <- t].
 Proof.
   intros *.
   intros ? Hucr ? ad. specialize (Hucr ad) as [Hfall Hfone].
@@ -243,7 +243,7 @@ Theorem ucr_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
   forall_program m1 ths1 (valid_term m1) ->
   (* --- *)
   unique_critical_regions m1 ths1 ->
-  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~[tid, e]~~> m2 \ ths2 ->
   unique_critical_regions m2 ths2.
 Proof.
   intros * ? [? ?] **. invc_cstep; try invc_mstep.
@@ -262,11 +262,11 @@ Theorem ucr_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
   forall_program m1 ths1 (valid_term m1) ->
   (* --- *)
   unique_critical_regions m1 ths1 ->
-  m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~~[tid, e]~~> m2 \ ths2 ->
   unique_critical_regions m2 ths2.
 Proof.
   intros. invc_rstep; eauto using ucr_preservation_cstep.
-  match goal with _ : _ / _ ~~[_, _]~~> ?m / ?ths |- _ =>
+  match goal with _ : _ \ _ ~~[_, _]~~> ?m \ ?ths |- _ =>
     assert (unique_critical_regions m ths)
   end;
   eauto using ucr_preservation_cstep, ucr_mem_region.

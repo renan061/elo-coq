@@ -39,7 +39,7 @@ Ltac destruct_invariants :=
 Corollary rstep_ptyp_for_write : forall m1 m2 ths1 ths2 tid ad' t',
   invariants m1 ths1 ->
   (* --- *)
-  m1 / ths1 ~~~[tid, e_write ad' t']~~> m2 / ths2 ->
+  m1 \ ths1 ~~~[tid, e_write ad' t']~~> m2 \ ths2 ->
   exists T, m1[ad'].T = `w&T`.
 Proof.
   intros. destruct_invariants. invc_rstep. invc_cstep. invc_mstep.
@@ -51,9 +51,9 @@ Local Lemma same_pointer_type :
     invariants m1 ths1 ->
     (* --- *)
     ad < #m1 ->
-    m1 / ths1 ~~~[tid1, e1]~~>  mA / thsA ->
-    mA / thsA  ~~[tc      ]~~>* mB / thsB ->
-    mB / thsB ~~~[tid2, e2]~~>  m2 / ths2 ->
+    m1 \ ths1 ~~~[tid1, e1]~~>  mA \ thsA ->
+    mA \ thsA  ~~[tc      ]~~>* mB \ thsB ->
+    mB \ thsB ~~~[tid2, e2]~~>  m2 \ ths2 ->
     (m1[ad].T = mA[ad].T /\ mA[ad].T = mB[ad].T /\ mB[ad].T = m2[ad].T).
 Proof.
   intros.
@@ -71,9 +71,9 @@ Local Lemma same_regions :
     invariants m1 ths1 ->
     (* --- *)
     ad < #m1 ->
-    m1 / ths1 ~~~[tid1, e1]~~>  mA / thsA ->
-    mA / thsA  ~~[tc      ]~~>* mB / thsB ->
-    mB / thsB ~~~[tid2, e2]~~>  m2 / ths2 ->
+    m1 \ ths1 ~~~[tid1, e1]~~>  mA \ thsA ->
+    mA \ thsA  ~~[tc      ]~~>* mB \ thsB ->
+    mB \ thsB ~~~[tid2, e2]~~>  m2 \ ths2 ->
     m1[ad].R = mB[ad].R.
 Proof.
   intros.
@@ -90,37 +90,37 @@ Qed.
 (* ------------------------------------------------------------------------- *)
 
 Local Lemma _destruct_ustep2 : forall tc m1 m3 ths1 ths3 tid e,
-  m1 / ths1 ~~[tc ++ (tid, e) :: nil]~~>* m3 / ths3 ->
+  m1 \ ths1 ~~[tc ++ (tid, e) :: nil]~~>* m3 \ ths3 ->
   (exists m2 ths2,
-    m1 / ths1 ~~~[tid, e]~~> m2 / ths2 /\
-    m2 / ths2 ~~[tc]~~>*     m3 / ths3 ).
+    m1 \ ths1 ~~~[tid, e]~~> m2 \ ths2 /\
+    m2 \ ths2 ~~[tc]~~>*     m3 \ ths3 ).
 Proof.
   intros ?. induction tc; intros; invc_ustep.
   - invc_ustep. eauto using multistep.
-  - match goal with Hustep : _ / _ ~~[ _ ]~~>* _ / _ |- _ => 
+  - match goal with Hustep : _ \ _ ~~[ _ ]~~>* _ \ _ |- _ => 
       decompose record (IHtc _ _ _ _ _ _ Hustep); eauto using multistep
     end.
 Qed.
 
 Ltac destruct_ustep2 :=
   match goal with
-  | H : _ / _  ~~[_ ++ (_, _) :: nil]~~>* _ / _ |- _ =>
+  | H : _ \ _  ~~[_ ++ (_, _) :: nil]~~>* _ \ _ |- _ =>
     eapply _destruct_ustep2 in H as [? [? [? ?]]]
   end.
 
 Local Lemma _destruct_ustep3 : forall tc m1 m4 ths1 ths4 tid1 tid2 e1 e2,
-  m1 / ths1 ~~[(tid2, e2) :: tc ++ (tid1, e1) :: nil]~~>* m4 / ths4 ->
+  m1 \ ths1 ~~[(tid2, e2) :: tc ++ (tid1, e1) :: nil]~~>* m4 \ ths4 ->
   (exists m2 ths2 m3 ths3,
-    m1 / ths1 ~~~[tid1, e1]~~> m2 / ths2 /\
-    m2 / ths2 ~~[tc]~~>*      m3 / ths3 /\
-    m3 / ths3 ~~~[tid2, e2]~~> m4 / ths4 ).
+    m1 \ ths1 ~~~[tid1, e1]~~> m2 \ ths2 /\
+    m2 \ ths2 ~~[tc]~~>*      m3 \ ths3 /\
+    m3 \ ths3 ~~~[tid2, e2]~~> m4 \ ths4 ).
 Proof.
   intros. invc_ustep. destruct_ustep2. do 4 eexists. repeat split; eauto.
 Qed.
 
 Ltac destruct_ustep3 :=
   match goal with 
-  | H : _ / _ ~~[(_, _) :: _ ++ (_, _) :: nil]~~>* _ / _ |- _ =>
+  | H : _ \ _ ~~[(_, _) :: _ ++ (_, _) :: nil]~~>* _ \ _ |- _ =>
     eapply _destruct_ustep3 in H
       as [mA [thsA [mB [thsB [H1A [HAB HB2]]]]]]
   end.
@@ -148,18 +148,18 @@ Qed.
 (* ------------------------------------------------------------------------- *)
 
 Local Lemma destruct_ustep' : forall m1 m2 ths1 ths2 tc1 tc2 tid e,
-  m1 / ths1 ~~[tc2 ++ (tid, e) :: tc1]~~>* m2 / ths2 ->
+  m1 \ ths1 ~~[tc2 ++ (tid, e) :: tc1]~~>* m2 \ ths2 ->
   exists mA mB thsA thsB,
-    m1 / ths1  ~~[tc1   ]~~>* mA / thsA /\
-    mA / thsA ~~~[tid, e]~~>  mB / thsB /\
-    mB / thsB  ~~[tc2   ]~~>* m2 / ths2.
+    m1 \ ths1  ~~[tc1   ]~~>* mA \ thsA /\
+    mA \ thsA ~~~[tid, e]~~>  mB \ thsB /\
+    mB \ thsB  ~~[tc2   ]~~>* m2 \ ths2.
 Proof.
   intros.
   gendep ths2. gendep ths1. gendep m2. gendep m1. gendep e. gendep tid.
   induction tc2; intros.
   - rewrite app_nil_l in *. invc_ustep. repeat eexists; eauto using multistep.
   - invc_ustep.
-    match goal with H : _ / _ ~~[_]~~>* _ / _ |- _ =>
+    match goal with H : _ \ _ ~~[_]~~>* _ \ _ |- _ =>
       decompose record (IHtc2 _ _ _ _ _ _ H)
     end.
     repeat eexists; eauto using multistep.
@@ -176,7 +176,7 @@ Local Lemma oneinit_multistep_oneinit :
     (* --- *)
     tid1 <> tid2                   ->
     one_init ad ths1[tid1]         ->
-    m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+    m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
     one_init ad ths2[tid2]         ->
     False.
 Proof.
@@ -204,14 +204,14 @@ Local Lemma oneinit_multistep_onecr_requires_acq' :
     (* --- *)
     tid1 <> tid2 ->
     one_init ad ths1[tid1] ->
-    m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+    m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
     one_cr ad ths2[tid2] ->
     exists t, In (tid2, (e_acq ad t)) tc.
 Proof.
   intros. ind_ustep.
   - exfalso.
     assert (Hice : init_cr_exclusivity ths) by eauto with inva.
-    specialize (Hice ad) as [? _].
+    specialize (Hice ad tid1 tid2) as [? _].
     eauto using nocr_onecr_contradiction.
   - assert (invariants m2 ths2) by eauto using invariants_preservation_ustep.
     repeat spec.
@@ -230,7 +230,7 @@ Local Corollary oneinit_multistep_onecr_requires_acq :
     (* --- *)
     tid1 <> tid2 ->
     one_init ad ths1[tid1] ->
-    m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+    m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
     one_cr ad ths2[tid2] ->
     exists t tc1 tc2, tc = tc2 ++ (tid2, e_acq ad t) :: tc1.
 Proof.
@@ -247,9 +247,9 @@ Local Corollary multistep_acq_requires_initialized :
     invariants m2 ths2 ->
     (* --- *)
     tid1 <> tid2 ->
-    m1 / ths1 ~~[tc2 ++ (tid2, e_acq ad t) :: tc1]~~>* m2 / ths2 ->
+    m1 \ ths1 ~~[tc2 ++ (tid2, e_acq ad t) :: tc1]~~>* m2 \ ths2 ->
     exists mA thsA t,
-      m1 / ths1 ~~[tc1]~~>* mA / thsA /\
+      m1 \ ths1 ~~[tc1]~~>* mA \ thsA /\
       mA[ad].t = Some t.
 Proof.
   intros * ? ? ? H.
@@ -264,7 +264,7 @@ Local Lemma oneinit_multistep_initialized_requires_insert :
     invariants m2 ths2 ->
     (* --- *)
     one_init ad ths1[tid] ->
-    m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+    m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
     m2[ad].t = Some t ->
     exists t T, In (tid, e_insert ad t T) tc.
 Proof.
@@ -275,7 +275,7 @@ Proof.
     assert (m2[ad].t <> None) by (intros F; rewrite F in *; auto).
     specialize (Hui ad) as [Hsome _]; trivial. spec.
     exfalso. eauto using noinit_oneinit_contradiction.
-  - match goal with H : _ / _ ~~[_ ++ ?e :: nil]~~>* _ / _ |- _ => 
+  - match goal with H : _ \ _ ~~[_ ++ ?e :: nil]~~>* _ \ _ |- _ => 
       destruct e as [tid' e'];
       eapply destruct_ustep' in H as [mA [mB [thsA [thsB [H1A [? ?]]]]]]
     end.
@@ -300,7 +300,7 @@ Local Lemma oneinit_multistep_onecr :
     (* --- *)
     tid1 <> tid2                   ->
     one_init ad ths1[tid1]         ->
-    m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+    m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
     one_cr   ad ths2[tid2]         ->
     exists tc1 tc2 t t' T',
       tc = tc2 ++ tc1                  /\
@@ -313,7 +313,7 @@ Proof.
     by eauto using oneinit_multistep_onecr_requires_acq.
   subst.
   assert (exists mA thsA t,
-    m1 / ths1 ~~[tc1]~~>* mA / thsA /\ mA[ad].t = Some t)
+    m1 \ ths1 ~~[tc1]~~>* mA \ thsA /\ mA[ad].t = Some t)
     as [mA [thsA [? [? ?]]]]
     by eauto using multistep_acq_requires_initialized.
   assert (invariants mA thsA) by eauto using invariants_preservation_ustep.
@@ -337,7 +337,7 @@ Local Lemma onecr_multistep_oneinit :
     (* --- *)
     tid1 <> tid2                   ->
     one_cr   ad ths1[tid1]         ->
-    m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+    m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
     one_init ad ths2[tid2]         ->
     False.
 Proof.
@@ -374,7 +374,7 @@ Local Lemma onecr_multistep_onecr_requires_acq' :
     (* --- *)
     tid1 <> tid2 ->
     one_cr ad ths1[tid1] ->
-    m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+    m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
     one_cr ad ths2[tid2] ->
     exists t, In (tid2, (e_acq ad t)) tc.
 Proof.
@@ -404,7 +404,7 @@ Local Corollary onecr_multistep_onecr_requires_acq :
     (* --- *)
     tid1 <> tid2 ->
     one_cr ad ths1[tid1] ->
-    m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+    m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
     one_cr ad ths2[tid2] ->
     exists t tc1 tc2, tc = tc2 ++ (tid2, e_acq ad t) :: tc1.
 Proof.
@@ -421,9 +421,9 @@ Local Corollary multistep_acq_requires_unlocked :
     invariants m2 ths2 ->
     (* --- *)
     tid1 <> tid2 ->
-    m1 / ths1 ~~[tc2 ++ (tid2, e_acq ad t) :: tc1]~~>* m2 / ths2 ->
+    m1 \ ths1 ~~[tc2 ++ (tid2, e_acq ad t) :: tc1]~~>* m2 \ ths2 ->
     exists mA thsA,
-      m1 / ths1 ~~[tc1]~~>* mA / thsA /\
+      m1 \ ths1 ~~[tc1]~~>* mA \ thsA /\
       mA[ad].X = false.
 Proof.
   intros * ? ? ? H.
@@ -438,7 +438,7 @@ Local Lemma onecr_multistep_unlocked_requires_rel :
     invariants m2 ths2 ->
     (* --- *)
     one_cr ad ths1[tid] ->
-    m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+    m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
     m2[ad].X = false ->
     In (tid, e_rel ad) tc.
 Proof.
@@ -447,7 +447,7 @@ Proof.
     assert (unique_critical_regions m2 ths2) by eauto with inva.
     assert (Htrue : m2[ad].X = true) by eauto using locked_from_onecr.
     rewrite Htrue in *. auto.
-  - match goal with H : _ / _ ~~[_ ++ ?e :: nil]~~>* _ / _ |- _ => 
+  - match goal with H : _ \ _ ~~[_ ++ ?e :: nil]~~>* _ \ _ |- _ => 
       destruct e as [tid' e'];
       eapply destruct_ustep' in H as [mA [mB [thsA [thsB [H1A [? ?]]]]]]
     end.
@@ -467,7 +467,7 @@ Local Lemma onecr_multistep_onecr :
     (* --- *)
     tid1 <> tid2                   ->
     one_cr ad ths1[tid1]           ->
-    m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+    m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
     one_cr ad ths2[tid2]           ->
     exists tc1 tc2 t,
       tc = tc2 ++ tc1           /\
@@ -479,7 +479,7 @@ Proof.
     as [t [tc1 [tc2 Hacq]]]
     by eauto using onecr_multistep_onecr_requires_acq.
   subst.
-  assert (exists mA thsA, m1 / ths1 ~~[tc1]~~>* mA / thsA /\ mA[ad].X = false)
+  assert (exists mA thsA, m1 \ ths1 ~~[tc1]~~>* mA \ thsA /\ mA[ad].X = false)
     as [mA [thsA [H1A Hunlocked]]]
     by eauto using multistep_acq_requires_unlocked.
   assert (invariants mA thsA) by eauto using invariants_preservation_ustep.
@@ -505,8 +505,8 @@ Theorem happens_before_from_gcrW :
     tid1 <> tid2                                     ->
     gcr thsA[tid1] (R_tid tid1) = R_ad adx           ->
     gcr thsB[tid2] (R_tid tid2) = R_ad adx           ->
-    mA / thsA ~~~[tid1, e_write ad' t']~~> m  / ths  ->
-    m  / ths  ~~[tc]~~>*                   mB / thsB ->
+    mA \ thsA ~~~[tid1, e_write ad' t']~~> m  \ ths  ->
+    m  \ ths  ~~[tc]~~>*                   mB \ thsB ->
     exists tc1 tc2, tc = tc2 ++ tc1 /\
     exists adx t t' T',
       (In (tid1, e_rel    adx)       tc1 /\ In (tid2, e_acq adx t) tc2) \/
@@ -551,8 +551,8 @@ Theorem happens_before_from_gcrR :
     tid1 <> tid2                                    ->
     gcr thsA[tid1] (R_tid tid1) = R_ad adx          ->
     gcr thsB[tid2] (R_tid tid2) = R_ad adx          ->
-    mA / thsA ~~~[tid1, e_read ad' t']~~> m  / ths  ->
-    m  / ths  ~~[tc]~~>*                  mB / thsB ->
+    mA \ thsA ~~~[tid1, e_read ad' t']~~> m  \ ths  ->
+    m  \ ths  ~~[tc]~~>*                  mB \ thsB ->
     exists tc1 tc2, tc = tc2 ++ tc1 /\
     exists adx t t' T',
       (In (tid1, e_rel    adx)       tc1 /\ In (tid2, e_acq adx t) tc2) \/
@@ -597,7 +597,7 @@ Qed.
 Theorem safety_write_read : forall m1 m2 ths1 ths2 tc tc' tid1 tid2 ad t1 t2,
   tid1 <> tid2 ->
   invariants m1 ths1 ->
-  m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+  m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
   tc = (tid2, e_read ad t2) :: tc' ++ (tid1, e_write ad t1) :: nil ->
   exists tc1 tc2, tc' = tc2 ++ tc1 /\
   exists adx t t' T',
@@ -638,7 +638,7 @@ Qed.
 Theorem safety_write_write : forall m1 m2 ths1 ths2 tc tc' tid1 tid2 ad t1 t2,
   tid1 <> tid2 ->
   invariants m1 ths1 ->
-  m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+  m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
   tc = (tid2, e_write ad t2) :: tc' ++ (tid1, e_write ad t1) :: nil ->
   exists tc1 tc2, tc' = tc2 ++ tc1 /\
   exists adx t t' T',
@@ -679,7 +679,7 @@ Qed.
 Theorem safety_read_write : forall m1 m2 ths1 ths2 tc tc' tid1 tid2 ad t1 t2,
   tid1 <> tid2 ->
   invariants m1 ths1 ->
-  m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+  m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
   tc = (tid2, e_write ad t2) :: tc' ++ (tid1, e_read ad t1) :: nil ->
   exists tc1 tc2, tc' = tc2 ++ tc1 /\
   exists adx t t' T',

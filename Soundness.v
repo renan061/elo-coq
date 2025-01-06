@@ -120,7 +120,7 @@ Local Lemma typeof_preservation_mstep : forall m1 m2 t1 t2 e T,
   consistent_term m1 t1 ->
   (* --- *)
   empty |-- t1 is T ->
-  m1 / t1 ==[e]==> m2 / t2 ->
+  m1 \ t1 ==[e]==> m2 \ t2 ->
   empty |-- t2 is T.
 Proof.
   intros. invc_mstep.
@@ -140,7 +140,7 @@ Local Lemma typeof_preservation_mem_mstep : forall m1 m2 t1 t2 t1' t2' e ad T,
   m1[ad].t = Some t1' ->
   m2[ad].t = Some t2' ->
   empty |-- t1' is T ->
-  m1 / t1 ==[e]==> m2 / t2 ->
+  m1 \ t1 ==[e]==> m2 \ t2 ->
   empty |-- t2' is T.
 Proof.
   intros * [T' ?] **. rename ad into ad'.
@@ -162,7 +162,7 @@ Theorem typeof_preservation : forall m1 m2 ths1 ths2 Ts tid e,
   forall_threads ths1 (consistent_term m1) ->
   (* --- *)
   |-- ths1 is Ts ->
-  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~[tid, e]~~> m2 \ ths2 ->
   (|-- ths2 is Ts \/ exists T, |-- ths2 is (Ts +++ T)).
 Proof.
   intros * ? [Heq ?] **. inv_cstep.
@@ -216,7 +216,7 @@ Lemma wtt_preservation_threads : forall m1 m2 ths1 ths2 tid e,
   forall_threads ths1 (consistent_term m1) ->
   (* --- *)
   forall_threads ths1 well_typed_term ->
-  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~[tid, e]~~> m2 \ ths2 ->
   forall_threads ths2 well_typed_term.
 Proof.
   intros * ? Hwtt **.
@@ -230,7 +230,7 @@ Lemma wtt_preservation_memory : forall m1 m2 ths1 ths2 tid e,
   forall_threads ths1 well_typed_term ->
   (* --- *)
   forall_memory m1 well_typed_term ->
-  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~[tid, e]~~> m2 \ ths2 ->
   forall_memory m2 well_typed_term.
 Proof.
   intros. invc_cstep; trivial. invc_mstep; trivial;
@@ -241,7 +241,7 @@ Theorem wtt_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
   forall_program m1 ths1 (consistent_term m1) ->
   (* --- *)
   forall_program m1 ths1 well_typed_term ->
-  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~[tid, e]~~> m2 \ ths2 ->
   forall_program m2 ths2 well_typed_term.
 Proof.
   intros * [_ ?] [? ?] **. split;
@@ -252,11 +252,11 @@ Theorem wtt_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
   forall_program m1 ths1 (consistent_term m1) ->
   (* --- *)
   forall_program m1 ths1 well_typed_term ->
-  m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~~[tid, e]~~> m2 \ ths2 ->
   forall_program m2 ths2 well_typed_term.
 Proof.
   intros. invc_rstep; eauto using wtt_preservation_cstep.
-  match goal with _ : _ / _ ~~[_, _]~~> ?m / ?ths |- _ =>
+  match goal with _ : _ \ _ ~~[_, _]~~> ?m \ ?ths |- _ =>
     assert (forall_program m ths well_typed_term) as [Hmwtt Hwtt]
       by eauto using wtt_preservation_cstep
   end.
@@ -293,8 +293,8 @@ Theorem limited_progress : forall m1 t1,
   (* --- *)
   well_typed_term t1 ->
   (value t1 \/ exists t2,
-  (exists m2 ad t, m1[ad].X = false -> m1 / t1 ==[e_acq ad t]==> m2 / t2)   \/
-  (exists m2 e, (forall ad t, e <> e_acq ad t) -> m1 / t1 ==[e]==> m2 / t2) \/
+  (exists m2 ad t, m1[ad].X = false -> m1 \ t1 ==[e_acq ad t]==> m2 \ t2)   \/
+  (exists m2 e, (forall ad t, e <> e_acq ad t) -> m1 \ t1 ==[e]==> m2 \ t2) \/
   (exists tid t, t1 --[e_spawn tid t]--> t2)).
 Proof.
   intros * ? ? [T ?]. remember empty as Gamma.
@@ -440,14 +440,14 @@ Theorem limited_progress : forall m1 t1,
   (* --- *)
   well_typed_term t1 ->
   (value t1
-    \/ (exists m2 t2,        m1 / t1 ==[e_none         ]==> m2 / t2)
-    \/ (exists m2 t2 ad T,   m1 / t1 ==[e_alloc ad T   ]==> m2 / t2)
-    \/ (exists m2 t2 ad t T, m1 / t1 ==[e_insert ad t T]==> m2 / t2)
-    \/ (exists m2 t2 ad t,   m1 / t1 ==[e_read ad t    ]==> m2 / t2)
-    \/ (exists m2 t2 ad t,   m1 / t1 ==[e_write ad t   ]==> m2 / t2)
+    \/ (exists m2 t2,        m1 \ t1 ==[e_none         ]==> m2 \ t2)
+    \/ (exists m2 t2 ad T,   m1 \ t1 ==[e_alloc ad T   ]==> m2 \ t2)
+    \/ (exists m2 t2 ad t T, m1 \ t1 ==[e_insert ad t T]==> m2 \ t2)
+    \/ (exists m2 t2 ad t,   m1 \ t1 ==[e_read ad t    ]==> m2 \ t2)
+    \/ (exists m2 t2 ad t,   m1 \ t1 ==[e_write ad t   ]==> m2 \ t2)
     \/ (exists m2 t2 ad t,   m1[ad].X = false ->
-                             m1 / t1 ==[e_acq ad t     ]==> m2 / t2)
-    \/ (exists m2 t2 ad,     m1 / t1 ==[e_rel ad       ]==> m2 / t2)
+                             m1 \ t1 ==[e_acq ad t     ]==> m2 \ t2)
+    \/ (exists m2 t2 ad,     m1 \ t1 ==[e_rel ad       ]==> m2 \ t2)
     \/ (exists t2 tid t,     t1 --[e_spawn tid t]--> t2)).
 Proof.
   intros * ? ? [T ?]. remember empty as Gamma.

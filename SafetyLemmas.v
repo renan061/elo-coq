@@ -37,7 +37,7 @@ Lemma onecr_inheritance_rstep :
     invariants m2 ths2 ->
     (* --- *)
     one_cr ad ths2[tid] ->
-    m1 / ths1 ~~~[tid', e]~~> m2 / ths2 ->
+    m1 \ ths1 ~~~[tid', e]~~> m2 \ ths2 ->
     exists t, (e <> e_acq ad t /\ one_cr ad ths1[tid]) \/
               (e =  e_acq ad t /\ tid' = tid).
 Proof.
@@ -90,7 +90,7 @@ Qed.
 
 Lemma initialized_preservation_rstep : forall m1 m2 ths1 ths2 tid e ad t,
   m1[ad].t = Some t ->
-  m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~~[tid, e]~~> m2 \ ths2 ->
   exists t', m2 [ad].t = Some t'.
 Proof.
   intros.
@@ -101,7 +101,7 @@ Qed.
 
 Lemma initialized_preservation_ustep : forall m1 m2 ths1 ths2 tc ad t,
   m1[ad].t = Some t ->
-  m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+  m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
   exists t', m2 [ad].t = Some t'.
 Proof.
   intros. ind_ustep; eauto.
@@ -119,7 +119,7 @@ Lemma oneinit_preservation_rstep :
     invariants m2 ths2 ->
     (* --- *)
     one_init ad ths1[tid] ->
-    m1 / ths1 ~~~[tid', e]~~> m2 / ths2 ->
+    m1 \ ths1 ~~~[tid', e]~~> m2 \ ths2 ->
      (forall t T, e <> e_insert ad t T /\ one_init ad ths2[tid]) \/
      (exists t T, e =  e_insert ad t T /\ tid' = tid /\ m2[ad].t = Some t).
 Proof.
@@ -162,11 +162,11 @@ Lemma oneinit_preservation_ustep :
     invariants m2 ths2 ->
     (* --- *)
     one_init ad ths1[tid] ->
-    m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+    m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
     one_init ad ths2[tid] \/ exists t, m2[ad].t = Some t.
 Proof.
   intros. ind_ustep; auto.
-  match goal with _ : ?m / ?ths ~~~[?tid, _]~~> ?m' / ?ths' |- _ =>
+  match goal with _ : ?m \ ?ths ~~~[?tid, _]~~> ?m' \ ?ths' |- _ =>
     rename tid into tid';
     rename m' into m3; rename ths' into ths3;
     rename m  into m2; rename ths  into ths2
@@ -193,7 +193,7 @@ Lemma onecr_preservation_rstep :
     invariants m2 ths2 ->
     (* --- *)
     one_cr ad ths1[tid] ->
-    m1 / ths1 ~~~[tid', e]~~> m2 / ths2 ->
+    m1 \ ths1 ~~~[tid', e]~~> m2 \ ths2 ->
     (e <> e_rel ad /\ one_cr ad ths2[tid]) \/
     (e =  e_rel ad /\ tid' = tid).
 Proof.

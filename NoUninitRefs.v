@@ -40,7 +40,7 @@ Lemma nur_mem_region : forall m ths ad R,
 Proof.
   intros * H. intros ad' ?. specialize (H ad').
   repeat omicron; upsilon; destruct H; trivial;
-  split; repeat intro; repeat omicron; upsilon; eauto.
+  split; repeat intro; repeat omicron; upsilon; auto; eauto.
 Qed.
 
 (* preservation ------------------------------------------------------------ *)
@@ -76,7 +76,7 @@ Qed.
 Lemma nur_preservation_alloc : forall m ths tid t T,
   no_uninitialized_references m ths ->
   ths[tid] --[e_alloc (#m) T]--> t ->
-  no_uninitialized_references (m +++ (None, T, false, R_invalid)) ths[tid <- t].
+  no_uninitialized_references (m +++ new_cell T) ths[tid <- t].
 Proof.
   simpl_nur. eauto using noref_preservation_alloc.
 Qed.
@@ -141,7 +141,7 @@ Theorem nur_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
   forall_program m1 ths1 (valid_term m1) ->
   (* --- *)
   no_uninitialized_references m1 ths1 ->
-  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~[tid, e]~~> m2 \ ths2 ->
   no_uninitialized_references m2 ths2.
 Proof.
   intros * [_ ?] **. invc_cstep; try invc_mstep.
@@ -159,11 +159,11 @@ Theorem nur_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
   forall_program m1 ths1 (valid_term m1) ->
   (* --- *)
   no_uninitialized_references m1 ths1 ->
-  m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~~[tid, e]~~> m2 \ ths2 ->
   no_uninitialized_references m2 ths2.
 Proof.
   intros. invc_rstep; eauto using nur_preservation_cstep.
-  match goal with _ : _ / _ ~~[_, _]~~> ?m / ?ths |- _ =>
+  match goal with _ : _ \ _ ~~[_, _]~~> ?m \ ?ths |- _ =>
     assert (no_uninitialized_references m ths)
   end;
   eauto using nur_preservation_cstep, nur_mem_region.

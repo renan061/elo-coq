@@ -382,7 +382,7 @@ Proof. solve_vtm_preservation. Qed.
 Corollary vtm_preservation_memory : forall m1 m2 ths1 ths2 tid e,
   forall_threads ths1 (valid_term m1) ->
   forall_memory  m1   (valid_term m1) ->
-  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~[tid, e]~~> m2 \ ths2 ->
   forall_memory  m2   (valid_term m2).
 Proof.
   intros. invc_cstep; try invc_mstep; trivial; intros ? ? ?.
@@ -398,7 +398,7 @@ Corollary vtm_preservation_threads : forall m1 m2 ths1 ths2 tid e,
   (* --- *)
   forall_memory  m1   (valid_term m1) ->
   forall_threads ths1 (valid_term m1) ->
-  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~[tid, e]~~> m2 \ ths2 ->
   forall_threads ths2 (valid_term m2).
 Proof.
   intros. invc_cstep; try invc_mstep.
@@ -416,7 +416,7 @@ Theorem vtm_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
   forall_memory  m1 value ->
   (* --- *)
   forall_program m1 ths1 (valid_term m1) ->
-  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~[tid, e]~~> m2 \ ths2 ->
   forall_program m2 ths2 (valid_term m2).
 Proof.
   intros * ? [? ?] ?. split;
@@ -427,15 +427,16 @@ Theorem vtm_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
   forall_memory  m1 value ->
   (* --- *)
   forall_program m1 ths1 (valid_term m1) ->
-  m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~~[tid, e]~~> m2 \ ths2 ->
   forall_program m2 ths2 (valid_term m2).
 Proof.
   intros. invc_rstep; eauto using vtm_preservation_cstep.
-  match goal with _ : _ / _ ~~[_, _]~~> ?m / ?ths |- _ =>
+  match goal with _ : _ \ _ ~~[_, _]~~> ?m \ ?ths |- _ =>
     assert (forall_program m ths (valid_term m)) as [? ?]
       by eauto using vtm_preservation_cstep
   end.
-  split; repeat intro; repeat omicron; upsilon; eauto using vtm_mem_region.
+  split; repeat intro; repeat omicron; upsilon;
+  auto; eauto using vtm_mem_region.
 Qed.
 
 Theorem vtm_preservation_base : forall t,

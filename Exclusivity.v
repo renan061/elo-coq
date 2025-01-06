@@ -236,7 +236,7 @@ Theorem ice_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
   unique_critical_regions m1 ths1             ->
   (* --- *)
   init_cr_exclusivity ths1                    ->
-  m1 / ths1 ~~[tid, e]~~> m2 / ths2           ->
+  m1 \ ths1 ~~[tid, e]~~> m2 \ ths2           ->
   init_cr_exclusivity ths2.
 Proof.
   intros * ? [? ?] [? ?] **. invc_cstep; try invc_mstep.
@@ -259,7 +259,7 @@ Theorem ice_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
   unique_critical_regions m1 ths1             ->
   (* --- *)
   init_cr_exclusivity ths1                    ->
-  m1 / ths1 ~~~[tid, e]~~> m2 / ths2          ->
+  m1 \ ths1 ~~~[tid, e]~~> m2 \ ths2          ->
   init_cr_exclusivity ths2.
 Proof.
   intros. invc_rstep; eauto using ice_preservation_cstep.

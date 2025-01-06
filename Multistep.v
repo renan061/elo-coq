@@ -45,7 +45,7 @@ Qed.
 
 Theorem invariants_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
   invariants m1 ths1 ->
-  m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~~[tid, e]~~> m2 \ ths2 ->
   invariants m2 ths2.
 Proof.
   intros * H ?. unfold invariants in *. decompose record H. clear H.
@@ -65,7 +65,7 @@ Qed.
 
 Theorem invariants_preservation_ustep : forall m1 m2 ths1 ths2 tc,
   invariants m1 ths1 ->
-  m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+  m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
   invariants m2 ths2.
 Proof.
   intros * H ?. ind_ustep; trivial.

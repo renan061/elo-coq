@@ -96,7 +96,7 @@ Local Lemma ui_preservation_alloc : forall m ths tid t T,
   tid < #ths ->
   unique_initializers m ths ->
   ths[tid] --[e_alloc (#m) T]--> t ->
-  unique_initializers (m +++ (None, T, false, R_invalid)) ths[tid <- t].
+  unique_initializers (m +++ new_cell T) ths[tid <- t].
 Proof.
   intros until 1.
   intros ? Hui ? ad Had. omicron.
@@ -236,7 +236,7 @@ Theorem ui_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
   no_uninitialized_references m1 ths1    ->
   (* --- *)
   unique_initializers m1 ths1 ->
-  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~[tid, e]~~> m2 \ ths2 ->
   unique_initializers m2 ths2.
 Proof.
   intros * ? [? ?] **. invc_cstep; try invc_mstep.
@@ -256,11 +256,11 @@ Theorem ui_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
   no_uninitialized_references m1 ths1    ->
   (* --- *)
   unique_initializers m1 ths1 ->
-  m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~~[tid, e]~~> m2 \ ths2 ->
   unique_initializers m2 ths2.
 Proof.
   intros. invc_rstep; eauto using ui_preservation_cstep.
-  match goal with _ : _ / _ ~~[_, _]~~> ?m / ?ths |- _ =>
+  match goal with _ : _ \ _ ~~[_, _]~~> ?m \ ?ths |- _ =>
     assert (unique_initializers m ths)
   end;
   eauto using ui_preservation_cstep, ui_mem_region.

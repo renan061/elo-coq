@@ -297,7 +297,7 @@ Theorem creg_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
   (* --- *)
   forall_memory_consistent_regions  m1 ->
   forall_threads_consistent_regions m1 ths1 ->
-  m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~~[tid, e]~~> m2 \ ths2 ->
   forall_threads_consistent_regions m2 ths2.
 Proof.
   intros * ? [? ?] [? ?] [? ?] [? ?] ** tid'. nat_eq_dec tid' tid.
@@ -481,7 +481,7 @@ Theorem mcreg_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
   (* --- *)
   forall_threads_consistent_regions m1 ths1   ->
   forall_memory_consistent_regions  m1        ->
-  m1 / ths1 ~~~[tid, e]~~> m2 / ths2          ->
+  m1 \ ths1 ~~~[tid, e]~~> m2 \ ths2          ->
   forall_memory_consistent_regions  m2.
 Proof.
   intros * [? ?] [? ?] [? ?] ? ? Hmcreg ?.

@@ -66,7 +66,7 @@ Corollary rstep_gcr_read : forall m1 m2 ths1 ths2 tid ad' t' T',
   forall_threads_consistent_regions m1 ths1 ->
   (* --- *)
   m1[ad'].T = `w&T'` ->
-  m1 / ths1 ~~~[tid, e_read ad' t']~~> m2 / ths2 ->
+  m1 \ ths1 ~~~[tid, e_read ad' t']~~> m2 \ ths2 ->
   gcr ths1[tid] (R_tid tid) = m1[ad'].R.
 Proof.
   intros * ? Hcreg **. specialize (Hcreg tid).
@@ -78,7 +78,7 @@ Corollary rstep_gcr_write : forall m1 m2 ths1 ths2 tid ad' t',
   forall_threads ths1 (valid_term m1)       ->
   forall_threads_consistent_regions m1 ths1 ->
   (* --- *)
-  m1 / ths1 ~~~[tid, e_write ad' t']~~> m2 / ths2 ->
+  m1 \ ths1 ~~~[tid, e_write ad' t']~~> m2 \ ths2 ->
   gcr ths1[tid] (R_tid tid) = m1[ad'].R.
 Proof.
   intros * ? ? Hcreg **. specialize (Hcreg tid).

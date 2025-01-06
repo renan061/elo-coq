@@ -276,7 +276,7 @@ Theorem stm_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
   forall_threads ths1 (consistent_term m1) ->
   (* --- *)
   forall_program m1 ths1 safe_term ->
-  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~[tid, e]~~> m2 \ ths2 ->
   forall_program m2 ths2 safe_term.
 Proof.
   intros until 3. intros [? ?] ?. split.
@@ -300,11 +300,11 @@ Theorem stm_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
   forall_program m1 ths1 (consistent_term m1) ->
   (* --- *)
   forall_program m1 ths1 safe_term ->
-  m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~~[tid, e]~~> m2 \ ths2 ->
   forall_program m2 ths2 safe_term.
 Proof.
   intros * ? [? ?] [? ?] **. invc_rstep; eauto using stm_preservation_cstep.
-  match goal with _ : _ / _ ~~[_, _]~~> ?m / ?ths |- _ =>
+  match goal with _ : _ \ _ ~~[_, _]~~> ?m \ ?ths |- _ =>
     assert (forall_program m ths safe_term) as [Hmstm Hstm]
       by eauto using stm_preservation_cstep
   end.

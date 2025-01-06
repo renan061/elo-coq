@@ -103,7 +103,7 @@ Lemma example1_reduces_correctly : forall m ths,
     <{nat 10}> ::
     <{nat 20}> ::
     nil) ->
-  exists tc, nil / (base example1) ~~[tc]~~>* m / ths.
+  exists tc, nil \ (base example1) ~~[tc]~~>* m \ ths.
 Proof.
   unfold base. intros. eexists.
   eapply multistep_trans.

@@ -3,7 +3,7 @@ From Elo Require Import Core.
 From Elo Require Import TypeProperties.
 
 Theorem mreg_preservation_cstep : forall m1 m2 ths1 ths2 tid e ad,
-  m1 / ths1 ~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~[tid, e]~~> m2 \ ths2 ->
   ad < #m1 ->
   m1[ad].R = m2[ad].R.
 Proof.
@@ -11,7 +11,7 @@ Proof.
 Qed.
 
 Theorem mreg_preservation_rstep : forall m1 m2 ths1 ths2 tid e ad,
-  m1 / ths1 ~~~[tid, e]~~> m2 / ths2 ->
+  m1 \ ths1 ~~~[tid, e]~~> m2 \ ths2 ->
   ad < #m1 ->
   m1[ad].R = m2[ad].R.
 Proof.
@@ -21,7 +21,7 @@ Proof.
 Qed.
 
 Theorem mreg_preservation_ustep : forall m1 m2 ths1 ths2 tc ad,
-  m1 / ths1 ~~[tc]~~>* m2 / ths2 ->
+  m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
   ad < #m1 ->
   m1[ad].R = m2[ad].R.
 Proof.
