@@ -3,6 +3,7 @@ From Coq Require Import Lists.List.
 Open Scope string_scope.
 
 From Elo Require Import Core.
+From Elo Require Import Eval.
 
 (*
   let m1 = new monitor(new w&Nat 3);
@@ -58,6 +59,24 @@ Definition example1 : tm := <{
     (nat 20)
   )
 }>.
+
+Compute (last_result (evals nil (base example1) 200 0)).
+(*
+  m = (
+    [0]: (Some <{&1 : (w& Nat)}>, `x& (w& Nat) `, false, R_invalid) ::
+    [1]: (Some <{nat 6        }>, `w& Nat      `, false, R_invalid) ::
+    [2]: (Some <{&3 : (w& Nat)}>, `x& (w& Nat) `, false, R_invalid) ::
+    [3]: (Some <{nat 10       }>, `w& Nat      `, false, R_invalid) ::
+         nil
+  )
+  ths = (
+    [0]: <{nat 20 }> ::
+    [1]: <{nat 3  }> ::
+    [2]: <{nat 5  }> ::
+         nil
+  )
+  s = "out of gas"
+*)
 
 Ltac solve_ty :=
   repeat match goal with

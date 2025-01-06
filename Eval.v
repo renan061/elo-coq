@@ -1,3 +1,4 @@
+From Coq Require Import PeanoNat.
 From Coq Require Import Program.Basics.
 From Coq Require Import Strings.String.
 
@@ -6,6 +7,7 @@ From Elo Require Import Core.
 Inductive Result : Set :=
   | Ok      : mem -> tm -> Result
   | Spawn   : mem -> tm -> tm -> Result
+  | Value   : Result
   | Waiting : addr -> Result
   | Error   : string -> Result
   .
@@ -14,11 +16,14 @@ Definition bind (r : Result) (f : tm -> tm) : Result :=
   match r with
   | Ok m t       => Ok m (f t)
   | Spawn m t t' => Spawn m (f t) t'
+  | Value        => Value
   | Waiting ad   => Waiting ad
   | Error s      => Error s
   end.
 
 Local Notation "r '>>=' f" := (bind r f) (no associativity, at level 10).
+
+(* eval --------------------------------------------------------------------- *)
 
 Definition _plus m t : Result :=
   match t with
@@ -106,17 +111,17 @@ Fixpoint eval (m : mem) (t : tm) : Result :=
     do1 m t1 (flip C t2) (do1 m t2 (C t1) R)
   in
   match t with
-  | <{unit                     }> => Ok m t
-  | <{nat _                    }> => Ok m t
+  | <{unit                     }> => Value
+  | <{nat _                    }> => Value
   | <{t1 + t2                  }> => do2 m t1 t2 tm_plus (_plus m t)
   | <{t1 - t2                  }> => do2 m t1 t2 tm_monus (_monus m t)
   | <{t1; t2                   }> => do1 m t1 (flip tm_seq t2) (Ok m t2)
   | <{if t1 then t2 else t3 end}> => do1 m t1 (C_if t2 t3) (_if m t)
   | <{while t1 do t2 end       }> => _while m t1 t2
-  | <{var _                    }> => Ok m t
-  | <{fn _ _ _                 }> => Ok m t
+  | <{var _                    }> => Error "cannot evaluate variables"
+  | <{fn _ _ _                 }> => Value
   | <{call t1 t2               }> => do2 m t1 t2 tm_call (_call m t)
-  | <{&_ : _                   }> => Ok m t
+  | <{&_ : _                   }> => Value
   | <{new t : T                }> => _new m t T
   | <{init ad t' : T           }> => do1 m t' (C_init ad T) (_init m t)
   | <{*t'                      }> => do1 m t' tm_load (_load m t)
@@ -126,7 +131,44 @@ Fixpoint eval (m : mem) (t : tm) : Result :=
   | <{spawn t'                 }> => Spawn m <{unit}> t'
   end.
 
-(* -------------------------------------------------------------------------- *)
+(* evals -------------------------------------------------------------------- *)
+
+Inductive Results : Set :=
+  | cont : mem -> threads -> Results -> Results
+  | done : mem -> threads -> string -> Results
+  .
+
+Fixpoint evals (m : mem) (ths : threads) gas tid : Results :=
+  match gas with
+  | 0      => done m ths "out of gas"
+  | S gas' =>
+    match eval m ths[tid] with
+    | Ok m' t' =>
+        let ths' := ths[tid <- t'] in
+        let tid' := if Compare_dec.lt_dec (S tid) (#ths) then S tid else 0 in
+        cont m' ths' (evals m' ths' gas' tid')
+    | Spawn m' t' t'' =>
+        let ths' := ths[tid <- t'] +++ t'' in
+        let tid' := if Compare_dec.lt_dec (S tid) (#ths) then S tid else 0 in
+        cont m' ths' (evals m' ths' gas' tid')
+    | Value =>
+        let tid' := if Compare_dec.lt_dec (S tid) (#ths) then S tid else 0 in
+        cont m ths (evals m ths gas' tid')
+    | Waiting ad =>
+        let tid' := if Compare_dec.lt_dec (S tid) (#ths) then S tid else 0 in
+        cont m ths (evals m ths gas' tid')
+    | Error s =>
+        done m ths s
+    end
+  end.
+
+Fixpoint last_result (ress : Results) : Results :=
+  match ress with
+  | done m ths s => ress
+  | cont _ _ ress'  => last_result ress'
+  end.
+
+(* mstep-to-eval ------------------------------------------------------------ *)
 
 Local Lemma isvalue_from_tstep : forall t1 t2 e,
   t1 --[e]--> t2 ->
@@ -184,8 +226,6 @@ Local Ltac iota :=
     rewrite (isvalue_from_value <{&ad : T}>) in Hif; eauto using value
   end.
 
-(* -------------------------------------------------------------------------- *)
-
 Local Lemma mstep_to_eval : forall m1 m2 t1 t2 e,
   m1 \ t1 ==[e]==> m2 \ t2 ->
   eval m1 t1 = Ok m2 t2.
@@ -198,50 +238,76 @@ Proof.
   - destruct (m1[ad].X); auto. destruct (m1[ad].t); auto. invc_eq. trivial.
 Qed.
 
-(* -------------------------------------------------------------------------- *)
+(* eval-to-mstep & eval-to-cstep -------------------------------------------- *)
 
-Local Lemma eval_value : forall m t,
-  value t ->
-  eval m t = Ok m t.
+Local Lemma value_from_isvalue : forall t,
+  is_value t = true ->
+  value t.
 Proof.
-  intros * Hval. invc Hval; trivial.
+  intros * H. destruct t; eauto using value; cbv in H; auto.
 Qed.
+
+Local Ltac solve_eval_to_step :=
+  match goal with
+  (* simpl eval ------------------------------------------------------------- *)
+  | Heq : eval ?m _ = _ |- _ =>
+      simpl eval in Heq; repeat solve_eval_to_step
+  (* destroying is_value inside conditionals -------------------------------- *)
+  | Heq : context[if is_value ?t then _ else _] |- _ =>
+      destruct (is_value t) eqn:?Heq
+  (* converting is_value to value ------------------------------------------- *)
+  | H : is_value ?t = true |- _ =>
+      assert (value t) by eauto using value_from_isvalue; clear H
+  (* destroying the eval inside the monadic bind ---------------------------- *)
+  | Heq : (eval ?m ?t) >>= _ = _ |- _ =>
+      destruct (eval m t); invc Heq
+  (* destroying match of terms ---------------------------------------------- *)
+  | Heq : (match ?t with _ => _ end) = _ |- _ => 
+      destruct t eqn:?Ht ; invc Heq
+  (* specializing the induction hypothesis ---------------------------------- *)
+  | IH : forall _ _, ?C ?m ?t = ?C _ _ -> _ |- _ =>
+      specialize (IH m t eq_refl) as [e ?]; auto
+  | IH : forall _ _ _, ?C ?m ?t ?t' = ?C _ _ _ -> _
+  |- _ --[e_spawn ?tid _]--> _ =>
+      specialize (IH tid t' t eq_refl)
+  (* solving the inductive case --------------------------------------------- *)
+  | _ : _ \ _ ==[?e]==> _ \ _ |- exists _, _ =>
+      exists e; invc_mstep; eauto using tstep, mstep
+  (* ------------------------------------------------------------------------ *)
+  | Heq : Ok _ _      = Ok _ _      |- _ => invc Heq
+  | Heq : Spawn _ _ _ = Spawn _ _ _ |- _ => invc Heq
+  | Heq : Ok _ _      = Spawn _ _ _ |- _ => invc Heq
+  (* solving for while ------------------------------------------------------ *)
+  | Heq : _while _ _ _ = _ |- _ =>
+      invc Heq; eauto using tstep, mstep
+  (* solving for alloc ------------------------------------------------------ *)
+  | Heq : _new _ _ _ = _ |- _ =>
+      invc Heq; eauto using tstep, mstep
+  (* solving for read ------------------------------------------------------- *)
+  | _ : ?m[?ad].t = _ |- exists _, _ \ <{*(&_ : _)}> ==[_]==> _ \ _ =>
+      assert (ad < #m) by (lt_eq_gt ad (#m); trivial; sigma; upsilon; auto);
+      eauto using tstep, mstep
+  (* solving for acq -------------------------------------------------------- *)
+  | H : ?m[?ad].t = _ |- exists _, _ \ <{acq (&_ : _) _ _}> ==[_]==> _ \ _ =>
+      assert (ad < #m) by (lt_eq_gt ad (#m); trivial; sigma; upsilon; auto);
+      rewrite <- H; eauto using tstep, mstep
+  end.
 
 Local Lemma eval_to_mstep : forall m1 m2 t1 t2,
   eval m1 t1 = Ok m2 t2 ->
-  value t1 \/ exists e, m1 \ t1 ==[e]==> m2 \ t2.
+  exists e, m1 \ t1 ==[e]==> m2 \ t2.
 Proof.
   intros * Heq. gendep t2. gendep m2.
-  induction t1; intros;
-  try solve [left; auto using value];
-  right.
-  - unfold eval in Heq. fold eval in Heq.
-    destruct (value_dec t1_1), (value_dec t1_2); repeat iota.
-    + destruct t1_1; try solve [invc Heq].
-      destruct t1_2; invc Heq.
-      eauto using tstep, mstep.
-    + specialize (IHt1_1 m1 t1_1).
-      rewrite eval_value in IHt1_1; trivial.
-      specialize (IHt1_1 eq_refl) as [? | [? ?]].
-      * clean.
-        unfold bind in Heq.
-        destruct (eval m1 t1_2); invc Heq.
-        specialize (IHt1_2 m2 t eq_refl) as [? | [? ?]]; auto.
-        exists x. invc_mstep; eauto using tstep, mstep.
-      * invc_mstep; value_does_not_step.
-    + specialize (IHt1_2 m1 t1_2).
-      rewrite eval_value in IHt1_2; trivial.
-      specialize (IHt1_2 eq_refl) as [? | [? ?]].
-      * clean.
-        unfold bind in Heq.
-        destruct (eval m1 t1_1); invc Heq.
-        specialize (IHt1_1 m2 t eq_refl) as [? | [? ?]]; auto.
-        exists x. invc_mstep; eauto using tstep, mstep.
-      * invc_mstep; value_does_not_step.
-    + unfold bind in Heq.
-      destruct (eval m1 t1_1); invc Heq.
-      specialize (IHt1_1 m2 t eq_refl) as [? | [? ?]]; auto.
-      exists x. invc_mstep; eauto using tstep, mstep.
-  - admit.
+  induction t1; intros; try solve [invc Heq];
+  solve_eval_to_step; eauto using tstep, mstep.
+Qed.
+
+Local Lemma eval_to_cstep : forall m t1 t2 tid t,
+  eval m t1 = Spawn m t2 t ->
+  t1 --[e_spawn tid t]--> t2.
+Proof.
+  intros * Heq. gendep t2. gendep t. gendep tid. 
+  induction t1; intros; try solve [invc Heq];
+  solve_eval_to_step; eauto using tstep.
 Qed.
 

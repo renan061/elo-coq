@@ -594,6 +594,17 @@ Proof.
     eexists. eexists. exists <{unit}>, `Unit`. eauto.
 Qed.
 
+Local Corollary vtm_write_address_rstep : forall m1 m2 ths1 ths2 tid ad' t',
+  invariants m1 ths1 ->
+  (* --- *)
+  m1 \ ths1 ~~~[tid, e_write ad' t']~~> m2 \ ths2 ->
+  ad' < #m1.
+Proof.
+  intros * H ?.
+  eapply des_inva_vtm in H. eapply des_forallprogram_threads in H.
+  invc_rstep. invc_cstep. invc_mstep. eauto using vtm_write_address.
+Qed.
+
 Theorem safety_write_read : forall m1 m2 ths1 ths2 tc tc' tid1 tid2 ad t1 t2,
   tid1 <> tid2 ->
   invariants m1 ths1 ->
@@ -609,7 +620,7 @@ Proof.
   assert (invariants mB thsB) by eauto using invariants_preservation_ustep.
   assert (invariants m2 ths2) by eauto using invariants_preservation_rstep.
 
-  assert (ad < #m1) by (repeat (invc_rstep; invc_cstep; invc_mstep); trivial).
+  assert (ad < #m1) by eauto using vtm_write_address_rstep.
 
   assert (exists T, m1[ad].T = `w&T`)
     as [T Hptyp1]
@@ -650,7 +661,7 @@ Proof.
   assert (invariants mB thsB) by eauto using invariants_preservation_ustep.
   assert (invariants m2 ths2) by eauto using invariants_preservation_rstep.
 
-  assert (ad < #m1) by (repeat (invc_rstep; invc_cstep; invc_mstep); trivial).
+  assert (ad < #m1) by eauto using vtm_write_address_rstep.
 
   assert (exists T, m1[ad].T = `w&T`)
     as [T Hptyp1]

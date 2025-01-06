@@ -193,13 +193,12 @@ Proof.
 Qed.
 
 Local Lemma ucr_preservation_rel : forall m ths tid ad t,
-  ad < #m ->
   tid < #ths ->
   unique_critical_regions m ths ->
   ths[tid] --[e_rel ad]--> t ->
   unique_critical_regions m[ad.X <- false] ths[tid <- t].
 Proof.
-  intros until 1.
+  intros *.
   intros ? Hucr ? ad'. destruct (Hucr ad') as [Hfall Hfone].
   assert (Had : m[ad].X = true) by eauto using locked_from_rel.
   split; intros; try intros tid'; repeat omicron; spec; upsilon;

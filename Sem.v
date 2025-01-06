@@ -171,12 +171,12 @@ Inductive value : tm -> Prop :=
 Inductive eff : Set :=
   | e_none
   | e_alloc  (ad : addr) (T : ty)
-  | e_insert (ad : addr) (t : tm) (T : ty)
+  | e_insert (ad : addr) (t : tm) (T : ty) (* TODO: remove type *)
   | e_read   (ad : addr) (t : tm)
   | e_write  (ad : addr) (t : tm)
   | e_acq    (ad : addr) (t : tm)
   | e_rel    (ad : addr)
-  | e_spawn  (tid : nat) (t : tm)
+  | e_spawn  (tid : nat) (t : tm)  (* TODO: remove tid *)
   .
 
 (* ------------------------------------------------------------------------- *)
@@ -543,7 +543,6 @@ Inductive mstep : mem -> tm -> eff -> mem -> tm -> Prop :=
     m \ t1 ==[e_alloc ad T]==> (m +++ new_cell T) \ t2
 
   | ms_insert : forall m t1 t2 ad t T,
-    ad < #m ->
     t1 --[e_insert ad t T]--> t2 ->
     m \ t1 ==[e_insert ad t T]==> m[ad.t <- t] \ t2
 
@@ -554,7 +553,6 @@ Inductive mstep : mem -> tm -> eff -> mem -> tm -> Prop :=
     m \ t1 ==[e_read ad t]==> m \ t2
 
   | ms_write : forall m t1 t2 ad t,
-    ad < #m ->
     t1 --[e_write ad t]--> t2 ->
     m \ t1 ==[e_write ad t]==> m[ad.t <- t] \ t2
 
@@ -566,7 +564,6 @@ Inductive mstep : mem -> tm -> eff -> mem -> tm -> Prop :=
     m \ t1 ==[e_acq ad t]==> m[ad.X <- true] \ t2
 
   | ms_rel : forall m t1 t2 ad,
-    ad < #m ->
     t1 --[e_rel ad]--> t2 ->
     m \ t1 ==[e_rel ad]==> m[ad.X <- false] \ t2
 

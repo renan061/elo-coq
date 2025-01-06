@@ -413,7 +413,8 @@ Proof.
     assert (no_init  ad ths1[tid']) by eauto using noinit_from_ui.
     eauto using ctm_insert_term, ctm_insert_type, ctm_mem_set.
   - upsilon. eauto using ctm_preservation_read.
-  - assert (m1[ad].t <> None) by eauto using write_then_initialized. 
+  - assert (ad < #m1) by eauto using vtm_write_address. 
+    assert (m1[ad].t <> None) by eauto using write_then_initialized. 
     specialize (Hui ad) as [Hnoinit _]; trivial. spec.
     upsilon; intros;
     eauto 6 using ctm_write_term, ctm_write_type, ctm_mem_set,

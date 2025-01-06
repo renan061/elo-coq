@@ -139,7 +139,8 @@ Proof.
       rename ad into ad'
     end.
     nat_eq_dec ad' ad.
-    + right. repeat eexists; sigma; upsilon; trivial.
+    + assert (ad < #m1) by eauto using vtm_insert_address.
+      right. repeat eexists; sigma; upsilon; trivial.
       eauto using oneinit_from_insert, ui_oneinit_equality.
     + left. intros. split; auto.
       omicron; eauto using oneinit_preservation_insert.
