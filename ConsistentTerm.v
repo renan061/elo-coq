@@ -109,10 +109,10 @@ Ltac invc_ctm := _ctm invc.
 
 (* theorems ---------------------------------------------------------------- *)
 
-Theorem insert_then_uninitialized : forall m t1 t2 ad t T,
+Theorem insert_then_uninitialized : forall m t1 t2 ad t,
   consistent_term m t1 ->
   (* --- *)
-  t1 --[e_insert ad t T]--> t2 ->
+  t1 --[e_insert ad t]--> t2 ->
   m[ad].t = None.
 Proof.
   intros. ind_tstep; invc_ctm; auto.
@@ -137,9 +137,9 @@ Proof.
   intros. induction t; invc_norefs; invc_noinits; eauto using consistent_term.
 Qed.
 
-Lemma ctm_insert_term : forall m t1 t2 ad' t' T',
+Lemma ctm_insert_term : forall m t1 t2 ad' t',
   consistent_term m t1 ->
-  t1 --[e_insert ad' t' T']--> t2 ->
+  t1 --[e_insert ad' t']--> t2 ->
   consistent_term m t'.
 Proof.
   intros. ind_tstep; invc_ctm; auto.
@@ -153,11 +153,11 @@ Proof.
   intros. ind_tstep; invc_ctm; auto.
 Qed.
 
-Lemma ctm_insert_type : forall m t1 t2 ad' t' T',
+Lemma ctm_insert_type : forall m t1 t2 ad' t',
   well_typed_term   t1 ->
   consistent_term m t1 ->
   (* --- *)
-  t1 --[e_insert ad' t' T']--> t2 ->
+  t1 --[e_insert ad' t']--> t2 ->
   (exists T, empty |-- t' is `Safe T` /\ m[ad'].T = `r&T`) \/
   (exists T, empty |-- t' is T        /\ m[ad'].T = `x&T`) \/
   (exists T, empty |-- t' is T        /\ m[ad'].T = `w&T`).
@@ -237,11 +237,11 @@ Proof.
   intros. induction t; invc_ctm; econstructor; repeat omicron; eauto.
 Qed.
 
-Local Corollary oneinit_from_ui : forall m ths tid t ad' t' T',
+Local Corollary oneinit_from_ui : forall m ths tid t ad' t',
   forall_threads ths (valid_term m) ->
   (* --- *)
   unique_initializers m ths ->
-  ths[tid] --[e_insert ad' t' T']--> t ->
+  ths[tid] --[e_insert ad' t']--> t ->
   one_init ad' ths[tid].
 Proof.
   intros * ? Hui ?.
@@ -294,12 +294,12 @@ Proof.
   constructor; sigma; auto; eauto using ctm_mem_add.
 Qed.
 
-Lemma ctm_preservation_insert : forall m t1 t2 ad' t' T',
+Lemma ctm_preservation_insert : forall m t1 t2 ad' t',
   well_typed_term t1 ->
   (* --- *)
   one_init ad' t1 ->
   consistent_term m t1 ->
-  t1 --[e_insert ad' t' T']--> t2 ->
+  t1 --[e_insert ad' t']--> t2 ->
   consistent_term m[ad'.t <- t'] t2.
 Proof.
   intros * Hwtt **.

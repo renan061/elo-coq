@@ -6,6 +6,84 @@ From Elo Require Import Core.
 From Elo Require Import Eval.
 
 (*
+
+
+  tm_condwait   : list thread_id -> tm
+  tm_newcondvar : tm (* retorna um endereço pra tm_condwait *)
+  tm_broadcast  : tm -> tm
+  tm_wait       : tm -> tm
+
+  let down := fn m: (x&T) {
+    acq m p {
+      n := *p
+      while !n {
+        wait cv
+      }
+      n := n - 1
+    }
+  }
+
+
+  xpto ad --[e_reacq ad]--> unit
+
+
+  let up := fn m: (x&T) {
+    acq m p {
+      n := n + 1 
+      broadcast cv
+    }
+  }
+
+
+
+
+
+
+
+  wait a x ~~[tid, e_wait]~~>
+
+
+  while (!C) {
+   wait cv
+  }
+
+  signal cv
+  broadcast cv
+
+
+  wait-for-in C cv =
+    while (!C) {
+      rel
+      wait
+      acq
+    }
+
+
+
+  queroproduzir, queroconsumir
+
+  p:
+    down queroproduzir
+    enter CR
+      produz
+    leave CR
+    up queroconsumir
+
+  c:
+    down queroconsumir
+    enter CR
+      consume
+    leave CR
+    up queroproduzir
+
+
+
+
+*)
+
+
+
+(*
   let m1 = new monitor(new w&Nat 3);
   let m2 = new monitor(new w&Nat 5);
   spawn {
@@ -128,3 +206,26 @@ Proof.
   eapply multistep_trans.
 Abort.
 
+
+
+
+(*
+
+
+
+spawn {
+
+  while ? {
+    block
+  }
+
+}
+
+
+
+
+
+
+
+
+*)

@@ -33,11 +33,11 @@ Lemma nocr_inheritance_alloc : forall ad t1 t2 ad' T',
   no_cr ad t1.
 Proof. solve_nocr_inheritance. Qed.
 
-Lemma nocr_inheritance_insert : forall ad m t1 t2 ad' t' T',
+Lemma nocr_inheritance_insert : forall ad m t1 t2 ad' t',
   valid_term m t1 ->
   (* --- *)
   no_cr ad t2 ->
-  t1 --[e_insert ad' t' T']--> t2 ->
+  t1 --[e_insert ad' t']--> t2 ->
   no_cr ad t1.
 Proof. solve_nocr_inheritance. Qed.
 

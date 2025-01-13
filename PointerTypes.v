@@ -23,15 +23,6 @@ Qed.
 
 (* ------------------------------------------------------------------------- *)
 
-Lemma ptyp_for_insert : forall m t1 t2 ad t T,
-  consistent_term m t1 ->
-  (* --- *)
-  t1 --[e_insert ad t T]--> t2 ->
-  m[ad].T = T.
-Proof.
-  intros. ind_tstep; invc_ctm; auto.
-Qed.
-
 Lemma ptyp_for_write : forall m t1 t2 ad t,
   well_typed_term t1 ->
   consistent_term m t1 ->

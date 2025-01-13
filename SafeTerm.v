@@ -103,9 +103,9 @@ Proof.
   eauto using nowrefs_from_norefs, safe_term.
 Qed.
 
-Lemma stm_insert_term : forall t1 t2 ad t T,
+Lemma stm_insert_term : forall t1 t2 ad t,
   safe_term t1 ->
-  t1 --[e_insert ad t T]--> t2 ->
+  t1 --[e_insert ad t]--> t2 ->
   safe_term t.
 Proof.
   intros. ind_tstep; invc_stm; auto using safe_term.
@@ -185,9 +185,9 @@ Proof.
   eauto using typeof_preservation_alloc, safe_term.
 Qed.
 
-Local Lemma stm_preservation_insert : forall t1 t2 ad t T,
+Local Lemma stm_preservation_insert : forall t1 t2 ad t,
   safe_term t1 ->
-  t1 --[e_insert ad t T]--> t2 ->
+  t1 --[e_insert ad t]--> t2 ->
   safe_term t2.
 Proof.
   intros. ind_tstep; intros; invc_stm; auto using safe_term.

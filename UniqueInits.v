@@ -112,12 +112,12 @@ Proof.
   - lia.
 Qed.
 
-Local Lemma ui_preservation_insert : forall m ths tid t ad' t' T',
+Local Lemma ui_preservation_insert : forall m ths tid t ad' t',
   forall_threads ths (valid_term m) ->
   (* --- *)
   tid < #ths ->
   unique_initializers m ths ->
-  ths[tid] --[e_insert ad' t' T']--> t ->
+  ths[tid] --[e_insert ad' t']--> t ->
   unique_initializers m[ad'.t <- t'] ths[tid <- t].
 Proof.
   intros until 1.
@@ -126,7 +126,7 @@ Proof.
   opt_dec (m[ad].t); spec; split; intros.
   - specialize Hfone as [tid'' [? ?]].
     intros tid'. repeat omicron; nat_eq_dec tid'' tid';
-    eauto using oneinit_to_noinit;
+    auto; eauto using oneinit_to_noinit;
     exfalso; eauto using noinit_insert_contradiction.
   - specialize Hfone as [tid'' [? ?]].
     repeat omicron; try discriminate.

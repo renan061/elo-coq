@@ -125,9 +125,9 @@ Ltac invc_wtt :=
 (* auxiliary lemmas                                                          *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma wtt_insert_term : forall t1 t2 ad t T,
+Lemma wtt_insert_term : forall t1 t2 ad t,
   well_typed_term t1 ->
-  t1 --[e_insert ad t T]--> t2 ->
+  t1 --[e_insert ad t]--> t2 ->
   well_typed_term t.
 Proof.
   intros. ind_tstep; invc_wtt; auto.
@@ -156,38 +156,5 @@ Lemma wtt_alloc_type : forall t1 t2 ad T,
   (exists T', T = `r&T'`) \/ (exists T', T = `x&T'`) \/ (exists T', T = `w&T'`).
 Proof.
   intros * [T' ?] **. gendep T'. ind_tstep; intros; invc_typeof; eauto.
-Qed.
-
-Lemma wtt_insert_type : forall t1 t2 ad t T,
-  well_typed_term t1 ->
-  (* --- *)
-  t1 --[e_insert ad t T]--> t2 ->
-  (exists T', T = `r&T'`) \/ (exists T', T = `x&T'`) \/ (exists T', T = `w&T'`).
-Proof.
-  intros * [T' ?] **. gendep T'. ind_tstep; intros; invc_typeof; eauto.
-Qed.
-
-Lemma wtt_typeof_insert_term_R : forall t1 t2 ad t T,
-  well_typed_term t1 ->
-  t1 --[e_insert ad t `r&T`]--> t2 ->
-  empty |-- t is `Safe T`.
-Proof.
-  intros * [T ?] **. gendep T. ind_tstep; intros; invc_typeof; eauto.
-Qed.
-
-Lemma wtt_typeof_insert_term_X : forall t1 t2 ad t T,
-  well_typed_term t1 ->
-  t1 --[e_insert ad t `x&T`]--> t2 ->
-  empty |-- t is T.
-Proof.
-  intros * [T ?] **. gendep T. ind_tstep; intros; invc_typeof; eauto.
-Qed.
-
-Lemma wtt_typeof_insert_term_W : forall t1 t2 ad t T,
-  well_typed_term t1 ->
-  t1 --[e_insert ad t `w&T`]--> t2 ->
-  empty |-- t is T.
-Proof.
-  intros * [T ?] **. gendep T. ind_tstep; intros; invc_typeof; eauto.
 Qed.
 

@@ -52,6 +52,9 @@ Inductive tm : Set :=
   | tm_asg   : tm   -> tm -> tm
   | tm_acq   : tm   -> id -> tm -> tm
   | tm_cr    : addr -> tm -> tm
+  (* synchronization *)
+  | tm_wait
+  | tm_reacq : addr -> tm
   (* concurrency *)
   | tm_spawn : tm -> tm
   .
@@ -122,6 +125,9 @@ Notation "t1 ':=' t2"       := (tm_asg t1 t2)     (in custom elo_tm at level 70,
                                                               no associativity).
 Notation "'acq' t1 x t2"    := (tm_acq t1 x t2)   (in custom elo_tm at level 0).
 Notation "'cr' ad t"        := (tm_cr ad t)       (in custom elo_tm at level 0).
+(* synchronization ---------------------------------------------------------- *)
+Notation "'wait'"           := (tm_wait)          (in custom elo_tm at level 0).
+Notation "'reacq' ad"       := (tm_reacq ad)      (in custom elo_tm at level 0).
 (* concurrency -------------------------------------------------------------- *)
 Notation "'spawn' t"        := (tm_spawn t)       (in custom elo_tm at level 0).
 
@@ -171,12 +177,13 @@ Inductive value : tm -> Prop :=
 Inductive eff : Set :=
   | e_none
   | e_alloc  (ad : addr) (T : ty)
-  | e_insert (ad : addr) (t : tm) (T : ty) (* TODO: remove type *)
+  | e_insert (ad : addr) (t : tm)
   | e_read   (ad : addr) (t : tm)
   | e_write  (ad : addr) (t : tm)
   | e_acq    (ad : addr) (t : tm)
-  | e_rel    (ad : addr)
-  | e_spawn  (tid : nat) (t : tm)  (* TODO: remove tid *)
+  | e_rel    (ad : addr) 
+  | e_wait   (ad : addr) 
+  | e_spawn  (tid : nat) (t : tm) (* TODO: remove tid *)
   .
 
 (* ------------------------------------------------------------------------- *)
@@ -454,7 +461,7 @@ Inductive tstep : tm -> eff -> tm -> Prop :=
 
   | ts_init : forall ad t T,
     value t ->
-    <{init ad t : T}> --[e_insert ad t T]--> <{&ad : T}>
+    <{init ad t : T}> --[e_insert ad t]--> <{&ad : T}>
 
   (* load *)
   | ts_load1 : forall t t' e,
@@ -542,12 +549,13 @@ Inductive mstep : mem -> tm -> eff -> mem -> tm -> Prop :=
     t1 --[e_alloc ad T]--> t2 ->
     m \ t1 ==[e_alloc ad T]==> (m +++ new_cell T) \ t2
 
-  | ms_insert : forall m t1 t2 ad t T,
-    t1 --[e_insert ad t T]--> t2 ->
-    m \ t1 ==[e_insert ad t T]==> m[ad.t <- t] \ t2
+  (* TODO: firstwrite *)
+  | ms_insert : forall m t1 t2 ad t,
+    t1 --[e_insert ad t]--> t2 ->
+    m \ t1 ==[e_insert ad t]==> m[ad.t <- t] \ t2
 
   | ms_read : forall m t1 t2 ad t,
-    ad < #m ->
+    ad < #m -> (* TODO: remove *)
     m[ad].t = Some t ->
     t1 --[e_read ad t]--> t2 ->
     m \ t1 ==[e_read ad t]==> m \ t2
@@ -557,7 +565,7 @@ Inductive mstep : mem -> tm -> eff -> mem -> tm -> Prop :=
     m \ t1 ==[e_write ad t]==> m[ad.t <- t] \ t2
 
   | ms_acq : forall m t1 t2 ad t,
-    ad < #m ->
+    ad < #m -> (* TODO: remove *)
     m[ad].t = Some t ->
     m[ad].X = false ->
     t1 --[e_acq ad t]--> t2 ->
@@ -641,9 +649,9 @@ Inductive rstep : mem -> threads -> nat -> eff -> mem -> threads -> Prop :=
     m1 \ ths1 ~~[tid, e_alloc ad T]~~> m2 \ ths2 ->
     m1 \ ths1 ~~~[tid, e_alloc ad T]~~> m2[ad.R <- R] \ ths2
 
-  | rs_insert : forall m1 m2 ths1 ths2 tid ad t T,
-    m1 \ ths1 ~~[tid, e_insert ad t T]~~> m2 \ ths2 ->
-    m1 \ ths1 ~~~[tid, e_insert ad t T]~~> m2 \ ths2
+  | rs_insert : forall m1 m2 ths1 ths2 tid ad t,
+    m1 \ ths1 ~~[tid, e_insert ad t]~~> m2 \ ths2 ->
+    m1 \ ths1 ~~~[tid, e_insert ad t]~~> m2 \ ths2
 
   | rs_read : forall m1 m2 ths1 ths2 tid ad t,
     m1 \ ths1 ~~[tid, e_read ad t]~~> m2 \ ths2 ->

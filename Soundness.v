@@ -66,9 +66,9 @@ Lemma typeof_preservation_alloc : forall T t1 t2 ad' T',
   empty |-- t2 is T.
 Proof. solve_typeof_preservation T. Qed.
 
-Lemma typeof_preservation_insert : forall T t1 t2 ad' t' T',
+Lemma typeof_preservation_insert : forall T t1 t2 ad' t',
   empty |-- t1 is T ->
-  t1 --[e_insert ad' t' T']--> t2 ->
+  t1 --[e_insert ad' t']--> t2 ->
   empty |-- t2 is T.
 Proof. solve_typeof_preservation T. Qed.
 
@@ -440,15 +440,15 @@ Theorem limited_progress : forall m1 t1,
   (* --- *)
   well_typed_term t1 ->
   (value t1
-    \/ (exists m2 t2,        m1 \ t1 ==[e_none         ]==> m2 \ t2)
-    \/ (exists m2 t2 ad T,   m1 \ t1 ==[e_alloc ad T   ]==> m2 \ t2)
-    \/ (exists m2 t2 ad t T, m1 \ t1 ==[e_insert ad t T]==> m2 \ t2)
-    \/ (exists m2 t2 ad t,   m1 \ t1 ==[e_read ad t    ]==> m2 \ t2)
-    \/ (exists m2 t2 ad t,   m1 \ t1 ==[e_write ad t   ]==> m2 \ t2)
-    \/ (exists m2 t2 ad t,   m1[ad].X = false ->
-                             m1 \ t1 ==[e_acq ad t     ]==> m2 \ t2)
-    \/ (exists m2 t2 ad,     m1 \ t1 ==[e_rel ad       ]==> m2 \ t2)
-    \/ (exists t2 tid t,     t1 --[e_spawn tid t]--> t2)).
+    \/ (exists m2 t2,      m1 \ t1 ==[e_none       ]==> m2 \ t2)
+    \/ (exists m2 t2 ad T, m1 \ t1 ==[e_alloc ad T ]==> m2 \ t2)
+    \/ (exists m2 t2 ad t, m1 \ t1 ==[e_insert ad t]==> m2 \ t2)
+    \/ (exists m2 t2 ad t, m1 \ t1 ==[e_read ad t  ]==> m2 \ t2)
+    \/ (exists m2 t2 ad t, m1 \ t1 ==[e_write ad t ]==> m2 \ t2)
+    \/ (exists m2 t2 ad t, m1[ad].X = false ->
+                           m1 \ t1 ==[e_acq ad t   ]==> m2 \ t2)
+    \/ (exists m2 t2 ad,   m1 \ t1 ==[e_rel ad     ]==> m2 \ t2)
+    \/ (exists t2 tid t,   t1 --[e_spawn tid t]--> t2)).
 Proof.
   intros * ? ? [T ?]. remember empty as Gamma.
   ind_typeof; eauto using value; right; invc_vtm; invc_ctm;

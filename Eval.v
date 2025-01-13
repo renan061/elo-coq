@@ -138,6 +138,7 @@ Inductive Results : Set :=
   | done : mem -> threads -> string -> Results
   .
 
+(* TODO round_robin *)
 Fixpoint evals (m : mem) (ths : threads) gas tid : Results :=
   match gas with
   | 0      => done m ths "out of gas"

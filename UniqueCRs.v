@@ -119,12 +119,12 @@ Proof.
     eauto using nocr_preservation_alloc, onecr_preservation_alloc.
 Qed.
 
-Local Lemma ucr_preservation_insert : forall m ths tid t ad' t' T',
+Local Lemma ucr_preservation_insert : forall m ths tid t ad' t',
   forall_threads ths (valid_term m) ->
   (* --- *)
   tid < #ths ->
   unique_critical_regions m ths ->
-  ths[tid] --[e_insert ad' t' T']--> t ->
+  ths[tid] --[e_insert ad' t']--> t ->
   unique_critical_regions m[ad'.t <- t'] ths[tid <- t].
 Proof.
   intros until 1.

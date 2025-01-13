@@ -117,9 +117,9 @@ Proof.
   eauto using valid_term.
 Qed.
 
-Lemma vtm_insert_term : forall m t1 t2 ad t T,
+Lemma vtm_insert_term : forall m t1 t2 ad t,
   valid_term m t1 ->
-  t1 --[e_insert ad t T]--> t2 ->
+  t1 --[e_insert ad t]--> t2 ->
   valid_term m t.
 Proof.
   intros. ind_tstep; invc_vtm; auto.
@@ -133,9 +133,9 @@ Proof.
   intros. ind_tstep; invc_vtm; auto.
 Qed.
 
-Lemma vtm_insert_address : forall m t1 t2 ad t T,
+Lemma vtm_insert_address : forall m t1 t2 ad t,
   valid_term m t1 ->
-  t1 --[e_insert ad t T]--> t2 ->
+  t1 --[e_insert ad t]--> t2 ->
   ad < #m.
 Proof.
   intros. ind_tstep; invc_vtm; auto.
@@ -330,9 +330,9 @@ Lemma vtm_preservation_alloc : forall m t1 t2 T,
   valid_term (m +++ (None, T, false, R_invalid)) t2.
 Proof. solve_vtm_preservation. Qed.
 
-Lemma vtm_preservation_insert : forall m t1 t2 ad t T,
+Lemma vtm_preservation_insert : forall m t1 t2 ad t,
   valid_term m t1 ->
-  t1 --[e_insert ad t T]--> t2 ->
+  t1 --[e_insert ad t]--> t2 ->
   valid_term (m[ad.t <- t]) t2.
 Proof. solve_vtm_preservation. Qed.
 

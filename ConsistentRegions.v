@@ -192,9 +192,9 @@ Proof.
   value_does_not_step.
 Qed.
 
-Local Lemma creg_preservation_insert : forall m R t1 t2 ad t T,
+Local Lemma creg_preservation_insert : forall m R t1 t2 ad t,
   consistent_regions m R t1 ->
-  t1 --[e_insert ad t T]--> t2 ->
+  t1 --[e_insert ad t]--> t2 ->
   consistent_regions m[ad.t <- t] R t2.
 Proof.
   intros. gendep R. ind_tstep; intros; inv_creg;
@@ -356,19 +356,25 @@ Ltac destruct_mcreg ad :=
   end.
 
 Lemma mcreg_preservation_insert_termX : forall m R t1 t2 ad t T,
+  consistent_term m t1 ->
+  (* --- *)
+  m[ad].T = `x&T` ->
   consistent_regions m R t1 ->
-  t1 --[e_insert ad t `x&T`]--> t2 ->
+  t1 --[e_insert ad t]--> t2 ->
   consistent_regions m (R_ad ad) t.
 Proof.
-  intros. gendep R. ind_tstep; intros; invc_creg; eauto.
+  intros. gendep R. ind_tstep; intros; invc_ctm; invc_creg; eauto.
 Qed.
 
 Lemma mcreg_preservation_insert_termW : forall m R t1 t2 ad t T,
+  consistent_term m t1 ->
+  (* --- *)
+  m[ad].T = `w&T` ->
   consistent_regions m R t1 ->
-  t1 --[e_insert ad t `w&T`]--> t2 ->
+  t1 --[e_insert ad t]--> t2 ->
   consistent_regions m m[ad].R t.
 Proof.
-  intros. gendep R. ind_tstep; intros; invc_creg; eauto.
+  intros. gendep R. ind_tstep; intros; invc_ctm; invc_creg; eauto.
 Qed.
 
 Lemma mcreg_preservation_write_term : forall m R t1 t2 ad t,
@@ -398,7 +404,7 @@ Proof.
   repeat split; intros; invc_eq; destruct_mcreg ad''; eauto using creg_mem_add.
 Qed.
 
-Local Lemma mcreg_preservation_insert : forall m ths tid t ad' t' T',
+Local Lemma mcreg_preservation_insert : forall m ths tid t ad' t',
   forall_memory m (valid_term m) ->
   memory_pointer_types m ->
   forall_threads ths well_typed_term ->
@@ -406,7 +412,7 @@ Local Lemma mcreg_preservation_insert : forall m ths tid t ad' t' T',
   forall_threads_consistent_regions m ths ->
   forall_memory_consistent_regions  m ->
   (* --- *)
-  ths[tid] --[e_insert ad' t' T']--> t ->
+  ths[tid] --[e_insert ad' t']--> t ->
   forall_memory_consistent_regions m[ad'.t <- t'].
 Proof.
   intros. subst.
@@ -414,23 +420,16 @@ Proof.
   intros ad'' t'' Hsome.
   repeat omicron; try invc Hsome.
   - upsilon.
-    assert ((exists T'', T' = `r&T''`) \/
-            (exists T'', T' = `x&T''`) \/
-            (exists T'', T' = `w&T''`))
-      as [[T'' ?] | [[T'' ?] | [T'' ?]]]
-      by eauto using wtt_insert_type; subst.
-    + assert (empty |-- t'' is `Safe T''`)
-        by eauto using wtt_typeof_insert_term_R.
-      assert (m[ad''].T = `r&T''`) by eauto using ptyp_for_insert.
-      repeat split; intros; invc_eq.
+    assert ((exists T, empty |-- t'' is `Safe T` /\ m[ad''].T = `r&T`) \/
+            (exists T, empty |-- t'' is T        /\ m[ad''].T = `x&T`) \/
+            (exists T, empty |-- t'' is T        /\ m[ad''].T = `w&T`))
+      as [[T'' [? ?]] | [[T'' [? ?]] | [T'' [? ?]]]]
+      by eauto using ctm_insert_type.
+    + repeat split; intros; invc_eq.
       eauto using nowrefs_from_type.
-    + assert (empty |-- t'' is T'') by eauto using wtt_typeof_insert_term_X.
-      assert (m[ad''].T = `x&T''`) by eauto using ptyp_for_insert.
-      repeat split; intros; invc_eq.
+    + repeat split; intros; invc_eq.
       eauto using creg_mem_set, mcreg_preservation_insert_termX.
-    + assert (empty |-- t'' is T'') by eauto using wtt_typeof_insert_term_W.
-      assert (m[ad''].T = `w&T''`) by eauto using ptyp_for_insert.
-      repeat split; intros; try invc_eq.
+    + repeat split; intros; try invc_eq.
       eauto using creg_mem_set, mcreg_preservation_insert_termW.
   - assert (ad'' < #m) by (lt_eq_gt (#m) ad''; sigma; upsilon; auto).
     destruct_mpt ad''; repeat split; intros; invc_eq; destruct_mcreg ad'';

@@ -14,12 +14,12 @@ Definition init_cr_exclusivity (ths : threads) := forall ad tid1 tid2,
 
 (* theorems ---------------------------------------------------------------- *)
 
-Theorem oneinit_from_insert : forall m ths tid t ad' t' T',
+Theorem oneinit_from_insert : forall m ths tid t ad' t',
   forall_threads ths (valid_term m) ->
   forall_threads ths (consistent_term m) ->
   unique_initializers m ths ->
   (* --- *)
-  ths[tid] --[e_insert ad' t' T']--> t ->
+  ths[tid] --[e_insert ad' t']--> t ->
   one_init ad' ths[tid].
 Proof.
   intros * ? ? Hui **.
@@ -77,14 +77,14 @@ Proof.
   exfalso; eauto using onecr_inheritance_alloc, nocr_onecr_contradiction.
 Qed.
 
-Lemma ice_preservation_insert : forall m ths tid t ad' t' T',
+Lemma ice_preservation_insert : forall m ths tid t ad' t',
   forall_threads ths (valid_term m) ->
   forall_threads ths (consistent_term m) ->
   unique_initializers m ths ->
   unique_critical_regions m ths ->
   (* --- *)
   init_cr_exclusivity ths ->
-  ths[tid] --[e_insert ad' t' T']--> t ->
+  ths[tid] --[e_insert ad' t']--> t ->
   init_cr_exclusivity ths[tid <- t].
 Proof.
   intros until 4. intros Hice ? ad tid1 tid2.

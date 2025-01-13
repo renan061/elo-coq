@@ -33,12 +33,12 @@ Lemma noinit_inheritance_alloc : forall ad t1 t2 ad' T',
   no_init ad t1.
 Proof. solve_noinit_inheritance. Qed.
 
-Lemma noinit_inheritance_insert : forall ad m t1 t2 ad' t' T',
+Lemma noinit_inheritance_insert : forall ad m t1 t2 ad' t',
   valid_term m t1 ->
   (* --- *)
   ad <> ad' ->
   no_init ad t2 ->
-  t1 --[e_insert ad' t' T']--> t2 ->
+  t1 --[e_insert ad' t']--> t2 ->
   no_init ad t1.
 Proof. solve_noinit_inheritance. Qed.
 

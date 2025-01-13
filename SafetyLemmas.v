@@ -8,23 +8,23 @@ From Elo Require Import Multistep.
 #[local] Hint Extern 8 =>
   match goal with
   (* _ <> e_rel _ *)
-  |                 |- e_none         <> e_rel _    => intros F; invc F
-  |                 |- e_alloc  _ _   <> e_rel _    => intros F; invc F
-  |                 |- e_insert _ _ _ <> e_rel _    => intros F; invc F
-  |                 |- e_read   _ _   <> e_rel _    => intros F; invc F
-  |                 |- e_write  _ _   <> e_rel _    => intros F; invc F
-  |                 |- e_acq    _ _   <> e_rel _    => intros F; invc F
-  |                 |- e_spawn  _ _   <> e_rel _    => intros F; invc F
-  | _ : ?ad' <> ?ad |- e_rel    ?ad   <> e_rel ?ad' => intros F; invc F
+  |                 |- e_none       <> e_rel _    => intros F; invc F
+  |                 |- e_alloc  _ _ <> e_rel _    => intros F; invc F
+  |                 |- e_insert _ _ <> e_rel _    => intros F; invc F
+  |                 |- e_read   _ _ <> e_rel _    => intros F; invc F
+  |                 |- e_write  _ _ <> e_rel _    => intros F; invc F
+  |                 |- e_acq    _ _ <> e_rel _    => intros F; invc F
+  |                 |- e_spawn  _ _ <> e_rel _    => intros F; invc F
+  | _ : ?ad' <> ?ad |- e_rel    ?ad <> e_rel ?ad' => intros F; invc F
   (* _ <> e_insert _ _ _ *)
-  |                 |- e_none            <> e_insert _ _ _   => intros F; invc F
-  |                 |- e_alloc  _ _      <> e_insert _ _ _   => intros F; invc F
-  | _ : ?ad' <> ?ad |- e_insert ?ad' _ _ <> e_insert ?ad _ _ => intros F; invc F
-  |                 |- e_read   _ _      <> e_insert _ _ _   => intros F; invc F
-  |                 |- e_write  _ _      <> e_insert _ _ _   => intros F; invc F
-  |                 |- e_acq    _ _      <> e_insert _ _ _   => intros F; invc F
-  |                 |- e_spawn  _ _      <> e_insert _ _ _   => intros F; invc F
-  | _ : ?ad' <> ?ad |- e_rel    _        <> e_insert _ _ _   => intros F; invc F
+  |                 |- e_none          <> e_insert _ _   => intros F; invc F
+  |                 |- e_alloc  _ _    <> e_insert _ _   => intros F; invc F
+  | _ : ?ad' <> ?ad |- e_insert ?ad' _ <> e_insert ?ad _ => intros F; invc F
+  |                 |- e_read   _ _    <> e_insert _ _   => intros F; invc F
+  |                 |- e_write  _ _    <> e_insert _ _   => intros F; invc F
+  |                 |- e_acq    _ _    <> e_insert _ _   => intros F; invc F
+  |                 |- e_spawn  _ _    <> e_insert _ _   => intros F; invc F
+  | _ : ?ad' <> ?ad |- e_rel    _      <> e_insert _ _   => intros F; invc F
   end : core.
 
 (* ------------------------------------------------------------------------- *)
@@ -120,8 +120,8 @@ Lemma oneinit_preservation_rstep :
     (* --- *)
     one_init ad ths1[tid] ->
     m1 \ ths1 ~~~[tid', e]~~> m2 \ ths2 ->
-     (forall t T, e <> e_insert ad t T /\ one_init ad ths2[tid]) \/
-     (exists t T, e =  e_insert ad t T /\ tid' = tid /\ m2[ad].t = Some t).
+     (forall t, e <> e_insert ad t /\ one_init ad ths2[tid]) \/
+     (exists t, e =  e_insert ad t /\ tid' = tid /\ m2[ad].t = Some t).
 Proof.
   intros.
   assert (forall_memory m1 value) by eauto with inva.
@@ -135,9 +135,7 @@ Proof.
   - left. split; try omicron; auto.
     assert (ad < #m1) by eauto using oneinit_ad_bound.
     eauto using oneinit_preservation_alloc.
-  - match goal with _ : _ --[e_insert ?ad _ _]--> _ |- _ =>
-      rename ad into ad'
-    end.
+  - match goal with _ : _ --[e_insert ?x _]--> _ |- _ => rename x into ad' end.
     nat_eq_dec ad' ad.
     + assert (ad < #m1) by eauto using vtm_insert_address.
       right. repeat eexists; sigma; upsilon; trivial.
@@ -175,11 +173,11 @@ Proof.
   assert (invariants m2 ths2) by eauto using invariants_preservation_ustep.
   destruct IHmultistep as [? | [? ?]]; trivial.
   - assert (
-      (forall t T, e <> e_insert ad t T /\ one_init ad ths3[tid]) \/
-      (exists t T, e =  e_insert ad t T /\ tid' = tid /\ m3[ad].t = Some t)
-    ) as [H' | [t' [T' [? [? ?]]]]]
+      (forall t, e <> e_insert ad t /\ one_init ad ths3[tid]) \/
+      (exists t, e =  e_insert ad t /\ tid' = tid /\ m3[ad].t = Some t)
+    ) as [H' | [t' [? [? ?]]]]
       by eauto using oneinit_preservation_rstep.
-    + specialize (H' <{unit}> `Unit`) as [? ?]. eauto.
+    + specialize (H' <{unit}>) as [? ?]. eauto.
     + subst. eauto.
   - right. eauto using initialized_preservation_rstep.
 Qed.
