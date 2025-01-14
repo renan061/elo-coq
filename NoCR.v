@@ -45,6 +45,8 @@ Inductive no_cr (ad : addr) : tm -> Prop :=
   | nocr_cr    : forall ad' t,    ad <> ad'   ->
                                   no_cr ad t  ->
                                   no_cr ad <{cr ad' t                 }>
+  | nocr_wait  : forall ad',      no_cr ad <{wait ad'                 }>
+  | nocr_reacq : forall ad',      no_cr ad <{reacq ad'                }>
   | nocr_spawn : forall t,        no_cr ad t  ->
                                   no_cr ad <{spawn t                  }>
   .
@@ -71,6 +73,8 @@ Local Ltac _nocr tt :=
   | H : no_cr _   <{acq _ _ _             }> |- _ => tt H
   | H : no_cr ?ad <{cr ?ad _              }> |- _ => invc H; auto
   | H : no_cr _   <{cr _ _                }> |- _ => tt H
+  | H : no_cr _   <{wait _                }> |- _ => clear H
+  | H : no_cr _   <{reacq _               }> |- _ => clear H
   | H : no_cr _   <{spawn _               }> |- _ => tt H
   end.
 
@@ -120,10 +124,17 @@ Proof.
   invc_nocr; auto using no_cr.
 Qed.
 
+Lemma nocr_fw : forall ad ad' t,
+  no_cr ad t ->
+  no_cr ad (fw ad' t).
+Proof. 
+  intros. induction t; invc_nocr; simpl; auto using no_cr.
+Qed.
+
 (* preservation ------------------------------------------------------------ *)
 
 Local Ltac solve_nocr_preservation :=
-  intros; ind_tstep; repeat invc_nocr; auto using nocr_subst, no_cr.
+  intros; ind_tstep; repeat invc_nocr; auto using nocr_subst, nocr_fw, no_cr.
 
 Lemma nocr_preservation_none : forall ad t1 t2,
   no_cr ad t1 ->
@@ -137,9 +148,9 @@ Lemma nocr_preservation_alloc : forall ad t1 t2 ad' T',
   no_cr ad t2.
 Proof. solve_nocr_preservation. Qed.
 
-Lemma nocr_preservation_insert : forall ad t1 t2 ad' t',
+Lemma nocr_preservation_init : forall ad t1 t2 ad' t',
   no_cr ad t1 ->
-  t1 --[e_insert ad' t']--> t2 ->
+  t1 --[e_init ad' t']--> t2 ->
   no_cr ad t2.
 Proof. solve_nocr_preservation. Qed.
 
@@ -170,6 +181,18 @@ Lemma nocr_preservation_rel : forall ad t1 t2 ad',
   ad <> ad' ->
   no_cr ad t1 ->
   t1 --[e_rel ad']--> t2 ->
+  no_cr ad t2.
+Proof. solve_nocr_preservation. Qed.
+
+Lemma nocr_preservation_wacq : forall ad t1 t2 ad',
+  no_cr ad t1 ->
+  t1 --[e_wacq ad']--> t2 ->
+  no_cr ad t2.
+Proof. solve_nocr_preservation. Qed.
+
+Lemma nocr_preservation_wrel : forall ad t1 t2 ad',
+  no_cr ad t1 ->
+  t1 --[e_wrel ad']--> t2 ->
   no_cr ad t2.
 Proof. solve_nocr_preservation. Qed.
 
@@ -271,6 +294,8 @@ Ltac invc_nocrs :=
   | H : no_crs <{_ := _      }> |- _ => eapply inv_nocrs_asg   in H as [? ?]
   | H : no_crs <{acq _ _ _   }> |- _ => eapply inv_nocrs_acq   in H as [? ?]
   | H : no_crs <{cr _ _      }> |- _ => eapply inv_nocrs_cr    in H; auto
+  | H : no_crs <{wait _      }> |- _ => clear H
+  | H : no_crs <{reacq _     }> |- _ => clear H
   | H : no_crs <{spawn _     }> |- _ => eapply inv_nocrs_spawn in H
   end.
 
@@ -291,5 +316,12 @@ Corollary nocrs_subst : forall x tx t,
   no_crs <{[x := tx] t}>.
 Proof.
   intros ** ?. auto using nocr_subst.
+Qed.
+
+Corollary nocrs_fw : forall ad t,
+  no_crs t ->
+  no_crs (fw ad t).
+Proof.
+  intros ** ?. auto using nocr_fw.
 Qed.
 

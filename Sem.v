@@ -53,7 +53,7 @@ Inductive tm : Set :=
   | tm_acq   : tm   -> id -> tm -> tm
   | tm_cr    : addr -> tm -> tm
   (* synchronization *)
-  | tm_wait
+  | tm_wait  : addr -> tm
   | tm_reacq : addr -> tm
   (* concurrency *)
   | tm_spawn : tm -> tm
@@ -126,7 +126,7 @@ Notation "t1 ':=' t2"       := (tm_asg t1 t2)     (in custom elo_tm at level 70,
 Notation "'acq' t1 x t2"    := (tm_acq t1 x t2)   (in custom elo_tm at level 0).
 Notation "'cr' ad t"        := (tm_cr ad t)       (in custom elo_tm at level 0).
 (* synchronization ---------------------------------------------------------- *)
-Notation "'wait'"           := (tm_wait)          (in custom elo_tm at level 0).
+Notation "'wait' ad"        := (tm_wait ad)       (in custom elo_tm at level 0).
 Notation "'reacq' ad"       := (tm_reacq ad)      (in custom elo_tm at level 0).
 (* concurrency -------------------------------------------------------------- *)
 Notation "'spawn' t"        := (tm_spawn t)       (in custom elo_tm at level 0).
@@ -153,9 +153,6 @@ Reserved Notation "m \ t '==[' e ']==>' m' \ t'" (at level 40,
 Reserved Notation "m \ ths '~~[' tid , e ']~~>' m' \ ths'" (at level 40,
   ths at next level, tid at next level, e at next level, m' at next level).
 
-Reserved Notation "m \ ths '~~~[' tid , e ']~~>' m' \ ths'" (at level 40,
-  ths at next level, tid at next level, e at next level, m' at next level).
-
 Reserved Notation "m \ ths '~~[' tc ']~~>*' m' \ ths'" (at level 40,
   ths at next level, tc at next level, m' at next level).
 
@@ -176,14 +173,15 @@ Inductive value : tm -> Prop :=
 
 Inductive eff : Set :=
   | e_none
-  | e_alloc  (ad : addr) (T : ty)
-  | e_insert (ad : addr) (t : tm)
-  | e_read   (ad : addr) (t : tm)
-  | e_write  (ad : addr) (t : tm)
-  | e_acq    (ad : addr) (t : tm)
-  | e_rel    (ad : addr) 
-  | e_wait   (ad : addr) 
-  | e_spawn  (tid : nat) (t : tm) (* TODO: remove tid *)
+  | e_alloc (ad : addr) (T : ty)
+  | e_init  (ad : addr) (t : tm)
+  | e_read  (ad : addr) (t : tm)
+  | e_write (ad : addr) (t : tm)
+  | e_acq   (ad : addr) (t : tm)
+  | e_rel   (ad : addr) 
+  | e_wacq  (ad : addr) 
+  | e_wrel  (ad : addr) 
+  | e_spawn (tid : nat) (t : tm) (* TODO: remove tid *)
   .
 
 (* ------------------------------------------------------------------------- *)
@@ -192,8 +190,10 @@ Inductive eff : Set :=
 
 Inductive region : Set :=
   | R_invalid
-  | R_tid  : nat  -> region
-  | R_ad   : addr -> region
+  | R_tid   : nat  -> region
+  | R_init  : addr -> region
+  | R_cr    : addr -> region
+  | R_reacq : addr -> region
   .
 
 Inductive cell : Type :=
@@ -340,6 +340,12 @@ Inductive type_of : ctx -> tm -> ty -> Prop :=
     empty |-- t is T ->
     Gamma |-- <{cr ad t}> is T
 
+  | T_wait : forall Gamma ad,
+    Gamma |-- <{wait ad}> is `Unit`
+
+  | T_reacq : forall Gamma ad,
+    Gamma |-- <{reacq ad}> is `Unit`
+
   | T_spawn : forall Gamma t T,
     safe Gamma |-- t is T ->
     Gamma |-- <{spawn t}> is `Unit` 
@@ -359,7 +365,7 @@ Fixpoint subst (x : id) (tx t : tm) : tm :=
   (* utility *)
   | <{t1 + t2       }> => <{([x := tx] t1) + ([x := tx] t2)}>
   | <{t1 - t2       }> => <{([x := tx] t1) - ([x := tx] t2)}>
-  | <{t1; t2        }> => <{([x := tx] t1); ([x := tx] t2)}>
+  | <{t1;  t2       }> => <{([x := tx] t1);  ([x := tx] t2)}>
   | (tm_if t1 t2 t3 )  => tm_if <{[x := tx]t1}> <{[x := tx]t2}> <{[x := tx]t3}>
   | (tm_while t1 t2 )  => tm_while <{[x := tx]t1}> <{[x := tx]t2}>
   (* functions *)
@@ -367,7 +373,7 @@ Fixpoint subst (x : id) (tx t : tm) : tm :=
   | <{fn x' Tx t'   }> => if x =? x' then t  else <{fn x' Tx ([x := tx] t')}>
   (* memory *)
   | <{call t1 t2    }> => <{call ([x := tx] t1) ([x := tx] t2)}>
-  | <{& _ : _       }> => t
+  | <{&_ : _        }> => t
   | <{new t' : T    }> => <{new ([x := tx] t') : T}>
   | <{init ad t' : T}> => <{init ad ([x := tx] t') : T}>
   | <{*t'           }> => <{* ([x := tx] t')}>
@@ -376,10 +382,87 @@ Fixpoint subst (x : id) (tx t : tm) : tm :=
                             then <{acq ([x := tx] t1) x' t2            }>
                             else <{acq ([x := tx] t1) x' ([x := tx] t2)}>
   | <{cr ad t'      }> => <{cr ad ([x := tx] t')}>
+  (* synchronization *)
+  | <{wait _        }> => t
+  | <{reacq _       }> => t
   (* concurrency *)
   | <{spawn t'      }> => <{spawn ([x := tx] t')}>
   end
   where "'[' x ':=' tx ']' t" := (subst x tx t) (in custom elo_tm).
+
+(* fill-waits *)
+Fixpoint fw (ad : addr) (t : tm) : tm :=
+  match t with
+  | <{unit           }> => t
+  | <{nat _          }> => t
+  (* utility *)
+  | <{t1 + t2        }> => tm_plus  (fw ad t1) (fw ad t2)
+  | <{t1 - t2        }> => tm_monus (fw ad t1) (fw ad t2)
+  | <{t1;  t2        }> => tm_seq   (fw ad t1) (fw ad t2)
+  | (tm_if t1 t2 t3)    => tm_if    (fw ad t1) (fw ad t2) (fw ad t3)
+  | (tm_while t1 t2)    => tm_while (fw ad t1) (fw ad t2)
+  (* functions *)
+  | <{var _          }> => t
+  | <{fn x Tx t'     }> => tm_fun x Tx (fw ad t')
+  (* memory *)
+  | <{call t1 t2     }> => tm_call (fw ad t1) (fw ad t2)
+  | <{&_ : _         }> => t
+  | <{new t' : T     }> => tm_new (fw ad t') T
+  | <{init ad' t' : T}> => tm_init ad' (fw ad t') T
+  | <{*t'            }> => tm_load (fw ad t')
+  | <{t1 := t2       }> => tm_asg  (fw ad t1) (fw ad t2)
+  | <{acq t1 x t2    }> => tm_acq  (fw ad t1) x t2
+  | <{cr _ _         }> => t (* impossible case *)
+  (* synchronization *)
+  | <{wait _         }> => <{wait ad}>
+  | <{reacq _        }> => t
+  (* concurrency *)
+  | <{spawn t'       }> => tm_spawn (fw ad t')
+  end.
+
+(* ------------------------------------------------------------------------- *)
+(* regions                                                                   *)
+(* ------------------------------------------------------------------------- *)
+
+Definition is_value (t : tm) :=
+  match t with
+  | <{unit    }> => true
+  | <{nat _   }> => true
+  | <{fn _ _ _}> => true
+  | <{&_ : _  }> => true
+  | _            => false
+  end.
+
+Definition is_refX (T : ty) :=
+  match T with
+  | `x&_` => true
+  | _     => false
+  end.
+
+(* get-current-region *)
+Fixpoint gcr (t' : tm) (R : region) : region :=
+  match t' with
+  | <{unit            }> => R
+  | <{nat _           }> => R
+  | <{t1 + t2         }> => if is_value t1 then gcr t2 R else gcr t1 R
+  | <{t1 - t2         }> => if is_value t1 then gcr t2 R else gcr t1 R
+  | <{t1; t2          }> => if is_value t1 then gcr t2 R else gcr t1 R
+  | tm_if t _ _          => if is_value t then R else gcr t R
+  | <{while _ do _ end}> => R
+  | <{var _           }> => R
+  | <{fn _ _ _        }> => R
+  | <{call t1 t2      }> => if is_value t1 then gcr t2 R else gcr t1 R
+  | <{&_ : _          }> => R
+  | <{new _ : _       }> => R
+  | <{init ad t : T   }> => if is_refX T then gcr t (R_init ad) else gcr t R
+  | <{*t              }> => gcr t R
+  | <{t1 := t2        }> => if is_value t1 then gcr t2 R else gcr t1 R
+  | <{acq t1 _ _      }> => gcr t1 R
+  | <{cr ad t         }> => gcr t (R_cr ad)
+  | <{wait _          }> => R
+  | <{reacq ad        }> => R_reacq ad
+  | <{spawn _         }> => R
+  end.
 
 (* ------------------------------------------------------------------------- *)
 (* operational semantics -- term step                                        *)
@@ -461,7 +544,7 @@ Inductive tstep : tm -> eff -> tm -> Prop :=
 
   | ts_init : forall ad t T,
     value t ->
-    <{init ad t : T}> --[e_insert ad t]--> <{&ad : T}>
+    <{init ad t : T}> --[e_init ad t]--> <{&ad : T}>
 
   (* load *)
   | ts_load1 : forall t t' e,
@@ -490,8 +573,9 @@ Inductive tstep : tm -> eff -> tm -> Prop :=
     t1 --[e]--> t1' ->
     <{acq t1 x t2}> --[e]--> <{acq t1' x t2}>
 
-  | ts_acq : forall ad T x t tx,
-    <{acq (&ad : T) x t}> --[e_acq ad tx]--> <{cr ad [x := tx]t}>
+  | ts_acq : forall ad T x t t' tx,
+    t' = fw ad <{[x := tx] t}> ->
+    <{acq (&ad : T) x t}> --[e_acq ad tx]--> <{cr ad t'}>
 
   (* cr *)
   | ts_cr1 : forall ad t t' e,
@@ -501,6 +585,14 @@ Inductive tstep : tm -> eff -> tm -> Prop :=
   | ts_cr : forall ad t,
     value t ->
     <{cr ad t}> --[e_rel ad]--> t
+
+  (* wait *)
+  | ts_wait : forall ad,
+    <{wait ad}> --[e_wrel ad]--> <{reacq ad}>
+
+  (* reacq *)
+  | ts_reacq : forall ad,
+    <{reacq ad}> --[e_wacq ad]--> <{unit}>
 
   (* spawn *)
   | ts_spawn : forall tid t,
@@ -549,13 +641,11 @@ Inductive mstep : mem -> tm -> eff -> mem -> tm -> Prop :=
     t1 --[e_alloc ad T]--> t2 ->
     m \ t1 ==[e_alloc ad T]==> (m +++ new_cell T) \ t2
 
-  (* TODO: firstwrite *)
-  | ms_insert : forall m t1 t2 ad t,
-    t1 --[e_insert ad t]--> t2 ->
-    m \ t1 ==[e_insert ad t]==> m[ad.t <- t] \ t2
+  | ms_init : forall m t1 t2 ad t,
+    t1 --[e_init ad t]--> t2 ->
+    m \ t1 ==[e_init ad t]==> m[ad.t <- t] \ t2
 
   | ms_read : forall m t1 t2 ad t,
-    ad < #m -> (* TODO: remove *)
     m[ad].t = Some t ->
     t1 --[e_read ad t]--> t2 ->
     m \ t1 ==[e_read ad t]==> m \ t2
@@ -565,7 +655,6 @@ Inductive mstep : mem -> tm -> eff -> mem -> tm -> Prop :=
     m \ t1 ==[e_write ad t]==> m[ad.t <- t] \ t2
 
   | ms_acq : forall m t1 t2 ad t,
-    ad < #m -> (* TODO: remove *)
     m[ad].t = Some t ->
     m[ad].X = false ->
     t1 --[e_acq ad t]--> t2 ->
@@ -574,6 +663,15 @@ Inductive mstep : mem -> tm -> eff -> mem -> tm -> Prop :=
   | ms_rel : forall m t1 t2 ad,
     t1 --[e_rel ad]--> t2 ->
     m \ t1 ==[e_rel ad]==> m[ad.X <- false] \ t2
+
+  | ms_wacq : forall m t1 t2 ad,
+    m[ad].X = false ->
+    t1 --[e_wacq ad]--> t2 ->
+    m \ t1 ==[e_wacq ad]==> m[ad.X <- true] \ t2
+
+  | ms_wrel : forall m t1 t2 ad,
+    t1 --[e_wrel ad]--> t2 ->
+    m \ t1 ==[e_wrel ad]==> m[ad.X <- false] \ t2
 
   where "m \ t '==[' e ']==>' m' \ t'" := (mstep m t e m' t').
 
@@ -585,96 +683,58 @@ Notation " ths '[' tid ']' " := (ths[tid] or tm_default)
   (at level 9, tid at next level).
 
 Inductive cstep : mem -> threads -> nat -> eff -> mem -> threads -> Prop :=
-  | cs_mem : forall m1 m2 t ths tid e,
+  | cs_none : forall m1 m2 ths tid t,
     tid < #ths ->
-    m1 \ ths[tid] ==[e]==> m2 \ t ->
-    m1 \ ths ~~[tid, e]~~> m2 \ ths[tid <- t]
+    m1 \ ths[tid] ==[e_none]==> m2 \ t ->
+    m1 \ ths ~~[tid, e_none]~~> m2 \ ths[tid <- t]
 
-  | cs_spawn : forall m t te ths tid,
+  | cs_alloc : forall m1 m2 ths tid t ad' T' R,
     tid < #ths ->
-    ths[tid] --[e_spawn (#ths) te]--> t ->
-    m \ ths ~~[tid, e_spawn (#ths) te]~~> m \ (ths[tid <- t] +++ te)
+    R = gcr ths[tid] (R_tid tid) ->
+    m1 \ ths[tid] ==[e_alloc ad' T']==> m2 \ t ->
+    m1 \ ths ~~[tid, e_alloc ad' T']~~> m2[ad'.R <- R] \ ths[tid <- t]
+
+  | cs_init : forall m1 m2 ths tid t ad' t',
+    tid < #ths ->
+    m1 \ ths[tid] ==[e_init ad' t']==> m2 \ t ->
+    m1 \ ths ~~[tid, e_init ad' t']~~> m2 \ ths[tid <- t]
+
+  | cs_read : forall m1 m2 ths tid t ad' t',
+    tid < #ths ->
+    m1 \ ths[tid] ==[e_read ad' t']==> m2 \ t ->
+    m1 \ ths ~~[tid, e_read ad' t']~~> m2 \ ths[tid <- t]
+
+  | cs_write : forall m1 m2 ths tid t ad' t',
+    tid < #ths ->
+    m1 \ ths[tid] ==[e_write ad' t']==> m2 \ t ->
+    m1 \ ths ~~[tid, e_write ad' t']~~> m2 \ ths[tid <- t]
+
+  | cs_acq : forall m1 m2 ths tid t ad' t',
+    tid < #ths ->
+    m1 \ ths[tid] ==[e_acq ad' t']==> m2 \ t ->
+    m1 \ ths ~~[tid, e_acq ad' t']~~> m2 \ ths[tid <- t]
+
+  | cs_rel : forall m1 m2 ths tid t ad',
+    tid < #ths ->
+    m1 \ ths[tid] ==[e_rel ad']==> m2 \ t ->
+    m1 \ ths ~~[tid, e_rel ad']~~> m2 \ ths[tid <- t]
+
+  | cs_wacq : forall m1 m2 ths tid t ad',
+    tid < #ths ->
+    m1 \ ths[tid] ==[e_wacq ad']==> m2 \ t ->
+    m1 \ ths ~~[tid, e_wacq ad']~~> m2 \ ths[tid <- t]
+
+  | cs_wrel : forall m1 m2 ths tid t ad',
+    tid < #ths ->
+    m1 \ ths[tid] ==[e_wrel ad']==> m2 \ t ->
+    m1 \ ths ~~[tid, e_wrel ad']~~> m2 \ ths[tid <- t]
+
+  | cs_spawn : forall m ths tid t t',
+    tid < #ths ->
+    ths[tid] --[e_spawn (#ths) t']--> t ->
+    m \ ths ~~[tid, e_spawn (#ths) t']~~> m \ (ths[tid <- t] +++ t')
 
   where "m \ ths '~~[' tid , e ']~~>' m' \ ths'" := (cstep m ths tid e m' ths').
-
-(* ------------------------------------------------------------------------- *)
-(* operational semantics -- region step                                      *)
-(* ------------------------------------------------------------------------- *)
-
-Definition is_value (t : tm) :=
-  match t with
-  | <{unit    }> => true
-  | <{nat _   }> => true
-  | <{fn _ _ _}> => true
-  | <{&_ : _  }> => true
-  | _            => false
-  end.
-
-Definition is_refX  (T : ty) :=
-  match T with
-  | `x&_` => true
-  | _     => false
-  end.
-
-(* get-current-region *)
-Fixpoint gcr (t' : tm) (R : region) : region :=
-  match t' with
-  | <{unit                  }> => R
-  | <{nat _                 }> => R
-  | <{t1 + t2               }> => if is_value t1 then gcr t2 R else gcr t1 R
-  | <{t1 - t2               }> => if is_value t1 then gcr t2 R else gcr t1 R
-  | <{t1; t2                }> => if is_value t1 then gcr t2 R else gcr t1 R
-  | <{if t then _ else _ end}> => if is_value t then R else gcr t R
-  | <{while _ do _ end      }> => R
-  | <{var _                 }> => R
-  | <{fn _ _ _              }> => R
-  | <{call t1 t2            }> => if is_value t1 then gcr t2 R else gcr t1 R
-  | <{&_ : _                }> => R
-  | <{new _ : _             }> => R
-  | <{init ad t : T         }> => if is_refX T then gcr t (R_ad ad) else gcr t R
-  | <{*t                    }> => gcr t R
-  | <{t1 := t2              }> => if is_value t1 then gcr t2 R else gcr t1 R
-  | <{acq t1 _ _            }> => gcr t1 R
-  | <{cr ad t               }> => gcr t (R_ad ad)
-  | <{spawn _               }> => R
-  end.
-
-Inductive rstep : mem -> threads -> nat -> eff -> mem -> threads -> Prop :=
-  | rs_none : forall m1 m2 ths1 ths2 tid,
-    m1 \ ths1 ~~[tid, e_none]~~> m2 \ ths2 ->
-    m1 \ ths1 ~~~[tid, e_none]~~> m2 \ ths2
-
-  | rs_alloc : forall m1 m2 ths1 ths2 tid ad T R,
-    R = gcr ths1[tid] (R_tid tid) ->
-    m1 \ ths1 ~~[tid, e_alloc ad T]~~> m2 \ ths2 ->
-    m1 \ ths1 ~~~[tid, e_alloc ad T]~~> m2[ad.R <- R] \ ths2
-
-  | rs_insert : forall m1 m2 ths1 ths2 tid ad t,
-    m1 \ ths1 ~~[tid, e_insert ad t]~~> m2 \ ths2 ->
-    m1 \ ths1 ~~~[tid, e_insert ad t]~~> m2 \ ths2
-
-  | rs_read : forall m1 m2 ths1 ths2 tid ad t,
-    m1 \ ths1 ~~[tid, e_read ad t]~~> m2 \ ths2 ->
-    m1 \ ths1 ~~~[tid, e_read ad t]~~> m2 \ ths2
-
-  | rs_write : forall m1 m2 ths1 ths2 tid ad t,
-    m1 \ ths1 ~~[tid, e_write ad t]~~> m2 \ ths2 ->
-    m1 \ ths1 ~~~[tid, e_write ad t]~~> m2 \ ths2
-
-  | rs_acq : forall m1 m2 ths1 ths2 tid ad t,
-    m1 \ ths1 ~~[tid, e_acq ad t]~~> m2 \ ths2 ->
-    m1 \ ths1 ~~~[tid, e_acq ad t]~~> m2 \ ths2
-
-  | rs_rel : forall m1 m2 ths1 ths2 tid ad,
-    m1 \ ths1 ~~[tid, e_rel ad]~~> m2 \ ths2 ->
-    m1 \ ths1 ~~~[tid, e_rel ad]~~> m2 \ ths2
-
-  | rs_spawn : forall m1 m2 ths1 ths2 tid tid' t',
-    m1 \ ths1 ~~[tid, e_spawn tid' t']~~> m2 \ ths2 ->
-    m1 \ ths1 ~~~[tid, e_spawn tid' t']~~> m2 \ ths2
-
-  where "m \ ths '~~~[' tid , e ']~~>' m' \ ths'" :=
-    (rstep m ths tid e m' ths').
 
 (* ------------------------------------------------------------------------- *)
 (* multistep                                                                 *)
@@ -686,7 +746,7 @@ Inductive multistep : mem -> threads -> trace -> mem -> threads -> Prop :=
 
   | multistep_trans : forall m1 m2 m3 ths1 ths2 ths3 tid e tc,
     m1 \ ths1 ~~[tc            ]~~>* m2 \ ths2 ->
-    m2 \ ths2 ~~~[tid, e       ]~~>  m3 \ ths3 ->
+    m2 \ ths2 ~~[tid, e        ]~~>  m3 \ ths3 ->
     m1 \ ths1 ~~[(tid, e) :: tc]~~>* m3 \ ths3 
 
   where "m1 \ ths1 '~~[' tc ']~~>*' m2 \ ths2" :=

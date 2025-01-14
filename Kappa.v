@@ -65,7 +65,7 @@ Proof. solve_kappa_notvalue. Qed.
 (* ------------------------------------------------------------------------- *)
 
 Lemma kappa_initX : forall ad t T R,
-  gcr <{init ad t : x&T}> R = gcr t (R_ad ad).
+  gcr <{init ad t : x&T}> R = gcr t (R_init ad).
 Proof. trivial. Qed.
 
 Lemma kappa_initW : forall ad t T R,
@@ -142,6 +142,8 @@ Ltac kappa :=
  | H : context[gcr <{?t := _             }> _] |- _ => destruct (value_dec t)
  | H : context[gcr <{acq _ _ _           }> _] |- _ => simpl in H
  | H : context[gcr <{cr _ _              }> _] |- _ => simpl in H
+ | H : context[gcr <{wait _              }> _] |- _ => simpl in H
+ | H : context[gcr <{reacq _             }> _] |- _ => simpl in H (* TODO *)
  | H : context[gcr <{spawn _             }> _] |- _ => simpl in H
 
  | H' : value   ?t1 |- context[ gcr <{?t1 + ?t2      }> ?R ] =>
@@ -198,6 +200,8 @@ Ltac kappa :=
  | |- context[gcr <{?t := _             }> _] => destruct (value_dec t)
  | |- context[gcr <{acq _ _ _           }> _] => simpl
  | |- context[gcr <{cr _ _              }> _] => simpl
+ | |- context[gcr <{wait _              }> _] => simpl
+ | |- context[gcr <{reacq _             }> _] => simpl
  | |- context[gcr <{spawn _             }> _] => simpl
  end.
  

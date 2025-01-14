@@ -4,14 +4,14 @@ From Elo Require Import Sem.
 From Elo Require Import SemExt.
 From Elo Require Import Upsilon.
 
-Lemma value_insert_term : forall t1 t2 ad t,
-  t1 --[e_insert ad t]--> t2 ->
+Lemma value_eff_init_term : forall t1 t2 ad t,
+  t1 --[e_init ad t]--> t2 ->
   value t.
 Proof.
   intros. ind_tstep; auto.
 Qed.
 
-Lemma value_write_term : forall t1 t2 ad t,
+Lemma value_eff_write_term : forall t1 t2 ad t,
   t1 --[e_write ad t]--> t2 ->
   value t.
 Proof.
@@ -30,20 +30,10 @@ Theorem value_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
   m1 \ ths1 ~~[tid, e]~~> m2 \ ths2 ->
   forall_memory m2 value.
 Proof.
-  intros. invc_cstep; trivial. invc_mstep; trivial;
-  intros ? ? ?; upsilon; eauto using value_insert_term, value_write_term.
-Qed.
-
-Theorem value_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
-  forall_memory m1 value ->
-  m1 \ ths1 ~~~[tid, e]~~> m2 \ ths2 ->
-  forall_memory m2 value.
-Proof.
-  intros. invc_rstep; eauto using value_preservation_cstep.
-  match goal with _ : _ \ _ ~~[_, _]~~> ?m \ ?ths |- _ =>
-    assert (forall_memory m value) by eauto using value_preservation_cstep
-  end.
-  repeat intro; repeat omicron; upsilon; auto; eauto.
+  intros. invc_cstep; try invc_mstep;
+  eauto using value_eff_init_term, value_eff_write_term;
+  intros ? ? ?; upsilon; eauto using value_eff_init_term, value_eff_write_term.
+  omicron; eauto; upsilon; discriminate.
 Qed.
 
 Theorem value_preservation_ustep : forall m1 m2 ths1 ths2 tc,
@@ -51,6 +41,6 @@ Theorem value_preservation_ustep : forall m1 m2 ths1 ths2 tc,
   m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
   forall_memory m2 value.
 Proof.
-  intros. ind_ustep; eauto using value_preservation_rstep.
+  intros. ind_ustep; eauto using value_preservation_cstep.
 Qed.
 

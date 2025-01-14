@@ -72,6 +72,8 @@ Inductive valid_term (m : mem) : tm -> Prop :=
   | vtm_cr    : forall ad t,     ad < #m         ->
                                  valid_term m t  ->
                                  valid_term m <{cr ad t                  }>
+  | vtm_wait  : forall ad,       valid_term m <{wait ad                  }>
+  | vtm_reacq : forall ad,       valid_term m <{reacq ad                 }>
   | vtm_spawn : forall t,        no_inits t      ->
                                  no_crs   t      ->
                                  valid_term m t  ->
@@ -89,7 +91,7 @@ Local Ltac _vtm tt :=
   | H : valid_term _ <{_; _                  }> |- _ => tt H
   | H : valid_term _ <{if _ then _ else _ end}> |- _ => tt H
   | H : valid_term _ <{while _ do _ end      }> |- _ => tt H
-  | H : valid_term _ <{var _                 }> |- _ => clear H
+  | H : valid_term _ <{var _                 }> |- _ => tt H
   | H : valid_term _ <{fn _ _ _              }> |- _ => tt H
   | H : valid_term _ <{call _ _              }> |- _ => tt H
   | H : valid_term _ <{& _ : _               }> |- _ => tt H
@@ -99,6 +101,8 @@ Local Ltac _vtm tt :=
   | H : valid_term _ <{_ := _                }> |- _ => tt H
   | H : valid_term _ <{acq _ _ _             }> |- _ => tt H
   | H : valid_term _ <{cr _ _                }> |- _ => tt H
+  | H : valid_term _ <{wait _                }> |- _ => clear H
+  | H : valid_term _ <{reacq _               }> |- _ => clear H
   | H : valid_term _ <{spawn _               }> |- _ => tt H
   end.
 
@@ -114,12 +118,12 @@ Lemma vtm_from_base : forall m t,
   valid_term m t.
 Proof.
   intros. induction t; invc_norefs; invc_noinits; invc_nocrs;
-  eauto using valid_term.
+  auto using valid_term.
 Qed.
 
-Lemma vtm_insert_term : forall m t1 t2 ad t,
+Lemma vtm_init_term : forall m t1 t2 ad t,
   valid_term m t1 ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_init ad t]--> t2 ->
   valid_term m t.
 Proof.
   intros. ind_tstep; invc_vtm; auto.
@@ -133,9 +137,9 @@ Proof.
   intros. ind_tstep; invc_vtm; auto.
 Qed.
 
-Lemma vtm_insert_address : forall m t1 t2 ad t,
+Lemma vtm_init_address : forall m t1 t2 ad t,
   valid_term m t1 ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_init ad t]--> t2 ->
   ad < #m.
 Proof.
   intros. ind_tstep; invc_vtm; auto.
@@ -266,7 +270,7 @@ Lemma vtm_subst : forall m t tx x,
   no_crs   t  ->
   value    tx ->
   (* --- *)
-  valid_term m t ->
+  valid_term m t  ->
   valid_term m tx ->
   valid_term m <{[x := tx] t}>.
 Proof.
@@ -275,6 +279,14 @@ Proof.
   constructor;
   eauto using noinits_from_value, noinits_subst;
   eauto using nocrs_from_value, nocrs_subst.
+Qed.
+
+Lemma vtm_fw : forall m t ad,
+  valid_term m t  ->
+  valid_term m (fw ad t).
+Proof.
+  intros. induction t; invc_vtm; simpl;
+  auto using noinits_fw, nocrs_fw, valid_term.
 Qed.
 
 Lemma vtm_mem_add : forall m t c,
@@ -305,18 +317,19 @@ Proof.
   intros. induction t; invc_vtm; constructor; sigma; auto.
 Qed.
 
-Lemma vtm_mem_region : forall m t ad R,
-  valid_term m t ->
-  valid_term m[ad.R <- R] t.
-Proof.
-  intros. induction t; invc_vtm; constructor; sigma; auto.
-Qed.
-
 (* preservation ------------------------------------------------------------ *)
+
+#[local] Hint Extern 4 =>
+  match goal with
+  | |- no_inits <{&_ : _}> => intro; auto using no_init
+  | |- no_crs   <{&_ : _}> => intro; auto using no_cr
+  end : core.
 
 Local Ltac solve_vtm_preservation :=
   intros; ind_tstep; repeat invc_vtm; repeat constructor; sigma;
-  auto using vtm_subst, vtm_mem_add, vtm_mem_set, vtm_mem_acq, vtm_mem_rel.
+  auto using vtm_subst, vtm_fw,
+    vtm_mem_add, vtm_mem_set,
+    vtm_mem_acq, vtm_mem_rel.
 
 Lemma vtm_preservation_none : forall m t1 t2,
   valid_term m t1 ->
@@ -324,15 +337,15 @@ Lemma vtm_preservation_none : forall m t1 t2,
   valid_term m t2.
 Proof. solve_vtm_preservation. Qed.
 
-Lemma vtm_preservation_alloc : forall m t1 t2 T,
+Lemma vtm_preservation_alloc : forall m t1 t2 T R,
   valid_term m t1 ->
   t1 --[e_alloc (#m) T]--> t2 ->
-  valid_term (m +++ (None, T, false, R_invalid)) t2.
+  valid_term (m +++ (None, T, false, R)) t2.
 Proof. solve_vtm_preservation. Qed.
 
-Lemma vtm_preservation_insert : forall m t1 t2 ad t,
+Lemma vtm_preservation_init : forall m t1 t2 ad t,
   valid_term m t1 ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_init ad t]--> t2 ->
   valid_term (m[ad.t <- t]) t2.
 Proof. solve_vtm_preservation. Qed.
 
@@ -365,6 +378,18 @@ Lemma vtm_preservation_rel : forall m t1 t2 ad,
   valid_term m[ad.X <- false] t2.
 Proof. solve_vtm_preservation. Qed.
 
+Lemma vtm_preservation_wacq : forall m t1 t2 ad,
+  valid_term m t1 ->
+  t1 --[e_wacq ad]--> t2 ->
+  valid_term m[ad.X <- true] t2.
+Proof. solve_vtm_preservation. Qed.
+
+Lemma vtm_preservation_wrel : forall m t1 t2 ad,
+  valid_term m t1 ->
+  t1 --[e_wrel ad]--> t2 ->
+  valid_term m[ad.X <- false] t2.
+Proof. solve_vtm_preservation. Qed.
+
 Lemma vtm_preservation_spawn : forall m t1 t2 tid t,
   valid_term m t1 ->
   t1 --[e_spawn tid t]--> t2 ->
@@ -386,9 +411,11 @@ Corollary vtm_preservation_memory : forall m1 m2 ths1 ths2 tid e,
   forall_memory  m2   (valid_term m2).
 Proof.
   intros. invc_cstep; try invc_mstep; trivial; intros ? ? ?.
-  - upsilon. eauto using vtm_mem_add.
-  - upsilon; eauto using vtm_insert_term, vtm_mem_set.
+  - omicron; upsilon; auto; eauto using vtm_mem_add.
+  - upsilon; eauto using vtm_init_term, vtm_mem_set.
   - upsilon; eauto using vtm_write_term, vtm_mem_set.
+  - upsilon. eauto using vtm_mem_acq.
+  - upsilon. eauto using vtm_mem_rel.
   - upsilon. eauto using vtm_mem_acq.
   - upsilon. eauto using vtm_mem_rel.
 Qed.
@@ -403,12 +430,17 @@ Corollary vtm_preservation_threads : forall m1 m2 ths1 ths2 tid e,
 Proof.
   intros. invc_cstep; try invc_mstep.
   - upsilon. eauto using vtm_preservation_none.
-  - upsilon; eauto using vtm_mem_add, vtm_preservation_alloc.
-  - upsilon; eauto using vtm_mem_set, vtm_preservation_insert.
+  - upsilon. (* TODO: fix upsilon *)
+    intro tid'. sigma. upsilon. omicron.
+    + eauto using vtm_preservation_alloc.
+    + eauto using vtm_mem_add.
+  - upsilon; eauto using vtm_mem_set, vtm_preservation_init.
   - upsilon. eauto using vtm_preservation_read.
   - upsilon; eauto using vtm_mem_set, vtm_preservation_write.
   - upsilon; eauto using vtm_mem_acq, vtm_preservation_acq.
   - upsilon; eauto using vtm_mem_rel, vtm_preservation_rel.
+  - upsilon; eauto using vtm_mem_acq, vtm_preservation_wacq.
+  - upsilon; eauto using vtm_mem_rel, vtm_preservation_wrel.
   - upsilon; eauto using vtm_preservation_spawn, vtm_preservation_spawned.
 Qed.
 
@@ -421,22 +453,6 @@ Theorem vtm_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
 Proof.
   intros * ? [? ?] ?. split;
   eauto using vtm_preservation_memory, vtm_preservation_threads.
-Qed.
-
-Theorem vtm_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
-  forall_memory  m1 value ->
-  (* --- *)
-  forall_program m1 ths1 (valid_term m1) ->
-  m1 \ ths1 ~~~[tid, e]~~> m2 \ ths2 ->
-  forall_program m2 ths2 (valid_term m2).
-Proof.
-  intros. invc_rstep; eauto using vtm_preservation_cstep.
-  match goal with _ : _ \ _ ~~[_, _]~~> ?m \ ?ths |- _ =>
-    assert (forall_program m ths (valid_term m)) as [? ?]
-      by eauto using vtm_preservation_cstep
-  end.
-  split; repeat intro; repeat omicron; upsilon;
-  auto; eauto using vtm_mem_region.
 Qed.
 
 Theorem vtm_preservation_base : forall t,

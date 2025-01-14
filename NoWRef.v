@@ -50,6 +50,8 @@ Inductive no_wref (ad : addr) : tm -> Prop :=
                                     no_wref ad <{acq t1 x t2              }>
   | nowref_cr    : forall ad' t,    no_wref ad t  ->
                                     no_wref ad <{cr ad' t                 }>
+  | nowref_wait  : forall ad',      no_wref ad <{wait ad'                 }>
+  | nowref_reacq : forall ad',      no_wref ad <{reacq ad'                }>
   | nowref_spawn : forall t,        no_wref ad t  ->
                                     no_wref ad <{spawn t                  }>
   .
@@ -78,6 +80,8 @@ Local Ltac _nowref tt :=
   | H : no_wref _   <{_ := _                }> |- _ => tt H
   | H : no_wref _   <{acq _ _ _             }> |- _ => tt H
   | H : no_wref _   <{cr _ _                }> |- _ => tt H
+  | H : no_wref _   <{wait _                }> |- _ => clear H
+  | H : no_wref _   <{reacq _               }> |- _ => clear H
   | H : no_wref _   <{spawn _               }> |- _ => tt H
   end.
 
@@ -103,6 +107,13 @@ Lemma nowref_subst : forall ad x tx t,
 Proof.
   intros. induction t; simpl; try destruct _str_eq_dec;
   try invc_nowref; auto using no_wref.
+Qed.
+
+Lemma nowref_fw : forall ad ad' t,
+  no_wref ad t ->
+  no_wref ad (fw ad' t).
+Proof. 
+  intros. induction t; try invc_nowref; simpl; auto using no_wref.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -196,6 +207,8 @@ match goal with
 | H : no_wrefs <{_ := _      }> |- _ => eapply inv_nowrefs_asg   in H as [? ?]
 | H : no_wrefs <{acq _ _ _   }> |- _ => eapply inv_nowrefs_acq   in H as [? ?]
 | H : no_wrefs <{cr _ _      }> |- _ => eapply inv_nowrefs_cr    in H
+| H : no_wrefs <{wait _      }> |- _ => clear H
+| H : no_wrefs <{reacq _     }> |- _ => clear H
 | H : no_wrefs <{spawn _     }> |- _ => eapply inv_nowrefs_spawn in H
 end.
 

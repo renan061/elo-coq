@@ -78,6 +78,8 @@ Local Ltac _hasvar tt :=
   | H : has_var _  <{_ := _                }> |- _ => tt H
   | H : has_var _  <{acq _ _ _             }> |- _ => tt H
   | H : has_var _  <{cr _ _                }> |- _ => tt H
+  | H : has_var _  <{wait _                }> |- _ => invc H
+  | H : has_var _  <{reacq _               }> |- _ => invc H
   | H : has_var _  <{spawn _               }> |- _ => tt H
   end.
 

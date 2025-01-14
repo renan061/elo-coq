@@ -23,6 +23,7 @@ syntactic-properties:
 	$(COQC) NoCR.v
 	$(COQC) HasVar.v
 	$(COQC) NoWRef.v
+	$(COQC) ValidWaits.v
 	$(COQC) ValidTerm.v
 	$(COQC) InheritanceNoInit.v
 	$(COQC) InheritanceNoCR.v

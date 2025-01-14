@@ -28,6 +28,8 @@ Ltac _typeof tt :=
   | H : _ |-- <{_ := _                }> is _ |- _ => tt H
   | H : _ |-- <{acq _ _ _             }> is _ |- _ => tt H
   | H : _ |-- <{cr _ _                }> is _ |- _ => tt H
+  | H : _ |-- <{wait _                }> is _ |- _ => tt H
+  | H : _ |-- <{reacq _               }> is _ |- _ => tt H
   | H : _ |-- <{spawn _               }> is _ |- _ => tt H
   end.
 
@@ -43,19 +45,16 @@ Ltac ind_typeof := match goal with H : _ |-- _ is _ |- _ => induction H end.
 Ltac _tstep tt := match goal with H : _     --[_]-->     _     |- _ => tt H end.
 Ltac _mstep tt := match goal with H : _ \ _ ==[_]==>     _ \ _ |- _ => tt H end.
 Ltac _cstep tt := match goal with H : _ \ _ ~~[_, _]~~>  _ \ _ |- _ => tt H end.
-Ltac _rstep tt := match goal with H : _ \ _ ~~~[_, _]~~> _ \ _ |- _ => tt H end.
 Ltac _ustep tt := match goal with H : _ \ _ ~~[_]~~>*    _ \ _ |- _ => tt H end.
 
 Ltac inv_tstep := _tstep inv.
 Ltac inv_mstep := _mstep inv.
 Ltac inv_cstep := _cstep inv.
-Ltac inv_rstep := _rstep inv.
 Ltac inv_ustep := _ustep inv.
 
 Ltac invc_tstep := _tstep invc.
 Ltac invc_mstep := _mstep invc.
 Ltac invc_cstep := _cstep invc.
-Ltac invc_rstep := _rstep invc.
 Ltac invc_ustep := _ustep invc.
 
 Ltac ind_tstep :=

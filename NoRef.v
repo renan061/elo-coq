@@ -45,6 +45,8 @@ Inductive no_ref (ad : addr) : tm -> Prop :=
                                    no_ref ad <{acq t1 x t2              }>
   | noref_cr    : forall ad' t,    no_ref ad t  ->
                                    no_ref ad <{cr ad' t                 }>
+  | noref_wait  : forall ad',      no_ref ad <{wait ad'                 }>
+  | noref_reacq : forall ad',      no_ref ad <{reacq ad'                }>
   | noref_spawn : forall t,        no_ref ad t ->
                                    no_ref ad <{spawn t                  }>
   .
@@ -71,6 +73,8 @@ Local Ltac _noref tt :=
   | H : no_ref _   <{_ := _                }> |- _ => tt H
   | H : no_ref _   <{acq _ _ _             }> |- _ => tt H
   | H : no_ref _   <{cr _ _                }> |- _ => tt H
+  | H : no_ref _   <{wait _                }> |- _ => clear H
+  | H : no_ref _   <{reacq _               }> |- _ => clear H
   | H : no_ref _   <{spawn _               }> |- _ => tt H
   end.
 
@@ -79,9 +83,9 @@ Ltac invc_noref := _noref invc.
 
 (* lemmas ------------------------------------------------------------------ *)
 
-Lemma noref_insert_term : forall m t1 t2 ad t,
+Lemma noref_init_term : forall m t1 t2 ad t,
   no_ref m t1 ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_init ad t]--> t2 ->
   no_ref m t.
 Proof.
   intros. ind_tstep; invc_noref; auto.
@@ -122,10 +126,18 @@ Proof.
   simpl in *; try destruct _str_eq_dec; auto using no_ref.
 Qed.
 
+Lemma noref_fw : forall ad ad' t,
+  no_ref ad t ->
+  no_ref ad (fw ad' t).
+Proof. 
+  intros. induction t; invc_noref; simpl; auto using no_ref.
+Qed.
+
 (* preservation ------------------------------------------------------------ *)
 
 Local Ltac solve_noref_preservation :=
-  intros; ind_tstep; repeat invc_noref; auto using noref_subst, no_ref.
+  intros; ind_tstep; repeat invc_noref;
+  auto using noref_subst, noref_fw, no_ref.
 
 Lemma noref_preservation_none : forall ad t1 t2,
   no_ref ad t1 ->
@@ -139,10 +151,10 @@ Lemma noref_preservation_alloc : forall ad t1 t2 ad' T',
   no_ref ad t2.
 Proof. solve_noref_preservation. Qed.
 
-Lemma noref_preservation_insert : forall ad t1 t2 ad' t',
+Lemma noref_preservation_init : forall ad t1 t2 ad' t',
   ad <> ad' ->
   no_ref ad t1 ->
-  t1 --[e_insert ad' t']--> t2 ->
+  t1 --[e_init ad' t']--> t2 ->
   no_ref ad t2.
 Proof. solve_noref_preservation. Qed.
 
@@ -171,6 +183,18 @@ Proof. solve_noref_preservation. Qed.
 Lemma noref_preservation_rel : forall ad t1 t2 ad',
   no_ref ad t1 ->
   t1 --[e_rel ad']--> t2 ->
+  no_ref ad t2.
+Proof. solve_noref_preservation. Qed.
+
+Lemma noref_preservation_wacq : forall ad t1 t2 ad',
+  no_ref ad t1 ->
+  t1 --[e_wacq ad']--> t2 ->
+  no_ref ad t2.
+Proof. solve_noref_preservation. Qed.
+
+Lemma noref_preservation_wrel : forall ad t1 t2 ad',
+  no_ref ad t1 ->
+  t1 --[e_wrel ad']--> t2 ->
   no_ref ad t2.
 Proof. solve_noref_preservation. Qed.
 
@@ -276,6 +300,8 @@ Ltac invc_norefs :=
   | H : no_refs <{_ := _      }> |- _ => eapply inv_norefs_asg   in H
   | H : no_refs <{acq _ _ _   }> |- _ => eapply inv_norefs_acq   in H
   | H : no_refs <{cr _ _      }> |- _ => eapply inv_norefs_cr    in H
+  | H : no_refs <{wait _      }> |- _ => clear H
+  | H : no_refs <{reacq _     }> |- _ => clear H
   | H : no_refs <{spawn _     }> |- _ => eapply inv_norefs_spawn in H
   end;
   repeat match goal with
