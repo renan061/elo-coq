@@ -5,6 +5,10 @@ From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Map.
 
+Open Scope string_scope.
+Notation "'SELF'" := "self".
+Close Scope string_scope.
+
 Definition id   := string.
 Definition addr := nat.
  
@@ -53,7 +57,7 @@ Inductive tm : Set :=
   | tm_acq   : tm   -> id -> tm -> tm
   | tm_cr    : addr -> tm -> tm
   (* synchronization *)
-  | tm_wait  : addr -> tm
+  | tm_wait  : tm   -> tm
   | tm_reacq : addr -> tm
   (* concurrency *)
   | tm_spawn : tm -> tm
@@ -126,7 +130,7 @@ Notation "t1 ':=' t2"       := (tm_asg t1 t2)     (in custom elo_tm at level 70,
 Notation "'acq' t1 x t2"    := (tm_acq t1 x t2)   (in custom elo_tm at level 0).
 Notation "'cr' ad t"        := (tm_cr ad t)       (in custom elo_tm at level 0).
 (* synchronization ---------------------------------------------------------- *)
-Notation "'wait' ad"        := (tm_wait ad)       (in custom elo_tm at level 0).
+Notation "'wait' t"         := (tm_wait t)        (in custom elo_tm at level 0).
 Notation "'reacq' ad"       := (tm_reacq ad)      (in custom elo_tm at level 0).
 (* concurrency -------------------------------------------------------------- *)
 Notation "'spawn' t"        := (tm_spawn t)       (in custom elo_tm at level 0).
@@ -181,7 +185,7 @@ Inductive eff : Set :=
   | e_rel   (ad : addr) 
   | e_wacq  (ad : addr) 
   | e_wrel  (ad : addr) 
-  | e_spawn (tid : nat) (t : tm) (* TODO: remove tid *)
+  | e_spawn (t : tm)
   .
 
 (* ------------------------------------------------------------------------- *)
@@ -333,15 +337,16 @@ Inductive type_of : ctx -> tm -> ty -> Prop :=
 
   | T_acq : forall Gamma t1 x t2 Tx T,
     Gamma |-- t1 is `x&Tx` ->
-    (safe Gamma)[x <== Tx] |-- t2 is `Safe T` ->
+    (safe Gamma)[SELF <== `x&Tx`][x <== Tx] |-- t2 is `Safe T` ->
     Gamma |-- <{acq t1 x t2}> is `Safe T`
 
   | T_cr : forall Gamma ad t T,
     empty |-- t is T ->
     Gamma |-- <{cr ad t}> is T
 
-  | T_wait : forall Gamma ad,
-    Gamma |-- <{wait ad}> is `Unit`
+  | T_wait : forall Gamma t T,
+    Gamma |-- t is `x&T` ->
+    Gamma |-- <{wait t}> is `Unit`
 
   | T_reacq : forall Gamma ad,
     Gamma |-- <{reacq ad}> is `Unit`
@@ -378,47 +383,20 @@ Fixpoint subst (x : id) (tx t : tm) : tm :=
   | <{init ad t' : T}> => <{init ad ([x := tx] t') : T}>
   | <{*t'           }> => <{* ([x := tx] t')}>
   | <{t1 := t2      }> => <{([x := tx] t1) := ([x := tx] t2)}>
-  | <{acq t1 x' t2  }> => if x =? x'
-                            then <{acq ([x := tx] t1) x' t2            }>
-                            else <{acq ([x := tx] t1) x' ([x := tx] t2)}>
+  | <{acq t1 x' t2  }> => if x =? x' then
+                            <{acq ([x := tx] t1) x' t2}>
+                          else if x =? SELF then
+                            <{acq ([x := tx] t1) x' t2}>
+                          else
+                            <{acq ([x := tx] t1) x' ([x := tx] t2)}>
   | <{cr ad t'      }> => <{cr ad ([x := tx] t')}>
   (* synchronization *)
-  | <{wait _        }> => t
+  | <{wait t'       }> => <{wait ([x := tx] t')}>
   | <{reacq _       }> => t
   (* concurrency *)
-  | <{spawn t'      }> => <{spawn ([x := tx] t')}>
+  | <{spawn t'      }> => if x =? SELF then t else <{spawn ([x := tx] t')}>
   end
   where "'[' x ':=' tx ']' t" := (subst x tx t) (in custom elo_tm).
-
-(* fill-waits *)
-Fixpoint fw (ad : addr) (t : tm) : tm :=
-  match t with
-  | <{unit           }> => t
-  | <{nat _          }> => t
-  (* utility *)
-  | <{t1 + t2        }> => tm_plus  (fw ad t1) (fw ad t2)
-  | <{t1 - t2        }> => tm_monus (fw ad t1) (fw ad t2)
-  | <{t1;  t2        }> => tm_seq   (fw ad t1) (fw ad t2)
-  | (tm_if t1 t2 t3)    => tm_if    (fw ad t1) (fw ad t2) (fw ad t3)
-  | (tm_while t1 t2)    => tm_while (fw ad t1) (fw ad t2)
-  (* functions *)
-  | <{var _          }> => t
-  | <{fn x Tx t'     }> => tm_fun x Tx (fw ad t')
-  (* memory *)
-  | <{call t1 t2     }> => tm_call (fw ad t1) (fw ad t2)
-  | <{&_ : _         }> => t
-  | <{new t' : T     }> => tm_new (fw ad t') T
-  | <{init ad' t' : T}> => tm_init ad' (fw ad t') T
-  | <{*t'            }> => tm_load (fw ad t')
-  | <{t1 := t2       }> => tm_asg  (fw ad t1) (fw ad t2)
-  | <{acq t1 x t2    }> => tm_acq  (fw ad t1) x t2
-  | <{cr _ _         }> => t (* impossible case *)
-  (* synchronization *)
-  | <{wait _         }> => <{wait ad}>
-  | <{reacq _        }> => t
-  (* concurrency *)
-  | <{spawn t'       }> => tm_spawn (fw ad t')
-  end.
 
 (* ------------------------------------------------------------------------- *)
 (* regions                                                                   *)
@@ -459,7 +437,7 @@ Fixpoint gcr (t' : tm) (R : region) : region :=
   | <{t1 := t2        }> => if is_value t1 then gcr t2 R else gcr t1 R
   | <{acq t1 _ _      }> => gcr t1 R
   | <{cr ad t         }> => gcr t (R_cr ad)
-  | <{wait _          }> => R
+  | <{wait t          }> => gcr t R
   | <{reacq ad        }> => R_reacq ad
   | <{spawn _         }> => R
   end.
@@ -574,7 +552,7 @@ Inductive tstep : tm -> eff -> tm -> Prop :=
     <{acq t1 x t2}> --[e]--> <{acq t1' x t2}>
 
   | ts_acq : forall ad T x t t' tx,
-    t' = fw ad <{[x := tx] t}> ->
+    t' = <{[SELF := (&ad : T)][x := tx] t}> ->
     <{acq (&ad : T) x t}> --[e_acq ad tx]--> <{cr ad t'}>
 
   (* cr *)
@@ -587,16 +565,16 @@ Inductive tstep : tm -> eff -> tm -> Prop :=
     <{cr ad t}> --[e_rel ad]--> t
 
   (* wait *)
-  | ts_wait : forall ad,
-    <{wait ad}> --[e_wrel ad]--> <{reacq ad}>
+  | ts_wait : forall ad T,
+    <{wait (&ad : T)}> --[e_wrel ad]--> <{reacq ad}>
 
   (* reacq *)
   | ts_reacq : forall ad,
     <{reacq ad}> --[e_wacq ad]--> <{unit}>
 
   (* spawn *)
-  | ts_spawn : forall tid t,
-    <{spawn t}> --[e_spawn tid t]--> <{unit}>
+  | ts_spawn : forall t,
+    <{spawn t}> --[e_spawn t]--> <{unit}>
 
   where "t '--[' e ']-->' t'" := (tstep t e t').
 
@@ -731,8 +709,8 @@ Inductive cstep : mem -> threads -> nat -> eff -> mem -> threads -> Prop :=
 
   | cs_spawn : forall m ths tid t t',
     tid < #ths ->
-    ths[tid] --[e_spawn (#ths) t']--> t ->
-    m \ ths ~~[tid, e_spawn (#ths) t']~~> m \ (ths[tid <- t] +++ t')
+    ths[tid] --[e_spawn t']--> t ->
+    m \ ths ~~[tid, e_spawn t']~~> m \ (ths[tid <- t] +++ t')
 
   where "m \ ths '~~[' tid , e ']~~>' m' \ ths'" := (cstep m ths tid e m' ths').
 

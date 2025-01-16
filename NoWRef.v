@@ -50,7 +50,8 @@ Inductive no_wref (ad : addr) : tm -> Prop :=
                                     no_wref ad <{acq t1 x t2              }>
   | nowref_cr    : forall ad' t,    no_wref ad t  ->
                                     no_wref ad <{cr ad' t                 }>
-  | nowref_wait  : forall ad',      no_wref ad <{wait ad'                 }>
+  | nowref_wait  : forall t,        no_wref ad t  ->
+                                    no_wref ad <{wait t                   }>
   | nowref_reacq : forall ad',      no_wref ad <{reacq ad'                }>
   | nowref_spawn : forall t,        no_wref ad t  ->
                                     no_wref ad <{spawn t                  }>
@@ -80,7 +81,7 @@ Local Ltac _nowref tt :=
   | H : no_wref _   <{_ := _                }> |- _ => tt H
   | H : no_wref _   <{acq _ _ _             }> |- _ => tt H
   | H : no_wref _   <{cr _ _                }> |- _ => tt H
-  | H : no_wref _   <{wait _                }> |- _ => clear H
+  | H : no_wref _   <{wait _                }> |- _ => tt H
   | H : no_wref _   <{reacq _               }> |- _ => clear H
   | H : no_wref _   <{spawn _               }> |- _ => tt H
   end.
@@ -105,15 +106,8 @@ Lemma nowref_subst : forall ad x tx t,
   no_wref ad tx ->
   no_wref ad <{[x := tx] t}>.
 Proof.
-  intros. induction t; simpl; try destruct _str_eq_dec;
+  intros. induction t; simpl; repeat destruct _str_eq_dec;
   try invc_nowref; auto using no_wref.
-Qed.
-
-Lemma nowref_fw : forall ad ad' t,
-  no_wref ad t ->
-  no_wref ad (fw ad' t).
-Proof. 
-  intros. induction t; try invc_nowref; simpl; auto using no_wref.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -183,34 +177,42 @@ Local Lemma inv_nowrefs_cr : forall ad t,
   no_wrefs <{cr ad t}> -> no_wrefs t.
 Proof. solve_inv_nowrefs. Qed.
 
+Local Lemma inv_nowrefs_wait : forall t,
+  no_wrefs <{wait t}> -> no_wrefs t.
+Proof. solve_inv_nowrefs. Qed.
+
 Local Lemma inv_nowrefs_spawn : forall t,
   no_wrefs <{spawn t}> -> no_wrefs t.
 Proof. solve_inv_nowrefs. Qed.
 
 Ltac invc_nowrefs :=
-match goal with
-| H : no_wrefs <{unit        }> |- _ => clear H
-| H : no_wrefs <{nat _       }> |- _ => clear H
-| H : no_wrefs <{_ + _       }> |- _ => eapply inv_nowrefs_plus  in H as [? ?]
-| H : no_wrefs <{_ - _       }> |- _ => eapply inv_nowrefs_monus in H as [? ?]
-| H : no_wrefs <{_; _        }> |- _ => eapply inv_nowrefs_seq in H as [? ?]
-| H : no_wrefs (tm_if _ _ _  )  |- _ => eapply inv_nowrefs_if  in H as [? [? ?]]
-| H : no_wrefs (tm_while _ _ )  |- _ => eapply inv_nowrefs_while in H as [? ?]
-| H : no_wrefs <{var _       }> |- _ => clear H
-| H : no_wrefs <{fn _ _ _    }> |- _ => eapply inv_nowrefs_fun   in H
-| H : no_wrefs <{call _ _    }> |- _ => eapply inv_nowrefs_call  in H as [? ?]
-| H : no_wrefs <{& _ : w&_   }> |- _ => eapply inv_nowrefs_refW  in H; auto
-| H : no_wrefs <{& _ : _     }> |- _ => clear H
-| H : no_wrefs <{new _ : _   }> |- _ => eapply inv_nowrefs_new   in H
-| H : no_wrefs <{init _ _ : _}> |- _ => eapply inv_nowrefs_init  in H
-| H : no_wrefs <{* _         }> |- _ => eapply inv_nowrefs_load  in H
-| H : no_wrefs <{_ := _      }> |- _ => eapply inv_nowrefs_asg   in H as [? ?]
-| H : no_wrefs <{acq _ _ _   }> |- _ => eapply inv_nowrefs_acq   in H as [? ?]
-| H : no_wrefs <{cr _ _      }> |- _ => eapply inv_nowrefs_cr    in H
-| H : no_wrefs <{wait _      }> |- _ => clear H
-| H : no_wrefs <{reacq _     }> |- _ => clear H
-| H : no_wrefs <{spawn _     }> |- _ => eapply inv_nowrefs_spawn in H
-end.
+  match goal with
+  | H : no_wrefs <{unit        }> |- _ => clear H
+  | H : no_wrefs <{nat _       }> |- _ => clear H
+  | H : no_wrefs <{_ + _       }> |- _ => eapply inv_nowrefs_plus  in H
+  | H : no_wrefs <{_ - _       }> |- _ => eapply inv_nowrefs_monus in H
+  | H : no_wrefs <{_; _        }> |- _ => eapply inv_nowrefs_seq   in H
+  | H : no_wrefs (tm_if _ _ _  )  |- _ => eapply inv_nowrefs_if    in H
+  | H : no_wrefs (tm_while _ _ )  |- _ => eapply inv_nowrefs_while in H
+  | H : no_wrefs <{var _       }> |- _ => clear H
+  | H : no_wrefs <{fn _ _ _    }> |- _ => eapply inv_nowrefs_fun   in H
+  | H : no_wrefs <{call _ _    }> |- _ => eapply inv_nowrefs_call  in H
+  | H : no_wrefs <{& _ : w&_   }> |- _ => eapply inv_nowrefs_refW  in H; auto
+  | H : no_wrefs <{& _ : _     }> |- _ => clear H
+  | H : no_wrefs <{new _ : _   }> |- _ => eapply inv_nowrefs_new   in H
+  | H : no_wrefs <{init _ _ : _}> |- _ => eapply inv_nowrefs_init  in H
+  | H : no_wrefs <{* _         }> |- _ => eapply inv_nowrefs_load  in H
+  | H : no_wrefs <{_ := _      }> |- _ => eapply inv_nowrefs_asg   in H
+  | H : no_wrefs <{acq _ _ _   }> |- _ => eapply inv_nowrefs_acq   in H
+  | H : no_wrefs <{cr _ _      }> |- _ => eapply inv_nowrefs_cr    in H
+  | H : no_wrefs <{wait _      }> |- _ => eapply inv_nowrefs_wait  in H
+  | H : no_wrefs <{reacq _     }> |- _ => clear H
+  | H : no_wrefs <{spawn _     }> |- _ => eapply inv_nowrefs_spawn in H
+  end;
+  repeat match goal with
+  | H : no_wrefs _ /\ no_wrefs _              |- _ => destruct H
+  | H : no_wrefs _ /\ no_wrefs _ /\ no_wrefs _ |- _ => destruct H as [? [? ?]]
+  end.
 
 (* lemmas ------------------------------------------------------------------ *)
 

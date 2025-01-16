@@ -197,7 +197,7 @@ Lemma context_weakening : forall Gamma1 Gamma2 t T,
 Proof.
   intros. generalize dependent Gamma1.
   ind_typeof; intros;
-  eauto 6 using type_of, safe_preserves_inclusion, MapInc.update_inclusion.
+  eauto 7 using type_of, safe_preserves_inclusion, MapInc.update_inclusion.
 Qed.
 
 Corollary context_weakening_empty : forall Gamma t T,
@@ -225,7 +225,7 @@ Lemma ctx_eqv_typeof : forall Gamma1 Gamma2 t T,
   Gamma2 |-- t is T.
 Proof.
   intros. gendep Gamma2. ind_typeof; intros;
-  eauto 6 using MapEqv.lookup, MapEqv.update_eqv, type_of, ctx_eqv_safe.
+  eauto 7 using MapEqv.lookup, MapEqv.update_eqv, type_of, ctx_eqv_safe.
 Qed.
 
 Lemma ctx_eqv_safe_lookup : forall Gamma x,
@@ -290,13 +290,20 @@ Proof.
   destruct ad; simpl in *; auto.
 Qed.
 
+Lemma forallthreads_base : forall (P : tm -> Prop) t,
+  P <{unit}> ->
+  P t ->
+  forall_threads (base t) P.
+Proof.
+  unfold base. intros.
+  intros ad. nat_eq_dec 0 ad; simpl; trivial. repeat (destruct ad; trivial).
+Qed.
+
 Lemma forallprogram_base : forall (P : tm -> Prop) t,
   P <{unit}> ->
   P t ->
-  forall_program nil (base t) (fun t' => P t').
+  forall_program nil (base t) P.
 Proof.
-  unfold base. intros. split.
-  - intros ? ? Had. simpl in Had. destruct ad; simpl in Had; auto.
-  - intros ad. nat_eq_dec 0 ad; simpl; trivial. repeat (destruct ad; trivial).
+  unfold base. intros. split; eauto using forallmemory_base, forallthreads_base.
 Qed.
 

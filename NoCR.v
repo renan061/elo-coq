@@ -45,7 +45,8 @@ Inductive no_cr (ad : addr) : tm -> Prop :=
   | nocr_cr    : forall ad' t,    ad <> ad'   ->
                                   no_cr ad t  ->
                                   no_cr ad <{cr ad' t                 }>
-  | nocr_wait  : forall ad',      no_cr ad <{wait ad'                 }>
+  | nocr_wait  : forall t,        no_cr ad t  ->
+                                  no_cr ad <{wait t                   }>
   | nocr_reacq : forall ad',      no_cr ad <{reacq ad'                }>
   | nocr_spawn : forall t,        no_cr ad t  ->
                                   no_cr ad <{spawn t                  }>
@@ -73,7 +74,7 @@ Local Ltac _nocr tt :=
   | H : no_cr _   <{acq _ _ _             }> |- _ => tt H
   | H : no_cr ?ad <{cr ?ad _              }> |- _ => invc H; auto
   | H : no_cr _   <{cr _ _                }> |- _ => tt H
-  | H : no_cr _   <{wait _                }> |- _ => clear H
+  | H : no_cr _   <{wait _                }> |- _ => tt H
   | H : no_cr _   <{reacq _               }> |- _ => clear H
   | H : no_cr _   <{spawn _               }> |- _ => tt H
   end.
@@ -120,21 +121,14 @@ Lemma nocr_subst : forall ad x tx t,
   no_cr ad tx ->
   no_cr ad <{[x := tx] t}>.
 Proof.
-  intros. induction t; simpl; try destruct _str_eq_dec;
+  intros. induction t; simpl; repeat destruct _str_eq_dec;
   invc_nocr; auto using no_cr.
-Qed.
-
-Lemma nocr_fw : forall ad ad' t,
-  no_cr ad t ->
-  no_cr ad (fw ad' t).
-Proof. 
-  intros. induction t; invc_nocr; simpl; auto using no_cr.
 Qed.
 
 (* preservation ------------------------------------------------------------ *)
 
 Local Ltac solve_nocr_preservation :=
-  intros; ind_tstep; repeat invc_nocr; auto using nocr_subst, nocr_fw, no_cr.
+  intros; ind_tstep; repeat invc_nocr; auto using nocr_subst, no_cr.
 
 Lemma nocr_preservation_none : forall ad t1 t2,
   no_cr ad t1 ->
@@ -196,15 +190,15 @@ Lemma nocr_preservation_wrel : forall ad t1 t2 ad',
   no_cr ad t2.
 Proof. solve_nocr_preservation. Qed.
 
-Lemma nocr_preservation_spawn : forall ad t1 t2 tid' t',
+Lemma nocr_preservation_spawn : forall ad t1 t2 t',
   no_cr ad t1 ->
-  t1 --[e_spawn tid' t']--> t2 ->
+  t1 --[e_spawn t']--> t2 ->
   no_cr ad t2.
 Proof. solve_nocr_preservation. Qed.
 
-Lemma nocr_preservation_spawned : forall ad t1 t2 tid' t',
+Lemma nocr_preservation_spawned : forall ad t1 t2 t',
   no_cr ad t1 ->
-  t1 --[e_spawn tid' t']--> t2 ->
+  t1 --[e_spawn t']--> t2 ->
   no_cr ad t'.
 Proof. solve_nocr_preservation. Qed.
 
@@ -271,6 +265,10 @@ Local Lemma inv_nocrs_cr : forall ad t,
   no_crs <{cr ad t}> -> False.
 Proof. solve_inv_nocrs. Qed.
 
+Local Lemma inv_nocrs_wait : forall t,
+  no_crs <{wait t}> -> no_crs t.
+Proof. solve_inv_nocrs. Qed.
+
 Local Lemma inv_nocrs_spawn : forall t,
   no_crs <{spawn t}> -> no_crs t.
 Proof. solve_inv_nocrs. Qed.
@@ -279,24 +277,28 @@ Ltac invc_nocrs :=
   match goal with
   | H : no_crs <{unit        }> |- _ => clear H
   | H : no_crs <{nat _       }> |- _ => clear H
-  | H : no_crs <{_ + _       }> |- _ => eapply inv_nocrs_plus  in H as [? ?]
-  | H : no_crs <{_ - _       }> |- _ => eapply inv_nocrs_monus in H as [? ?]
-  | H : no_crs <{_; _        }> |- _ => eapply inv_nocrs_seq   in H as [? ?]
-  | H : no_crs (tm_if _ _ _  )  |- _ => eapply inv_nocrs_if    in H as [? [? ?]]
-  | H : no_crs (tm_while _ _ )  |- _ => eapply inv_nocrs_while in H as [? ?]
+  | H : no_crs <{_ + _       }> |- _ => eapply inv_nocrs_plus  in H
+  | H : no_crs <{_ - _       }> |- _ => eapply inv_nocrs_monus in H
+  | H : no_crs <{_; _        }> |- _ => eapply inv_nocrs_seq   in H
+  | H : no_crs (tm_if _ _ _  )  |- _ => eapply inv_nocrs_if    in H
+  | H : no_crs (tm_while _ _ )  |- _ => eapply inv_nocrs_while in H
   | H : no_crs <{var _       }> |- _ => clear H
   | H : no_crs <{fn _ _ _    }> |- _ => eapply inv_nocrs_fun   in H
-  | H : no_crs <{call _ _    }> |- _ => eapply inv_nocrs_call  in H as [? ?]
+  | H : no_crs <{call _ _    }> |- _ => eapply inv_nocrs_call  in H
   | H : no_crs <{& _ : _     }> |- _ => clear H
   | H : no_crs <{new _ : _   }> |- _ => eapply inv_nocrs_new   in H
   | H : no_crs <{init _ _ : _}> |- _ => eapply inv_nocrs_init  in H
   | H : no_crs <{* _         }> |- _ => eapply inv_nocrs_load  in H
-  | H : no_crs <{_ := _      }> |- _ => eapply inv_nocrs_asg   in H as [? ?]
-  | H : no_crs <{acq _ _ _   }> |- _ => eapply inv_nocrs_acq   in H as [? ?]
+  | H : no_crs <{_ := _      }> |- _ => eapply inv_nocrs_asg   in H
+  | H : no_crs <{acq _ _ _   }> |- _ => eapply inv_nocrs_acq   in H
   | H : no_crs <{cr _ _      }> |- _ => eapply inv_nocrs_cr    in H; auto
-  | H : no_crs <{wait _      }> |- _ => clear H
+  | H : no_crs <{wait _      }> |- _ => eapply inv_nocrs_wait  in H
   | H : no_crs <{reacq _     }> |- _ => clear H
   | H : no_crs <{spawn _     }> |- _ => eapply inv_nocrs_spawn in H
+  end;
+  repeat match goal with
+  | H : no_crs _ /\ no_crs _             |- _ => destruct H
+  | H : no_crs _ /\ no_crs _ /\ no_crs _ |- _ => destruct H as [? [? ?]]
   end.
 
 (* lemmas ------------------------------------------------------------------ *)
@@ -316,12 +318,5 @@ Corollary nocrs_subst : forall x tx t,
   no_crs <{[x := tx] t}>.
 Proof.
   intros ** ?. auto using nocr_subst.
-Qed.
-
-Corollary nocrs_fw : forall ad t,
-  no_crs t ->
-  no_crs (fw ad t).
-Proof.
-  intros ** ?. auto using nocr_fw.
 Qed.
 

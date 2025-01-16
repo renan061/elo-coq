@@ -72,7 +72,8 @@ Inductive valid_term (m : mem) : tm -> Prop :=
   | vtm_cr    : forall ad t,     ad < #m         ->
                                  valid_term m t  ->
                                  valid_term m <{cr ad t                  }>
-  | vtm_wait  : forall ad,       valid_term m <{wait ad                  }>
+  | vtm_wait  : forall t,        valid_term m t  ->
+                                 valid_term m <{wait t                   }>
   | vtm_reacq : forall ad,       valid_term m <{reacq ad                 }>
   | vtm_spawn : forall t,        no_inits t      ->
                                  no_crs   t      ->
@@ -101,7 +102,7 @@ Local Ltac _vtm tt :=
   | H : valid_term _ <{_ := _                }> |- _ => tt H
   | H : valid_term _ <{acq _ _ _             }> |- _ => tt H
   | H : valid_term _ <{cr _ _                }> |- _ => tt H
-  | H : valid_term _ <{wait _                }> |- _ => clear H
+  | H : valid_term _ <{wait _                }> |- _ => tt H
   | H : valid_term _ <{reacq _               }> |- _ => clear H
   | H : valid_term _ <{spawn _               }> |- _ => tt H
   end.
@@ -157,34 +158,34 @@ Qed.
 
 (* spawn ------------------------ *)
 
-Lemma noinit_spawn_term : forall ad m t1 t2 tid t,
+Lemma noinit_spawn_term : forall ad m t1 t2 t',
   valid_term m t1 ->
-  t1 --[e_spawn tid t]--> t2 ->
-  no_init ad t.
+  t1 --[e_spawn t']--> t2 ->
+  no_init ad t'.
 Proof.
   intros. ind_tstep; invc_vtm; auto.
 Qed.
 
-Lemma nocr_spawn_term : forall ad m t1 t2 tid t,
+Lemma nocr_spawn_term : forall ad m t1 t2 t',
   valid_term m t1 ->
-  t1 --[e_spawn tid t]--> t2 ->
-  no_cr ad t.
+  t1 --[e_spawn t']--> t2 ->
+  no_cr ad t'.
 Proof.
   intros. ind_tstep; invc_vtm; auto.
 Qed.
 
-Corollary noinits_spawn_term : forall m t1 t2 tid t,
+Corollary noinits_spawn_term : forall m t1 t2 t',
   valid_term m t1 ->
-  t1 --[e_spawn tid t]--> t2 ->
-  no_inits t.
+  t1 --[e_spawn t']--> t2 ->
+  no_inits t'.
 Proof.
   unfold no_inits. eauto using noinit_spawn_term.
 Qed.
 
-Corollary nocrs_spawn_term : forall m t1 t2 tid t,
+Corollary nocrs_spawn_term : forall m t1 t2 t',
   valid_term m t1 ->
-  t1 --[e_spawn tid t]--> t2 ->
-  no_crs t.
+  t1 --[e_spawn t']--> t2 ->
+  no_crs t'.
 Proof.
   unfold no_crs. eauto using nocr_spawn_term.
 Qed.
@@ -275,18 +276,10 @@ Lemma vtm_subst : forall m t tx x,
   valid_term m <{[x := tx] t}>.
 Proof.
   intros. induction t; invc_noinits; invc_nocrs; invc_vtm;
-  simpl; try destruct _str_eq_dec; auto using valid_term;
+  simpl; repeat destruct _str_eq_dec; auto using valid_term;
   constructor;
   eauto using noinits_from_value, noinits_subst;
   eauto using nocrs_from_value, nocrs_subst.
-Qed.
-
-Lemma vtm_fw : forall m t ad,
-  valid_term m t  ->
-  valid_term m (fw ad t).
-Proof.
-  intros. induction t; invc_vtm; simpl;
-  auto using noinits_fw, nocrs_fw, valid_term.
 Qed.
 
 Lemma vtm_mem_add : forall m t c,
@@ -327,9 +320,7 @@ Qed.
 
 Local Ltac solve_vtm_preservation :=
   intros; ind_tstep; repeat invc_vtm; repeat constructor; sigma;
-  auto using vtm_subst, vtm_fw,
-    vtm_mem_add, vtm_mem_set,
-    vtm_mem_acq, vtm_mem_rel.
+  auto using vtm_subst, vtm_mem_add, vtm_mem_set, vtm_mem_acq, vtm_mem_rel.
 
 Lemma vtm_preservation_none : forall m t1 t2,
   valid_term m t1 ->
@@ -370,7 +361,13 @@ Lemma vtm_preservation_acq : forall m t1 t2 ad t,
   valid_term m t1 ->
   t1 --[e_acq ad t]--> t2 ->
   valid_term m[ad.X <- true] t2.
-Proof. solve_vtm_preservation. Qed.
+Proof.
+  solve_vtm_preservation.
+  apply vtm_mem_acq. apply vtm_subst;
+  auto using vtm_subst, valid_term, value;
+  eauto using noinits_from_value, noinits_subst,
+              nocrs_from_value, nocrs_subst.
+Qed.
 
 Lemma vtm_preservation_rel : forall m t1 t2 ad,
   valid_term m t1 ->
@@ -390,16 +387,16 @@ Lemma vtm_preservation_wrel : forall m t1 t2 ad,
   valid_term m[ad.X <- false] t2.
 Proof. solve_vtm_preservation. Qed.
 
-Lemma vtm_preservation_spawn : forall m t1 t2 tid t,
+Lemma vtm_preservation_spawn : forall m t1 t2 t',
   valid_term m t1 ->
-  t1 --[e_spawn tid t]--> t2 ->
+  t1 --[e_spawn t']--> t2 ->
   valid_term m t2.
 Proof. solve_vtm_preservation. Qed.
 
-Lemma vtm_preservation_spawned : forall m t1 t2 tid t,
+Lemma vtm_preservation_spawned : forall m t1 t2 t',
   valid_term m t1 ->
-  t1 --[e_spawn tid t]--> t2 ->
-  valid_term m t.
+  t1 --[e_spawn t']--> t2 ->
+  valid_term m t'.
 Proof. solve_vtm_preservation. Qed.
 
 (* ------------------------------------------------------------------------- *)
