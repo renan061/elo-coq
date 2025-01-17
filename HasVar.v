@@ -48,6 +48,7 @@ Inductive has_var (x : id) : tm  -> Prop :=
   | hasvar_acq1   : forall t1 x' t2, has_var x t1 ->
                                      has_var x <{acq t1 x' t2             }>
   | hasvar_acq2   : forall t1 x' t2, x <> x'      ->
+                                     x <> SELF    ->
                                      has_var x t2 ->
                                      has_var x <{acq t1 x' t2             }>
   | hasvar_cr     : forall ad t,     has_var x t  ->
@@ -96,7 +97,7 @@ Proof.
   unfold Decidable.decidable. intros. induction t;
   try (destruct IHt1, IHt2, IHt3 || destruct IHt1, IHt2 || destruct IHt);
   try match goal with x1: id, x2: id |- _ => str_eq_dec x1 x2 end;
-  auto using has_var;
+  try str_eq_dec SELF x; auto using has_var;
   right; intros ?; invc_hasvar; auto.
 Qed.
 
@@ -116,20 +117,18 @@ Proof.
 Qed.
 
 Lemma hasvar_type_contradiction : forall Gamma x t T,
-  x <> SELF ->
   Gamma |-- t is T ->
-  Gamma x = None ->
-  has_var x t ->
+  Gamma x = None   ->
+  has_var x t      ->
   False.
 Proof.
-  intros. ind_typeof; invc_hasvar; auto using ctx_eqv_safe_lookup;
+  intros. ind_typeof; inv_hasvar; auto using ctx_eqv_safe_lookup;
   repeat (rewrite lookup_update_neq in *; auto using ctx_eqv_safe_lookup).
 Qed.
 
 Lemma safe_refW_subst1 : forall Gamma x tx t Tx T T',
-  x <> SELF ->
-  Tx = `w&T'` ->
-  empty |-- tx is Tx ->
+  Tx = `w&T'`                     ->
+  empty |-- tx is Tx              ->
   safe Gamma[x <== Tx] |-- t is T ->
   <{[x := tx] t}> = t.
 Proof.
@@ -140,24 +139,22 @@ Proof.
 Qed.
 
 Lemma safe_refW_subst2 : forall Gamma x y tx t Tx Ty T T',
-  x <> SELF ->
-  x <> y ->
-  Tx = `w&T'` ->
-  empty |-- tx is Tx ->
+  x <> y                                      ->
+  Tx = `w&T'`                                 ->
+  empty |-- tx is Tx                          ->
   (safe Gamma[x <== Tx])[y <== Ty] |-- t is T ->
   <{[x := tx] t}> = t.
 Proof.
   intros. subst. destruct (hasvar_dec x t).
   - exfalso.
-    eapply hasvar_type_contradiction. 4: eauto. 2: eauto. 1: eauto.
+    eapply hasvar_type_contradiction. 3: eauto. 1: eauto.
     rewrite lookup_update_neq; auto using safe_refW_lookup_update_eq_none.
   - erewrite hasvar_subst; trivial.
 Qed.
 
 Lemma safe_fun_subst1 : forall Gamma x tx t Tx T T1 T2,
-  x <> SELF ->
-  Tx = `T1 --> T2` ->
-  empty |-- tx is Tx ->
+  Tx = `T1 --> T2`                ->
+  empty |-- tx is Tx              ->
   safe Gamma[x <== Tx] |-- t is T ->
   <{[x := tx] t}> = t.
 Proof.
@@ -168,16 +165,15 @@ Proof.
 Qed.
 
 Lemma safe_fun_subst2 : forall Gamma x y tx t Tx Ty T T1 T2,
-  x <> SELF ->
-  x <> y ->
-  Tx = `T1 --> T2` ->
-  empty |-- tx is Tx ->
+  x <> y                                      ->
+  Tx = `T1 --> T2`                            ->
+  empty |-- tx is Tx                          ->
   (safe Gamma[x <== Tx])[y <== Ty] |-- t is T ->
   <{[x := tx] t}> = t.
 Proof.
   intros. subst. destruct (hasvar_dec x t).
   - exfalso.
-    eapply hasvar_type_contradiction. 4: eauto. 2: eauto. 1: eauto.
+    eapply hasvar_type_contradiction. 3: eauto. 1: eauto.
     rewrite lookup_update_neq; auto using safe_fun_lookup_update_eq_none.
   - erewrite hasvar_subst; trivial.
 Qed.

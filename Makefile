@@ -21,15 +21,11 @@ syntactic-properties:
 	$(COQC) NoRef.v
 	$(COQC) NoInit.v
 	$(COQC) NoCR.v
-	$(COQC) ValidTerm.v
-	# --- 
-	$(COQC) NoWaits.v
-	$(COQC) ReservedWaits.v
-	$(COQC) ValidWaits.v
+	$(COQC) Keywords.v
 	$(COQC) ConsistentWaits.v
-	# --- 
 	$(COQC) HasVar.v
 	$(COQC) NoWRef.v
+	$(COQC) ValidTerm.v
 	$(COQC) InheritanceNoInit.v
 	$(COQC) InheritanceNoCR.v
 	$(COQC) OneInit.v

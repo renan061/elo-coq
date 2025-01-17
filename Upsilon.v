@@ -76,11 +76,11 @@ Proof.
   intros ?. repeat omicron; eauto.
 Qed.
 
-Local Lemma fp_add_step {P : tm -> Prop} : forall m ths tid t T,
+Local Lemma fp_add_step {P : tm -> Prop} : forall m ths tid t T R,
   P <{unit}> ->
   P t ->
   forall_program m ths P ->
-  forall_program (m +++ new_cell T) ths[tid <- t] P.
+  forall_program (m +++ new_cell T R) ths[tid <- t] P.
 Proof.
   intros * ? ? [? ?]. split.
   - intros until 1. omicron; simpl in *; auto; eauto.
@@ -125,8 +125,8 @@ Qed.
 (* memory                                                                    *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma add_getT : forall m ad T1 T2,
-  (m +++ new_cell T1)[ad].T = T2 ->
+Lemma add_getT : forall m ad T1 T2 R,
+  (m +++ new_cell T1 R)[ad].T = T2 ->
   (ad = #m /\ T1 = T2) \/ m[ad].T = T2.
 Proof.
   intros. omicron; auto.
@@ -146,14 +146,14 @@ Proof.
   intros. repeat omicron; trivial.
 Qed.
 
-Lemma add_getx_false : forall m ad T,
-  (m +++ new_cell T)[ad].X = false <-> m[ad].X = false.
+Lemma add_getx_false : forall m ad T R,
+  (m +++ new_cell T R)[ad].X = false <-> m[ad].X = false.
 Proof.
   intros; split; omicron; trivial.
 Qed.
 
-Lemma add_getx_true : forall m ad T,
-  (m +++ new_cell T)[ad].X = true <->
+Lemma add_getx_true : forall m ad T R,
+  (m +++ new_cell T R)[ad].X = true <->
   (ad < #m /\ m[ad].X = true).
 Proof.
   intros. split.
@@ -163,14 +163,14 @@ Qed.
 
 (* ------------------------------------------------------------------------- *)
 
-Local Lemma add_gett_none : forall m ad T,
-  (m +++ new_cell T)[ad].t = None <-> m[ad].t = None.
+Local Lemma add_gett_none : forall m ad T R,
+  (m +++ new_cell T R)[ad].t = None <-> m[ad].t = None.
 Proof.
   intros; split; omicron; trivial.
 Qed.
 
-Local Lemma add_gett_some : forall m t ad T,
-  (m +++ new_cell T)[ad].t = Some t <->
+Local Lemma add_gett_some : forall m t ad T R,
+  (m +++ new_cell T R)[ad].t = Some t <->
   (ad < #m /\ m[ad].t = Some t).
 Proof.
   intros. split.
@@ -178,15 +178,15 @@ Proof.
   - intros [? ?]. sigma. assumption.
 Qed.
 
-Local Lemma add_get_nonone : forall m ad T,
-  (m +++ new_cell T)[ad].t <> None ->
+Local Lemma add_get_nonone : forall m ad T R,
+  (m +++ new_cell T R)[ad].t <> None ->
   (m[ad].t <> None /\ ad < #m).
 Proof.
   intros. omicron; simpl in *; auto.
 Qed.
 
-Local Lemma add_get_some : forall m t ad T,
-  (m +++ new_cell T)[ad].t = Some t <-> m[ad].t = Some t.
+Local Lemma add_get_some : forall m t ad T R,
+  (m +++ new_cell T R)[ad].t = Some t <-> m[ad].t = Some t.
 Proof.
   intros. split; omicron; trivial.
 Qed.
@@ -227,25 +227,25 @@ Ltac upsilon' :=
   (* ---------------------------------------- *)
   (* cell                                     *)
   (* ---------------------------------------- *)
-  | H : context C [ (_, _, _, _).t ] |- _ => simpl in H
-  | |-  context C [ (_, _, _, _).t ]      => simpl
-  | H : context C [ (new_cell _).t ] |- _ => unfold new_cell in H
-  | |-  context C [ (new_cell _).t ]      => unfold new_cell
+  | H : context C [ (_, _, _, _).t   ] |- _ => simpl in H
+  | |-  context C [ (_, _, _, _).t   ]      => simpl
+  | H : context C [ (new_cell _ _).t ] |- _ => unfold new_cell in H
+  | |-  context C [ (new_cell _ _).t ]      => unfold new_cell
   (* ---------------------------------------- *)
-  | H : context C [ (_, _, _, _).T ] |- _ => simpl in H
-  | |-  context C [ (_, _, _, _).T ]      => simpl
-  | H : context C [ (new_cell _).T ] |- _ => unfold new_cell in H
-  | |-  context C [ (new_cell _).T ]      => unfold new_cell
+  | H : context C [ (_, _, _, _).T   ] |- _ => simpl in H
+  | |-  context C [ (_, _, _, _).T   ]      => simpl
+  | H : context C [ (new_cell _ _).T ] |- _ => unfold new_cell in H
+  | |-  context C [ (new_cell _ _).T ]      => unfold new_cell
   (* ---------------------------------------- *)
-  | H : context C [ (_, _, _, _).X ] |- _ => simpl in H
-  | |-  context C [ (_, _, _, _).X ]      => simpl
-  | H : context C [ (new_cell _).X ] |- _ => unfold new_cell in H
-  | |-  context C [ (new_cell _).X ]      => unfold new_cell
+  | H : context C [ (_, _, _, _).X   ] |- _ => simpl in H
+  | |-  context C [ (_, _, _, _).X   ]      => simpl
+  | H : context C [ (new_cell _ _).X ] |- _ => unfold new_cell in H
+  | |-  context C [ (new_cell _ _).X ]      => unfold new_cell
   (* ---------------------------------------- *)
-  | H : context C [ (_, _, _, _).R ] |- _ => simpl in H
-  | |-  context C [ (_, _, _, _).R ]      => simpl
-  | H : context C [ (new_cell _).R ] |- _ => unfold new_cell in H
-  | |-  context C [ (new_cell _).R ]      => unfold new_cell
+  | H : context C [ (_, _, _, _).R   ] |- _ => simpl in H
+  | |-  context C [ (_, _, _, _).R   ]      => simpl
+  | H : context C [ (new_cell _ _).R ] |- _ => unfold new_cell in H
+  | |-  context C [ (new_cell _ _).R ]      => unfold new_cell
   (* ---------------------------------------- *)
   (* forall-threads                           *)
   (* ---------------------------------------- *)
@@ -281,7 +281,7 @@ Ltac upsilon' :=
     eapply fp_step; eauto; try solve [constructor]
   (* ---------------------------------------- *)
   | H : forall_program ?m ?ths ?P
-  |-    forall_program (?m +++ new_cell _) ?ths[_ <- _] ?P =>
+  |-    forall_program (?m +++ new_cell _ _) ?ths[_ <- _] ?P =>
     eapply fp_add_step; eauto; try solve [constructor]
   (* ---------------------------------------- *)
   | H : forall_program ?m ?ths ?P
@@ -308,21 +308,21 @@ Ltac upsilon' :=
   |  |- context C [ ?m[?ad'.X <- ?X][?ad].T ] =>
     rewrite setx_getT_eq 
   (* ---------------------------------------- *)
-  | H : (_ +++ new_cell _)[_].X = false |- _ =>
+  | H : (_ +++ new_cell _ _)[_].X = false |- _ =>
     rewrite add_getx_false in H
   (* ---------------------------------------- *)
-  | H : (_ +++ new_cell _)[_].X = true  |- _ =>
+  | H : (_ +++ new_cell _ _)[_].X = true  |- _ =>
     eapply add_getx_true in H as [? ?]
   (* ---------------------------------------- *)
   (* memory -- t                              *)
   (* ---------------------------------------- *)
-  | H : (_ +++ new_cell _)[_].t = None |- _ =>
+  | H : (_ +++ new_cell _ _)[_].t = None |- _ =>
     rewrite add_gett_none in H
   (* ---------------------------------------- *)
-  | H : (_ +++ new_cell _)[_].t = Some _ |- _ =>
+  | H : (_ +++ new_cell _ _)[_].t = Some _ |- _ =>
     eapply add_gett_some in H as [? ?]
   (* ---------------------------------------- *)
-  | H : (_ +++ new_cell _)[_].t <> None |- _ =>
+  | H : (_ +++ new_cell _ _)[_].t <> None |- _ =>
     eapply add_get_nonone in H as [?Ha ?Hb]; clear H
   (* ---------------------------------------- *)
   | Had' : ?ad' < #?m, H : ?m[?ad'.t <- ?t][?ad].t = None |- _ =>
@@ -336,8 +336,8 @@ Ltac upsilon' :=
   (* ---------------------------------------- *)
   (* memory -- T                              *)
   (* ---------------------------------------- *)
-  | H : (?m +++ new_cell ?T1)[?ad].T = ?T2 |- _ =>
-    apply (add_getT m ad T1 T2) in H as [[? ?] | ?]; subst
+  | H : (?m +++ new_cell ?T1 ?R)[?ad].T = ?T2 |- _ =>
+    apply (add_getT m ad T1 T2 R) in H as [[? ?] | ?]; subst
   end.
 
 Ltac upsilon := repeat upsilon'.

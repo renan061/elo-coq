@@ -4,6 +4,9 @@ From Elo Require Import Core.
 (* no-cr                                                                     *)
 (* ------------------------------------------------------------------------- *)
 
+(*
+  (!!!) no-cr is an initial condition.
+*)
 Inductive no_cr (ad : addr) : tm -> Prop :=
   | nocr_unit  :                  no_cr ad <{unit                     }>
   | nocr_nat   : forall n,        no_cr ad <{nat n                    }>

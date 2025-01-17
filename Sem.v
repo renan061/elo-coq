@@ -206,7 +206,7 @@ Inductive cell : Type :=
 
 Notation "'(' t ',' T ',' X ',' R ')'" := (_cell t T X R).
 
-Definition new_cell (T : ty) := (None, T, false, R_invalid).
+Definition new_cell (T : ty) (R : region) := (None, T, false, R).
 
 Definition get_cell_t (c : cell) := let (t, _, _, _) := c in t.
 Definition get_cell_T (c : cell) := let (_, T, _, _) := c in T.
@@ -394,7 +394,7 @@ Fixpoint subst (x : id) (tx t : tm) : tm :=
   | <{wait t'       }> => <{wait ([x := tx] t')}>
   | <{reacq _       }> => t
   (* concurrency *)
-  | <{spawn t'      }> => if x =? SELF then t else <{spawn ([x := tx] t')}>
+  | <{spawn t'      }> => <{spawn ([x := tx] t')}>
   end
   where "'[' x ':=' tx ']' t" := (subst x tx t) (in custom elo_tm).
 
@@ -617,7 +617,7 @@ Inductive mstep : mem -> tm -> eff -> mem -> tm -> Prop :=
   | ms_alloc : forall m t1 t2 ad T,
     ad = #m ->
     t1 --[e_alloc ad T]--> t2 ->
-    m \ t1 ==[e_alloc ad T]==> (m +++ new_cell T) \ t2
+    m \ t1 ==[e_alloc ad T]==> (m +++ new_cell T R_invalid) \ t2
 
   | ms_init : forall m t1 t2 ad t,
     t1 --[e_init ad t]--> t2 ->

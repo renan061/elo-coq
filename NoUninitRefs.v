@@ -49,10 +49,10 @@ Local Ltac simpl_nur :=
   intros ** ? ?;
   try match goal with _ : forall_threads _ (valid_term ?m) |- _ =>
     match goal with
-    | _ : _ --[e_insert ?ad _]--> _ |- _ => assert (ad < #m)
-    | _ : _ --[e_write  ?ad _]--> _ |- _ => assert (ad < #m)
+    | _ : _ --[e_init  ?ad _]--> _ |- _ => assert (ad < #m)
+    | _ : _ --[e_write ?ad _]--> _ |- _ => assert (ad < #m)
     end;
-    eauto using vtm_insert_address, vtm_write_address
+    eauto using vtm_init_address, vtm_write_address
   end;
   upsilon;
   match goal with
@@ -73,22 +73,22 @@ Proof.
   simpl_nur. eauto using noref_preservation_none.
 Qed.
 
-Lemma nur_preservation_alloc : forall m ths tid t T,
+Lemma nur_preservation_alloc : forall m ths tid t T R,
   no_uninitialized_references m ths ->
   ths[tid] --[e_alloc (#m) T]--> t ->
-  no_uninitialized_references (m +++ new_cell T) ths[tid <- t].
+  no_uninitialized_references (m +++ new_cell T R) ths[tid <- t].
 Proof.
   simpl_nur. eauto using noref_preservation_alloc.
 Qed.
 
-Lemma nur_preservation_insert : forall m ths tid t ad' t',
+Lemma nur_preservation_init : forall m ths tid t ad' t',
   forall_threads ths (valid_term m) ->
   (* --- *)
   no_uninitialized_references m ths ->
-  ths[tid] --[e_insert ad' t']--> t ->
+  ths[tid] --[e_init ad' t']--> t ->
   no_uninitialized_references m[ad'.t <- t'] ths[tid <- t].
 Proof.
-  simpl_nur. eauto using noref_insert_term, noref_preservation_insert.
+  simpl_nur. eauto using noref_init_term, noref_preservation_init.
 Qed.
 
 Lemma nur_preservation_read : forall m ths tid t ad' t',
@@ -127,9 +127,25 @@ Proof.
   simpl_nur. eauto using noref_preservation_rel.
 Qed.
 
+Lemma nur_preservation_wacq : forall m ths tid t ad',
+  no_uninitialized_references m ths ->
+  ths[tid] --[e_wacq ad']--> t ->
+  no_uninitialized_references m[ad'.X <- true] ths[tid <- t].
+Proof.
+  simpl_nur. eauto using noref_preservation_wacq.
+Qed.
+
+Lemma nur_preservation_wrel : forall m ths tid t ad',
+  no_uninitialized_references m ths ->
+  ths[tid] --[e_wrel ad']--> t ->
+  no_uninitialized_references m[ad'.X <- false] ths[tid <- t].
+Proof.
+  simpl_nur. eauto using noref_preservation_wrel.
+Qed.
+
 Lemma nur_preservation_spawn : forall m ths tid t t',
   no_uninitialized_references m ths ->
-  ths[tid] --[e_spawn (#ths) t']--> t ->
+  ths[tid] --[e_spawn t']--> t ->
   no_uninitialized_references m (ths[tid <- t] +++ t').
 Proof.
   simpl_nur. eauto using noref_preservation_spawn, noref_preservation_spawned.
@@ -146,27 +162,15 @@ Theorem nur_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
 Proof.
   intros * [_ ?] **. invc_cstep; try invc_mstep.
   - eauto using nur_preservation_none.
-  - eauto using nur_preservation_alloc.
-  - eauto using nur_preservation_insert.
+  - sigma. upsilon. eauto using nur_preservation_alloc.
+  - eauto using nur_preservation_init.
   - eauto using nur_preservation_read.
   - eauto using nur_preservation_write.
   - eauto using nur_preservation_acq.
   - eauto using nur_preservation_rel.
+  - eauto using nur_preservation_wacq.
+  - eauto using nur_preservation_wrel.
   - eauto using nur_preservation_spawn.
-Qed.
-
-Theorem nur_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
-  forall_program m1 ths1 (valid_term m1) ->
-  (* --- *)
-  no_uninitialized_references m1 ths1 ->
-  m1 \ ths1 ~~~[tid, e]~~> m2 \ ths2 ->
-  no_uninitialized_references m2 ths2.
-Proof.
-  intros. invc_rstep; eauto using nur_preservation_cstep.
-  match goal with _ : _ \ _ ~~[_, _]~~> ?m \ ?ths |- _ =>
-    assert (no_uninitialized_references m ths)
-  end;
-  eauto using nur_preservation_cstep, nur_mem_region.
 Qed.
 
 Theorem nur_preservation_base : forall t,

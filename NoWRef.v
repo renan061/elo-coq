@@ -210,7 +210,7 @@ Ltac invc_nowrefs :=
   | H : no_wrefs <{spawn _     }> |- _ => eapply inv_nowrefs_spawn in H
   end;
   repeat match goal with
-  | H : no_wrefs _ /\ no_wrefs _              |- _ => destruct H
+  | H : no_wrefs _ /\ no_wrefs _               |- _ => destruct H
   | H : no_wrefs _ /\ no_wrefs _ /\ no_wrefs _ |- _ => destruct H as [? [? ?]]
   end.
 
@@ -245,9 +245,9 @@ Qed.
 Lemma nowrefs_subst1: forall Gamma x tx t Tx T,
   value tx ->
   (* --- *)
-  empty |-- tx is Tx ->
+  empty |-- tx is Tx              ->
   safe Gamma[x <== Tx] |-- t is T ->
-  no_wrefs t ->
+  no_wrefs t                      ->
   no_wrefs <{[x := tx] t}>.
 Proof.
   intros. destruct Tx.
@@ -259,10 +259,10 @@ Qed.
 Lemma nowrefs_subst2 : forall Gamma x y tx t Tx Ty T,
   value tx ->
   (* --- *)
-  x <> y ->
-  empty |-- tx is Tx ->
+  x <> y                                      ->
+  empty |-- tx is Tx                          ->
   (safe Gamma[x <== Tx])[y <== Ty] |-- t is T ->
-  no_wrefs t ->
+  no_wrefs t                                  ->
   no_wrefs <{[x := tx] t}>.
 Proof.
   intros. destruct Tx.

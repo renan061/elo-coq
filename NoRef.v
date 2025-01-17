@@ -4,6 +4,9 @@ From Elo Require Import Core.
 (* no-ref                                                                    *)
 (* ------------------------------------------------------------------------- *)
 
+(*
+  (!!!) no-ref is an initial condition.
+*)
 Inductive no_ref (ad : addr) : tm -> Prop :=
   | noref_unit  :                  no_ref ad <{unit                     }>
   | noref_nat   : forall n,        no_ref ad <{nat n                    }>

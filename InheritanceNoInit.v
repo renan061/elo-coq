@@ -9,7 +9,7 @@ Local Lemma noinit_inheritance_subst : forall x Tx t tx ad,
   no_init ad <{call <{fn x Tx t}> tx}>.
 Proof.
   intros. repeat constructor; trivial.
-  induction t; simpl in *; try destruct _str_eq_dec;
+  induction t; simpl in *; repeat destruct _str_eq_dec;
   try invc_noinit; auto using no_init.
 Qed.
 
@@ -33,12 +33,12 @@ Lemma noinit_inheritance_alloc : forall ad t1 t2 ad' T',
   no_init ad t1.
 Proof. solve_noinit_inheritance. Qed.
 
-Lemma noinit_inheritance_insert : forall ad m t1 t2 ad' t',
+Lemma noinit_inheritance_init : forall ad m t1 t2 ad' t',
   valid_term m t1 ->
   (* --- *)
   ad <> ad' ->
   no_init ad t2 ->
-  t1 --[e_insert ad' t']--> t2 ->
+  t1 --[e_init ad' t']--> t2 ->
   no_init ad t1.
 Proof. solve_noinit_inheritance. Qed.
 
@@ -70,11 +70,23 @@ Lemma noinit_inheritance_rel : forall ad t1 t2 ad',
   no_init ad t1.
 Proof. solve_noinit_inheritance. Qed.
 
-Lemma noinit_inheritance_spawn : forall ad m t1 t2 tid t,
+Lemma noinit_inheritance_wacq : forall ad t1 t2 ad',
+  no_init ad t2 ->
+  t1 --[e_wacq ad']--> t2 ->
+  no_init ad t1.
+Proof. solve_noinit_inheritance. Qed.
+
+Lemma noinit_inheritance_wrel : forall ad t1 t2 ad',
+  no_init ad t2 ->
+  t1 --[e_wrel ad']--> t2 ->
+  no_init ad t1.
+Proof. solve_noinit_inheritance. Qed.
+
+Lemma noinit_inheritance_spawn : forall ad m t1 t2 t',
   valid_term m t1 ->
   (* --- *)
   no_init ad t2 ->
-  t1 --[e_spawn tid t]--> t2 ->
+  t1 --[e_spawn t']--> t2 ->
   no_init ad t1.
 Proof. solve_noinit_inheritance. Qed.
 

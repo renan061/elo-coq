@@ -11,6 +11,8 @@ From Elo Require Import NoCR.
 (* ------------------------------------------------------------------------- *)
 
 (*
+  (!!!) valid_term is an invariant.
+
   Enforces that:
   - addresses are within the bounds of the memory.
   - static blocks do not contain <init>s and <cr>s.

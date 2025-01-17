@@ -4,6 +4,9 @@ From Elo Require Import Core.
 (* no-init                                                                   *)
 (* ------------------------------------------------------------------------- *)
 
+(*
+  (!!!) no-init is an initial condition.
+*)
 Inductive no_init (ad : addr) : tm -> Prop :=
   | noinit_unit  :                  no_init ad <{unit                     }>
   | noinit_nat   : forall n,        no_init ad <{nat n                    }>
