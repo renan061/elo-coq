@@ -5,6 +5,7 @@ From Elo Require Import Core.
 From Elo Require Import NoRef.
 From Elo Require Import NoInit.
 From Elo Require Import NoCR.
+From Elo Require Import NoReacq.
 
 (* ------------------------------------------------------------------------- *)
 (* valid-term                                                                *)
@@ -15,7 +16,16 @@ From Elo Require Import NoCR.
 
   Enforces that:
   - addresses are within the bounds of the memory.
-  - static blocks do not contain <init>s and <cr>s.
+  - static subterms do not contain <init>s, <cr>s, and <reacq>s.
+
+  Static subterms are:
+  - t2        in <{t1; t2                   }>
+  - t2 and t3 in <{if t1 then t2 else t3 end}>
+  - t1 and t2 in <{while t1 do t2 end       }>
+  - t         in <{fn x Tx t                }>
+  - t         in <{new t : T                }>
+  - t2        in <{acq t1 x t2              }>
+  - t         in <{spawn t                  }>
 *)
 Inductive valid_term (m : mem) : tm -> Prop :=
   | vtm_unit  :                  valid_term m <{unit                     }> 
@@ -26,27 +36,35 @@ Inductive valid_term (m : mem) : tm -> Prop :=
   | vtm_monus : forall t1 t2,    valid_term m t1 ->
                                  valid_term m t2 ->
                                  valid_term m <{t1 - t2                  }> 
-  | vtm_seq   : forall t1 t2,    valid_term m t1 ->
+  | vtm_seq   : forall t1 t2,    no_inits   t2   ->
+                                 no_crs     t2   ->
+                                 no_reacqs  t2   ->
+                                 valid_term m t1 ->
                                  valid_term m t2 ->
                                  valid_term m <{t1; t2                   }> 
-  | vtm_if    : forall t1 t2 t3, no_inits t2     ->
-                                 no_crs   t2     ->
-                                 no_inits t3     ->
-                                 no_crs   t3     ->
+  | vtm_if    : forall t1 t2 t3, no_inits  t2    ->
+                                 no_crs    t2    ->
+                                 no_reacqs t2    ->
+                                 no_inits  t3    ->
+                                 no_crs    t3    ->
+                                 no_reacqs t3    ->
                                  valid_term m t1 ->
                                  valid_term m t2 ->
                                  valid_term m t3 ->
                                  valid_term m <{if t1 then t2 else t3 end}> 
-  | vtm_while  : forall t1 t2,   no_inits t1     ->
-                                 no_crs   t1     ->
-                                 no_inits t2     ->
-                                 no_crs   t2     ->
+  | vtm_while  : forall t1 t2,   no_inits  t1    ->
+                                 no_crs    t1    ->
+                                 no_reacqs t1    ->
+                                 no_inits  t2    ->
+                                 no_crs    t2    ->
+                                 no_reacqs t2    ->
                                  valid_term m t1 ->
                                  valid_term m t2 ->
                                  valid_term m <{while t1 do t2 end       }> 
   | vtm_var   : forall x,        valid_term m <{var x                    }>
-  | vtm_fun   : forall x Tx t,   no_inits t      ->
-                                 no_crs   t      ->
+  | vtm_fun   : forall x Tx t,   no_inits  t     ->
+                                 no_crs    t     ->
+                                 no_reacqs t     ->
                                  valid_term m t  ->
                                  valid_term m <{fn x Tx t                }>
   | vtm_call  : forall t1 t2,    valid_term m t1 ->
@@ -57,8 +75,9 @@ Inductive valid_term (m : mem) : tm -> Prop :=
   | vtm_init  : forall ad t T,   ad < #m         ->
                                  valid_term m t  ->
                                  valid_term m <{init ad t :             T}> 
-  | vtm_new   : forall T t,      no_inits t      ->
-                                 no_crs   t      ->
+  | vtm_new   : forall T t,      no_inits  t     ->
+                                 no_crs    t     ->
+                                 no_reacqs t     ->
                                  valid_term m t  ->
                                  valid_term m <{new t : T                }>
   | vtm_load  : forall t,        valid_term m t  ->
@@ -66,8 +85,9 @@ Inductive valid_term (m : mem) : tm -> Prop :=
   | vtm_asg   : forall t1 t2,    valid_term m t1 ->
                                  valid_term m t2 ->
                                  valid_term m <{t1 := t2                 }> 
-  | vtm_acq   : forall t1 x t2,  no_inits t2     ->
-                                 no_crs   t2     ->
+  | vtm_acq   : forall t1 x t2,  no_inits  t2    ->
+                                 no_crs    t2    ->
+                                 no_reacqs t2    ->
                                  valid_term m t1 ->
                                  valid_term m t2 ->
                                  valid_term m <{acq t1 x t2              }>
@@ -76,9 +96,11 @@ Inductive valid_term (m : mem) : tm -> Prop :=
                                  valid_term m <{cr ad t                  }>
   | vtm_wait  : forall t,        valid_term m t  ->
                                  valid_term m <{wait t                   }>
-  | vtm_reacq : forall ad,       valid_term m <{reacq ad                 }>
-  | vtm_spawn : forall t,        no_inits t      ->
-                                 no_crs   t      ->
+  | vtm_reacq : forall ad,       ad < #m         ->
+                                 valid_term m <{reacq ad                 }>
+  | vtm_spawn : forall t,        no_inits  t     ->
+                                 no_crs    t     ->
+                                 no_reacqs t     ->
                                  valid_term m t  ->
                                  valid_term m <{spawn t                  }>
   .
@@ -105,7 +127,7 @@ Local Ltac _vtm tt :=
   | H : valid_term _ <{acq _ _ _             }> |- _ => tt H
   | H : valid_term _ <{cr _ _                }> |- _ => tt H
   | H : valid_term _ <{wait _                }> |- _ => tt H
-  | H : valid_term _ <{reacq _               }> |- _ => clear H
+  | H : valid_term _ <{reacq _               }> |- _ => tt H
   | H : valid_term _ <{spawn _               }> |- _ => tt H
   end.
 
@@ -115,12 +137,13 @@ Ltac invc_vtm := _vtm invc.
 (* lemmas ------------------------------------------------------------------ *)
 
 Lemma vtm_from_base : forall m t,
-  no_refs  t ->
-  no_inits t ->
-  no_crs   t ->
+  no_refs   t ->
+  no_inits  t ->
+  no_crs    t ->
+  no_reacqs t ->
   valid_term m t.
 Proof.
-  intros. induction t; invc_norefs; invc_noinits; invc_nocrs;
+  intros. induction t; invc_norefs; invc_noinits; invc_nocrs; invc_noreacqs;
   auto using valid_term.
 Qed.
 
@@ -151,6 +174,14 @@ Qed.
 Lemma vtm_write_address : forall m t1 t2 ad t,
   valid_term m t1 ->
   t1 --[e_write ad t]--> t2 ->
+  ad < #m.
+Proof.
+  intros. ind_tstep; repeat invc_vtm; auto.
+Qed.
+
+Lemma vtm_acq_address : forall m t1 t2 ad t,
+  valid_term m t1 ->
+  t1 --[e_acq ad t]--> t2 ->
   ad < #m.
 Proof.
   intros. ind_tstep; repeat invc_vtm; auto.
@@ -248,6 +279,15 @@ Proof.
   intros * ? Hval. invc Hval; invc_vtm; auto using no_cr.
 Qed.
 
+Lemma noreacq_from_value : forall m ad t,
+  valid_term m t ->
+  (* --- *)
+  value t ->
+  no_reacq ad t.
+Proof.
+  intros * ? Hval. invc Hval; invc_vtm; auto using no_reacq.
+Qed.
+
 Corollary noinits_from_value : forall m t,
   valid_term m t ->
   (* --- *)
@@ -266,22 +306,30 @@ Proof.
   unfold no_crs. eauto using nocr_from_value.
 Qed.
 
+Corollary noreacqs_from_value : forall m t,
+  valid_term m t ->
+  (* --- *)
+  value t ->
+  no_reacqs t.
+Proof.
+  unfold no_reacqs. eauto using noreacq_from_value.
+Qed.
+
 (* preservation lemmas ----------------------------------------------------- *)
 
 Lemma vtm_subst : forall m t tx x,
-  no_inits t  ->
-  no_crs   t  ->
-  value    tx ->
+  value tx ->
   (* --- *)
   valid_term m t  ->
   valid_term m tx ->
   valid_term m <{[x := tx] t}>.
 Proof.
-  intros. induction t; invc_noinits; invc_nocrs; invc_vtm;
+  intros. induction t; invc_vtm;
   simpl; repeat destruct _str_eq_dec; auto using valid_term;
-  constructor;
+  constructor; auto;
   eauto using noinits_from_value, noinits_subst;
-  eauto using nocrs_from_value, nocrs_subst.
+  eauto using nocrs_from_value, nocrs_subst;
+  eauto using noreacqs_from_value, noreacqs_subst.
 Qed.
 
 Lemma vtm_mem_add : forall m t c,
@@ -322,7 +370,10 @@ Qed.
 
 Local Ltac solve_vtm_preservation :=
   intros; ind_tstep; repeat invc_vtm; repeat constructor; sigma;
-  auto using vtm_subst, vtm_mem_add, vtm_mem_set, vtm_mem_acq, vtm_mem_rel.
+  auto using vtm_subst,
+    vtm_mem_add, vtm_mem_set,
+    vtm_mem_acq, vtm_mem_rel,
+    valid_term, value.
 
 Lemma vtm_preservation_none : forall m t1 t2,
   valid_term m t1 ->
@@ -363,13 +414,7 @@ Lemma vtm_preservation_acq : forall m t1 t2 ad t,
   valid_term m t1 ->
   t1 --[e_acq ad t]--> t2 ->
   valid_term m[ad.X <- true] t2.
-Proof.
-  solve_vtm_preservation.
-  apply vtm_mem_acq. apply vtm_subst;
-  auto using vtm_subst, valid_term, value;
-  eauto using noinits_from_value, noinits_subst,
-              nocrs_from_value, nocrs_subst.
-Qed.
+Proof. solve_vtm_preservation. Qed.
 
 Lemma vtm_preservation_rel : forall m t1 t2 ad,
   valid_term m t1 ->
@@ -455,9 +500,10 @@ Proof.
 Qed.
 
 Theorem vtm_preservation_base : forall t,
-  no_refs  t ->
-  no_inits t ->
-  no_crs   t ->
+  no_refs   t ->
+  no_inits  t ->
+  no_crs    t ->
+  no_reacqs t ->
   (* --- *)
   forall_program nil (base t) (valid_term nil).
 Proof.

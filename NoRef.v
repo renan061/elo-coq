@@ -4,9 +4,6 @@ From Elo Require Import Core.
 (* no-ref                                                                    *)
 (* ------------------------------------------------------------------------- *)
 
-(*
-  (!!!) no-ref is an initial condition.
-*)
 Inductive no_ref (ad : addr) : tm -> Prop :=
   | noref_unit  :                  no_ref ad <{unit                     }>
   | noref_nat   : forall n,        no_ref ad <{nat n                    }>
@@ -210,6 +207,9 @@ Proof. solve_noref_preservation. Qed.
 (* no-refs                                                                   *)
 (* ------------------------------------------------------------------------- *)
 
+(*
+  (!!!) no-refs is an initial condition.
+*)
 Definition no_refs (t : tm) := forall ad, no_ref ad t.
 
 (* inversion --------------------------------------------------------------- *)

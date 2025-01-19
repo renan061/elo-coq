@@ -37,8 +37,6 @@ Inductive one_cr (ad : addr) : tm -> Prop :=
   | onecr_call2  : forall t1 t2,    no_cr  ad t1 ->
                                     one_cr ad t2 ->
                                     one_cr ad <{call t1 t2               }>
-  | onecr_new    : forall t T,      one_cr ad t  ->
-                                    one_cr ad <{new t : T                }>
   | onecr_init   : forall ad' t T,  one_cr ad t  ->
                                     one_cr ad <{init ad' t : T           }>
   | onecr_load   : forall t,        one_cr ad t  ->
@@ -49,15 +47,12 @@ Inductive one_cr (ad : addr) : tm -> Prop :=
   | onecr_asg2   : forall t1 t2,    no_cr  ad t1 ->
                                     one_cr ad t2 ->
                                     one_cr ad <{t1 := t2                 }>
-  | onecr_acq1   : forall t1 x t2,  one_cr ad t1 ->
+  | onecr_acq    : forall t1 x t2,  one_cr ad t1 ->
                                     no_cr  ad t2 ->
                                     one_cr ad <{acq t1 x t2              }>
-  | onecr_acq2   : forall t1 x t2,  no_cr  ad t1 ->
-                                    one_cr ad t2 ->
-                                    one_cr ad <{acq t1 x t2              }>
-  | onecr_cr_eq  : forall t,        no_cr  ad t  ->
+  | onecr_crA    : forall t,        no_cr  ad t  ->
                                     one_cr ad <{cr ad t                  }>
-  | onecr_cr_neq : forall ad' t,    ad <> ad'    ->
+  | onecr_crB    : forall ad' t,    ad <> ad'    ->
                                     one_cr ad t  ->
                                     one_cr ad <{cr ad' t                 }>
   | onecr_wait   : forall t,        one_cr ad t  ->
@@ -68,26 +63,26 @@ Inductive one_cr (ad : addr) : tm -> Prop :=
 
 Local Ltac _onecr tt :=
   match goal with
-  | H : one_cr _ <{unit                  }> |- _ => inv H
-  | H : one_cr _ <{nat _                 }> |- _ => inv H
+  | H : one_cr _ <{unit                  }> |- _ => invc H
+  | H : one_cr _ <{nat _                 }> |- _ => invc H
   | H : one_cr _ <{_ + _                 }> |- _ => tt H
   | H : one_cr _ <{_ - _                 }> |- _ => tt H
   | H : one_cr _ <{_; _                  }> |- _ => tt H
   | H : one_cr _ <{if _ then _ else _ end}> |- _ => tt H
-  | H : one_cr _ <{while _ do _ end      }> |- _ => tt H
-  | H : one_cr _ <{var _                 }> |- _ => inv H
-  | H : one_cr _ <{fn _ _ _              }> |- _ => inv H
+  | H : one_cr _ <{while _ do _ end      }> |- _ => invc H
+  | H : one_cr _ <{var _                 }> |- _ => invc H
+  | H : one_cr _ <{fn _ _ _              }> |- _ => invc H
   | H : one_cr _ <{call _ _              }> |- _ => tt H
-  | H : one_cr _ <{&_ : _                }> |- _ => inv H
-  | H : one_cr _ <{new _ : _             }> |- _ => tt H
+  | H : one_cr _ <{&_ : _                }> |- _ => invc H
+  | H : one_cr _ <{new _ : _             }> |- _ => invc H
   | H : one_cr _ <{init _ _ : _          }> |- _ => tt H
   | H : one_cr _ <{* _                   }> |- _ => tt H
   | H : one_cr _ <{_ := _                }> |- _ => tt H
   | H : one_cr _ <{acq _ _ _             }> |- _ => tt H
   | H : one_cr _ <{cr _ _                }> |- _ => tt H
   | H : one_cr _ <{wait _                }> |- _ => tt H
-  | H : one_cr _ <{reacq _               }> |- _ => inv H
-  | H : one_cr _ <{spawn _               }> |- _ => inv H
+  | H : one_cr _ <{reacq _               }> |- _ => invc H
+  | H : one_cr _ <{spawn _               }> |- _ => invc H
   end.
 
 Ltac inv_onecr  := _onecr inv.
@@ -154,8 +149,8 @@ Qed.
 Lemma onecr_to_onecr_contradiction : forall t1 t2 ad' t',
   no_crs t' ->
   (* --- *)
-  t1 --[e_acq ad' t']--> t2 ->
   one_cr ad' t1 ->
+  t1 --[e_acq ad' t']--> t2 ->
   one_cr ad' t2 ->
   False.
 Proof.
@@ -193,7 +188,7 @@ Lemma onecr_preservation_init : forall ad m t1 t2 ad' t',
 Proof. solve_onecr_preservation nocr_preservation_init. Qed.
 
 Lemma onecr_preservation_read : forall ad t1 t2 ad' t',
-  no_crs t' ->
+  no_cr ad t' ->
   (* --- *)
   one_cr ad t1 ->
   t1 --[e_read ad' t']--> t2 ->
@@ -224,6 +219,18 @@ Lemma onecr_preservation_rel : forall ad t1 t2 ad',
   one_cr ad t2.
 Proof. solve_onecr_preservation nocr_preservation_rel. Qed.
 
+Lemma onecr_preservation_wacq : forall ad t1 t2 ad',
+  one_cr ad t1 ->
+  t1 --[e_wacq ad']--> t2 ->
+  one_cr ad t2.
+Proof. solve_onecr_preservation nocr_preservation_wacq. Qed.
+
+Lemma onecr_preservation_wrel : forall ad t1 t2 ad',
+  one_cr ad t1 ->
+  t1 --[e_wrel ad']--> t2 ->
+  one_cr ad t2.
+Proof. solve_onecr_preservation nocr_preservation_wrel. Qed.
+
 Lemma onecr_preservation_spawn : forall ad m t1 t2 t',
   valid_term m t1 ->
   (* --- *)
@@ -250,7 +257,9 @@ Lemma onecr_inheritance_none : forall ad m t1 t2,
   one_cr ad t1.
 Proof. solve_onecr_inheritance nocr_inheritance_none. Qed.
 
-Lemma onecr_inheritance_alloc : forall ad t1 t2 ad' T',
+Lemma onecr_inheritance_alloc : forall ad m t1 t2 ad' T',
+  valid_term m t1 ->
+  (* --- *)
   one_cr ad t2 ->
   t1 --[e_alloc ad' T']--> t2 ->
   one_cr ad t1.
@@ -265,7 +274,7 @@ Lemma onecr_inheritance_init : forall ad m t1 t2 ad' t',
 Proof. solve_onecr_inheritance nocr_inheritance_init. Qed.
 
 Lemma onecr_inheritance_read : forall ad t1 t2 ad' t',
-  no_crs t' ->
+  no_cr ad t' ->
   (* --- *)
   one_cr ad t2 ->
   t1 --[e_read ad' t']--> t2 ->

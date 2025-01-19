@@ -17,10 +17,10 @@ Inductive wait_region : Set :=
   (!!!) consistent_waits is an initial condition.
   (!!!) consistent_waits is an invariant.
 
-  - WR_none  => no  immediate* waits.
-  - WR_self  => any immediate* wait is a wait with SELF.
-  - WR_ad ad => any immediate* wait is a wait with the given address.
-  (waits are immediate if they do not appear inside fun/acq/cr/spawn blocks.)
+  - WR_none  => no  immediate* wait/reacq.
+  - WR_self  => any immediate* wait is a SELF wait; no immediate* reacq.
+  - WR_ad ad => any immediate* wait/reacq has the given address.
+  (waits/reacqs are immediate if they do not appear in fun/acq/cr/spawn blocks.)
 
   - fun   blocks are WR_none.
   - acq   blocks are WR_self.
@@ -70,8 +70,8 @@ Inductive consistent_waits: wait_region -> tm -> Prop :=
 
   | cw_wait1 :                   consistent_waits WR_self    <{wait (var SELF)}>
   | cw_wait2 : forall ad T,      consistent_waits (WR_ad ad) <{wait (&ad : T) }>
+  | cw_reacq : forall ad,        consistent_waits (WR_ad ad) <{reacq ad       }>
 
-  | cw_reacq : forall WR ad,       consistent_waits WR <{reacq ad          }>
   | cw_spawn : forall WR t,        consistent_waits (WR_none) t ->
                                    consistent_waits WR <{spawn t           }>
   .
@@ -98,7 +98,7 @@ Local Ltac _cw tt :=
   | H : consistent_waits _ <{acq _ _ _             }> |- _ => tt H
   | H : consistent_waits _ <{cr _ _                }> |- _ => tt H
   | H : consistent_waits _ <{wait _                }> |- _ => tt H
-  | H : consistent_waits _ <{reacq _               }> |- _ => clear H
+  | H : consistent_waits _ <{reacq _               }> |- _ => tt H
   | H : consistent_waits _ <{spawn _               }> |- _ => tt H
   end.
 

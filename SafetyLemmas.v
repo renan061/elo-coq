@@ -5,28 +5,6 @@ From Elo Require Import TypeProperties.
 
 From Elo Require Import Multistep.
 
-#[local] Hint Extern 8 =>
-  match goal with
-  (* _ <> e_rel _ *)
-  |                 |- e_none       <> e_rel _    => intros F; invc F
-  |                 |- e_alloc  _ _ <> e_rel _    => intros F; invc F
-  |                 |- e_insert _ _ <> e_rel _    => intros F; invc F
-  |                 |- e_read   _ _ <> e_rel _    => intros F; invc F
-  |                 |- e_write  _ _ <> e_rel _    => intros F; invc F
-  |                 |- e_acq    _ _ <> e_rel _    => intros F; invc F
-  |                 |- e_spawn  _ _ <> e_rel _    => intros F; invc F
-  | _ : ?ad' <> ?ad |- e_rel    ?ad <> e_rel ?ad' => intros F; invc F
-  (* _ <> e_insert _ _ _ *)
-  |                 |- e_none          <> e_insert _ _   => intros F; invc F
-  |                 |- e_alloc  _ _    <> e_insert _ _   => intros F; invc F
-  | _ : ?ad' <> ?ad |- e_insert ?ad' _ <> e_insert ?ad _ => intros F; invc F
-  |                 |- e_read   _ _    <> e_insert _ _   => intros F; invc F
-  |                 |- e_write  _ _    <> e_insert _ _   => intros F; invc F
-  |                 |- e_acq    _ _    <> e_insert _ _   => intros F; invc F
-  |                 |- e_spawn  _ _    <> e_insert _ _   => intros F; invc F
-  | _ : ?ad' <> ?ad |- e_rel    _      <> e_insert _ _   => intros F; invc F
-  end : core.
-
 (* ------------------------------------------------------------------------- *)
 (* one-cr inheritance                                                        *)
 (* ------------------------------------------------------------------------- *)

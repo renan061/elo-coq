@@ -133,7 +133,6 @@ Proof.
     exists tid''. split; intros; omicron;
     eauto using noinit_preservation_init, oneinit_preservation_init.
   - intros tid'. repeat omicron; eauto using noinit_preservation_init.
-    exfalso. eauto using noinit_init_contradiction.
   - omicron; eauto. discriminate.
 Qed.
 

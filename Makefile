@@ -21,17 +21,20 @@ syntactic-properties:
 	$(COQC) NoRef.v
 	$(COQC) NoInit.v
 	$(COQC) NoCR.v
-	$(COQC) Keywords.v
-	$(COQC) ConsistentWaits.v
+	$(COQC) NoReacq.v
 	$(COQC) HasVar.v
 	$(COQC) NoWRef.v
+	$(COQC) Keywords.v
 	$(COQC) ValidTerm.v
+	$(COQC) ConsistentWaits.v
 	$(COQC) InheritanceNoInit.v
 	$(COQC) InheritanceNoCR.v
 	$(COQC) OneInit.v
 	$(COQC) OneCR.v
 	$(COQC) NoUninitRefs.v
 	$(COQC) UniqueInits.v
+	$(COQC) IsWaiting.v
+	$(COQC) InCR.v
 	$(COQC) UniqueCRs.v
 	$(COQC) SyntacticProperties.v
 

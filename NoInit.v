@@ -4,9 +4,6 @@ From Elo Require Import Core.
 (* no-init                                                                   *)
 (* ------------------------------------------------------------------------- *)
 
-(*
-  (!!!) no-init is an initial condition.
-*)
 Inductive no_init (ad : addr) : tm -> Prop :=
   | noinit_unit  :                  no_init ad <{unit                     }>
   | noinit_nat   : forall n,        no_init ad <{nat n                    }>
@@ -156,7 +153,6 @@ Lemma noinit_preservation_alloc : forall ad t1 t2 ad' T',
 Proof. solve_noinit_preservation. Qed.
 
 Lemma noinit_preservation_init : forall ad t1 t2 ad' t',
-  ad <> ad' ->
   no_init ad t1 ->
   t1 --[e_init ad' t']--> t2 ->
   no_init ad t2.
@@ -218,6 +214,9 @@ Proof. solve_noinit_preservation. Qed.
 (* no-inits                                                                  *)
 (* ------------------------------------------------------------------------- *)
 
+(*
+  (!!!) no-inits is an initial condition.
+*)
 Definition no_inits (t : tm) := forall ad, no_init ad t.
 
 (* inversion --------------------------------------------------------------- *)

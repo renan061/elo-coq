@@ -37,8 +37,6 @@ Inductive one_init (ad : addr) : tm -> Prop :=
   | oneinit_call2  : forall t1 t2,    no_init  ad t1 ->
                                       one_init ad t2 ->
                                       one_init ad <{call t1 t2               }>
-  | oneinit_new    : forall T t,      one_init ad t  ->
-                                      one_init ad <{new t : T                }>
   | oneinit_initA  : forall t T,      no_init  ad t  ->
                                       one_init ad <{init ad  t : T           }>
   | oneinit_initB  : forall ad' t T,  ad <> ad'      ->
@@ -52,11 +50,8 @@ Inductive one_init (ad : addr) : tm -> Prop :=
   | oneinit_asg2   : forall t1 t2,    no_init  ad t1 ->
                                       one_init ad t2 ->
                                       one_init ad <{t1 := t2                 }>
-  | oneinit_acq1   : forall t1 x t2,  one_init ad t1 ->
+  | oneinit_acq    : forall t1 x t2,  one_init ad t1 ->
                                       no_init  ad t2 ->
-                                      one_init ad <{acq t1 x t2              }>
-  | oneinit_acq2   : forall t1 x t2,  no_init  ad t1 ->
-                                      one_init ad t2 ->
                                       one_init ad <{acq t1 x t2              }>
   | oneinit_wait   : forall t,        one_init ad t ->
                                       one_init ad <{wait t                   }>
@@ -68,26 +63,26 @@ Inductive one_init (ad : addr) : tm -> Prop :=
 
 Local Ltac _oneinit tt :=
   match goal with
-  | H : one_init _ <{unit                  }> |- _ => inv H
-  | H : one_init _ <{nat _                 }> |- _ => inv H
+  | H : one_init _ <{unit                  }> |- _ => invc H
+  | H : one_init _ <{nat _                 }> |- _ => invc H
   | H : one_init _ <{_ + _                 }> |- _ => tt H
   | H : one_init _ <{_ - _                 }> |- _ => tt H
   | H : one_init _ <{_; _                  }> |- _ => tt H
   | H : one_init _ <{if _ then _ else _ end}> |- _ => tt H
-  | H : one_init _ <{while _ do _ end      }> |- _ => inv H
-  | H : one_init _ <{var _                 }> |- _ => inv H
-  | H : one_init _ <{fn _ _ _              }> |- _ => inv H
+  | H : one_init _ <{while _ do _ end      }> |- _ => invc H
+  | H : one_init _ <{var _                 }> |- _ => invc H
+  | H : one_init _ <{fn _ _ _              }> |- _ => invc H
   | H : one_init _ <{call _ _              }> |- _ => tt H
-  | H : one_init _ <{&_ : _                }> |- _ => inv H
-  | H : one_init _ <{new _ : _             }> |- _ => tt H
+  | H : one_init _ <{&_ : _                }> |- _ => invc H
+  | H : one_init _ <{new _ : _             }> |- _ => invc H
   | H : one_init _ <{init _ _ : _          }> |- _ => tt H
   | H : one_init _ <{* _                   }> |- _ => tt H
   | H : one_init _ <{_ := _                }> |- _ => tt H
   | H : one_init _ <{acq _ _ _             }> |- _ => tt H
   | H : one_init _ <{cr _ _                }> |- _ => tt H
   | H : one_init _ <{wait _                }> |- _ => tt H
-  | H : one_init _ <{reacq _               }> |- _ => inv H
-  | H : one_init _ <{spawn _               }> |- _ => inv H
+  | H : one_init _ <{reacq _               }> |- _ => invc H
+  | H : one_init _ <{spawn _               }> |- _ => invc H
   end.
 
 Ltac inv_oneinit  := _oneinit inv.
@@ -247,7 +242,9 @@ Lemma oneinit_inheritance_none : forall ad m t1 t2,
   one_init ad t1.
 Proof. solve_oneinit_inheritance noinit_inheritance_none. Qed.
 
-Lemma oneinit_inheritance_alloc : forall ad t1 t2 ad' T',
+Lemma oneinit_inheritance_alloc : forall ad m t1 t2 ad' T',
+  valid_term m t1 ->
+  (* --- *)
   ad <> ad' ->
   one_init ad t2 ->
   t1 --[e_alloc ad' T']--> t2 ->

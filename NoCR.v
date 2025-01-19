@@ -175,7 +175,6 @@ Lemma nocr_preservation_acq : forall ad t1 t2 ad' t',
 Proof. solve_nocr_preservation. Qed.
 
 Lemma nocr_preservation_rel : forall ad t1 t2 ad',
-  ad <> ad' ->
   no_cr ad t1 ->
   t1 --[e_rel ad']--> t2 ->
   no_cr ad t2.
