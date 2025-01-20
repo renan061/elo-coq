@@ -138,17 +138,19 @@ Proof.
   - erewrite hasvar_subst; trivial.
 Qed.
 
-Lemma safe_refW_subst2 : forall Gamma x y tx t Tx Ty T T',
-  x <> y                                      ->
-  Tx = `w&T'`                                 ->
-  empty |-- tx is Tx                          ->
-  (safe Gamma[x <== Tx])[y <== Ty] |-- t is T ->
+Lemma safe_refW_subst2 : forall Gamma x y tx t Tx Ts Ty T T',
+  x <> y                                                   ->
+  x <> SELF                                                ->
+  Tx = `w&T'`                                              ->
+  empty |-- tx is Tx                                       ->
+  (safe Gamma[x <== Tx])[SELF <== Ts][y <== Ty] |-- t is T ->
   <{[x := tx] t}> = t.
 Proof.
   intros. subst. destruct (hasvar_dec x t).
   - exfalso.
     eapply hasvar_type_contradiction. 3: eauto. 1: eauto.
-    rewrite lookup_update_neq; auto using safe_refW_lookup_update_eq_none.
+    do 2 (rewrite lookup_update_neq; auto).
+    auto using safe_refW_lookup_update_eq_none.
   - erewrite hasvar_subst; trivial.
 Qed.
 
@@ -164,17 +166,19 @@ Proof.
   - erewrite hasvar_subst; trivial.
 Qed.
 
-Lemma safe_fun_subst2 : forall Gamma x y tx t Tx Ty T T1 T2,
-  x <> y                                      ->
-  Tx = `T1 --> T2`                            ->
-  empty |-- tx is Tx                          ->
-  (safe Gamma[x <== Tx])[y <== Ty] |-- t is T ->
+Lemma safe_fun_subst2 : forall Gamma x y tx t Tx Ts Ty T T1 T2,
+  x <> y                                                   ->
+  x <> SELF                                                ->
+  Tx = `T1 --> T2`                                         ->
+  empty |-- tx is Tx                                       ->
+  (safe Gamma[x <== Tx])[SELF <== Ts][y <== Ty] |-- t is T ->
   <{[x := tx] t}> = t.
 Proof.
   intros. subst. destruct (hasvar_dec x t).
   - exfalso.
     eapply hasvar_type_contradiction. 3: eauto. 1: eauto.
-    rewrite lookup_update_neq; auto using safe_fun_lookup_update_eq_none.
+    do 2 (rewrite lookup_update_neq; auto).
+    auto using safe_fun_lookup_update_eq_none.
   - erewrite hasvar_subst; trivial.
 Qed.
 

@@ -187,6 +187,14 @@ Proof.
   intros. ind_tstep; repeat invc_vtm; auto.
 Qed.
 
+Lemma vtm_wacq_address : forall m t1 t2 ad,
+  valid_term m t1 ->
+  t1 --[e_wacq ad]--> t2 ->
+  ad < #m.
+Proof.
+  intros. ind_tstep; repeat invc_vtm; auto.
+Qed.
+
 (* lemmas about no-init and no-cr ------------------------------------------ *)
 
 (* spawn ------------------------ *)

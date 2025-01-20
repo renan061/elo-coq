@@ -256,18 +256,19 @@ Proof.
   - erewrite safe_fun_subst1; eauto.
 Qed.
 
-Lemma nowrefs_subst2 : forall Gamma x y tx t Tx Ty T,
+Lemma nowrefs_subst2 : forall Gamma x y tx t Tx Ty Ts T,
   value tx ->
   (* --- *)
-  x <> y                                      ->
-  empty |-- tx is Tx                          ->
-  (safe Gamma[x <== Tx])[y <== Ty] |-- t is T ->
-  no_wrefs t                                  ->
+  x <> y                                                   ->
+  x <> SELF                                                ->
+  empty |-- tx is Tx                                       ->
+  (safe Gamma[x <== Tx])[SELF <== Ts][y <== Ty] |-- t is T ->
+  no_wrefs t                                               ->
   no_wrefs <{[x := tx] t}>.
 Proof.
   intros. destruct Tx.
   - eauto using nowrefs_from_type, nowrefs_subst.
-  - erewrite safe_refW_subst2; eauto.
-  - erewrite safe_fun_subst2; eauto.
+  - erewrite safe_refW_subst2. 6: eauto. all: eauto.
+  - erewrite safe_fun_subst2. 6: eauto. all: eauto.
 Qed.
 

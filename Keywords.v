@@ -105,8 +105,6 @@ Qed.
 (* preservation lemmas ----------------------------------------------------- *)
 
 Lemma kw_subst : forall x tx t,
-  value tx ->
-  (* --- *)
   keywords t  ->
   keywords tx ->
   keywords <{[x := tx] t}>.

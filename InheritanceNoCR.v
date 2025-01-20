@@ -77,7 +77,6 @@ Lemma nocr_inheritance_wacq : forall ad t1 t2 ad',
 Proof. solve_nocr_inheritance. Qed.
 
 Lemma nocr_inheritance_wrel : forall ad t1 t2 ad',
-  ad <> ad' ->
   no_cr ad t2 ->
   t1 --[e_wrel ad']--> t2 ->
   no_cr ad t1.

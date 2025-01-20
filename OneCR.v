@@ -22,14 +22,8 @@ Inductive one_cr (ad : addr) : tm -> Prop :=
                                     one_cr ad t2 ->
                                     one_cr ad <{t1 - t2                  }>
   | onecr_seq1   : forall t1 t2,    one_cr ad t1 ->
-                                    no_cr  ad t2 ->
-                                    one_cr ad <{t1; t2                   }>
-  | onecr_seq2   : forall t1 t2,    no_cr  ad t1 ->
-                                    one_cr ad t2 ->
                                     one_cr ad <{t1; t2                   }>
   | onecr_if     : forall t1 t2 t3, one_cr ad t1 ->
-                                    no_cr  ad t2 ->
-                                    no_cr  ad t3 ->
                                     one_cr ad <{if t1 then t2 else t3 end}>
   | onecr_call1  : forall t1 t2,    one_cr ad t1 ->
                                     no_cr  ad t2 ->
@@ -48,7 +42,6 @@ Inductive one_cr (ad : addr) : tm -> Prop :=
                                     one_cr ad t2 ->
                                     one_cr ad <{t1 := t2                 }>
   | onecr_acq    : forall t1 x t2,  one_cr ad t1 ->
-                                    no_cr  ad t2 ->
                                     one_cr ad <{acq t1 x t2              }>
   | onecr_crA    : forall t,        no_cr  ad t  ->
                                     one_cr ad <{cr ad t                  }>
@@ -137,12 +130,14 @@ Proof.
   intros. ind_tstep; repeat invc_nocr; auto using nocr_subst, no_cr, one_cr.
 Qed.
 
-Lemma onecr_to_nocr : forall t1 t2 ad,
-  one_cr ad t1 ->
+Lemma onecr_to_nocr : forall m t1 t2 ad,
+  valid_term m t1 ->
+  (* --- *)
+  one_cr ad t1          ->
   t1 --[e_rel ad]--> t2 ->
   no_cr ad t2.
 Proof.
-  intros. ind_tstep; repeat invc_onecr; auto using no_cr;
+  intros. ind_tstep; invc_vtm; invc_onecr; auto using no_cr;
   exfalso; eauto using nocr_rel_contradiction.
 Qed.
 
@@ -305,6 +300,18 @@ Lemma onecr_inheritance_rel : forall ad t1 t2 ad',
   t1 --[e_rel ad']--> t2 ->
   one_cr ad t1.
 Proof. solve_onecr_inheritance nocr_inheritance_rel. Qed.
+
+Lemma onecr_inheritance_wacq : forall ad t1 t2 ad',
+  one_cr ad t2 ->
+  t1 --[e_wacq ad']--> t2 ->
+  one_cr ad t1.
+Proof. solve_onecr_inheritance nocr_inheritance_wacq. Qed.
+
+Lemma onecr_inheritance_wrel : forall ad t1 t2 ad',
+  one_cr ad t2 ->
+  t1 --[e_wrel ad']--> t2 ->
+  one_cr ad t1.
+Proof. solve_onecr_inheritance nocr_inheritance_wrel. Qed.
 
 Lemma onecr_inheritance_spawn : forall ad m t1 t2 t',
   valid_term m t1 ->

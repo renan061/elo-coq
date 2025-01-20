@@ -5,12 +5,12 @@ From Elo Require Import Core.
 From Elo Require Import WellTypedTerm.
 From Elo Require Import ConsistentTerm.
 
-Theorem rstep_nondecreasing_memory_size : forall m1 m2 ths1 ths2 tid e ad,
+Theorem cstep_nondecreasing_memory_size : forall m1 m2 ths1 ths2 tid e ad,
   ad < #m1 ->
-  m1 \ ths1 ~~~[tid, e]~~> m2 \ ths2 ->
+  m1 \ ths1 ~~[tid, e]~~> m2 \ ths2 ->
   ad < #m2.
 Proof.
-  intros. invc_rstep; invc_cstep; try invc_mstep; trivial; sigma; lia.
+  intros. invc_cstep; try invc_mstep; trivial; sigma; lia.
 Qed.
 
 Theorem ustep_nondecreasing_memory_size : forall m1 m2 ths1 ths2 tc ad,
@@ -18,7 +18,7 @@ Theorem ustep_nondecreasing_memory_size : forall m1 m2 ths1 ths2 tc ad,
   m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
   ad < #m2.
 Proof.
-  intros. ind_ustep; eauto using rstep_nondecreasing_memory_size.
+  intros. ind_ustep; eauto using cstep_nondecreasing_memory_size.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -50,17 +50,7 @@ Theorem ptyp_preservation_cstep : forall m1 m2 ths1 ths2 tid e ad,
   ad < #m1 ->
   m1[ad].T = m2[ad].T.
 Proof.
-  intros. invc_cstep; trivial. invc_mstep; sigma; trivial; omicron; trivial.
-Qed.
-
-Theorem ptyp_preservation_rstep : forall m1 m2 ths1 ths2 tid e ad,
-  m1 \ ths1 ~~~[tid, e]~~> m2 \ ths2 ->
-  ad < #m1 ->
-  m1[ad].T = m2[ad].T.
-Proof.
-  intros. invc_rstep; eauto using ptyp_preservation_cstep.
-  repeat omicron; upsilon; eauto using ptyp_preservation_cstep.
-  invc_cstep. invc_mstep. sigma. reflexivity.
+  intros. invc_cstep; try invc_mstep; sigma; trivial; omicron; trivial.
 Qed.
 
 Theorem ptyp_preservation_ustep : forall m1 m2 ths1 ths2 tc ad,
@@ -69,7 +59,7 @@ Theorem ptyp_preservation_ustep : forall m1 m2 ths1 ths2 tc ad,
   m1[ad].T = m2[ad].T.
 Proof.
   intros. ind_ustep; trivial. rewrite IHmultistep;
-  eauto using ustep_nondecreasing_memory_size, ptyp_preservation_rstep.
+  eauto using ustep_nondecreasing_memory_size, ptyp_preservation_cstep.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -102,20 +92,6 @@ Theorem mpt_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
 Proof.
   intros. invc_cstep; try invc_mstep; trivial;
   intros ? ?; omicron; eauto using wtt_alloc_type. lia.
-Qed.
-
-Theorem mpt_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
-  forall_program m1 ths1 well_typed_term ->
-  (* --- *)
-  memory_pointer_types m1 ->
-  m1 \ ths1 ~~~[tid, e]~~> m2 \ ths2 ->
-  memory_pointer_types m2.
-Proof.
-  intros * [_ ?] **. invc_rstep; eauto using mpt_preservation_cstep.
-  match goal with _ : _ \ _ ~~[_, _]~~> ?m \ ?ths |- _ =>
-    assert (memory_pointer_types m) by eauto using mpt_preservation_cstep
-  end.
-  repeat intro. omicron; upsilon; auto.
 Qed.
 
 Theorem mpt_preservation_base :

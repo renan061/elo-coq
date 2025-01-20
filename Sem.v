@@ -195,8 +195,7 @@ Inductive eff : Set :=
 Inductive region : Set :=
   | R_invalid
   | R_tid   : nat  -> region
-  | R_init  : addr -> region
-  | R_cr    : addr -> region
+  | R_ad    : addr -> region
   | R_reacq : addr -> region
   .
 
@@ -432,11 +431,11 @@ Fixpoint gcr (t' : tm) (R : region) : region :=
   | <{call t1 t2      }> => if is_value t1 then gcr t2 R else gcr t1 R
   | <{&_ : _          }> => R
   | <{new _ : _       }> => R
-  | <{init ad t : T   }> => if is_refX T then gcr t (R_init ad) else gcr t R
+  | <{init ad t : T   }> => if is_refX T then gcr t (R_ad ad) else gcr t R
   | <{*t              }> => gcr t R
   | <{t1 := t2        }> => if is_value t1 then gcr t2 R else gcr t1 R
   | <{acq t1 _ _      }> => gcr t1 R
-  | <{cr ad t         }> => gcr t (R_cr ad)
+  | <{cr ad t         }> => gcr t (R_ad ad)
   | <{wait t          }> => gcr t R
   | <{reacq ad        }> => R_reacq ad
   | <{spawn _         }> => R

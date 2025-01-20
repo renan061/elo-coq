@@ -57,6 +57,9 @@ Inductive safe_term : tm -> Prop :=
   | stm_cr    : forall ad t,     (exists T, empty |-- t is `Safe T`) ->
                                  safe_term t  ->
                                  safe_term <{cr ad t                  }>
+  | stm_wait  : forall t,        safe_term t  ->
+                                 safe_term <{wait t                   }>
+  | stm_reacq : forall ad,       safe_term <{reacq ad                 }>
   | stm_spawn : forall t,        no_wrefs  t  ->
                                  safe_term t  ->
                                  safe_term <{spawn t                  }>
@@ -83,6 +86,8 @@ Local Ltac _stm tt :=
   | H : safe_term <{_ := _                }>   |- _ => tt H
   | H : safe_term <{acq _ _ _             }>   |- _ => tt H
   | H : safe_term <{cr _ _                }>   |- _ => tt H
+  | H : safe_term <{wait _                }>   |- _ => tt H
+  | H : safe_term <{reacq _               }>   |- _ => clear H
   | H : safe_term <{spawn _               }>   |- _ => tt H
   end.
 
@@ -103,9 +108,9 @@ Proof.
   eauto using nowrefs_from_norefs, safe_term.
 Qed.
 
-Lemma stm_insert_term : forall t1 t2 ad t,
+Lemma stm_init_term : forall t1 t2 ad t,
   safe_term t1 ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_init ad t]--> t2 ->
   safe_term t.
 Proof.
   intros. ind_tstep; invc_stm; auto using safe_term.
@@ -119,23 +124,55 @@ Proof.
   intros. ind_tstep; invc_stm; auto using safe_term.
 Qed.
 
-Lemma nowref_spawn_term : forall ad t1 t2 tid t,
+Lemma nowref_spawn_term : forall ad t1 t2 t,
   safe_term t1 ->
-  t1 --[e_spawn tid t]--> t2 ->
+  t1 --[e_spawn t]--> t2 ->
   no_wref ad t.
 Proof.
   intros. ind_tstep; invc_stm; auto.
 Qed.
 
-Corollary nowrefs_spawn_term : forall t1 t2 tid t,
+Corollary nowrefs_spawn_term : forall t1 t2 t,
   safe_term t1 ->
-  t1 --[e_spawn tid t]--> t2 ->
+  t1 --[e_spawn t]--> t2 ->
   no_wrefs t.
 Proof.
   unfold no_wrefs. eauto using nowref_spawn_term.
 Qed.
 
 (* preservation ------------------------------------------------------------ *)
+
+Corollary typeof_simpl : forall Gamma1 Gamma2 x Tx t T,
+  Gamma2 includes Gamma1      ->
+  Gamma1[x <== Tx] |-- t is T ->
+  Gamma2[x <== Tx] |-- t is T.
+Proof.
+  eauto using context_weakening, MapInc.update_inclusion.
+Qed.
+
+Corollary typeof_permutation : forall Gamma x y Tx Ty t T,
+  x <> y ->
+  Gamma[x <== Tx][y <== Ty] |-- t is T ->
+  Gamma[y <== Ty][x <== Tx] |-- t is T.
+Proof.
+  eauto using context_weakening, MapInc.update_permutation.
+Qed.
+
+
+Corollary typeof_safe_triple : forall Gamma x y z Tx Ty Tz t T,
+  x <> y ->
+  x <> z ->
+  (safe Gamma[x <== Tx])[y <== Ty][z <== Tz] |-- t is T ->
+  (safe Gamma)[y <== Ty][z <== Tz][x <== Tx] |-- t is T.
+Proof.
+  intros.
+  eapply (context_weakening _ (safe Gamma)[y <== Ty][x <== Tx][z <== Tz]);
+  eauto using MapInc.update_permutation. 
+  eapply (context_weakening _ (safe Gamma)[x <== Tx][y <== Ty][z <== Tz]);
+  eauto using MapInc.update_permutation, MapInc.update_inclusion. 
+  eapply (context_weakening _ (safe Gamma[x <== Tx])[y <== Ty][z <== Tz]);
+  eauto using update_safe_includes_safe_update, MapInc.update_inclusion. 
+Qed.
 
 Local Lemma stm_subst : forall Gamma x tx t Tx T,
   value tx ->
@@ -147,13 +184,13 @@ Local Lemma stm_subst : forall Gamma x tx t Tx T,
   safe_term <{[x := tx] t}>.
 Proof.
   intros. gendep Gamma. gendep T.
-  induction t; intros; simpl; try destruct _str_eq_dec;
-  invc_typeof; invc_stm;
-  eauto 9 using safe_term,
-    MapEqv.update_permutation, ctx_eqv_typeof,
-    MapInc.update_inclusion, update_safe_includes_safe_update,
-    context_weakening, context_weakening_empty,
-    nowrefs_subst1, nowrefs_subst2.
+  induction t; intros; simpl; repeat destruct _str_eq_dec;
+  invc_typeof; invc_stm; eauto using safe_term;
+  eauto using typeof_permutation, safe_term;
+  eauto 6 using typeof_safe_triple, nowrefs_subst2, safe_term;
+  eauto using safe_term,
+        nowrefs_subst1,
+        context_weakening, update_safe_includes_safe_update.
   match goal with H : exists _, _ |- _ => destruct H end.
   erewrite <- hasvar_subst; eauto using hasvar_type_contradiction, safe_term.
 Qed.
@@ -161,14 +198,15 @@ Qed.
 (* ------------------------------------------------------------------------- *)
 
 Local Lemma stm_preservation_none : forall t1 t2,
+  keywords t1        ->
   well_typed_term t1 ->
   (* --- *)
   safe_term t1 ->
   t1 --[e_none]--> t2 ->
   safe_term t2.
 Proof.
-  intros * [T ?] **. gendep T.
-  ind_tstep; intros; repeat invc_typeof; repeat invc_stm;
+  intros * ? [T ?] **. gendep T.
+  ind_tstep; intros; invc_kw; repeat invc_typeof; repeat invc_stm;
   eauto using stm_subst, safe_term.
   match goal with H : exists _, _ |- _ => destruct H end.
   apply_deterministic_typing. 
@@ -185,14 +223,14 @@ Proof.
   eauto using typeof_preservation_alloc, safe_term.
 Qed.
 
-Local Lemma stm_preservation_insert : forall t1 t2 ad t,
+Local Lemma stm_preservation_init : forall t1 t2 ad t,
   safe_term t1 ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_init ad t]--> t2 ->
   safe_term t2.
 Proof.
   intros. ind_tstep; intros; invc_stm; auto using safe_term.
   match goal with H : exists _, _ |- _ => destruct H end.
-  eauto using typeof_preservation_insert, safe_term.
+  eauto using typeof_preservation_init, safe_term.
 Qed.
 
 Local Lemma stm_preservation_read : forall m t1 t2 ad t,
@@ -220,22 +258,26 @@ Proof.
 Qed.
 
 Local Lemma stm_preservation_acq : forall m t1 t2 ad t,
-  forall_memory m value ->
+  forall_memory m value     ->
   forall_memory m safe_term ->
-  well_typed_term t1 ->
-  consistent_term m t1 ->
+  keywords t1               ->
+  keywords t                ->
+  well_typed_term t1        ->
+  consistent_term m t1      ->
   (* --- *)
   m[ad].t = Some t ->
   safe_term t1 ->
   t1 --[e_acq ad t]--> t2 ->
   safe_term t2.
 Proof.
-  intros * ? ? [T ?] **. gendep T.
+  intros * ? ? ? ? [T ?] **. gendep T.
   ind_tstep; intros;
-  repeat invc_typeof; repeat invc_ctm; repeat invc_stm;
+  invc_kw; repeat invc_typeof; repeat invc_ctm; repeat invc_stm;
   try invc_eq; eauto using stm_subst, safe_term.
-  - constructor; eauto using stm_subst.
-    rewrite <- empty_eq_safe_empty in *. eauto using typeof_subst.
+  - constructor.
+    + rewrite <- empty_eq_safe_empty in *.
+      eauto using kw_subst, typeof_subst, type_of.
+    + eauto 6 using typeof_subst, stm_subst, value, type_of, safe_term.
   - match goal with H : exists _, _ |- _ => destruct H end.
     eauto using typeof_preservation_acq, safe_term.
 Qed.
@@ -250,9 +292,29 @@ Proof.
   eauto using typeof_preservation_rel, safe_term.
 Qed.
 
-Local Lemma stm_preservation_spawn : forall t1 t2 tid t,
+Local Lemma stm_preservation_wacq : forall t1 t2 ad,
   safe_term t1 ->
-  t1 --[e_spawn tid t]--> t2 ->
+  t1 --[e_wacq ad]--> t2 ->
+  safe_term t2.
+Proof.
+  intros. ind_tstep; intros; invc_stm; auto using safe_term.
+  match goal with H : exists _, _ |- _ => destruct H end.
+  eauto using typeof_preservation_wacq, safe_term.
+Qed.
+
+Local Lemma stm_preservation_wrel : forall t1 t2 ad,
+  safe_term t1 ->
+  t1 --[e_wrel ad]--> t2 ->
+  safe_term t2.
+Proof.
+  intros. ind_tstep; intros; invc_stm; auto using safe_term.
+  match goal with H : exists _, _ |- _ => destruct H end.
+  eauto using typeof_preservation_wrel, safe_term.
+Qed.
+
+Local Lemma stm_preservation_spawn : forall t1 t2 t,
+  safe_term t1 ->
+  t1 --[e_spawn t]--> t2 ->
   safe_term t2.
 Proof.
   intros. ind_tstep; intros; invc_stm; auto using safe_term.
@@ -260,9 +322,9 @@ Proof.
   eauto using typeof_preservation_spawn, safe_term.
 Qed.
 
-Local Lemma stm_preservation_spawned : forall t1 t2 tid t,
+Local Lemma stm_preservation_spawned : forall t1 t2 t,
   safe_term t1 ->
-  t1 --[e_spawn tid t]--> t2 ->
+  t1 --[e_spawn t]--> t2 ->
   safe_term t.
 Proof.
   intros. ind_tstep; intros; invc_stm; auto using safe_term.
@@ -272,6 +334,8 @@ Qed.
 
 Theorem stm_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
   forall_memory  m1   value ->
+  forall_memory  m1   keywords ->
+  forall_threads ths1 keywords ->
   forall_threads ths1 well_typed_term ->
   forall_threads ths1 (consistent_term m1) ->
   (* --- *)
@@ -279,38 +343,21 @@ Theorem stm_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
   m1 \ ths1 ~~[tid, e]~~> m2 \ ths2 ->
   forall_program m2 ths2 safe_term.
 Proof.
-  intros until 3. intros [? ?] ?. split.
-  - invc_cstep; try invc_mstep; trivial; intros ? ? ?; upsilon;
-    eauto using stm_insert_term, stm_write_term.
+  intros until 5. intros [? ?] ?. split.
+  - invc_cstep; try invc_mstep; trivial; intros ? ? ?; omicron; upsilon;
+    auto; eauto using stm_init_term, stm_write_term.
   - invc_cstep; try invc_mstep; upsilon.
     + eauto using stm_preservation_none.
     + eauto using stm_preservation_alloc.
-    + eauto using stm_preservation_insert.
+    + eauto using stm_preservation_init.
     + eauto using stm_preservation_read.
     + eauto using stm_preservation_write.
     + eauto using stm_preservation_acq.
     + eauto using stm_preservation_rel.
+    + eauto using stm_preservation_wacq.
+    + eauto using stm_preservation_wrel.
     + eauto using stm_preservation_spawn.
     + eauto using stm_preservation_spawned.
-Qed.
-
-Theorem stm_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
-  forall_memory  m1      value                ->
-  forall_program m1 ths1 well_typed_term      ->
-  forall_program m1 ths1 (consistent_term m1) ->
-  (* --- *)
-  forall_program m1 ths1 safe_term ->
-  m1 \ ths1 ~~~[tid, e]~~> m2 \ ths2 ->
-  forall_program m2 ths2 safe_term.
-Proof.
-  intros * ? [? ?] [? ?] **. invc_rstep; eauto using stm_preservation_cstep.
-  match goal with _ : _ \ _ ~~[_, _]~~> ?m \ ?ths |- _ =>
-    assert (forall_program m ths safe_term) as [Hmstm Hstm]
-      by eauto using stm_preservation_cstep
-  end.
-  invc_cstep. invc_mstep. split; intros i; repeat intro.
-  - specialize (Hmstm i). omicron; auto.
-  - specialize (Hstm i). assumption.
 Qed.
 
 Theorem stm_preservation_base : forall t,

@@ -76,6 +76,9 @@ Inductive consistent_term (m : mem) : tm -> Prop :=
                                  consistent_term m <{acq t1 x t2              }>
   | ctm_cr    : forall ad t,     consistent_term m t     ->
                                  consistent_term m <{cr ad t                  }>
+  | ctm_wait  : forall t,        consistent_term m t     ->
+                                 consistent_term m <{wait t                   }>
+  | ctm_reacq : forall ad,       consistent_term m <{reacq ad                 }>
   | ctm_spawn : forall t,        consistent_term m t     ->
                                  consistent_term m <{spawn t                  }>
   .
@@ -101,6 +104,8 @@ Local Ltac _ctm tt :=
   | H : consistent_term _ <{_ := _                }> |- _ => tt H
   | H : consistent_term _ <{acq _ _ _             }> |- _ => tt H
   | H : consistent_term _ <{cr _ _                }> |- _ => tt H
+  | H : consistent_term _ <{wait _                }> |- _ => tt H
+  | H : consistent_term _ <{reacq _               }> |- _ => tt H
   | H : consistent_term _ <{spawn _               }> |- _ => tt H
   end.
 
@@ -109,10 +114,10 @@ Ltac invc_ctm := _ctm invc.
 
 (* theorems ---------------------------------------------------------------- *)
 
-Theorem insert_then_uninitialized : forall m t1 t2 ad t,
+Theorem init_then_uninitialized : forall m t1 t2 ad t,
   consistent_term m t1 ->
   (* --- *)
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_init ad t]--> t2 ->
   m[ad].t = None.
 Proof.
   intros. ind_tstep; invc_ctm; auto.
@@ -137,9 +142,9 @@ Proof.
   intros. induction t; invc_norefs; invc_noinits; eauto using consistent_term.
 Qed.
 
-Lemma ctm_insert_term : forall m t1 t2 ad' t',
+Lemma ctm_init_term : forall m t1 t2 ad' t',
   consistent_term m t1 ->
-  t1 --[e_insert ad' t']--> t2 ->
+  t1 --[e_init ad' t']--> t2 ->
   consistent_term m t'.
 Proof.
   intros. ind_tstep; invc_ctm; auto.
@@ -153,11 +158,11 @@ Proof.
   intros. ind_tstep; invc_ctm; auto.
 Qed.
 
-Lemma ctm_insert_type : forall m t1 t2 ad' t',
+Lemma ctm_init_type : forall m t1 t2 ad' t',
   well_typed_term   t1 ->
   consistent_term m t1 ->
   (* --- *)
-  t1 --[e_insert ad' t']--> t2 ->
+  t1 --[e_init ad' t']--> t2 ->
   (exists T, empty |-- t' is `Safe T` /\ m[ad'].T = `r&T`) \/
   (exists T, empty |-- t' is T        /\ m[ad'].T = `x&T`) \/
   (exists T, empty |-- t' is T        /\ m[ad'].T = `w&T`).
@@ -185,7 +190,7 @@ Lemma ctm_subst : forall m x tx t,
   consistent_term m <{[x := tx] t}>.
 Proof.
   intros. induction t; invc_ctm; simpl;
-  try destruct _str_eq_dec; eauto using consistent_term.
+  repeat destruct _str_eq_dec; eauto using consistent_term.
 Qed.
 
 Lemma ctm_mem_add : forall m t c,
@@ -241,17 +246,17 @@ Local Corollary oneinit_from_ui : forall m ths tid t ad' t',
   forall_threads ths (valid_term m) ->
   (* --- *)
   unique_initializers m ths ->
-  ths[tid] --[e_insert ad' t']--> t ->
+  ths[tid] --[e_init ad' t']--> t ->
   one_init ad' ths[tid].
 Proof.
   intros * ? Hui ?.
-  assert (Had' : ad' < #m) by eauto using vtm_insert_address.
+  assert (Had' : ad' < #m) by eauto using vtm_init_address.
   specialize (Hui ad' Had') as [Hfall Hfone].
   opt_dec (m[ad'].t); spec.
   - specialize Hfone as [tid' [? ?]].
     nat_eq_dec tid' tid; trivial.
-    exfalso. eauto using noinit_insert_contradiction.
-  - exfalso. eauto using noinit_insert_contradiction.
+    exfalso. eauto using noinit_init_contradiction.
+  - exfalso. eauto using noinit_init_contradiction.
 Qed.
 
 Local Corollary noinit_from_ui : forall m ths tid1 tid2 ad,
@@ -281,34 +286,38 @@ Proof.
   intros. ind_tstep; repeat invc_ctm; eauto using ctm_subst, consistent_term.
 Qed.
 
-Lemma ctm_preservation_alloc : forall m t1 t2 T',
+Lemma ctm_preservation_alloc : forall m t1 t2 T' R,
   valid_term m t1 ->
   well_typed_term t1 ->
   (* --- *)
   consistent_term m t1 ->
   t1 --[e_alloc (#m) T']--> t2 ->
-  consistent_term (m +++ new_cell T') t2.
+  consistent_term (m +++ new_cell T' R) t2.
 Proof.
   intros * ? [T ?] **. gendep T.
   ind_tstep; intros; invc_vtm; invc_typeof; invc_ctm;
   constructor; sigma; auto; eauto using ctm_mem_add.
 Qed.
 
-Lemma ctm_preservation_insert : forall m t1 t2 ad' t',
+Lemma ctm_preservation_init : forall m t1 t2 ad' t',
+  valid_term m t1    ->
   well_typed_term t1 ->
   (* --- *)
   one_init ad' t1 ->
   consistent_term m t1 ->
-  t1 --[e_insert ad' t']--> t2 ->
+  t1 --[e_init ad' t']--> t2 ->
   consistent_term m[ad'.t <- t'] t2.
 Proof.
-  intros * Hwtt **.
+  intros * ? Hwtt **.
   assert (Hwtt' := Hwtt). specialize Hwtt' as [T ?]. gendep T.
-  assert (consistent_term m t') by eauto using ctm_insert_term.
-  ind_tstep; intros; invc_wtt; invc_typeof; invc_oneinit; invc_ctm;
-  try solve [exfalso; eauto using noinit_insert_contradiction];
-  eauto 7 using ctm_insert_type, ctm_mem_set, consistent_term;
-  econstructor; sigma; eauto; try omicron; upsilon; auto; discriminate.
+  assert (consistent_term m t') by eauto using ctm_init_term.
+  ind_tstep; intros;
+  invc_vtm; invc_wtt; invc_typeof; invc_oneinit; invc_ctm; auto;
+  try solve
+    [ exfalso; eauto using noinit_init_contradiction
+    | econstructor; sigma; eauto; try omicron; upsilon; auto; discriminate
+    ];
+  eauto 7 using ctm_init_type, ctm_mem_set, consistent_term.
 Qed.
 
 Lemma ctm_preservation_read : forall m t1 t2 ad' t',
@@ -354,17 +363,35 @@ Proof.
   eauto using consistent_term.
 Qed.
 
-Lemma ctm_preservation_spawn : forall m t1 t2 tid' t',
+Lemma ctm_preservation_wacq : forall m t1 t2 ad',
   consistent_term m t1 ->
-  t1 --[e_spawn tid' t']--> t2 ->
+  t1 --[e_wacq ad']--> t2 ->
+  consistent_term m[ad'.X <- true] t2.
+Proof.
+  intros. eapply ctm_mem_acq. ind_tstep; invc_ctm;
+  eauto using ctm_subst, consistent_term.
+Qed.
+
+Lemma ctm_preservation_wrel : forall m t1 t2 ad',
+  consistent_term m t1 ->
+  t1 --[e_wrel ad']--> t2 ->
+  consistent_term m[ad'.X <- false] t2.
+Proof.
+  intros. eapply ctm_mem_rel. ind_tstep; invc_ctm;
+  eauto using consistent_term.
+Qed.
+
+Lemma ctm_preservation_spawn : forall m t1 t2 t',
+  consistent_term m t1 ->
+  t1 --[e_spawn t']--> t2 ->
   consistent_term m t2.
 Proof.
   intros. ind_tstep; invc_ctm; eauto using consistent_term.
 Qed.
 
-Lemma ctm_preservation_spawned : forall m t1 t2 tid' t',
+Lemma ctm_preservation_spawned : forall m t1 t2 t',
   consistent_term m t1 ->
-  t1 --[e_spawn tid' t']--> t2 ->
+  t1 --[e_spawn t']--> t2 ->
   consistent_term m t'.
 Proof.
   intros. ind_tstep; invc_ctm; eauto using consistent_term.
@@ -383,14 +410,13 @@ Corollary ctm_preservation_memory : forall m1 m2 ths1 ths2 tid e,
   forall_memory  m2   (consistent_term m2).
 Proof.
   intros * ? [? ?] [? ?] **.
-  invc_cstep; trivial. invc_mstep; trivial; repeat intro;
-  try solve [upsilon; eauto using ctm_mem_add, ctm_mem_acq, ctm_mem_rel].
-  - upsilon; eapply ctm_mem_set;
-    eauto using value_insert_term, vtm_insert_term, noinit_from_value,
-      ctm_insert_term, ctm_insert_type.
-  - upsilon; eapply ctm_mem_set;
-    eauto using value_write_term, vtm_write_term, noinit_from_value,
-      ctm_write_term, ctm_write_type.
+  invc_cstep; try invc_mstep; trivial; repeat intro;
+  omicron; upsilon; auto; eauto using ctm_mem_add, ctm_mem_acq, ctm_mem_rel;
+  apply ctm_mem_set;
+  eauto using noinit_from_value,
+    value_init_term, vtm_init_term, ctm_init_term,
+    value_write_term, vtm_write_term, ctm_write_term,
+    ctm_init_type, ctm_write_type.
 Qed.
 
 Corollary ctm_preservation_threads : forall m1 m2 ths1 ths2 tid e,
@@ -407,20 +433,22 @@ Proof.
   intros * [? ?] [? ?] ? Hui ? ? ?.
   invc_cstep; try invc_mstep.
   - upsilon. eauto using ctm_preservation_none.
-  - upsilon; eauto using ctm_mem_add, ctm_preservation_alloc.
-  - assert (one_init ad ths1[tid]) by eauto using oneinit_from_ui.
-    upsilon; eauto using ctm_preservation_insert. intros.
-    assert (no_init  ad ths1[tid']) by eauto using noinit_from_ui.
-    eauto using ctm_insert_term, ctm_insert_type, ctm_mem_set.
+  - intro. upsilon. omicron; eauto using ctm_mem_add, ctm_preservation_alloc.
+  - assert (one_init ad' ths1[tid]) by eauto using oneinit_from_ui.
+    upsilon; eauto using ctm_preservation_init. intros.
+    assert (no_init  ad' ths1[tid']) by eauto using noinit_from_ui.
+    eauto using ctm_init_term, ctm_init_type, ctm_mem_set.
   - upsilon. eauto using ctm_preservation_read.
-  - assert (ad < #m1) by eauto using vtm_write_address. 
-    assert (m1[ad].t <> None) by eauto using write_then_initialized. 
-    specialize (Hui ad) as [Hnoinit _]; trivial. spec.
+  - assert (ad' < #m1) by eauto using vtm_write_address. 
+    assert (m1[ad'].t <> None) by eauto using write_then_initialized. 
+    specialize (Hui ad') as [Hnoinit _]; trivial. spec.
     upsilon; intros;
     eauto 6 using ctm_write_term, ctm_write_type, ctm_mem_set,
       ctm_preservation_write.
   - upsilon; eauto using ctm_mem_acq, ctm_preservation_acq.
   - upsilon; eauto using ctm_mem_rel, ctm_preservation_rel.
+  - upsilon; eauto using ctm_mem_acq, ctm_preservation_wacq.
+  - upsilon; eauto using ctm_mem_rel, ctm_preservation_wrel.
   - upsilon; eauto using ctm_preservation_spawn, ctm_preservation_spawned.
 Qed.
 
@@ -437,26 +465,6 @@ Theorem ctm_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
 Proof.
   intros until 5. intros [? ?] **.
   split; eauto using ctm_preservation_memory, ctm_preservation_threads.
-Qed.
-
-Theorem ctm_preservation_rstep : forall m1 m2 ths1 ths2 tid e,
-  forall_memory  m1 value ->
-  forall_program m1 ths1 (valid_term m1) ->
-  forall_program m1 ths1 well_typed_term ->
-  no_uninitialized_references m1 ths1 ->
-  unique_initializers         m1 ths1 ->
-  (* --- *)
-  forall_program m1 ths1 (consistent_term m1) ->
-  m1 \ ths1 ~~~[tid, e]~~> m2 \ ths2 ->
-  forall_program m2 ths2 (consistent_term m2).
-Proof.
-  intros. invc_rstep; eauto using ctm_preservation_cstep.
-  match goal with _ : _ \ _ ~~[_, _]~~> ?m \ ?ths |- _ =>
-    assert (forall_program m ths (consistent_term m)) as [? ?]
-      by eauto using ctm_preservation_cstep
-  end.
-  split; repeat intro; repeat omicron; upsilon;
-  auto; eauto using ctm_mem_region.
 Qed.
 
 Theorem ctm_preservation_base : forall t,

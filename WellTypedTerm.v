@@ -83,11 +83,17 @@ Proof. solve_wtt_inversion. Qed.
 Local Lemma inv_wtt_acq : forall t1 x t2,
   well_typed_term <{acq t1 x t2}> ->
   well_typed_term t1 /\
-  (exists Tx T, empty |-- t1 is `x&Tx` /\ empty[x <== Tx] |-- t2 is T).
+  (exists Tx T,
+    empty |-- t1 is `x&Tx` /\ empty[SELF <== `x&Tx`][x <== Tx] |-- t2 is T).
 Proof. solve_wtt_inversion. Qed.
 
 Local Lemma inv_wtt_cr : forall ad t,
   well_typed_term <{cr ad t}> ->
+  well_typed_term t.
+Proof. solve_wtt_inversion. Qed.
+
+Local Lemma inv_wtt_wait : forall t,
+  well_typed_term <{wait t}> ->
   well_typed_term t.
 Proof. solve_wtt_inversion. Qed.
 
@@ -125,9 +131,9 @@ Ltac invc_wtt :=
 (* auxiliary lemmas                                                          *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma wtt_insert_term : forall t1 t2 ad t,
+Lemma wtt_init_term : forall t1 t2 ad t,
   well_typed_term t1 ->
-  t1 --[e_insert ad t]--> t2 ->
+  t1 --[e_init ad t]--> t2 ->
   well_typed_term t.
 Proof.
   intros. ind_tstep; invc_wtt; auto.
@@ -141,9 +147,9 @@ Proof.
   intros. ind_tstep; invc_wtt; auto.
 Qed.
 
-Lemma wtt_spawn_term : forall t1 t2 tid t,
+Lemma wtt_spawn_term : forall t1 t2 t,
   well_typed_term t1 ->
-  t1 --[e_spawn tid t]--> t2 ->
+  t1 --[e_spawn t]--> t2 ->
   well_typed_term t.
 Proof.
   intros. ind_tstep; invc_wtt; auto.

@@ -65,7 +65,7 @@ Proof. solve_kappa_notvalue. Qed.
 (* ------------------------------------------------------------------------- *)
 
 Lemma kappa_initX : forall ad t T R,
-  gcr <{init ad t : x&T}> R = gcr t (R_init ad).
+  gcr <{init ad t : x&T}> R = gcr t (R_ad ad).
 Proof. trivial. Qed.
 
 Lemma kappa_initW : forall ad t T R,

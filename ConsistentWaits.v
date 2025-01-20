@@ -1,6 +1,7 @@
 From Elo Require Import Core.
 
 From Elo Require Import NoCR.
+From Elo Require Import NoReacq.
 From Elo Require Import Keywords.
 
 (* ------------------------------------------------------------------------- *)
@@ -162,6 +163,87 @@ Lemma wrnone_write_term : forall o t1 t2 ad' t',
 Proof.
   intros. gendep o; ind_tstep; intros; invc_cw;
   eauto using wrnone_weakening, consistent_waits.
+Qed.
+
+(* important lemmas -------------------------------------------------------- *)
+
+Local Lemma noreacq_from_nocr' : forall ad t wr,
+  wr <> WR_ad ad        ->
+  consistent_waits wr t ->
+  (* --- *)
+  no_cr    ad t ->
+  no_reacq ad t.
+Proof.
+  intros ? ?. induction t; intros; invc_cw; invc_nocr; eauto using no_reacq;
+  constructor; eauto;
+  match goal with
+  | IH : forall _, _ <> _ -> consistent_waits _ ?t -> _ -> no_reacq _ ?t
+  , H  : consistent_waits ?wr ?t
+  |- no_reacq _ ?t =>
+      eapply (IH wr); eauto
+  end;
+  intros F; invc F. auto.
+Qed.
+
+Corollary noreacq_from_nocr : forall ad t,
+  consistent_waits WR_none t ->
+  (* --- *)
+  no_cr    ad t ->
+  no_reacq ad t.
+Proof.
+  intros. eapply noreacq_from_nocr'; eauto. intros F. invc F.
+Qed.
+
+Local Lemma nocr_wacq_contradiction' : forall ad t1 t2 wr,
+  wr <> WR_ad ad         ->
+  consistent_waits wr t1 ->
+  (* --- *)
+  no_cr ad t1            ->
+  t1 --[e_wacq ad]--> t2 ->
+  False.
+Proof.
+  intros. gendep wr. ind_tstep; intros; invc_cw; invc_nocr; eauto.
+  spec. spec.
+  match goal with IH : _ -> _ -> _ -> False, H : consistent_waits ?wr _ |- _ =>
+   eapply (IH wr); eauto
+  end.
+  intros F. invc F. auto.
+Qed.
+
+Corollary nocr_wacq_contradiction : forall ad t1 t2,
+  consistent_waits WR_none t1 ->
+  (* --- *)
+  no_cr ad t1            ->
+  t1 --[e_wacq ad]--> t2 ->
+  False.
+Proof.
+  intros. eapply nocr_wacq_contradiction'; eauto. intros F. invc F.
+Qed.
+
+Local Lemma nocr_wrel_contradiction' : forall ad t1 t2 wr,
+  wr <> WR_ad ad         ->
+  consistent_waits wr t1 ->
+  (* --- *)
+  no_cr ad t1            ->
+  t1 --[e_wrel ad]--> t2 ->
+  False.
+Proof.
+  intros. gendep wr. ind_tstep; intros; invc_cw; invc_nocr; eauto.
+  spec. spec.
+  match goal with IH : _ -> _ -> _ -> False, H : consistent_waits ?wr _ |- _ =>
+   eapply (IH wr); eauto
+  end.
+  intros F. invc F. auto.
+Qed.
+
+Corollary nocr_wrel_contradiction : forall ad t1 t2,
+  consistent_waits WR_none t1 ->
+  (* --- *)
+  no_cr ad t1            ->
+  t1 --[e_wrel ad]--> t2 ->
+  False.
+Proof.
+  intros. eapply nocr_wrel_contradiction'; eauto. intros F. invc F.
 Qed.
 
 (* preservation lemmas ----------------------------------------------------- *)

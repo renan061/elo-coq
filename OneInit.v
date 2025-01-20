@@ -21,15 +21,9 @@ Inductive one_init (ad : addr) : tm -> Prop :=
   | oneinit_monus2 : forall t1 t2,    no_init  ad t1 ->
                                       one_init ad t2 ->
                                       one_init ad <{t1 - t2                  }>
-  | oneinit_seq1   : forall t1 t2,    one_init ad t1 ->
-                                      no_init  ad t2 ->
-                                      one_init ad <{t1; t2                   }>
-  | oneinit_seq2   : forall t1 t2,    no_init  ad t1 ->
-                                      one_init ad t2 ->
+  | oneinit_seq    : forall t1 t2,    one_init ad t1 ->
                                       one_init ad <{t1; t2                   }>
   | oneinit_if     : forall t1 t2 t3, one_init ad t1 ->
-                                      no_init  ad t2 ->
-                                      no_init  ad t3 ->
                                       one_init ad <{if t1 then t2 else t3 end}>
   | oneinit_call1  : forall t1 t2,    one_init ad t1 ->
                                       no_init  ad t2 ->
@@ -51,7 +45,6 @@ Inductive one_init (ad : addr) : tm -> Prop :=
                                       one_init ad t2 ->
                                       one_init ad <{t1 := t2                 }>
   | oneinit_acq    : forall t1 x t2,  one_init ad t1 ->
-                                      no_init  ad t2 ->
                                       one_init ad <{acq t1 x t2              }>
   | oneinit_wait   : forall t,        one_init ad t ->
                                       one_init ad <{wait t                   }>
@@ -123,12 +116,14 @@ Proof.
   intros. ind_tstep; invc_noinit; auto using one_init.
 Qed.
 
-Lemma oneinit_to_noinit : forall t1 t2 ad t,
-  one_init ad t1 ->
+Lemma oneinit_to_noinit : forall m t1 t2 ad t,
+  valid_term m t1 ->
+  (* --- *)
+  one_init ad t1           ->
   t1 --[e_init ad t]--> t2 ->
   no_init ad t2.
 Proof.
-  intros. ind_tstep; invc_oneinit; auto using no_init;
+  intros. ind_tstep; invc_vtm; invc_oneinit; auto using no_init;
   exfalso; eauto using noinit_init_contradiction.
 Qed.
 
