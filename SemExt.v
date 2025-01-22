@@ -318,6 +318,16 @@ Qed.
   | _ : ?ad <> ?ad' |- e_acq  ?ad _ <> e_acq  ?ad' _ => intros F; invc F
   | _ : ?ad <> ?ad' |- e_rel  ?ad   <> e_rel  ?ad'   => intros F; invc F
   | _ : ?ad <> ?ad' |- e_wrel ?ad   <> e_wrel ?ad'   => intros F; invc F
+  (* e_none --------------------------------------------- *)
+  | |- e_none <> e_alloc _ _ => intros F; invc F
+  | |- e_none <> e_init  _ _ => intros F; invc F
+  | |- e_none <> e_read  _ _ => intros F; invc F
+  | |- e_none <> e_write _ _ => intros F; invc F
+  | |- e_none <> e_acq   _ _ => intros F; invc F
+  | |- e_none <> e_rel   _   => intros F; invc F
+  | |- e_none <> e_wacq  _   => intros F; invc F
+  | |- e_none <> e_wrel  _   => intros F; invc F
+  | |- e_none <> e_spawn _ _ => intros F; invc F
   (* e_init --------------------------------------------- *)
   | |- e_init _ _ <> e_none      => intros F; invc F
   | |- e_init _ _ <> e_alloc _ _ => intros F; invc F

@@ -91,7 +91,7 @@ Proof.
   intros * ? [T ?] **. gendep R. gendep T.
   assert (value t') by eauto using value_write_term.
   ind_tstep; intros; repeat invc_vtm; repeat invc_typeof; repeat invc_creg;
-  kappa; eauto; try value_does_not_step.
+  kappa; eauto; try value_does_not_step;
   rewrite gcr_noinits_nocrs_noreacqs;
   eauto using noinits_from_value, nocrs_from_value, noreacqs_from_value.
 Qed.

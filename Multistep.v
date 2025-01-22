@@ -50,42 +50,34 @@ Proof.
          eauto using creg_preservation_base.
 Qed.
 
+Theorem invariants_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
+  invariants m1 ths1                ->
+  m1 \ ths1 ~~[tid, e]~~> m2 \ ths2 ->
+  invariants m2 ths2.
+Proof.
+  intros * H ?. unfold invariants in *. decompose record H. clear H.
+  split; eauto using value_preservation_cstep.
+  split; eauto using kw_preservation_cstep.
+  split; eauto using vtm_preservation_cstep.
+  split; eauto using cw_preservation_cstep.
+  split; eauto using nur_preservation_cstep.
+  split; eauto using ui_preservation_cstep.
+  split; eauto using uhg_preservation_cstep.
+  split; eauto using wtt_preservation_cstep.
+  split; eauto using ctm_preservation_cstep.
+  split; eauto using mpt_preservation_cstep.
+  split; eauto using stm_preservation_cstep.
+  split; eauto using ice_preservation_cstep.
+  split; eauto using mcreg_preservation_cstep.
+         eauto using creg_preservation_cstep.
+Qed.
+
 Theorem invariants_preservation_ustep : forall m1 m2 ths1 ths2 tc,
   invariants m1 ths1 ->
   m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
   invariants m2 ths2.
 Proof.
-  intros * H ?. ind_ustep; trivial.
-  spec. unfold invariants in *. decompose record IHmultistep. clear IHmultistep.
-  assert (forall_memory m3 value)
-    by eauto using value_preservation_cstep.
-  assert (forall_program m3 ths3 keywords)
-    by eauto using kw_preservation_cstep.
-  assert (forall_program m3 ths3 (valid_term m3))
-    by eauto using vtm_preservation_cstep.
-  assert (forall_program m3 ths3 (consistent_waits WR_none))
-    by eauto using cw_preservation_cstep .
-  assert (no_uninitialized_references m3 ths3)
-    by eauto using nur_preservation_cstep.
-  assert (unique_initializers m3 ths3)
-    by eauto using ui_preservation_cstep.
-  assert (unique_holding m3 ths3)
-    by eauto using uhg_preservation_cstep.
-  assert (forall_program m3 ths3 well_typed_term)
-    by eauto using wtt_preservation_cstep.
-  assert (forall_program m3 ths3 (consistent_term m3))
-    by eauto using ctm_preservation_cstep.
-  assert (memory_pointer_types m3)
-    by eauto using mpt_preservation_cstep.
-  assert (forall_program m3 ths3 safe_term)
-    by eauto using stm_preservation_cstep.
-  assert (init_cr_exclusivity ths3)
-    by eauto using ice_preservation_cstep.
-  assert (forall_memory_consistent_regions m3)
-    by eauto using mcreg_preservation_cstep.
-  assert (forall_threads_consistent_regions m3 ths3)
-    by eauto using creg_preservation_cstep.
-  repeat (split; trivial).
+  intros. ind_ustep; eauto using invariants_preservation_cstep.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
