@@ -73,7 +73,7 @@ Inductive consistent_waits: wait_region -> tm -> Prop :=
   | cw_wait2 : forall ad T,      consistent_waits (WR_ad ad) <{wait (&ad : T) }>
   | cw_reacq : forall ad,        consistent_waits (WR_ad ad) <{reacq ad       }>
 
-  | cw_spawn : forall WR t,        consistent_waits (WR_none) t ->
+  | cw_spawn : forall WR t,        consistent_waits WR_none t ->
                                    consistent_waits WR <{spawn t           }>
   .
 
@@ -433,5 +433,13 @@ Theorem cw_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
 Proof.
   intros * ? [_ ?] [? ?] ?. split;
   eauto using cw_preservation_memory, cw_preservation_threads.
+Qed.
+
+Theorem cw_preservation_base : forall t,
+  consistent_waits WR_none t ->
+  (* --- *)
+  forall_program nil (base t) (consistent_waits WR_none).
+Proof.
+  auto using forallprogram_base, consistent_waits.
 Qed.
 

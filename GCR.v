@@ -3,52 +3,82 @@ From Elo Require Import Core.
 From Elo Require Import SyntacticProperties.
 From Elo Require Import TypeProperties.
 
+(* TODO: remove this and try to use discriminate *)
 #[export] Hint Extern 8 =>
   match goal with
-  | |- R_invalid <> R_tid _   => intros F; invc F
-  | |- R_invalid <> R_ad  _   => intros F; invc F
-  | |- R_tid _   <> R_ad  _   => intros F; invc F
-  | |- R_tid _   <> R_invalid => intros F; invc F
-  | |- R_ad _    <> R_invalid => intros F; invc F
-  | |- R_ad _    <> R_tid _   => intros F; invc F
+  | |- R_invalid <> R_tid     _ => intros F; invc F
+  | |- R_invalid <> R_ad      _ => intros F; invc F
+  | |- R_invalid <> R_reacq   _ => intros F; invc F
+  | |- R_tid   _ <> R_ad      _ => intros F; invc F
+  | |- R_tid   _ <> R_invalid   => intros F; invc F
+  | |- R_tid   _ <> R_reacq   _ => intros F; invc F
+  | |- R_ad    _ <> R_invalid   => intros F; invc F
+  | |- R_ad    _ <> R_tid     _ => intros F; invc F
+  | |- R_ad    _ <> R_reacq   _ => intros F; invc F
+  | |- R_reacq _ <> R_invalid   => intros F; invc F
+  | |- R_reacq _ <> R_tid     _ => intros F; invc F
+  | |- R_reacq _ <> R_ad      _ => intros F; invc F
   end : gcr.
 
-Lemma gcr_noinits_nocrs : forall t R,
-  no_inits t ->
-  no_crs   t ->
+(* ------------------------------------------------------------------------- *)
+
+Lemma gcr_noinits_nocrs_noreacqs : forall t R,
+  no_inits  t ->
+  no_crs    t ->
+  no_reacqs t ->
   gcr t R = R.
 Proof.
-  intros. induction t; invc_noinits; invc_nocrs; simpl; eauto;
-  destruct (is_value t1); eauto.
+  intros. induction t; invc_noinits; invc_nocrs; invc_noreacqs;
+  simpl; auto; destruct (is_value t1); auto.
 Qed.
 
-Lemma gcr_noinit_nocr : forall ad t R,
-  no_init ad t ->
-  no_cr   ad t ->
+Lemma gcr_noinit_nocr_noreacq1 : forall ad t R,
+  no_init  ad t     ->
+  no_cr    ad t     ->
+  no_reacq ad t     ->
   gcr t R = R_ad ad ->
   R = R_ad ad.
 Proof.
   intros. gendep R. induction t; intros;
-  invc_noinit; invc_nocr; kappa; auto; do 2 spec;
-  match goal with _ : addr, ad : addr |- _ => specialize (IHt (R_ad ad)) end;
-  spec; invc IHt; auto.
+  invc_noinit; invc_nocr; invc_noreacq; kappa; auto; try discriminate;
+  do 3 spec; match goal with _ : ?ad' <> ?ad |- _ = R_ad ?ad' =>
+    specialize (IHt (R_ad ad)); spec
+  end;
+  congruence.
 Qed.
 
+Lemma gcr_noinit_nocr_noreacq2 : forall ad t R,
+  no_init  ad t        ->
+  no_cr    ad t        ->
+  no_reacq ad t        ->
+  gcr t R = R_reacq ad ->
+  R = R_reacq ad.
+Proof.
+  intros. gendep R. induction t; intros;
+  invc_noinit; invc_nocr; invc_noreacq; kappa; auto; try congruence;
+  do 3 spec; match goal with _ : ?ad' <> ?ad |- _ = R_reacq ?ad' =>
+    specialize (IHt (R_ad ad)); spec
+  end;
+  congruence.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+
 Lemma gcr_read : forall m t1 t2 ad' t' T' R,
-  consistent_term m t1 ->
+  consistent_term m t1      ->
   consistent_regions m R t1 ->
   (* --- *)
-  m[ad'].T = `w&T'` ->
+  m[ad'].T = `w&T'`          ->
   t1 --[e_read ad' t']--> t2 ->
   gcr t1 R = m[ad'].R.
 Proof.
   intros. gendep R. ind_tstep; intros;
-  repeat invc_ctm; repeat invc_creg; kappa; eauto; value_does_not_step.
+  repeat invc_ctm; repeat invc_creg; kappa; auto; value_does_not_step.
 Qed.
 
 Lemma gcr_write : forall m t1 t2 ad' t' R,
-  valid_term m t1 ->
-  well_typed_term t1 ->
+  valid_term m t1           ->
+  well_typed_term t1        ->
   consistent_regions m R t1 ->
   (* --- *)
   t1 --[e_write ad' t']--> t2 ->
@@ -58,31 +88,30 @@ Proof.
   assert (value t') by eauto using value_write_term.
   ind_tstep; intros; repeat invc_vtm; repeat invc_typeof; repeat invc_creg;
   kappa; eauto; try value_does_not_step.
-  rewrite gcr_noinits_nocrs; eauto using noinits_from_value, nocrs_from_value.
+  rewrite gcr_noinits_nocrs_noreacqs;
+  eauto using noinits_from_value, nocrs_from_value, noreacqs_from_value.
 Qed.
 
-Corollary rstep_gcr_read : forall m1 m2 ths1 ths2 tid ad' t' T',
+Corollary cstep_gcr_read : forall m1 m2 ths1 ths2 tid ad' t' T',
   forall_threads ths1 (consistent_term m1)  ->
   forall_threads_consistent_regions m1 ths1 ->
   (* --- *)
-  m1[ad'].T = `w&T'` ->
-  m1 \ ths1 ~~~[tid, e_read ad' t']~~> m2 \ ths2 ->
+  m1[ad'].T = `w&T'`                            ->
+  m1 \ ths1 ~~[tid, e_read ad' t']~~> m2 \ ths2 ->
   gcr ths1[tid] (R_tid tid) = m1[ad'].R.
 Proof.
-  intros * ? Hcreg **. specialize (Hcreg tid).
-  invc_rstep. invc_cstep. invc_mstep. eauto using gcr_read.
+  intros. invc_cstep. invc_mstep. eauto using gcr_read.
 Qed.
 
-Corollary rstep_gcr_write : forall m1 m2 ths1 ths2 tid ad' t',
+Corollary cstep_gcr_write : forall m1 m2 ths1 ths2 tid ad' t',
   forall_threads ths1 well_typed_term       ->
   forall_threads ths1 (valid_term m1)       ->
   forall_threads_consistent_regions m1 ths1 ->
   (* --- *)
-  m1 \ ths1 ~~~[tid, e_write ad' t']~~> m2 \ ths2 ->
+  m1 \ ths1 ~~[tid, e_write ad' t']~~> m2 \ ths2 ->
   gcr ths1[tid] (R_tid tid) = m1[ad'].R.
 Proof.
-  intros * ? ? Hcreg **. specialize (Hcreg tid).
-  invc_rstep. invc_cstep. invc_mstep. eauto using gcr_write.
+  intros. invc_cstep. invc_mstep. eauto using gcr_write.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -94,19 +123,70 @@ Qed.
     match goal with
     (* --- *)
     | F : gcr ?t (R_tid ?tid) = R_ad ?ad |- _ =>
-      apply (gcr_noinit_nocr ad  t (R_tid tid)) in F; trivial; invc F
+      apply (gcr_noinit_nocr_noreacq1 ad  t (R_tid tid)) in F; trivial; invc F
     (* --- *)
     | F : gcr ?t (R_ad  ?ad1) = R_ad ?ad2, _ : ?ad2 <> ?ad1 |- _ =>
-      apply (gcr_noinit_nocr ad2 t (R_ad ad1))  in F; trivial; invc F
+      apply (gcr_noinit_nocr_noreacq1 ad2 t (R_ad ad1))  in F; trivial; invc F
     end
   end : gcr.
 
-Lemma oneinit_or_onecr_from_gcr : forall ad t tid,
+Ltac specc :=
+  match goal with
+  | P : ?x, H : forall _ -> _ |- _ => 
+  | P : ?x, H : ?x -> _ |- _ => specialize (H P)
+  | H : ?x = ?x -> _ |- _ => specialize (H eq_refl) 
+  end.
+
+Lemma oneinit_or_onecr_from_gcr : forall m tid ad t,
+  valid_term m t     ->
   term_init_cr_exc t ->
   (* --- *)
   gcr t (R_tid tid) = R_ad ad ->
   (one_init ad t \/ one_cr ad t).
 Proof.
+  assert (forall ad t,
+    no_init  ad t                ->
+    no_cr    ad t                ->
+    one_init ad t \/ one_cr ad t ->
+    False
+  ). {
+      intros * ? ? [? | ?];
+      eauto using noinit_oneinit_contradiction, nocr_onecr_contradiction.
+  }
+
+  intros * ? Hregexc Hgcr. assert (Hregexc' := Hregexc).
+  induction t; invc_vtm; kappa; (* invc_tice; *) try solve [invc Hgcr];
+  try solve
+    [ invc_tice; repeat spec;
+      destruct (Hregexc ad) as [[? | ?] [[? | ?] _]]; eauto;
+      invc_noinit; invc_nocr;
+      exfalso; destruct IHt2;
+      eauto using noinit_oneinit_contradiction, nocr_onecr_contradiction
+    | invc_tice; repeat spec;
+      destruct (Hregexc ad) as [[? | ?] [[? | ?] _]]; eauto;
+      invc_noinit; invc_nocr;
+      exfalso; destruct IHt1;
+      eauto using noinit_oneinit_contradiction, nocr_onecr_contradiction
+  ].
+  - invc_tice. repeat spec.
+    destruct (Hregexc ad) as [[? | ?] [[? | ?] _]]; eauto.
+    invc_noinit; invc_nocr.
+    eauto with gcr.
+  - invc_tice.
+    destruct (Hregexc ad) as [[? | ?] [[? | ?] _]]; eauto.
+    invc_noinit; invc_nocr.
+    exfalso;  eauto.
+
+
+
+  
+  destruct (Hregexc ad) as [[? | ?] [[? | ?] _]]; eauto;
+  invc_noinit; invc_nocr; eauto with gcr.
+  - try invc_tice; repeat spec; try solve [invc Hgcr];
+    destruct (Hregexc ad) as [[? | ?] [[? | ?] _]]; eauto;
+    invc_noinit; invc_nocr; eauto with gcr.
+
+
   intros * Hregexc Hgcr. assert (Hregexc' := Hregexc).
   induction t; kappa; invc_tice; repeat spec; try solve [invc Hgcr];
   destruct (Hregexc ad) as [[? | ?] [[? | ?] _]]; eauto;

@@ -84,13 +84,13 @@ Ltac destruct_mpt ad :=
 (* preservation ------------------------------------------------------------ *)
 
 Theorem mpt_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
-  forall_threads ths1 well_typed_term ->
+  forall_program m1 ths1 well_typed_term ->
   (* --- *)
   memory_pointer_types m1 ->
   m1 \ ths1 ~~[tid, e]~~> m2 \ ths2 ->
   memory_pointer_types m2.
 Proof.
-  intros. invc_cstep; try invc_mstep; trivial;
+  intros * [_ ?] **. invc_cstep; try invc_mstep; trivial;
   intros ? ?; omicron; eauto using wtt_alloc_type. lia.
 Qed.
 

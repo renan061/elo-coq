@@ -349,17 +349,32 @@ Local Ltac solve_intros_He :=
     invc_mstep; eauto using value, tstep, mstep
   end.
 
+(*
 Theorem limited_progress : forall wr m1 t1,
-  wr <> WR_self          ->
+  wr <> WR_self          -> (* TODO *)
+  valid_term m1 t1       ->
+  consistent_waits wr t1 ->
+  consistent_term m1 t1  ->
+  (* --- *)
+  well_typed_term t1 ->
+  (value t1 \/ exists e t2, t1 --[e]--> t2)
+
+  Usar um tipo indutivo.
+*)
+
+(*
+Theorem limited_progress : forall wr m1 t1,
+  wr <> WR_self          -> (* TODO *)
   valid_term m1 t1       ->
   consistent_waits wr t1 ->
   consistent_term m1 t1  ->
   (* --- *)
   well_typed_term t1 ->
   (value t1 \/ exists t2,
-  (exists m2 ad t, m1[ad].X = false -> m1 \ t1 ==[e_acq  ad t ]==> m2 \ t2) \/
-  (exists m2 ad,   m1[ad].X = false -> m1 \ t1 ==[e_wacq ad   ]==> m2 \ t2) \/
-  (exists m2 e, (forall ad t, e <> e_acq ad t /\ forall ad, e <> e_wacq ad) ->
+  (exists m2 ad t, m1[ad].X = false /\ m1 \ t1 ==[e_acq  ad t ]==> m2 \ t2) \/
+  (exists m2 ad,   m1[ad].X = false /\ m1 \ t1 ==[e_wacq ad   ]==> m2 \ t2) \/
+  (exists m2 e, (forall ad t, e <> e_acq ad t /\
+                 forall ad, e <> e_wacq ad)   ->
                                        m1 \ t1 ==[e]==> m2 \ t2) \/
   (exists t, t1 --[e_spawn t]--> t2)).
 Proof.
@@ -543,6 +558,7 @@ Proof.
   - eexists. right. right. right. repeat eexists.
     eauto using tstep.
 Qed.
+*)
 
 (*
 Theorem limited_progress : forall m1 t1,

@@ -237,3 +237,11 @@ Proof.
   eauto using kw_preservation_memory, kw_preservation_threads.
 Qed.
 
+Theorem kw_preservation_base : forall t,
+  keywords t ->
+  (* --- *)
+  forall_program nil (base t) keywords.
+Proof.
+  auto using forallprogram_base, keywords.
+Qed.
+

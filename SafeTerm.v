@@ -333,17 +333,16 @@ Qed.
 (* ------------------------------------------------------------------------- *)
 
 Theorem stm_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
-  forall_memory  m1   value ->
-  forall_memory  m1   keywords ->
-  forall_threads ths1 keywords ->
-  forall_threads ths1 well_typed_term ->
-  forall_threads ths1 (consistent_term m1) ->
+  forall_memory  m1      value ->
+  forall_program m1 ths1 keywords ->
+  forall_program m1 ths1 well_typed_term ->
+  forall_program m1 ths1 (consistent_term m1) ->
   (* --- *)
   forall_program m1 ths1 safe_term ->
   m1 \ ths1 ~~[tid, e]~~> m2 \ ths2 ->
   forall_program m2 ths2 safe_term.
 Proof.
-  intros until 5. intros [? ?] ?. split.
+  intros * ? [? ?] [? ?] [? ?] [? ?] ?. split.
   - invc_cstep; try invc_mstep; trivial; intros ? ? ?; omicron; upsilon;
     auto; eauto using stm_init_term, stm_write_term.
   - invc_cstep; try invc_mstep; upsilon.
