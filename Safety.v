@@ -659,6 +659,7 @@ Theorem happens_before_from_gcrW :
       (In (tid1, e_rel    adx)    tc1 /\ In (tid2, e_acq adx t) tc2) \/
       (In (tid1, e_init adx t') tc1 /\ In (tid2, e_acq adx t) tc2).
 Proof.
+  (*
   intros * ? ? ? ? HgcrA HgcrB Hcstep Hustep.
   assert (forall_threads thsA term_init_cr_exc) by eauto using des_inva_tice.
   assert (forall_threads thsB term_init_cr_exc) by eauto using des_inva_tice.
@@ -687,8 +688,30 @@ Proof.
       by eauto using onecr_multistep_onecr.
     exists tc1, tc2. split; trivial.
     eexists. eexists. exists <{unit}>. eauto.
-Qed.
+  *)
+Abort.
 
+Lemma todo : forall tid ad t,
+  gcr t (R_tid tid) = R_reacq ad ->
+  waiting ad t.
+Proof.
+  intros. induction t; kappa; try discriminate; auto using waiting.
+  - repeat spec. eapply wg_plus1; eauto.
+Abort.
+
+(*
+Lemma todo : forall m1 m2 ths1 ths2 tid ad' t' ad,
+  m1 \ ths1 ~~[tid, e_write ad' t']~~> m2 \ ths2 ->
+  gcr ths1[tid] (R_tid tid) = R_reacq ad         ->
+  False.
+Proof.
+  intros. invc_cstep. invc_mstep.
+  remember (ths1[tid]) as t1. clear Heqt1.
+  gendep t.
+  induction t1; intros; invc_tstep; kappa; try value_does_not_step.
+  - repeat spec.
+Qed.
+*)
 
 Theorem safety_write_write : forall m1 m2 ths1 ths2 tc tc' tid1 tid2 ad t1 t2,
   invariants m1 ths1 ->
