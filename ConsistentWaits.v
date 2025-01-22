@@ -185,13 +185,23 @@ Proof.
   intros F; invc F. auto.
 Qed.
 
-Corollary noreacq_from_nocr : forall ad t,
+Corollary noreacq_from_nocr1 : forall ad t,
   consistent_waits WR_none t ->
   (* --- *)
   no_cr    ad t ->
   no_reacq ad t.
 Proof.
   intros. eapply noreacq_from_nocr'; eauto. intros F. invc F.
+Qed.
+
+Corollary noreacq_from_nocr2 : forall ad ad' t,
+  consistent_waits (WR_ad ad') t ->
+  ad <> ad'                      ->
+  (* --- *)
+  no_cr    ad t ->
+  no_reacq ad t.
+Proof.
+  intros. eapply noreacq_from_nocr'; eauto. intros F. invc F. congruence.
 Qed.
 
 Local Lemma nocr_wacq_contradiction' : forall ad t1 t2 wr,

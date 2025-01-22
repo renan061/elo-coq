@@ -230,7 +230,7 @@ Proof.
         ** exfalso. eauto using wg_effect_contradiction.
       * specialize (Hfall tid) as [? | [? ?]].
         ** eauto using noreacq_from_value, noreacq_preservation_acq,
-            noreacq_from_nocr.
+            noreacq_from_nocr1.
         ** exfalso. eauto using wg_effect_contradiction.
     + intros. sigma. eauto.
   - specialize Hfone as [tid' [? ?]]. exists tid'. split.
@@ -283,11 +283,11 @@ Proof.
   - exists tid. sigma. split.
     + split.
       * specialize (Hfall tid) as [? | [? ?]].
-        ** exfalso. eauto using noreacq_from_nocr, noreacq_wacq_contradiction.
+        ** exfalso. eauto using noreacq_from_nocr1, noreacq_wacq_contradiction.
         ** eauto using onecr_preservation_wacq.
       * specialize (Hfall tid) as [? | [? ?]].
         ** eauto using nocr_preservation_wacq, cw_preservation_wacq,
-            noreacq_from_nocr.
+            noreacq_from_nocr1.
         ** eauto using wg_to_noreacq.
     + intros. sigma. eauto.
   - specialize Hfone as [tid' [? ?]]. exists tid'. split.

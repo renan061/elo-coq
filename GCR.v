@@ -21,6 +21,8 @@ From Elo Require Import TypeProperties.
   end : gcr.
 
 (* ------------------------------------------------------------------------- *)
+(* gcr-noinit(s)-nocr(s)-noreacq(s)                                          *)
+(* ------------------------------------------------------------------------- *)
 
 Lemma gcr_noinits_nocrs_noreacqs : forall t R,
   no_inits  t ->
@@ -62,6 +64,8 @@ Proof.
   congruence.
 Qed.
 
+(* ------------------------------------------------------------------------- *)
+(* gcr-read & gcr-write                                                      *)
 (* ------------------------------------------------------------------------- *)
 
 Lemma gcr_read : forall m t1 t2 ad' t' T' R,
@@ -115,7 +119,7 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* TODO                                                                      *)
+(* oneinit-or-onecr                                                          *)
 (* ------------------------------------------------------------------------- *)
 
 #[export] Hint Extern 8 =>
@@ -130,95 +134,74 @@ Qed.
     end
   end : gcr.
 
-Ltac specc :=
-  match goal with
-  | P : ?x, H : forall _ -> _ |- _ => 
-  | P : ?x, H : ?x -> _ |- _ => specialize (H P)
-  | H : ?x = ?x -> _ |- _ => specialize (H eq_refl) 
-  end.
+Local Corollary oneinit_or_onecr_contradiction : forall ad t,
+  no_init  ad t                ->
+  no_cr    ad t                ->
+  one_init ad t \/ one_cr ad t ->
+  False.
+Proof.
+  intros * ? ? [? | ?];
+  eauto using noinit_oneinit_contradiction, nocr_onecr_contradiction.
+Qed.
 
-Lemma oneinit_or_onecr_from_gcr : forall m tid ad t,
-  valid_term m t     ->
-  term_init_cr_exc t ->
+Lemma oneinit_or_onecr_from_gcr : forall tid ad t,
+  consistent_waits WR_none t ->
+  term_init_cr_exc t         ->
   (* --- *)
   gcr t (R_tid tid) = R_ad ad ->
   (one_init ad t \/ one_cr ad t).
 Proof.
-  assert (forall ad t,
-    no_init  ad t                ->
-    no_cr    ad t                ->
-    one_init ad t \/ one_cr ad t ->
-    False
-  ). {
-      intros * ? ? [? | ?];
-      eauto using noinit_oneinit_contradiction, nocr_onecr_contradiction.
-  }
-
   intros * ? Hregexc Hgcr. assert (Hregexc' := Hregexc).
-  induction t; invc_vtm; kappa; (* invc_tice; *) try solve [invc Hgcr];
-  try solve
-    [ invc_tice; repeat spec;
-      destruct (Hregexc ad) as [[? | ?] [[? | ?] _]]; eauto;
-      invc_noinit; invc_nocr;
-      exfalso; destruct IHt2;
-      eauto using noinit_oneinit_contradiction, nocr_onecr_contradiction
-    | invc_tice; repeat spec;
-      destruct (Hregexc ad) as [[? | ?] [[? | ?] _]]; eauto;
-      invc_noinit; invc_nocr;
-      exfalso; destruct IHt1;
-      eauto using noinit_oneinit_contradiction, nocr_onecr_contradiction
-  ].
-  - invc_tice. repeat spec.
-    destruct (Hregexc ad) as [[? | ?] [[? | ?] _]]; eauto.
-    invc_noinit; invc_nocr.
-    eauto with gcr.
-  - invc_tice.
-    destruct (Hregexc ad) as [[? | ?] [[? | ?] _]]; eauto.
-    invc_noinit; invc_nocr.
-    exfalso;  eauto.
-
-
-
-  
+  induction t; intros; invc_cw; invc_tice;
+  repeat spec; kappa; try solve [invc Hgcr];
   destruct (Hregexc ad) as [[? | ?] [[? | ?] _]]; eauto;
-  invc_noinit; invc_nocr; eauto with gcr.
-  - try invc_tice; repeat spec; try solve [invc Hgcr];
-    destruct (Hregexc ad) as [[? | ?] [[? | ?] _]]; eauto;
-    invc_noinit; invc_nocr; eauto with gcr.
-
-
-  intros * Hregexc Hgcr. assert (Hregexc' := Hregexc).
-  induction t; kappa; invc_tice; repeat spec; try solve [invc Hgcr];
-  destruct (Hregexc ad) as [[? | ?] [[? | ?] _]]; eauto;
-  invc_noinit; invc_nocr; eauto with gcr.
+  invc_noinit; invc_nocr;
+  exfalso; eauto using oneinit_or_onecr_contradiction;
+  eauto using noreacq_from_nocr1, noreacq_from_nocr2 with gcr.
 Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* gcr-invalid                                                               *)
+(* ------------------------------------------------------------------------- *)
 
 Lemma gcr_invalid  : forall t R,
   gcr t R = R_invalid ->
   R = R_invalid.
 Proof.
-  intros * H. gendep R; induction t; intros; kappa; eauto;
-  match goal with ad : addr |- _ => specialize (IHt (R_ad ad) H) end; invc IHt.
+  intros * H. gendep R; induction t; intros; try discriminate; kappa; auto;
+  match goal with
+  | IH : forall _, gcr _ _ = _ -> _ = _, H : gcr _ (R_ad ?ad) = _ |- _ =>
+    specialize (IH (R_ad ad) H); invc IH
+  end.
 Qed.
 
 #[export] Hint Extern 8 =>
   match goal with
-  | F : gcr _ (R_tid _) = R_invalid |- _ => apply gcr_invalid in F; invc F
-  | F : gcr _ (R_ad  _) = R_invalid |- _ => apply gcr_invalid in F; invc F
+  | F : gcr _ (R_tid   _) = R_invalid |- _ => apply gcr_invalid in F; invc F
+  | F : gcr _ (R_ad    _) = R_invalid |- _ => apply gcr_invalid in F; invc F
+  | F : gcr _ (R_reacq _) = R_invalid |- _ => apply gcr_invalid in F; invc F
   end : gcr.
 
-Lemma gcr_ad_tid  : forall t ad tid,
+(* ------------------------------------------------------------------------- *)
+(* gcr-ad-tid                                                                *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma gcr_ad_tid : forall t ad tid,
   gcr t (R_ad ad) = R_tid tid ->
   False.
 Proof.
   intros * H. gendep ad. induction t; intros; kappa; invc H; eauto.
 Qed.
 
-Lemma gcr_tid_tid  : forall t tid1 tid2,
+(* ------------------------------------------------------------------------- *)
+(* gcr-tid-tid                                                               *)
+(* ------------------------------------------------------------------------- *)
+
+Lemma gcr_tid_tid : forall t tid1 tid2,
   gcr t (R_tid tid1) = R_tid tid2 ->
   tid1 = tid2.
 Proof.
-  intros * H. induction t; intros; kappa; inv H; eauto;
+  intros * H. induction t; intros; kappa; invc H; auto;
   exfalso; eauto using gcr_ad_tid.
 Qed.
 
@@ -229,7 +212,6 @@ Corollary gcr_tid_contradiction : forall ths1 ths2 tid1 tid2 tid,
   False.
 Proof.
   intros * ? H1 H2.
-  apply gcr_tid_tid in H1. apply gcr_tid_tid in H2.
-  subst. auto.
+  apply gcr_tid_tid in H1. apply gcr_tid_tid in H2. subst. congruence.
 Qed.
 

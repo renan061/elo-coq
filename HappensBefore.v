@@ -9,8 +9,20 @@ Inductive happens_before : trace -> Prop :=
   | hb_rel_acq : forall tc tid1 tid2 ad t,
     happens_before ((tid2, e_acq ad t) :: tc +++ (tid1, e_rel ad))
 
-  | hb_insert_acq : forall tc tid1 tid2 ad t1 t2,
-    happens_before ((tid2, e_acq ad t2) :: tc +++ (tid1, e_insert ad t1))
+  | hb_wrel_acq : forall tc tid1 tid2 ad t,
+    happens_before ((tid2, e_acq ad t) :: tc +++ (tid1, e_wrel ad))
+
+  | hb_rel_wacq : forall tc tid1 tid2 ad,
+    happens_before ((tid2, e_wacq ad) :: tc +++ (tid1, e_rel ad))
+
+  | hb_wrel_wacq : forall tc tid1 tid2 ad,
+    happens_before ((tid2, e_wacq ad) :: tc +++ (tid1, e_wrel ad))
+
+  | hb_init_acq : forall tc tid1 tid2 ad t1 t2,
+    happens_before ((tid2, e_acq ad t2) :: tc +++ (tid1, e_init ad t1))
+
+  | hb_init_wacq : forall tc tid1 tid2 ad t,
+    happens_before ((tid2, e_wacq ad) :: tc +++ (tid1, e_init ad t))
 
   | hb_trans : forall tcA tcB ev1 ev2 ev3,
     happens_before (ev2 :: tcA +++ ev1) ->
