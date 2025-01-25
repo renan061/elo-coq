@@ -158,7 +158,7 @@ Qed.
 Local Ltac solve_onecr_preservation L :=
   intros; ind_tstep; try invc_vtm; repeat invc_onecr;
   eauto using L, onecr_subst, one_cr;
-  exfalso; eauto using nocrs_from_value, nocrs_onecr_contradiction.
+  exfalso; eauto using nocr_from_value, nocr_onecr_contradiction.
 
 Lemma onecr_preservation_none : forall ad m t1 t2,
   valid_term m t1 ->
@@ -286,7 +286,7 @@ Proof. solve_onecr_inheritance nocr_inheritance_write. Qed.
 
 Lemma onecr_inheritance_acq : forall ad m t1 t2 ad' t',
   valid_term m t1 ->
-  no_crs t' ->
+  no_cr ad t'     ->
   (* --- *)
   ad <> ad' ->
   one_cr ad t2 ->

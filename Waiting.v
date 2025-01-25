@@ -86,8 +86,8 @@ Ltac invc_wg := _wg invc.
 Lemma wg_subst : forall ad m x tx t,
   valid_term m t ->
   (* --- *)
-  no_reacq   ad tx -> 
-  waiting ad t  ->
+  no_reacq ad tx -> 
+  waiting ad t   ->
   waiting ad <{[x := tx] t}>.
 Proof.
   intros. induction t; invc_vtm; invc_wg;
@@ -128,7 +128,7 @@ Proof.
 Qed.
 
 Corollary noreacqs_wg_contradiction : forall ad t,
-  no_reacqs t ->
+  no_reacqs t  ->
   waiting ad t ->
   False.
 Proof.
@@ -144,16 +144,23 @@ Proof.
   auto using noreacq_subst, no_reacq, waiting.
 Qed.
 
-Lemma wg_to_noreacq : forall m t1 t2 ad,
+Lemma noreacq_from_wacq : forall m t1 t2 ad,
   valid_term m t1 ->
   (* --- *)
-  waiting ad t1 ->
   t1 --[e_wacq ad]--> t2 ->
   no_reacq ad t2.
 Proof.
-  intros. ind_tstep; invc_vtm; invc_wg; try value_does_not_step;
-  eauto using noreacq_from_value, no_reacq;
-  exfalso; eauto using noreacq_wacq_contradiction.
+  intros. ind_tstep; invc_vtm;
+  eauto using noreacq_from_value, no_reacq; value_does_not_step.
+Qed.
+
+Lemma wg_from_wacq : forall m t1 t2 ad,
+  valid_term m t1 ->
+  (* --- *)
+  t1 --[e_wacq ad]--> t2 ->
+  waiting ad t1.
+Proof.
+  intros. ind_tstep; invc_vtm; auto using waiting; value_does_not_step.
 Qed.
 
 Lemma wg_to_wg_contradiction : forall t1 t2 ad,
@@ -165,6 +172,17 @@ Proof.
   intros. ind_tstep; repeat invc_wg; auto;
   try value_does_not_step; try value_does_not_wait;
   eauto using wg_subst, noreacq_to_wg, noreacq_wg_contradiction.
+Qed.
+
+Lemma noreacq_from_effect : forall m t1 t2 ad e,
+  valid_term m t1 ->
+  (* --- *)
+  e <> e_wacq ad ->
+  t1 --[e]--> t2 ->
+  no_reacq ad t1.
+Proof.
+  intros. ind_tstep; repeat invc_vtm;
+  eauto using noreacq_from_value, no_reacq; value_does_not_step.
 Qed.
 
 Lemma wg_effect_contradiction : forall m t1 t2 ad e,

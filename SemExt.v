@@ -318,7 +318,7 @@ Qed.
   | _ : ?ad <> ?ad' |- e_acq  ?ad _ <> e_acq  ?ad' _ => intros F; invc F
   | _ : ?ad <> ?ad' |- e_rel  ?ad   <> e_rel  ?ad'   => intros F; invc F
   | _ : ?ad <> ?ad' |- e_wrel ?ad   <> e_wrel ?ad'   => intros F; invc F
-  (* e_none --------------------------------------------- *)
+  (* none ----------------------------------------------- *)
   | |- e_none <> e_alloc _ _ => intros F; invc F
   | |- e_none <> e_init  _ _ => intros F; invc F
   | |- e_none <> e_read  _ _ => intros F; invc F
@@ -328,7 +328,17 @@ Qed.
   | |- e_none <> e_wacq  _   => intros F; invc F
   | |- e_none <> e_wrel  _   => intros F; invc F
   | |- e_none <> e_spawn _ _ => intros F; invc F
-  (* e_init --------------------------------------------- *)
+  (* alloc ---------------------------------------------- *)
+  | |- e_alloc _ _ <> e_none  _ _ => intros F; invc F
+  | |- e_alloc _ _ <> e_init  _ _ => intros F; invc F
+  | |- e_alloc _ _ <> e_read  _ _ => intros F; invc F
+  | |- e_alloc _ _ <> e_write _ _ => intros F; invc F
+  | |- e_alloc _ _ <> e_acq   _ _ => intros F; invc F
+  | |- e_alloc _ _ <> e_rel   _   => intros F; invc F
+  | |- e_alloc _ _ <> e_wacq  _   => intros F; invc F
+  | |- e_alloc _ _ <> e_wrel  _   => intros F; invc F
+  | |- e_alloc _ _ <> e_spawn _ _ => intros F; invc F
+  (* init ----------------------------------------------- *)
   | |- e_init _ _ <> e_none      => intros F; invc F
   | |- e_init _ _ <> e_alloc _ _ => intros F; invc F
   | |- e_init _ _ <> e_read  _ _ => intros F; invc F
@@ -338,7 +348,27 @@ Qed.
   | |- e_init _ _ <> e_wacq  _   => intros F; invc F
   | |- e_init _ _ <> e_wrel  _   => intros F; invc F
   | |- e_init _ _ <> e_spawn _ _ => intros F; invc F
-  (* e_acq ---------------------------------------------- *)
+  (* read ----------------------------------------------- *)
+  | |- e_read _ _ <> e_none      => intros F; invc F
+  | |- e_read _ _ <> e_alloc _ _ => intros F; invc F
+  | |- e_read _ _ <> e_init  _ _ => intros F; invc F
+  | |- e_read _ _ <> e_write _ _ => intros F; invc F
+  | |- e_read _ _ <> e_acq   _ _ => intros F; invc F
+  | |- e_read _ _ <> e_rel   _   => intros F; invc F
+  | |- e_read _ _ <> e_wacq  _   => intros F; invc F
+  | |- e_read _ _ <> e_wrel  _   => intros F; invc F
+  | |- e_read _ _ <> e_spawn _ _ => intros F; invc F
+  (* write ---------------------------------------------- *)
+  | |- e_write _ _ <> e_none      => intros F; invc F
+  | |- e_write _ _ <> e_alloc _ _ => intros F; invc F
+  | |- e_write _ _ <> e_init  _ _ => intros F; invc F
+  | |- e_write _ _ <> e_read  _ _ => intros F; invc F
+  | |- e_write _ _ <> e_acq   _ _ => intros F; invc F
+  | |- e_write _ _ <> e_rel   _   => intros F; invc F
+  | |- e_write _ _ <> e_wacq  _   => intros F; invc F
+  | |- e_write _ _ <> e_wrel  _   => intros F; invc F
+  | |- e_write _ _ <> e_spawn _ _ => intros F; invc F
+  (* acq ------------------------------------------------ *)
   | |- e_acq _ _  <> e_none       => intros F; invc F
   | |- e_acq _ _  <> e_alloc _ _  => intros F; invc F
   | |- e_acq _ _  <> e_init  _ _  => intros F; invc F
@@ -348,7 +378,7 @@ Qed.
   | |- e_acq _ _  <> e_wacq  _    => intros F; invc F
   | |- e_acq _ _  <> e_wrel  _    => intros F; invc F
   | |- e_acq _ _  <> e_spawn _ _  => intros F; invc F
-  (* e_rel ---------------------------------------------- *)
+  (* rel ------------------------------------------------ *)
   | |- e_rel _    <> e_none       => intros F; invc F
   | |- e_rel _    <> e_alloc _ _  => intros F; invc F
   | |- e_rel _    <> e_init  _ _  => intros F; invc F
@@ -358,7 +388,17 @@ Qed.
   | |- e_rel _    <> e_wacq  _    => intros F; invc F
   | |- e_rel _    <> e_wrel  _    => intros F; invc F
   | |- e_rel _    <> e_spawn _ _  => intros F; invc F
-  (* e_rel ---------------------------------------------- *)
+  (* wacq ----------------------------------------------- *)
+  | |- e_wacq _   <> e_none       => intros F; invc F
+  | |- e_wacq _   <> e_alloc _ _  => intros F; invc F
+  | |- e_wacq _   <> e_init  _ _  => intros F; invc F
+  | |- e_wacq _   <> e_read  _ _  => intros F; invc F
+  | |- e_wacq _   <> e_write _ _  => intros F; invc F
+  | |- e_wacq _   <> e_acq   _ _  => intros F; invc F
+  | |- e_wacq _   <> e_rel   _    => intros F; invc F
+  | |- e_wacq _   <> e_wrel  _    => intros F; invc F
+  | |- e_wacq _   <> e_spawn _ _  => intros F; invc F
+  (* wrel ----------------------------------------------- *)
   | |- e_wrel _   <> e_none       => intros F; invc F
   | |- e_wrel _   <> e_alloc _ _  => intros F; invc F
   | |- e_wrel _   <> e_init  _ _  => intros F; invc F

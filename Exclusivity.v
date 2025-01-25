@@ -31,7 +31,7 @@ Proof.
 Qed.
 
 Theorem onecr_from_rel : forall m ths tid t ad',
-  unique_holding m ths ->
+  mutual_exclusion m ths ->
   (* --- *)
   ths[tid] --[e_rel ad']--> t ->
   one_cr ad' ths[tid].
@@ -83,7 +83,7 @@ Lemma ice_preservation_init : forall m ths tid t ad' t',
   forall_threads ths (valid_term m) ->
   forall_threads ths (consistent_term m) ->
   unique_initializers m ths ->
-  unique_holding m ths ->
+  mutual_exclusion m ths ->
   (* --- *)
   init_cr_exclusivity ths ->
   ths[tid] --[e_init ad' t']--> t ->
@@ -186,7 +186,7 @@ Proof.
 Qed.
 
 Lemma ice_preservation_rel : forall m ths tid t ad,
-  unique_holding m ths ->
+  mutual_exclusion m ths ->
   (* --- *)
   init_cr_exclusivity ths ->
   ths[tid] --[e_rel ad]--> t ->
@@ -253,7 +253,7 @@ Theorem ice_preservation_cstep : forall m1 m2 ths1 ths2 tid e,
   forall_program m1 ths1 (consistent_term m1) ->
   no_uninitialized_references m1 ths1         ->
   unique_initializers m1 ths1                 ->
-  unique_holding m1 ths1                      ->
+  mutual_exclusion m1 ths1                    ->
   (* --- *)
   init_cr_exclusivity ths1                    ->
   m1 \ ths1 ~~[tid, e]~~> m2 \ ths2           ->
@@ -384,14 +384,14 @@ Ltac invc_tice :=
 Theorem tice_from_ice : forall m ths,
   forall_threads ths (valid_term m) ->
   unique_initializers m ths ->
-  unique_holding m ths ->
+  mutual_exclusion m ths ->
   (* --- *)
   init_cr_exclusivity ths ->
   forall_threads ths term_init_cr_exc.
 Proof.
-  intros * ? Hui Huhg Hice tid ad. specialize (Hice ad tid tid) as [? ?];
+  intros * ? Hui Hmu Hice tid ad. specialize (Hice ad tid tid) as [? ?];
   repeat split; eauto;
-  eauto 6 using noinit_or_oneinit_from_ui, nocr_or_onecr_from_uhg.
+  eauto 6 using noinit_or_oneinit_from_ui, nocr_or_onecr_from_mu.
 Qed.
 
 Theorem nocr_from_acq : forall m ths tid t ad' t',

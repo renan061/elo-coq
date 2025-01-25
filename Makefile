@@ -32,13 +32,14 @@ syntactic-properties:
 	# ---
 	$(COQC) InheritanceNoInit.v
 	$(COQC) InheritanceNoCR.v
+	$(COQC) InheritanceNoReacq.v
 	$(COQC) OneInit.v
 	$(COQC) OneCR.v
 	$(COQC) NoUninitRefs.v
 	$(COQC) UniqueInits.v
 	$(COQC) Waiting.v
 	$(COQC) Holding.v
-	$(COQC) UniqueHolding.v
+	$(COQC) MutualExclusion.v
 	$(COQC) SyntacticProperties.v
 
 type-properties:

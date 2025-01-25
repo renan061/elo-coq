@@ -65,6 +65,20 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
+(* gcr-value                                                                 *)
+(* ------------------------------------------------------------------------- *)
+
+Corollary gcr_value : forall m t R,
+  valid_term m t ->
+  (* --- *)
+  value t ->
+  gcr t R = R.
+Proof.
+  eauto using gcr_noinits_nocrs_noreacqs,
+    noinits_from_value, nocrs_from_value, noreacqs_from_value.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
 (* gcr-read & gcr-write                                                      *)
 (* ------------------------------------------------------------------------- *)
 
@@ -91,9 +105,7 @@ Proof.
   intros * ? [T ?] **. gendep R. gendep T.
   assert (value t') by eauto using value_write_term.
   ind_tstep; intros; repeat invc_vtm; repeat invc_typeof; repeat invc_creg;
-  kappa; eauto; try value_does_not_step;
-  rewrite gcr_noinits_nocrs_noreacqs;
-  eauto using noinits_from_value, nocrs_from_value, noreacqs_from_value.
+  kappa; eauto; try value_does_not_step; eauto using gcr_value.
 Qed.
 
 Corollary cstep_gcr_read : forall m1 m2 ths1 ths2 tid ad' t' T',
@@ -215,3 +227,21 @@ Proof.
   apply gcr_tid_tid in H1. apply gcr_tid_tid in H2. subst. congruence.
 Qed.
 
+(* ------------------------------------------------------------------------- *)
+(* preservation                                                              *)
+(* ------------------------------------------------------------------------- *)
+
+Local Lemma gcr_preservation_write : forall m t1 t2 ad' t' R,
+  valid_term m t1 ->
+  (* --- *)
+  t1 --[e_write ad' t']--> t2 ->
+  gcr t1 R = gcr t2 R.
+Proof.
+  intros. gendep R.
+  ind_tstep; intros; kappa; repeat invc_vtm; auto; try value_does_not_step;
+  eauto using gcr_value;
+  match goal with |- _ = gcr ?t _ =>
+    rewrite (gcr_noinits_nocrs_noreacqs t); trivial;
+    rewrite IHtstep; eauto using gcr_value, vtm_preservation_write
+  end.
+Qed.

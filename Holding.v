@@ -166,7 +166,7 @@ Proof.
     noreacq_preservation_spawn.
 Qed.
 
-(* preservation  (nholding) --------------------------------------------------- *)
+(* preservation  (nholding) ------------------------------------------------ *)
 
 Local Ltac solve_nhg_preservation L1 L2 L3 :=
   intros;

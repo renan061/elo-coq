@@ -14,7 +14,7 @@ Definition invariants m ths :=
   forall_program m ths (consistent_waits WR_none) /\
   no_uninitialized_references m ths               /\
   unique_initializers         m ths               /\
-  unique_holding              m ths               /\
+  mutual_exclusion            m ths               /\
   forall_program m ths well_typed_term            /\
   forall_program m ths (consistent_term m)        /\
   memory_pointer_types m                          /\
@@ -40,7 +40,7 @@ Proof.
   split; eauto using cw_preservation_base.
   split; eauto using nur_preservation_base.
   split; eauto using ui_preservation_base.
-  split; eauto using uhg_preservation_base.
+  split; eauto using mu_preservation_base.
   split; eauto using wtt_preservation_base.
   split; eauto using ctm_preservation_base.
   split; eauto using mpt_preservation_base.
@@ -62,7 +62,7 @@ Proof.
   split; eauto using cw_preservation_cstep.
   split; eauto using nur_preservation_cstep.
   split; eauto using ui_preservation_cstep.
-  split; eauto using uhg_preservation_cstep.
+  split; eauto using mu_preservation_cstep.
   split; eauto using wtt_preservation_cstep.
   split; eauto using ctm_preservation_cstep.
   split; eauto using mpt_preservation_cstep.
@@ -125,7 +125,7 @@ Corollary des_inva_ui : forall m ths,
 Proof. solve_inva_des. Qed.
 
 Corollary des_inva_mu : forall m ths,
-  invariants m ths -> unique_holding m ths.
+  invariants m ths -> mutual_exclusion m ths.
 Proof. solve_inva_des. Qed.
 
 Corollary des_inva_wtt : forall m ths,

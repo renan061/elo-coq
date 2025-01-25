@@ -12,11 +12,12 @@ From Elo Require Export ConsistentWaits.
 
 From Elo Require Export InheritanceNoInit.
 From Elo Require Export InheritanceNoCR.
+From Elo Require Export InheritanceNoReacq.
 From Elo Require Export OneInit.
 From Elo Require Export OneCR.
 From Elo Require Export NoUninitRefs.
 From Elo Require Export UniqueInits.
 From Elo Require Export Waiting.
 From Elo Require Export Holding.
-From Elo Require Export UniqueHolding.
+From Elo Require Export MutualExclusion.
 
