@@ -4,6 +4,7 @@ From Elo Require Import SyntacticProperties.
 From Elo Require Import TypeProperties.
 
 From Elo Require Import Multistep.
+From Elo Require Import HappensBefore.
 
 Local Ltac solve_hg_inheritance L1 L2 :=
   intros; match goal with H : holding _ _ |- _ => destruct H end; split;
@@ -144,12 +145,6 @@ Qed.
 (* holding inheritance                                                       *)
 (* ------------------------------------------------------------------------- *)
 
-Definition is_acquire (ad : addr) (e : eff) :=
-  (exists t, e = e_acq ad t) \/ e = e_wacq ad.
-
-Definition is_release (ad : addr) (e : eff) :=
-  e = e_rel ad \/ e = e_wrel ad.
-
 Lemma holding_inheritance_cstep :
   forall ad m1 m2 ths1 ths2 tid tid' e,
     invariants m1 ths1 ->
@@ -167,10 +162,8 @@ Proof.
   assert (forall_threads ths1 (consistent_waits WR_none)) by eauto with inva.
   assert (mutual_exclusion m1 ths1) by eauto with inva.
   assert (mutual_exclusion m2 ths2) by eauto with inva.
-  (*
   assert (forall_threads ths1 term_init_cr_exc) by eauto with inva.
   assert (H' : forall_threads ths2 term_init_cr_exc) by eauto with inva.
-  *)
   invc_cstep; try invc_mstep; split;
   try solve [intros [[? F] | F]; invc F].
   - intro. omicron; eauto using hg_inheritance_none.
@@ -180,7 +173,8 @@ Proof.
   - intro. omicron; eauto using hg_inheritance_write.
   - intros [[? Heq] | Heq]; invc Heq.
     omicron; trivial.
-    assert (no_cr ad ths1[tid']) by admit. (* nocr_from_acq *)
+    specialize (H' tid'). sigma.
+    assert (no_cr ad ths1[tid']) by eauto using nocr_from_acq.
     assert (no_reacq ad ths1[tid']) by eauto using noreacq_from_nocr1.
     assert (one_cr ad t) by eauto using nocrs_from_value, nocr_to_onecr.
     assert (no_reacq ad t)
@@ -196,7 +190,8 @@ Proof.
     eauto using onecr_from_rel, onecr_to_nocr, nocr_onecr_contradiction.
   - intros [[? Heq] | Heq]; invc Heq.
     omicron; trivial.
-    assert (one_cr ad t) by admit.
+    assert (one_cr ad ths1[tid']) by eauto using onecr_from_wacq.
+    assert (one_cr ad t) by eauto using onecr_preservation_wacq.
     assert (no_reacq ad t) by eauto using noreacq_from_wacq.
     assert (holding ad ths1[tid' <- t][tid])  by (sigma; trivial).
     assert (holding ad ths1[tid' <- t][tid']) by (sigma; split; trivial).

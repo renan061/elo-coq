@@ -11,8 +11,6 @@ From Elo Require Import GCR.
 From Elo Require Import HappensBefore.
 From Elo Require Import SafetyLemmas.
 
-Notation "'<<' ev1 ',' tc ',' ev2 '>>'" := (ev2 :: tc +++ ev1).
-
 Local Lemma in_app_head : forall {A} (l : list A) (a : A),
   In a (l ++ a :: nil).
 Proof.
@@ -182,8 +180,7 @@ Qed.
 (* one-init ~~>* one-cr                                                      *)
 (* ------------------------------------------------------------------------- *)
 
-(* TODO *)
-Local Lemma oneinit_multistep_onecr_requires_acq' :
+Local Lemma oneinit_multistep_holding_requires_acquire' :
   forall m1 m2 ths1 ths2 tid1 tid2 tc ad,
     invariants m1 ths1 ->
     invariants m2 ths2 ->
@@ -192,60 +189,65 @@ Local Lemma oneinit_multistep_onecr_requires_acq' :
     one_init ad ths1[tid1]         ->
     m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
     holding ad ths2[tid2]          ->
-    exists t, In (tid2, (e_acq ad t)) tc.
+    exists e, In (tid2, e) tc /\ is_acquire ad e.
 Proof.
   intros * ? ? ? ? ? Hhg. ind_ustep.
   - exfalso. destruct Hhg.
     assert (Hice : init_cr_exclusivity ths) by eauto with inva.
     specialize (Hice ad tid1 tid2) as [? _].
     eauto using nocr_onecr_contradiction.
-  - (* TODO: now that we have holding, we can revisit safety lemma. *)
-    assert (invariants m2 ths2) by eauto using invariants_preservation_ustep.
+  - assert (invariants m2 ths2) by eauto using invariants_preservation_ustep.
     repeat spec.
-    assert (exists t, (e <> e_acq ad t /\ one_cr ad ths2[tid2]) \/
-                      (e =  e_acq ad t /\ tid = tid2))
-      as [t [[? ?] | [? ?]]]
-      by eauto using onecr_inheritance_cstep.
-    + destruct IHmultistep; trivial. eexists. right. eauto.
-    + subst. exists t. left. eauto.
+    assert ((  is_acquire ad e -> tid2 = tid) /\
+            (~ is_acquire ad e -> holding ad ths2[tid2]))
+      as [? Hnot]
+      by eauto using holding_inheritance_cstep.
+      destruct (isacquire_dec ad e) as [Hisacq | ?]; repeat spec.
+      + subst. eexists. split; eauto. left. reflexivity.
+      + decompose record IHmultistep. simpl. eexists. split; eauto.
 Qed.
 
-Local Corollary oneinit_multistep_onecr_requires_acq :
+Local Corollary oneinit_multistep_holding_requires_acquire :
   forall m1 m2 ths1 ths2 tid1 tid2 tc ad,
     invariants m1 ths1 ->
     invariants m2 ths2 ->
     (* --- *)
-    tid1 <> tid2 ->
-    one_init ad ths1[tid1] ->
+    tid1 <> tid2                   ->
+    one_init ad ths1[tid1]         ->
     m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
-    one_cr ad ths2[tid2] ->
-    exists t tc1 tc2, tc = tc2 ++ (tid2, e_acq ad t) :: tc1.
+    holding ad ths2[tid2]          ->
+    exists e tc1 tc2, is_acquire ad e /\ tc = tc2 ++ (tid2, e) :: tc1.
 Proof.
   intros.
-  assert (exists t, In (tid2, (e_acq ad t)) tc)
-    as [t Hin] by eauto using oneinit_multistep_onecr_requires_acq'.
+  assert (exists e, In (tid2, e) tc /\ is_acquire ad e)
+    as [e [Hin ?]] by eauto using oneinit_multistep_holding_requires_acquire'.
   apply in_split in Hin as [tc2 [tc1 Htc]].
-  exists t. exists tc1. exists tc2. assumption.
+  exists e. exists tc1. exists tc2. split; assumption.
 Qed.
 
-Local Corollary multistep_acq_requires_initialized :
-  forall m1 m2 ths1 ths2 tid1 tid2 tc1 tc2 ad t,
+Local Corollary multistep_acquire_requires_initialized :
+  forall m1 m2 ths1 ths2 tid1 tid2 tc1 tc2 ad e,
     invariants m1 ths1 ->
     invariants m2 ths2 ->
     (* --- *)
-    tid1 <> tid2 ->
-    m1 \ ths1 ~~[tc2 ++ (tid2, e_acq ad t) :: tc1]~~>* m2 \ ths2 ->
+    tid1 <> tid2                                        ->
+    is_acquire ad e                                     ->
+    m1 \ ths1 ~~[tc2 ++ (tid2, e) :: tc1]~~>* m2 \ ths2 ->
     exists mA thsA t,
       m1 \ ths1 ~~[tc1]~~>* mA \ thsA /\
       mA[ad].t = Some t.
 Proof.
-  intros * ? ? ? H.
-  eapply destruct_ustep' in H. decompose record H.
-  repeat eexists; eauto.
-  invc_rstep. invc_cstep. invc_mstep. eauto.
+  intros * ? ? ? Hisacq Hcstep.
+  eapply destruct_ustep' in Hcstep.
+  destruct Hcstep as [mA [mB [thsA [thsB [? [? ?]]]]]].
+  assert (invariants mA thsA) by eauto using invariants_preservation_ustep .
+  destruct Hisacq as  [[? ?] | ?]; subst; invc_cstep; invc_mstep; eauto.
+  assert (exists t, mA[ad].t = Some t) as [? ?]
+    by (eapply initialized_from_wacq; eauto with inva).
+  eauto.
 Qed.
 
-Local Lemma oneinit_multistep_initialized_requires_insert :
+Local Lemma oneinit_multistep_initialized_requires_init :
   forall tc m1 m2 ths1 ths2 tid ad t,
     invariants m1 ths1 ->
     invariants m2 ths2 ->
@@ -253,7 +255,7 @@ Local Lemma oneinit_multistep_initialized_requires_insert :
     one_init ad ths1[tid] ->
     m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
     m2[ad].t = Some t ->
-    exists t, In (tid, e_insert ad t) tc.
+    exists t, In (tid, e_init ad t) tc.
 Proof.
   intro. induction tc using rev_ind; intros.
   - invc_ustep.
@@ -267,13 +269,13 @@ Proof.
       eapply destruct_ustep' in H as [mA [mB [thsA [thsB [H1A [? ?]]]]]]
     end.
     invc H1A.
-    assert (invariants mB thsB) by eauto using invariants_preservation_rstep.
+    assert (invariants mB thsB) by eauto using invariants_preservation_cstep.
     specialize (IHtc mB m2 thsB ths2 tid ad t). do 2 spec.
     assert (
-      (forall t, e' <> e_insert ad t /\ one_init ad thsB[tid]) \/
-      (exists t, e' =  e_insert ad t /\ tid' = tid /\ mB[ad].t = Some t)
+      (forall t, e' <> e_init ad t /\ one_init ad thsB[tid]) \/
+      (exists t, e' =  e_init ad t /\ tid' = tid /\ mB[ad].t = Some t)
     ) as [H' | [t' [? [? _]]]]
-      by eauto using oneinit_preservation_rstep.
+      by eauto using oneinit_preservation_cstep.
       + specialize (H' t) as [? Honeinit].
         specialize IHtc as [t' Hin]; trivial.
         eauto using in_app_tail.
@@ -281,36 +283,33 @@ Proof.
 Qed.
 
 Local Lemma oneinit_multistep_onecr :
-  forall tc m1 m2 ths1 ths2 tid1 tid2 ad,
+  forall tc m1 m2 ths1 ths2 tid1 tid2 ad e1 e2,
     invariants m1 ths1 ->
     invariants m2 ths2 ->
     (* --- *)
     tid1 <> tid2                   ->
     one_init ad ths1[tid1]         ->
     m1 \ ths1 ~~[tc]~~>* m2 \ ths2 ->
-    one_cr   ad ths2[tid2]         ->
-    exists tc1 tc2 t t',
-      tc = tc2 ++ tc1               /\
-      In (tid1, e_insert ad t') tc1 /\
-      In (tid2, e_acq    ad t)  tc2.
+    holding ad ths2[tid2]          ->
+    happens_before <<(tid1, e1), tc, (tid2, e2)>>.
 Proof.
   intros.
-  assert (exists t tc1 tc2, tc = tc2 ++ (tid2, e_acq ad t) :: tc1)
-    as [t [tc1 [tc2 Hacq]]]
-    by eauto using oneinit_multistep_onecr_requires_acq.
+  assert (exists e tc2 tc3, is_acquire ad e /\ tc = tc3 ++ (tid2, e) :: tc2)
+    as [eAcq [tc2 [tc3 [Hisacq Htc]]]]
+    by eauto using oneinit_multistep_holding_requires_acquire.
   subst.
   assert (exists mA thsA t,
-    m1 \ ths1 ~~[tc1]~~>* mA \ thsA /\ mA[ad].t = Some t)
+    m1 \ ths1 ~~[tc2]~~>* mA \ thsA /\ mA[ad].t = Some t)
     as [mA [thsA [? [? ?]]]]
-    by eauto using multistep_acq_requires_initialized.
+    by eauto using multistep_acquire_requires_initialized.
+
   assert (invariants mA thsA) by eauto using invariants_preservation_ustep.
-  assert (exists t, In (tid1, e_insert ad t) tc1)
-    as [t' ?]
-    by eauto using oneinit_multistep_initialized_requires_insert.
-  exists tc1. exists (tc2 ++ (tid2, e_acq ad t) :: nil).
-  exists t. exists t'.
-  repeat split; eauto using in_app_head.
-  rewrite <- app_assoc. reflexivity.
+  assert (exists t, In (tid1, e_init ad t) tc2)
+    as [t' Hin]
+    by eauto using oneinit_multistep_initialized_requires_init.
+  eapply in_split in Hin as [tc1 [tc0 ?]]. subst.
+
+  eauto using happens_before_from_initialize_acquire_effects.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -384,28 +383,6 @@ Proof.
   ].
   - admit.
   - admit.
-  (*
-  - (* aplicar hb_trans duas vezes *)
-    eapply hb_trans.
-
-    assert (exists tc1 tc2 t t',
-      tc = tc2 ++ tc1                 /\
-      In (tid1, e_init adx t') tc1    /\
-      In (tid2, e_acq    adx t)     tc2)
-      as [tc1 [tc2 [t [t'' [? [? ?]]]]]]
-      by eauto using oneinit_multistep_onecr.
-    exists tc1, tc2. split; trivial.
-    repeat eexists. eauto.
-  - assert (one_cr adx ths[tid1]) by _preservation onecr_preservation_write.
-    assert (exists tc1 tc2 t,
-      tc = tc2 ++ tc1            /\
-      In (tid1, e_rel adx)   tc1 /\
-      In (tid2, e_acq adx t) tc2)
-      as [tc1 [tc2 [t [? [? ?]]]]]
-      by eauto using onecr_multistep_onecr.
-    exists tc1, tc2. split; trivial.
-    eexists. eexists. exists <{unit}>. eauto.
-  *)
 Abort.
 
 (* ------------------------------------------------------------------------- *)

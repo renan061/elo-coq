@@ -411,3 +411,24 @@ Proof.
     onecr_to_onecr_contradiction.
 Qed.
 
+Theorem initialized_from_wacq : forall m ths tid t ad',
+  forall_threads ths (valid_term m)             ->
+  forall_threads ths (consistent_waits WR_none) ->
+  unique_initializers m ths                     ->
+  mutual_exclusion m ths                        ->
+  init_cr_exclusivity ths                       ->
+  (* --- *)
+  ths[tid] --[e_wacq ad']--> t ->
+  exists t', m[ad'].t = Some t'.
+Proof.
+  intros * ? ? Hui ? Hice **.
+  assert (Had' : ad' < #m) by eauto using vtm_wacq_address.
+  assert (one_cr ad' ths[tid]) by eauto using onecr_from_wacq.
+  destruct (Hui ad' Had') as [Hsome Hnone].
+  opt_dec (m[ad'].t); spec.
+  - specialize (Hnone) as [tid' [? _]].
+    specialize (Hice ad' tid tid') as [_ ?].
+    exfalso. eauto using noinit_oneinit_contradiction.
+  - destruct (m[ad'].t); auto; eauto.
+Qed.
+

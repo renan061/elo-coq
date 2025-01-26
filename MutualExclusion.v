@@ -108,6 +108,24 @@ Proof.
   eauto using nocr_wrel_contradiction, wg_effect_contradiction.
 Qed.
 
+(* TODO: not_holding from wacq (?) *)
+Theorem onecr_from_wacq : forall m ths tid t ad',
+  forall_threads ths (valid_term m)             ->
+  forall_threads ths (consistent_waits WR_none) ->
+  mutual_exclusion m ths                        ->
+  (* --- *)
+  ths[tid] --[e_wacq ad']--> t ->
+  one_cr ad' ths[tid].
+Proof.
+  intros * ? ? Hmu **. specialize (Hmu ad') as [Hfalse Htrue].
+  destruct (m[ad'].X); spec.
+  - destruct Htrue as [tid' [[? ?] Hnhg]]. nat_eq_dec tid' tid; trivial.
+    specialize (Hnhg tid). spec. destruct Hnhg as [? | [? ?]]; trivial. exfalso.
+    eauto using wg_from_wacq, noreacq_from_nocr1, noreacq_wg_contradiction.
+  - specialize (Hfalse tid) as [? | [? ?]]; trivial. exfalso.
+    eauto using wg_from_wacq, noreacq_from_nocr1, noreacq_wg_contradiction.
+Qed.
+
 (* preservation ------------------------------------------------------------ *)
 
 Local Lemma mu_preservation_none : forall m ths tid t,
