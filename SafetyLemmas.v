@@ -142,65 +142,6 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* one-cr inheritance                                                        *)
-(* ------------------------------------------------------------------------- *)
-
-Lemma onecr_inheritance_cstep :
-  forall ad m1 m2 ths1 ths2 tid tid' e,
-    invariants m1 ths1 ->
-    invariants m2 ths2 ->
-    (* --- *)
-    one_cr ad ths2[tid]                ->
-    m1 \ ths1 ~~[tid', e]~~> m2 \ ths2 ->
-    (exists t, e = e_acq ad t /\ tid = tid') \/ one_cr ad ths1[tid].
-Proof.
-  intros * ? ? Honecr **.
-  assert (forall_memory m1 value) by eauto with inva.
-  assert (forall_memory m1 (valid_term m1)) by eauto with inva.
-  assert (forall_threads ths1 (valid_term m1)) by eauto with inva.
-  assert (forall_threads ths1 (consistent_waits WR_none)) by eauto with inva.
-  assert (mutual_exclusion m1 ths1) by eauto with inva.
-  assert (mutual_exclusion m2 ths2) by eauto with inva.
-  assert (forall_threads ths1 term_init_cr_exc) by eauto with inva.
-  assert (H' : forall_threads ths2 term_init_cr_exc) by eauto with inva.
-  invc_cstep; try invc_mstep.
-  - right. omicron; trivial. eauto using onecr_inheritance_none.
-  - right. omicron; trivial. eauto using onecr_inheritance_alloc.
-  - right. omicron; trivial. eauto using onecr_inheritance_init.
-  - right. omicron; trivial.
-    eauto using nocr_from_value, onecr_inheritance_read.
-  - right. omicron; trivial. eauto using onecr_inheritance_write.
-  - nat_eq_dec ad' ad.
-    + left. eexists. split; eauto. omicron; trivial.
-
-      specialize (H' tid'). sigma.
-      assert (no_cr ad ths1[tid']) by eauto using nocr_from_acq.
-      assert (no_reacq ad ths1[tid']) by eauto using noreacq_from_nocr1.
-      assert (one_cr ad t) by eauto using nocrs_from_value, nocr_to_onecr.
-      assert (no_reacq ad t)
-        by eauto using noreacq_from_value, noreacq_preservation_acq.
-      assert (holding ad ths1[tid' <- t][tid']) by (sigma; split; trivial).
-
-      assert (holding ad ths1[tid' <- t][tid]). {
-        sigma. split; trivial.
-        admit.
-      }
-      (* by (sigma; trivial). *)
-      exfalso. eauto using mu_hg_contradiction.
-    + right. omicron; trivial.
-      eauto using nocr_from_value, onecr_inheritance_acq.
-  - right. omicron; trivial.
-    nat_eq_dec ad' ad; eauto using onecr_inheritance_rel.
-    exfalso.
-    eauto using onecr_from_rel, onecr_to_nocr, nocr_onecr_contradiction.
-  - nat_eq_dec ad' ad;
-    right; omicron; trivial; eauto using onecr_inheritance_wacq.
-  - right. omicron; trivial. eauto using onecr_inheritance_wrel.
-  - right. omicron; trivial. eauto using onecr_inheritance_spawn.
-    exfalso. eauto using onecr_inheritance_spawned.
-Abort.
-
-(* ------------------------------------------------------------------------- *)
 (* holding inheritance                                                       *)
 (* ------------------------------------------------------------------------- *)
 
@@ -240,7 +181,7 @@ Proof.
       by eauto using noreacq_from_value, noreacq_preservation_acq.
     assert (holding ad ths1[tid' <- t][tid])  by (sigma; trivial).
     assert (holding ad ths1[tid' <- t][tid']) by (sigma; split; trivial).
-    exfalso. eauto using mu_hg_contradiction.
+    exfalso. eauto using holding_exclusivity.
   - intros Hisacq.
     assert (ad <> ad') by (intro; subst; apply Hisacq; left; eauto).
     omicron; eauto using hg_inheritance_acq.
@@ -254,7 +195,7 @@ Proof.
     assert (no_reacq ad t) by eauto using noreacq_from_wacq.
     assert (holding ad ths1[tid' <- t][tid])  by (sigma; trivial).
     assert (holding ad ths1[tid' <- t][tid']) by (sigma; split; trivial).
-    exfalso. eauto using mu_hg_contradiction.
+    exfalso. eauto using holding_exclusivity.
   - intros Hisacq.
     assert (ad <> ad') by (intro; subst; apply Hisacq; right; reflexivity).
     omicron; eauto using hg_inheritance_wacq.
@@ -365,51 +306,50 @@ Proof.
   - right. eauto using initialized_preservation_cstep.
 Qed.
 
-(*
 (* ------------------------------------------------------------------------- *)
 (* one-cr preservation                                                       *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma onecr_preservation_rstep :
+Lemma holding_preservation_cstep :
   forall ad m1 m2 ths1 ths2 tid tid' e,
     invariants m1 ths1 ->
     invariants m2 ths2 ->
     (* --- *)
-    one_cr ad ths1[tid] ->
-    m1 \ ths1 ~~~[tid', e]~~> m2 \ ths2 ->
-    (e <> e_rel ad /\ one_cr ad ths2[tid]) \/
-    (e =  e_rel ad /\ tid' = tid).
+    holding ad ths1[tid]               ->
+    m1 \ ths1 ~~[tid', e]~~> m2 \ ths2 ->
+    (  is_release ad e -> tid = tid') /\
+    (~ is_release ad e -> holding ad ths2[tid]).
 Proof.
-  intros.
+  intros * ? ? Hhg Hcstep.
   assert (forall_memory m1 value) by eauto with inva.
   assert (forall_memory m1 (valid_term m1)) by eauto with inva.
   assert (forall_threads ths1 (valid_term m1)) by eauto with inva.
-  assert (unique_critical_regions m1 ths1) by eauto with inva.
-  invc_rstep; invc_cstep; try invc_mstep.
-  - left. split; auto.
-    omicron; eauto using onecr_preservation_none.
-  - left. split; auto.
-    omicron; eauto using onecr_preservation_alloc.
-  - left. split; auto.
-    omicron; eauto using onecr_preservation_init.
-  - left. split; auto.
-    omicron; eauto using nocrs_from_value, onecr_preservation_read.
-  - left. split; auto.
-    omicron; eauto using onecr_preservation_write.
-  - left. split; auto.
-    match goal with _ : _ --[e_acq ?ad ?t]--> _ |- _ =>
-        rename ad into ad'; rename t into t'
-    end.
-    nat_eq_dec ad ad'; omicron; auto.
-    + assert (Htrue : m1[ad'].X = true) by eauto using locked_from_onecr.
-      rewrite Htrue in *. auto.
-    + eauto 6 using nocr_from_nocrs, nocrs_from_value, onecr_preservation_acq.
-  - match goal with _ : _ --[e_rel ?ad]--> _ |- _ => rename ad into ad' end.
-    nat_eq_dec ad ad'.
-    + right. split; eauto using onecr_from_rel, mu_onecr_equality.
-    + left; split; try omicron; eauto using onecr_preservation_rel.
-  - left. split; auto.
-    omicron; eauto using onecr_preservation_spawn.
-    invc_onecr.
+  assert (forall_threads ths1 (consistent_waits WR_none)) by eauto with inva.
+  assert (mutual_exclusion m1 ths1) by eauto with inva.
+  assert (forall_threads ths1 term_init_cr_exc) by eauto with inva.
+  assert (Htice : forall_threads ths2 term_init_cr_exc) by eauto with inva.
+  invc_cstep; try invc_mstep; split; try solve [intros [F | F]; invc F].
+  - intros _. omicron; trivial. eauto using hg_preservation_none.
+  - intros _. omicron; trivial. eauto using hg_preservation_alloc.
+  - intros _. omicron; trivial. eauto using hg_preservation_init.
+  - intros _. omicron; trivial. eauto using hg_preservation_read.
+  - intros _. omicron; trivial. eauto using hg_preservation_write.
+  - intros _. omicron; trivial.
+    nat_eq_dec ad' ad; eauto using hg_preservation_acq.
+    specialize (Htice tid). sigma. destruct Hhg.
+    exfalso. eauto using nocr_from_acq, nocr_onecr_contradiction.
+  - intros [Heq | Heq]; invc Heq.
+    eauto using holding_from_rel, holding_equality.
+  - intros Hisrel. omicron; trivial. nat_eq_dec ad' ad.
+    + contradict Hisrel. left. reflexivity.
+    + eauto using hg_preservation_rel.
+  - intros _. omicron; trivial. eauto using hg_preservation_wacq.
+  - intros [Heq | Heq]; invc Heq.
+    eauto using holding_from_wrel, holding_equality.
+  - intros Hisrel. omicron; trivial. nat_eq_dec ad' ad.
+    + contradict Hisrel. right. reflexivity.
+    + eauto using hg_preservation_wrel.
+  - intros _. omicron; eauto using hg_preservation_spawn.
+    destruct Hhg. invc_onecr.
 Qed.
-*)
+

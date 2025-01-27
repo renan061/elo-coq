@@ -47,6 +47,50 @@ Proof.
     exfalso. eauto using nocr_rel_contradiction.
 Qed.
 
+Theorem holding_from_rel : forall m ths tid t ad',
+  forall_threads ths (valid_term m) ->
+  mutual_exclusion m ths            ->
+  (* --- *)
+  ths[tid] --[e_rel ad']--> t ->
+  holding ad' ths[tid].
+Proof.
+  intros * Hmu **.
+  assert (one_cr ad' ths[tid]) by eauto using onecr_from_rel.
+  assert (no_reacq ad' ths[tid]) by (eapply noreacq_from_effect; eauto; eauto).
+  split; trivial.
+Qed.
+
+Theorem onecr_from_wrel : forall m ths tid t ad',
+  forall_threads ths (consistent_waits WR_none) ->
+  mutual_exclusion m ths                        ->
+  (* --- *)
+  ths[tid] --[e_wrel ad']--> t ->
+  one_cr ad' ths[tid].
+Proof.
+  intros * ? Hmu **. specialize (Hmu ad') as [Hfalse Htrue].
+  destruct (m[ad'].X); spec.
+  - specialize Htrue as [tid' [[? ?] Hnhg]].
+    nat_eq_dec tid' tid; trivial.
+    specialize (Hnhg tid). spec. destruct Hnhg as [? | [? ?]]; trivial.
+    exfalso. eauto using nocr_wrel_contradiction.
+  - specialize (Hfalse tid) as [? | [? ?]]; trivial.
+    exfalso. eauto using nocr_wrel_contradiction.
+Qed.
+
+Theorem holding_from_wrel : forall m ths tid t ad',
+  forall_threads ths (valid_term m)             ->
+  forall_threads ths (consistent_waits WR_none) ->
+  mutual_exclusion m ths                        ->
+  (* --- *)
+  ths[tid] --[e_wrel ad']--> t ->
+  holding ad' ths[tid].
+Proof.
+  intros * Hmu **.
+  assert (one_cr ad' ths[tid]) by eauto using onecr_from_wrel.
+  assert (no_reacq ad' ths[tid]) by (eapply noreacq_from_effect; eauto; eauto).
+  split; trivial.
+Qed.
+
 (* preservation ------------------------------------------------------------ *)
 
 Lemma ice_preservation_none : forall m ths tid t,

@@ -180,3 +180,11 @@ Proof. solve_inva_des. Qed.
   des_inva_creg
   : inva.
 
+Ltac destruct_invariants :=
+  repeat match goal with
+  | H : invariants _ _       |- _ =>
+    unfold invariants in H; decompose record H; clear H
+  | H : forall_program _ _ _ |- _ =>
+    destruct H
+  end.
+

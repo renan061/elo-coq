@@ -231,7 +231,7 @@ Qed.
 (* preservation                                                              *)
 (* ------------------------------------------------------------------------- *)
 
-Local Lemma gcr_preservation_write : forall m t1 t2 ad' t' R,
+Lemma gcr_preservation_write : forall m t1 t2 ad' t' R,
   valid_term m t1 ->
   (* --- *)
   t1 --[e_write ad' t']--> t2 ->
@@ -245,3 +245,44 @@ Proof.
     rewrite IHtstep; eauto using gcr_value, vtm_preservation_write
   end.
 Qed.
+
+Corollary gcr_preservation_write_cstep : forall m1 m2 ths1 ths2 tid ad' t' R,
+  forall_threads ths1 (valid_term m1) ->
+  (* --- *)
+  m1 \ ths1 ~~[tid, e_write ad' t']~~> m2 \ ths2 ->
+  gcr ths1[tid] R = gcr ths2[tid] R.
+Proof.
+  intros. invc_cstep. invc_mstep. sigma.
+  eauto using gcr_preservation_write.
+Qed.
+
+Lemma gcr_preservation_read : forall m t1 t2 ad' t' R,
+  value t'        ->
+  valid_term m t' ->
+  valid_term m t1 ->
+  (* --- *)
+  t1 --[e_read ad' t']--> t2 ->
+  gcr t1 R = gcr t2 R.
+Proof.
+  intros. gendep R.
+  ind_tstep; intros; kappa; repeat invc_vtm; auto; try value_does_not_step;
+  eauto using gcr_value;
+  try solve [match goal with |- _ = gcr ?t _ =>
+    rewrite (gcr_noinits_nocrs_noreacqs t); trivial;
+    rewrite IHtstep; eauto using gcr_value, vtm_preservation_read
+  end].
+  erewrite gcr_value; eauto.
+Qed.
+
+Corollary gcr_preservation_read_cstep : forall m1 m2 ths1 ths2 tid ad' t' R,
+  forall_memory m1 value              ->
+  forall_memory m1 (valid_term m1)    ->
+  forall_threads ths1 (valid_term m1) ->
+  (* --- *)
+  m1 \ ths1 ~~[tid, e_read ad' t']~~> m2 \ ths2 ->
+  gcr ths1[tid] R = gcr ths2[tid] R.
+Proof.
+  intros. invc_cstep. invc_mstep. sigma.
+  eauto using gcr_preservation_read.
+Qed.
+

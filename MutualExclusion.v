@@ -40,7 +40,7 @@ Proof.
   - specialize (Hfalse tid). destruct Hfalse as [? | [? ?]]; eauto.
 Qed.
 
-Corollary mu_hg_contradiction : forall ad m ths tid1 tid2,
+Corollary holding_exclusivity : forall ad m ths tid1 tid2,
   mutual_exclusion m ths ->
   (* --- *)
   tid1 <> tid2 ->
@@ -56,7 +56,7 @@ Proof.
   eauto using hg_contradiction.
 Qed.
 
-Corollary mu_hg_equality : forall ad m ths tid1 tid2,
+Corollary holding_equality : forall ad m ths tid1 tid2,
   mutual_exclusion m ths ->
   (* --- *)
   holding ad ths[tid1] ->
@@ -64,7 +64,7 @@ Corollary mu_hg_equality : forall ad m ths tid1 tid2,
   tid1 = tid2.
 Proof.
   intros. nat_eq_dec tid1 tid2; trivial. exfalso.
-  eauto using mu_hg_contradiction.
+  eauto using holding_exclusivity.
 Qed.
 
 Lemma locked_from_holding : forall m ths tid ad,

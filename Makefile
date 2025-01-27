@@ -56,10 +56,12 @@ type-properties:
 safety:
 	# safety
 	$(COQC) Multistep.v
+	$(COQC) SafetyUtil.v
 	$(COQC) MemoryRegions.v
 	$(COQC) GCR.v
 	$(COQC) HappensBefore.v
 	$(COQC) SafetyLemmas.v
+	$(COQC) SafetyGCR.v
 	$(COQC) Safety.v
 
 examples:

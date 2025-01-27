@@ -17,11 +17,22 @@ Definition is_release (ad : addr) (e : eff) :=
 Lemma isacquire_dec : forall ad e,
   Decidable.decidable (is_acquire ad e).
 Proof.
-  unfold Decidable.decidable. unfold not. unfold is_acquire. intros.
+  unfold Decidable.decidable, not, is_acquire. intros.
   rename ad into ad'. destruct e;
   try solve [right; intros [[? F] | F]; invc F];
   nat_eq_dec ad' ad;
   try solve [right; intros [[? F] | F]; invc F; congruence];
+  eauto.
+Qed.
+
+Lemma isrelease_dec : forall ad e,
+  Decidable.decidable (is_release ad e).
+Proof.
+  unfold Decidable.decidable, not, is_release. intros.
+  rename ad into ad'. destruct e;
+  try solve [right; intros [F | F]; invc F];
+  nat_eq_dec ad' ad;
+  try solve [right; intros [F | F]; invc F; congruence];
   eauto.
 Qed.
 
@@ -55,6 +66,25 @@ Lemma happens_before_from_initialize_acquire_effects :
     is_acquire ad eAcq  ->
     eInit = e_init ad t ->
     tc = (tc3 ++ (tid2, eAcq) :: tc2 ++ (tid1, eInit) :: tc1) ->
+    happens_before <<(tid1, e1), tc, (tid2, e2)>>.
+Proof.
+  intros * ? ? Htc.
+  rewrite app_comm_cons in Htc. rewrite app_assoc in Htc.
+  remember (tc3 ++ (tid2, eAcq) :: tc2) as tc' eqn: Htc'.
+  rewrite Htc. clear Htc.
+  unfold add. rewrite <- app_assoc. rewrite <- app_comm_cons.
+  eapply hb_transitivity; eauto using happens_before.
+  rewrite Htc'. clear Htc'.
+  unfold add. rewrite <- app_assoc. rewrite <- app_comm_cons.
+  subst.
+  eapply hb_transitivity; eauto using happens_before.
+Qed.
+
+Lemma happens_before_from_release_acquire_effects :
+  forall tc tc1 tc2 tc3 tid1 tid2 e1 e2 eAcq eRel ad,
+    is_acquire ad eAcq ->
+    is_release ad eRel ->
+    tc = (tc3 ++ (tid2, eAcq) :: tc2 ++ (tid1, eRel) :: tc1) ->
     happens_before <<(tid1, e1), tc, (tid2, e2)>>.
 Proof.
   intros * ? ? Htc.
