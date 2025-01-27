@@ -5,9 +5,9 @@ From Elo Require Import Util.
 From Elo Require Import Array.
 From Elo Require Import Map.
 
-Open Scope string_scope.
+Local Open Scope string_scope.
 Notation "'SELF'" := "self".
-Close Scope string_scope.
+Local Close Scope string_scope.
 
 Definition id   := string.
 Definition addr := nat.
@@ -140,6 +140,8 @@ Notation "'let' x ':' Tx '=' tx 'in' t" := <{call (fn x Tx t) tx}>
   (in custom elo_tm at level 10,
            x constr at level 0,
    Tx custom elo_ty at level 0).
+Notation "'await' t" := <{while t do wait (var SELF) end}>
+  (in custom elo_tm at level 10).
 
 (* -------------------------------------------------------------------------- *)
 
@@ -196,7 +198,6 @@ Inductive region : Set :=
   | R_invalid
   | R_tid   : nat  -> region
   | R_ad    : addr -> region
-  | R_reacq : addr -> region
   .
 
 Inductive cell : Type :=
@@ -437,7 +438,7 @@ Fixpoint gcr (t' : tm) (R : region) : region :=
   | <{acq t1 _ _      }> => gcr t1 R
   | <{cr ad t         }> => gcr t (R_ad ad)
   | <{wait t          }> => gcr t R
-  | <{reacq ad        }> => R_reacq ad
+  | <{reacq ad        }> => R
   | <{spawn _         }> => R
   end.
 
@@ -734,4 +735,36 @@ Inductive multistep : mem -> threads -> trace -> mem -> threads -> Prop :=
 (* ------------------------------------------------------------------------- *)
 
 Definition base (t : tm) : threads := t :: nil.
+
+(* ------------------------------------------------------------------------- *)
+(* is-acquire & is-release                                                   *)
+(* ------------------------------------------------------------------------- *)
+
+Definition is_acquire (ad : addr) (e : eff) :=
+  (exists t, e = e_acq ad t) \/ e = e_wacq ad.
+
+Definition is_release (ad : addr) (e : eff) :=
+  e = e_rel ad \/ e = e_wrel ad.
+
+Lemma isacquire_dec : forall ad e,
+  Decidable.decidable (is_acquire ad e).
+Proof.
+  unfold Decidable.decidable, not, is_acquire. intros.
+  rename ad into ad'. destruct e;
+  try solve [right; intros [[? F] | F]; invc F];
+  nat_eq_dec ad' ad;
+  try solve [right; intros [[? F] | F]; invc F; congruence];
+  eauto.
+Qed.
+
+Lemma isrelease_dec : forall ad e,
+  Decidable.decidable (is_release ad e).
+Proof.
+  unfold Decidable.decidable, not, is_release. intros.
+  rename ad into ad'. destruct e;
+  try solve [right; intros [F | F]; invc F];
+  nat_eq_dec ad' ad;
+  try solve [right; intros [F | F]; invc F; congruence];
+  eauto.
+Qed.
 

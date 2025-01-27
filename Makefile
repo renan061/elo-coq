@@ -22,14 +22,11 @@ syntactic-properties:
 	$(COQC) NoInit.v
 	$(COQC) NoCR.v
 	$(COQC) NoReacq.v
-	# ---
 	$(COQC) HasVar.v
 	$(COQC) NoWRef.v
-	# ---
 	$(COQC) Keywords.v
 	$(COQC) ValidTerm.v
 	$(COQC) ConsistentWaits.v
-	# ---
 	$(COQC) InheritanceNoInit.v
 	$(COQC) InheritanceNoCR.v
 	$(COQC) InheritanceNoReacq.v
@@ -55,13 +52,11 @@ type-properties:
 
 safety:
 	# safety
-	$(COQC) Multistep.v
-	$(COQC) SafetyUtil.v
-	$(COQC) MemoryRegions.v
+	$(COQC) Invariants.v
 	$(COQC) GCR.v
-	$(COQC) HappensBefore.v
 	$(COQC) SafetyLemmas.v
-	$(COQC) SafetyGCR.v
+	$(COQC) SafetyUtil.v
+	$(COQC) HappensBefore.v
 	$(COQC) Safety.v
 
 examples:

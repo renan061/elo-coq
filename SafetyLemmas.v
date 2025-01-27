@@ -3,143 +3,7 @@ From Elo Require Import Core.
 From Elo Require Import SyntacticProperties.
 From Elo Require Import TypeProperties.
 
-From Elo Require Import Multistep.
-From Elo Require Import HappensBefore.
-
-Local Ltac solve_hg_inheritance L1 L2 :=
-  intros; match goal with H : holding _ _ |- _ => destruct H end; split;
-  eauto using nocr_from_value, noreacq_from_value, L1, L2.
-
-Lemma hg_inheritance_none : forall ad m t1 t2,
-  valid_term m t1 ->
-  (* --- *)
-  holding ad t2       ->
-  t1 --[e_none]--> t2 ->
-  holding ad t1.
-Proof.
-  solve_hg_inheritance
-    onecr_inheritance_none
-    noreacq_inheritance_none.
-Qed.
-
-Lemma hg_inheritance_alloc : forall ad m t1 t2 ad' T',
-  valid_term m t1 ->
-  (* --- *)
-  holding ad t2               ->
-  t1 --[e_alloc ad' T']--> t2 ->
-  holding ad t1.
-Proof.
-  solve_hg_inheritance
-    onecr_inheritance_alloc
-    noreacq_inheritance_alloc.
-Qed.
-
-Lemma hg_inheritance_init : forall ad m t1 t2 ad' t',
-  valid_term m t1 ->
-  (* --- *)
-  holding ad t2              ->
-  t1 --[e_init ad' t']--> t2 ->
-  holding ad t1.
-Proof.
-  solve_hg_inheritance
-    onecr_inheritance_init
-    noreacq_inheritance_init.
-Qed.
-
-Lemma hg_inheritance_read : forall ad m t1 t2 ad' t',
-  value t'        ->
-  valid_term m t' ->
-  (* --- *)
-  holding ad t2              ->
-  t1 --[e_read ad' t']--> t2 ->
-  holding ad t1.
-Proof.
-  solve_hg_inheritance
-    onecr_inheritance_read
-    noreacq_inheritance_read.
-Qed.
-
-Lemma hg_inheritance_write : forall ad m t1 t2 ad' t',
-  valid_term m t1 ->
-  (* --- *)
-  holding ad t2               ->
-  t1 --[e_write ad' t']--> t2 ->
-  holding ad t1.
-Proof.
-  solve_hg_inheritance
-    onecr_inheritance_write
-    noreacq_inheritance_write.
-Qed.
-
-Lemma hg_inheritance_acq : forall ad m t1 t2 ad' t',
-  value t'        ->
-  valid_term m t' ->
-  valid_term m t1 ->
-  (* --- *)
-  ad <> ad'                 ->
-  holding ad t2             ->
-  t1 --[e_acq ad' t']--> t2 ->
-  holding ad t1.
-Proof.
-  solve_hg_inheritance
-    onecr_inheritance_acq
-    noreacq_inheritance_acq.
-Qed.
-
-Lemma hg_inheritance_rel : forall ad t1 t2 ad',
-  ad <> ad'              ->
-  holding ad t2          ->
-  t1 --[e_rel ad']--> t2 ->
-  holding ad t1.
-Proof.
-  solve_hg_inheritance
-    onecr_inheritance_rel
-    noreacq_inheritance_rel.
-Qed.
-
-Lemma hg_inheritance_wacq : forall ad t1 t2 ad',
-  ad <> ad'               ->
-  holding ad t2           ->
-  t1 --[e_wacq ad']--> t2 ->
-  holding ad t1.
-Proof.
-  solve_hg_inheritance
-    onecr_inheritance_wacq
-    noreacq_inheritance_wacq.
-Qed.
-
-Lemma hg_inheritance_wrel : forall ad t1 t2 ad',
-  holding ad t2 ->
-  t1 --[e_wrel ad']--> t2 ->
-  holding ad t1.
-Proof.
-  solve_hg_inheritance
-    onecr_inheritance_wrel
-    noreacq_inheritance_wrel.
-Qed.
-
-Lemma hg_inheritance_spawn : forall ad m t1 t2 t',
-  valid_term m t1 ->
-  (* --- *)
-  holding ad t2           ->
-  t1 --[e_spawn t']--> t2 ->
-  holding ad t1.
-Proof.
-  solve_hg_inheritance
-    onecr_inheritance_spawn
-    noreacq_inheritance_spawn.
-Qed.
-
-Lemma hg_inheritance_spawned : forall ad m t1 t2 t',
-  valid_term m t1 ->
-  (* --- *)
-  holding ad t'           ->
-  t1 --[e_spawn t']--> t2 ->
-  False.
-Proof.
-  intros * ? [? ?] ?. ind_tstep; invc_vtm; auto.
-  eauto using nocrs_onecr_contradiction. 
-Qed.
+From Elo Require Import Invariants.
 
 (* ------------------------------------------------------------------------- *)
 (* holding inheritance                                                       *)
@@ -307,7 +171,7 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* one-cr preservation                                                       *)
+(* holding preservation                                                      *)
 (* ------------------------------------------------------------------------- *)
 
 Lemma holding_preservation_cstep :

@@ -4,7 +4,7 @@ From Elo Require Import Core.
 From Elo Require Import SyntacticProperties.
 From Elo Require Import TypeProperties.
 
-From Elo Require Import Multistep.
+From Elo Require Import Invariants.
 
 (* ------------------------------------------------------------------------- *)
 (* in-app-head & in-app-tail                                                 *)

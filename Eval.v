@@ -23,7 +23,9 @@ Definition bind (r : Result) (f : tm -> tm) : Result :=
 
 Local Notation "r '>>=' f" := (bind r f) (no associativity, at level 10).
 
-(* eval --------------------------------------------------------------------- *)
+(* ------------------------------------------------------------------------- *)
+(* eval                                                                      *)
+(* ------------------------------------------------------------------------- *)
 
 Definition _plus m t : Result :=
   match t with
@@ -55,8 +57,8 @@ Definition _call m t : Result :=
   | _ => Error "expecting <{call (fn _ _ _) _}>"
   end.
 
-Definition _new m t T :=
-  let ad := #m in Ok (m +++ new_cell T) <{init ad t : T}>.
+Definition _new m t T R :=
+  let ad := #m in Ok (m +++ new_cell T R) <{init ad t : T}>.
 
 Definition C_init ad T := fun t' => <{init ad t' : T}>.
 
@@ -91,7 +93,7 @@ Definition _acq m t : Result :=
       Waiting ad
     else
       match m[ad].t with
-      | Some tx => Ok m[ad.X <- true] <{cr ad ([x := tx]t)}>
+      | Some tx => Ok m[ad.X <- true] <{cr ad ([SELF := &ad : T][x := tx]t)}>
       | None    => Error "attempt to read empty memory cell"
       end
   | _ => Error "expecting <{acq (&_ : _) _ _}>"
@@ -102,6 +104,19 @@ Definition _cr m t : Result :=
   | <{cr ad t}> => Ok m[ad.X <- false] t
   | _ => Error "expecting <{cr _ _}>"
   end.
+
+Definition _wait m t : Result :=
+  match t with
+  | <{wait (&ad : T)}> => Ok m[ad.X <- false] <{reacq ad}>
+  | _                  => Error "expecting <{wait (&_ : _)}>"
+  end.
+
+Definition _reacq m ad : Result :=
+  if m[ad].X
+    then Waiting ad
+    else Ok m[ad.X <- true] <{unit}>.
+
+(* ------------------------------------------------------------------------- *)
 
 Fixpoint eval (m : mem) (t : tm) : Result :=
   let do1 := fun m t (C : tm -> tm) (R : Result) =>
@@ -122,24 +137,27 @@ Fixpoint eval (m : mem) (t : tm) : Result :=
   | <{fn _ _ _                 }> => Value
   | <{call t1 t2               }> => do2 m t1 t2 tm_call (_call m t)
   | <{&_ : _                   }> => Value
-  | <{new t : T                }> => _new m t T
+  | <{new t : T                }> => _new m t T R_invalid
   | <{init ad t' : T           }> => do1 m t' (C_init ad T) (_init m t)
   | <{*t'                      }> => do1 m t' tm_load (_load m t)
   | <{t1 := t2                 }> => do2 m t1 t2 tm_asg (_asg m t)
   | <{acq t1 x t2              }> => do1 m t1 (C_acq x t2) (_acq m t)
   | <{cr ad t'                 }> => do1 m t' (tm_cr ad) (_cr m t)
+  | <{wait _                   }> => _wait m t
+  | <{reacq ad                 }> => _reacq m ad
   | <{spawn t'                 }> => Spawn m <{unit}> t'
   end.
 
-(* evals -------------------------------------------------------------------- *)
+(* ------------------------------------------------------------------------- *)
+(* elo                                                                       *)
+(* ------------------------------------------------------------------------- *)
 
 Inductive Results : Set :=
   | cont : mem -> threads -> Results -> Results
   | done : mem -> threads -> string -> Results
   .
 
-(* TODO round_robin *)
-Fixpoint evals (m : mem) (ths : threads) gas tid : Results :=
+Fixpoint elo (m : mem) (ths : threads) gas tid : Results :=
   match gas with
   | 0      => done m ths "out of gas"
   | S gas' =>
@@ -147,17 +165,17 @@ Fixpoint evals (m : mem) (ths : threads) gas tid : Results :=
     | Ok m' t' =>
         let ths' := ths[tid <- t'] in
         let tid' := if Compare_dec.lt_dec (S tid) (#ths) then S tid else 0 in
-        cont m' ths' (evals m' ths' gas' tid')
+        cont m' ths' (elo m' ths' gas' tid')
     | Spawn m' t' t'' =>
         let ths' := ths[tid <- t'] +++ t'' in
         let tid' := if Compare_dec.lt_dec (S tid) (#ths) then S tid else 0 in
-        cont m' ths' (evals m' ths' gas' tid')
+        cont m' ths' (elo m' ths' gas' tid')
     | Value =>
         let tid' := if Compare_dec.lt_dec (S tid) (#ths) then S tid else 0 in
-        cont m ths (evals m ths gas' tid')
+        cont m ths (elo m ths gas' tid')
     | Waiting ad =>
         let tid' := if Compare_dec.lt_dec (S tid) (#ths) then S tid else 0 in
-        cont m ths (evals m ths gas' tid')
+        cont m ths (elo m ths gas' tid')
     | Error s =>
         done m ths s
     end
@@ -169,7 +187,7 @@ Fixpoint last_result (ress : Results) : Results :=
   | cont _ _ ress'  => last_result ress'
   end.
 
-(* mstep-to-eval ------------------------------------------------------------ *)
+(* mstep-to-eval ----------------------------------------------------------- *)
 
 Local Lemma isvalue_from_tstep : forall t1 t2 e,
   t1 --[e]--> t2 ->
@@ -231,15 +249,15 @@ Local Lemma mstep_to_eval : forall m1 m2 t1 t2 e,
   m1 \ t1 ==[e]==> m2 \ t2 ->
   eval m1 t1 = Ok m2 t2.
 Proof.
-  intros. invc_mstep;
-  ind_tstep; repeat spec;
+  intros. invc_mstep; ind_tstep;
   unfold eval; fold eval; repeat iota; trivial;
-  try rewrite IHtstep; unfold flip; simpl; trivial.
+  repeat spec; try rewrite IHtstep; unfold flip; simpl; eauto.
   - destruct (m2[ad].t); auto. invc_eq. reflexivity.
-  - destruct (m1[ad].X); auto. destruct (m1[ad].t); auto. invc_eq. trivial.
+  - destruct (m1[ad].X); auto. destruct (m1[ad].t); auto. invc_eq. reflexivity.
+  - unfold _reacq. destruct (m1[ad].X); auto.
 Qed.
 
-(* eval-to-mstep & eval-to-cstep -------------------------------------------- *)
+(* eval-to-mstep & eval-to-cstep ------------------------------------------- *)
 
 Local Lemma value_from_isvalue : forall t,
   is_value t = true ->
@@ -250,48 +268,51 @@ Qed.
 
 Local Ltac solve_eval_to_step :=
   match goal with
-  (* simpl eval ------------------------------------------------------------- *)
+  (* simpl eval ------------------------------------------------------------ *)
   | Heq : eval ?m _ = _ |- _ =>
       simpl eval in Heq; repeat solve_eval_to_step
-  (* destroying is_value inside conditionals -------------------------------- *)
+  (* destroying is_value inside conditionals ------------------------------- *)
   | Heq : context[if is_value ?t then _ else _] |- _ =>
       destruct (is_value t) eqn:?Heq
-  (* converting is_value to value ------------------------------------------- *)
+  (* converting is_value to value ------------------------------------------ *)
   | H : is_value ?t = true |- _ =>
       assert (value t) by eauto using value_from_isvalue; clear H
-  (* destroying the eval inside the monadic bind ---------------------------- *)
+  (* destroying the eval inside the monadic bind --------------------------- *)
   | Heq : (eval ?m ?t) >>= _ = _ |- _ =>
       destruct (eval m t); invc Heq
-  (* destroying match of terms ---------------------------------------------- *)
+  (* destroying match of terms --------------------------------------------- *)
   | Heq : (match ?t with _ => _ end) = _ |- _ => 
       destruct t eqn:?Ht ; invc Heq
-  (* specializing the induction hypothesis ---------------------------------- *)
+  (* specializing the induction hypothesis --------------------------------- *)
   | IH : forall _ _, ?C ?m ?t = ?C _ _ -> _ |- _ =>
       specialize (IH m t eq_refl) as [e ?]; auto
   | IH : forall _ _ _, ?C ?m ?t ?t' = ?C _ _ _ -> _
   |- _ --[e_spawn ?tid _]--> _ =>
       specialize (IH tid t' t eq_refl)
-  (* solving the inductive case --------------------------------------------- *)
+  (* solving the inductive case -------------------------------------------- *)
   | _ : _ \ _ ==[?e]==> _ \ _ |- exists _, _ =>
       exists e; invc_mstep; eauto using tstep, mstep
-  (* ------------------------------------------------------------------------ *)
+  (* ----------------------------------------------------------------------- *)
   | Heq : Ok _ _      = Ok _ _      |- _ => invc Heq
   | Heq : Spawn _ _ _ = Spawn _ _ _ |- _ => invc Heq
   | Heq : Ok _ _      = Spawn _ _ _ |- _ => invc Heq
-  (* solving for while ------------------------------------------------------ *)
+  (* solving for while ----------------------------------------------------- *)
   | Heq : _while _ _ _ = _ |- _ =>
       invc Heq; eauto using tstep, mstep
-  (* solving for alloc ------------------------------------------------------ *)
-  | Heq : _new _ _ _ = _ |- _ =>
+  (* solving for alloc ----------------------------------------------------- *)
+  | Heq : _new _ _ _ _ = _ |- _ =>
       invc Heq; eauto using tstep, mstep
-  (* solving for read ------------------------------------------------------- *)
+  (* solving for read ------------------------------------------------------ *)
   | _ : ?m[?ad].t = _ |- exists _, _ \ <{*(&_ : _)}> ==[_]==> _ \ _ =>
       assert (ad < #m) by (lt_eq_gt ad (#m); trivial; sigma; upsilon; auto);
       eauto using tstep, mstep
-  (* solving for acq -------------------------------------------------------- *)
+  (* solving for acq ------------------------------------------------------- *)
   | H : ?m[?ad].t = _ |- exists _, _ \ <{acq (&_ : _) _ _}> ==[_]==> _ \ _ =>
       assert (ad < #m) by (lt_eq_gt ad (#m); trivial; sigma; upsilon; auto);
       rewrite <- H; eauto using tstep, mstep
+  (* solving for reacq ----------------------------------------------------- *)
+  | H : _reacq ?m ?ad = _ |- _ =>
+      unfold _reacq in H; destruct (m[ad].X) eqn:?; invc H
   end.
 
 Local Lemma eval_to_mstep : forall m1 m2 t1 t2,
@@ -303,11 +324,11 @@ Proof.
   solve_eval_to_step; eauto using tstep, mstep.
 Qed.
 
-Local Lemma eval_to_cstep : forall m t1 t2 tid t,
+Local Lemma eval_to_cstep : forall m t1 t2 t,
   eval m t1 = Spawn m t2 t ->
-  t1 --[e_spawn tid t]--> t2.
+  t1 --[e_spawn t]--> t2.
 Proof.
-  intros * Heq. gendep t2. gendep t. gendep tid. 
+  intros * Heq. gendep t2. gendep t.
   induction t1; intros; try solve [invc Heq];
   solve_eval_to_step; eauto using tstep.
 Qed.

@@ -3,23 +3,6 @@ From Elo Require Import Core.
 From Elo Require Import SyntacticProperties.
 From Elo Require Import TypeProperties.
 
-(* TODO: remove this and try to use discriminate *)
-#[export] Hint Extern 8 =>
-  match goal with
-  | |- R_invalid <> R_tid     _ => intros F; invc F
-  | |- R_invalid <> R_ad      _ => intros F; invc F
-  | |- R_invalid <> R_reacq   _ => intros F; invc F
-  | |- R_tid   _ <> R_ad      _ => intros F; invc F
-  | |- R_tid   _ <> R_invalid   => intros F; invc F
-  | |- R_tid   _ <> R_reacq   _ => intros F; invc F
-  | |- R_ad    _ <> R_invalid   => intros F; invc F
-  | |- R_ad    _ <> R_tid     _ => intros F; invc F
-  | |- R_ad    _ <> R_reacq   _ => intros F; invc F
-  | |- R_reacq _ <> R_invalid   => intros F; invc F
-  | |- R_reacq _ <> R_tid     _ => intros F; invc F
-  | |- R_reacq _ <> R_ad      _ => intros F; invc F
-  end : gcr.
-
 (* ------------------------------------------------------------------------- *)
 (* gcr-noinit(s)-nocr(s)-noreacq(s)                                          *)
 (* ------------------------------------------------------------------------- *)
@@ -34,7 +17,7 @@ Proof.
   simpl; auto; destruct (is_value t1); auto.
 Qed.
 
-Lemma gcr_noinit_nocr_noreacq1 : forall ad t R,
+Lemma gcr_noinit_nocr_noreacq : forall ad t R,
   no_init  ad t     ->
   no_cr    ad t     ->
   no_reacq ad t     ->
@@ -44,21 +27,6 @@ Proof.
   intros. gendep R. induction t; intros;
   invc_noinit; invc_nocr; invc_noreacq; kappa; auto; try discriminate;
   do 3 spec; match goal with _ : ?ad' <> ?ad |- _ = R_ad ?ad' =>
-    specialize (IHt (R_ad ad)); spec
-  end;
-  congruence.
-Qed.
-
-Lemma gcr_noinit_nocr_noreacq2 : forall ad t R,
-  no_init  ad t        ->
-  no_cr    ad t        ->
-  no_reacq ad t        ->
-  gcr t R = R_reacq ad ->
-  R = R_reacq ad.
-Proof.
-  intros. gendep R. induction t; intros;
-  invc_noinit; invc_nocr; invc_noreacq; kappa; auto; try congruence;
-  do 3 spec; match goal with _ : ?ad' <> ?ad |- _ = R_reacq ?ad' =>
     specialize (IHt (R_ad ad)); spec
   end;
   congruence.
@@ -134,15 +102,15 @@ Qed.
 (* oneinit-or-onecr                                                          *)
 (* ------------------------------------------------------------------------- *)
 
-#[export] Hint Extern 8 =>
+#[local] Hint Extern 8 =>
   match goal with _ : no_init ?ad ?t, _ : no_cr ?ad ?t |- _ =>
     match goal with
     (* --- *)
     | F : gcr ?t (R_tid ?tid) = R_ad ?ad |- _ =>
-      apply (gcr_noinit_nocr_noreacq1 ad  t (R_tid tid)) in F; trivial; invc F
+      apply (gcr_noinit_nocr_noreacq ad  t (R_tid tid)) in F; trivial; invc F
     (* --- *)
     | F : gcr ?t (R_ad  ?ad1) = R_ad ?ad2, _ : ?ad2 <> ?ad1 |- _ =>
-      apply (gcr_noinit_nocr_noreacq1 ad2 t (R_ad ad1))  in F; trivial; invc F
+      apply (gcr_noinit_nocr_noreacq ad2 t (R_ad ad1))  in F; trivial; invc F
     end
   end : gcr.
 
@@ -173,10 +141,10 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* gcr-invalid                                                               *)
+(* gcr-invalid-contradiction                                                 *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma gcr_invalid  : forall t R,
+Local Lemma gcr_invalid  : forall t R,
   gcr t R = R_invalid ->
   R = R_invalid.
 Proof.
@@ -187,29 +155,25 @@ Proof.
   end.
 Qed.
 
-#[export] Hint Extern 8 =>
-  match goal with
-  | F : gcr _ (R_tid   _) = R_invalid |- _ => apply gcr_invalid in F; invc F
-  | F : gcr _ (R_ad    _) = R_invalid |- _ => apply gcr_invalid in F; invc F
-  | F : gcr _ (R_reacq _) = R_invalid |- _ => apply gcr_invalid in F; invc F
-  end : gcr.
+Lemma gcr_invalid_contradiction : forall t tid,
+  gcr t (R_tid tid) = R_invalid ->
+  False.
+Proof.
+  intros * H. apply gcr_invalid in H. discriminate.
+Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* gcr-ad-tid                                                                *)
+(* gcr-tid-contradiction                                                     *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma gcr_ad_tid : forall t ad tid,
+Local Lemma gcr_ad_tid : forall t ad tid,
   gcr t (R_ad ad) = R_tid tid ->
   False.
 Proof.
   intros * H. gendep ad. induction t; intros; kappa; invc H; eauto.
 Qed.
 
-(* ------------------------------------------------------------------------- *)
-(* gcr-tid-tid                                                               *)
-(* ------------------------------------------------------------------------- *)
-
-Lemma gcr_tid_tid : forall t tid1 tid2,
+Local Lemma gcr_tid_tid : forall t tid1 tid2,
   gcr t (R_tid tid1) = R_tid tid2 ->
   tid1 = tid2.
 Proof.
@@ -217,7 +181,7 @@ Proof.
   exfalso; eauto using gcr_ad_tid.
 Qed.
 
-Corollary gcr_tid_contradiction : forall ths1 ths2 tid1 tid2 tid,
+Lemma gcr_tid_contradiction : forall ths1 ths2 tid1 tid2 tid,
   tid1 <> tid2 ->
   gcr ths1[tid1] (R_tid tid1) = R_tid tid ->
   gcr ths2[tid2] (R_tid tid2) = R_tid tid ->
@@ -228,10 +192,10 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* preservation                                                              *)
+(* gcr-preservation-read & gcr-preservation-write                            *)
 (* ------------------------------------------------------------------------- *)
 
-Lemma gcr_preservation_write : forall m t1 t2 ad' t' R,
+Local Lemma gcr_preservation_write : forall m t1 t2 ad' t' R,
   valid_term m t1 ->
   (* --- *)
   t1 --[e_write ad' t']--> t2 ->
@@ -246,7 +210,7 @@ Proof.
   end.
 Qed.
 
-Corollary gcr_preservation_write_cstep : forall m1 m2 ths1 ths2 tid ad' t' R,
+Lemma gcr_preservation_write_cstep : forall m1 m2 ths1 ths2 tid ad' t' R,
   forall_threads ths1 (valid_term m1) ->
   (* --- *)
   m1 \ ths1 ~~[tid, e_write ad' t']~~> m2 \ ths2 ->
@@ -256,7 +220,7 @@ Proof.
   eauto using gcr_preservation_write.
 Qed.
 
-Lemma gcr_preservation_read : forall m t1 t2 ad' t' R,
+Local Lemma gcr_preservation_read : forall m t1 t2 ad' t' R,
   value t'        ->
   valid_term m t' ->
   valid_term m t1 ->
@@ -274,7 +238,7 @@ Proof.
   erewrite gcr_value; eauto.
 Qed.
 
-Corollary gcr_preservation_read_cstep : forall m1 m2 ths1 ths2 tid ad' t' R,
+Lemma gcr_preservation_read_cstep : forall m1 m2 ths1 ths2 tid ad' t' R,
   forall_memory m1 value              ->
   forall_memory m1 (valid_term m1)    ->
   forall_threads ths1 (valid_term m1) ->
