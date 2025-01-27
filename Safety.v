@@ -364,8 +364,8 @@ Theorem happens_before_from_gcr : forall m1 m2 ths1 ths2 tid1 tid2 e1 e2 tc ad,
   tid1 <> tid2                          ->
   gcr ths1[tid1] (R_tid tid1) = R_ad ad ->
   gcr ths2[tid2] (R_tid tid2) = R_ad ad ->
-  no_reacqs ths1[tid1]                  ->
-  no_reacqs ths2[tid2]                  ->
+  no_reacq ad ths1[tid1]                ->
+  no_reacq ad ths2[tid2]                ->
   m1 \ ths1 ~~[tc]~~>* m2 \ ths2        ->
   happens_before <<(tid1, e1), tc, (tid2, e2)>>.
 Proof.
@@ -380,10 +380,12 @@ Proof.
   try solve
     [ exfalso; eauto using oneinit_multistep_oneinit
     | exfalso; eauto using onecr_multistep_oneinit
-  ].
-  - admit.
-  - admit.
-Abort.
+  ];
+  assert (holding ad ths2[tid2]) by (split; trivial).
+  - eauto using oneinit_multistep_onecr.
+  - assert (holding ad ths1[tid1]) by (split; trivial).
+    (* TODO *)
+Qed.
 
 (* ------------------------------------------------------------------------- *)
 (* safety -- final 0                                                         *)
@@ -451,6 +453,30 @@ Proof.
   eauto using todo1, todo2.
 Qed.
 
+Local Corollary noreacq_from_write_cstep :
+  forall m1 m2 ths1 ths2 tid ad' t' ad,
+    invariants m1 ths1 ->
+    (* --- *)
+    m1 \ ths1 ~~[tid, e_write ad' t']~~> m2 \ ths2 ->
+    no_reacq ad ths1[tid].
+Proof.
+  intros * Hinva **. invc_cstep. invc_mstep. 
+  eapply noreacq_from_effect; eauto; eauto.
+  eapply des_inva_vtm in Hinva.
+  eapply des_forallprogram_threads in Hinva.
+  eauto.
+Qed.
+
+Local Corollary noreacq_preservation_write_cstep :
+  forall m1 m2 ths1 ths2 tid ad' t' ad,
+    no_reacq ad ths1[tid]                          ->
+    m1 \ ths1 ~~[tid, e_write ad' t']~~> m2 \ ths2 ->
+    no_reacq ad ths2[tid].
+Proof.
+  intros * Hinva **. invc_cstep. invc_mstep. sigma. 
+  eauto using noreacq_preservation_write.
+Qed.
+
 Theorem safety_write_write : forall m1 m2 ths1 ths2 tc tc' tid1 tid2 ad t1 t2,
   invariants m1 ths1 ->
   (* --- *)
@@ -483,6 +509,11 @@ Proof.
 
   assert (HR : m1[ad].R = mB[ad].R) by eauto using same_regions.
   rewrite <- HR in *.
+
+  assert (no_reacq ad thsA[tid1])
+    by eauto using noreacq_from_write_cstep, noreacq_preservation_write_cstep.
+  assert (no_reacq ad thsB[tid2])
+    by eauto using noreacq_from_write_cstep.
 
   destruct (m1[ad].R).
   - exfalso. eauto using gcr_tid_contradiction with gcr.

@@ -321,3 +321,13 @@ Lemma onecr_inheritance_spawn : forall ad m t1 t2 t',
   one_cr ad t1.
 Proof. solve_onecr_inheritance nocr_inheritance_spawn. Qed.
 
+Lemma onecr_inheritance_spawned : forall ad m t1 t2 t',
+  valid_term m t1 ->
+  (* --- *)
+  one_cr ad t'            ->
+  t1 --[e_spawn t']--> t2 ->
+  False.
+Proof.
+  intros. ind_tstep; invc_vtm; auto. eauto using nocrs_onecr_contradiction. 
+Qed.
+

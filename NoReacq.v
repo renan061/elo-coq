@@ -82,6 +82,20 @@ Local Ltac _noreacq tt :=
 Ltac inv_noreacq  := _noreacq inv.
 Ltac invc_noreacq := _noreacq invc.
 
+(* decidability ------------------------------------------------------------ *)
+
+Lemma noreacq_dec : forall ad t,
+  Decidable.decidable (no_reacq ad t).
+Proof.
+  unfold Decidable.decidable. unfold not. intros.
+  induction t; auto using no_reacq;
+  try (destruct IHt1, IHt2, IHt3 || destruct IHt1, IHt2 || destruct IHt);
+  auto using no_reacq;
+  try solve [right; intros; invc_noreacq; auto].
+  match goal with ad1 : addr, ad2 : addr |- _ => nat_eq_dec ad1 ad2 end;
+  auto using no_reacq. right. intros. invc_noreacq.
+Qed.
+
 (* lemmas ------------------------------------------------------------------ *)
 
 Lemma noreacq_wacq_contradiction : forall t1 t2 ad,
