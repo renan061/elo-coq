@@ -749,22 +749,18 @@ Definition is_release (ad : addr) (e : eff) :=
 Lemma isacquire_dec : forall ad e,
   Decidable.decidable (is_acquire ad e).
 Proof.
-  unfold Decidable.decidable, not, is_acquire. intros.
-  rename ad into ad'. destruct e;
+  unfold Decidable.decidable, not, is_acquire. intros ad' e; destruct e;
   try solve [right; intros [[? F] | F]; invc F];
-  nat_eq_dec ad' ad;
-  try solve [right; intros [[? F] | F]; invc F; congruence];
+  nat_eq_dec ad' ad; try solve [right; intros [F | F]; invc F; congruence];
   eauto.
 Qed.
 
 Lemma isrelease_dec : forall ad e,
   Decidable.decidable (is_release ad e).
 Proof.
-  unfold Decidable.decidable, not, is_release. intros.
-  rename ad into ad'. destruct e;
+  unfold Decidable.decidable, not, is_acquire. intros ad' e; destruct e;
   try solve [right; intros [F | F]; invc F];
-  nat_eq_dec ad' ad;
-  try solve [right; intros [F | F]; invc F; congruence];
+  nat_eq_dec ad' ad; try solve [right; intros [F | F]; invc F; congruence];
   eauto.
 Qed.
 

@@ -284,8 +284,8 @@ Local Ltac solve_safety H1A HAB HB2 :=
 Theorem safety_write_write : forall m1 m2 ths1 ths2 tc tc' tid1 tid2 ad t1 t2,
   invariants m1 ths1 ->
   (* --- *)
-  m1 \ ths1 ~~[tc]~~>* m2 \ ths2                             ->
-  tc = <<(tid1, e_write ad t1), tc', (tid2, e_write ad t2)>> ->
+  m1 \ ths1 ~~[tc]~~>* m2 \ ths2                               ->
+  tc = <((tid1, e_write ad t1) -{tc'}- (tid2, e_write ad t2))> ->
   happens_before tc.
 Proof.
   intros. subst.
@@ -297,8 +297,8 @@ Qed.
 Theorem safety_write_read : forall m1 m2 ths1 ths2 tc tc' tid1 tid2 ad t1 t2,
   invariants m1 ths1 ->
   (* --- *)
-  m1 \ ths1 ~~[tc]~~>* m2 \ ths2                            ->
-  tc = <<(tid1, e_write ad t1), tc', (tid2, e_read ad t2)>> ->
+  m1 \ ths1 ~~[tc]~~>* m2 \ ths2                              ->
+  tc = <((tid1, e_write ad t1) -{tc'}- (tid2, e_read ad t2))> ->
   happens_before tc.
 Proof.
   intros. subst.
@@ -311,8 +311,8 @@ Qed.
 Theorem safety_read_write : forall m1 m2 ths1 ths2 tc tc' tid1 tid2 ad t1 t2,
   invariants m1 ths1 ->
   (* --- *)
-  m1 \ ths1 ~~[tc]~~>* m2 \ ths2                            ->
-  tc = <<(tid1, e_read ad t1), tc', (tid2, e_write ad t2)>> ->
+  m1 \ ths1 ~~[tc]~~>* m2 \ ths2                              ->
+  tc = <((tid1, e_read ad t1) -{tc'}- (tid2, e_write ad t2))> ->
   happens_before tc.
 Proof.
   intros. subst.
@@ -320,5 +320,75 @@ Proof.
   solve_safety H1A HAB HB2;
   eauto using noreacq_from_write_cstep.
   eauto using noreacq_from_read_cstep, noreacq_preservation_read_cstep.
+Qed.
+
+(* ------------------------------------------------------------------------- *)
+(* safety from base                                                          *)
+(* ------------------------------------------------------------------------- *)
+
+Theorem safety_write_write_from_base :
+  forall t m ths tc1 tc2 tc' tid1 tid2 ev1 ev2 ad t1 t2,
+    no_refs   t                ->
+    no_inits  t                ->
+    no_crs    t                ->
+    no_reacqs t                ->
+    keywords  t                ->
+    consistent_waits WR_none t ->
+    well_typed_term t          ->
+    (* --- *)
+    nil \ (base t) ~~[tc2 ++ tc1]~~>* m \ ths ->
+    ev1 = (tid1, e_write ad t1)               ->
+    ev2 = (tid2, e_write ad t2)               ->
+    tc2 = <(ev1 -{tc'}- ev2)>                 ->
+    happens_before tc2.
+Proof.
+  intros. subst. destruct_ustep4.
+  assert (invariants nil (base t)) by eauto using invariants_preservation_base.
+  assert (invariants mA thsA) by eauto using invariants_preservation_ustep.
+  eauto using safety_write_write.
+Qed.
+
+Theorem safety_write_read_from_base :
+  forall t m ths tc1 tc2 tc' tid1 tid2 ev1 ev2 ad t1 t2,
+    no_refs   t                ->
+    no_inits  t                ->
+    no_crs    t                ->
+    no_reacqs t                ->
+    keywords  t                ->
+    consistent_waits WR_none t ->
+    well_typed_term t          ->
+    (* --- *)
+    nil \ (base t) ~~[tc2 ++ tc1]~~>* m \ ths ->
+    ev1 = (tid1, e_write ad t1)               ->
+    ev2 = (tid2, e_read  ad t2)               ->
+    tc2 = <(ev1 -{tc'}- ev2)>                 ->
+    happens_before tc2.
+Proof.
+  intros. subst. destruct_ustep4.
+  assert (invariants nil (base t)) by eauto using invariants_preservation_base.
+  assert (invariants mA thsA) by eauto using invariants_preservation_ustep.
+  eauto using safety_write_read.
+Qed.
+
+Theorem safety_read_write_from_base :
+  forall t m ths tc1 tc2 tc' tid1 tid2 ev1 ev2 ad t1 t2,
+    no_refs   t                ->
+    no_inits  t                ->
+    no_crs    t                ->
+    no_reacqs t                ->
+    keywords  t                ->
+    consistent_waits WR_none t ->
+    well_typed_term t          ->
+    (* --- *)
+    nil \ (base t) ~~[tc2 ++ tc1]~~>* m \ ths ->
+    ev1 = (tid1, e_read  ad t1)               ->
+    ev2 = (tid2, e_write ad t2)               ->
+    tc2 = <(ev1 -{tc'}- ev2)>                 ->
+    happens_before tc2.
+Proof.
+  intros. subst. destruct_ustep4.
+  assert (invariants nil (base t)) by eauto using invariants_preservation_base.
+  assert (invariants mA thsA) by eauto using invariants_preservation_ustep.
+  eauto using safety_read_write.
 Qed.
 

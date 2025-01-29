@@ -91,3 +91,35 @@ Ltac destruct_ustep3 :=
     eapply _destruct_ustep3 in H as [mA [mB [thsA [thsB [H1A [HAB HB2]]]]]]
   end.
 
+(* ------------------------------------------------------------------------- *)
+
+Local Lemma _destruct_ustep4 : forall tc1 tc2 m1 m2 ths1 ths2,
+  m1 \ ths1 ~~[tc2 ++ tc1]~~>* m2 \ ths2 ->
+  (exists mA thsA,
+    m1 \ ths1 ~~[tc1]~~>* mA \ thsA /\
+    mA \ thsA ~~[tc2]~~>* m2 \ ths2 ).
+Proof.
+  intros ?. induction tc1; intros ?; induction tc2; intros; invc_ustep;
+  try rewrite app_nil_r in *; eauto using multistep.
+  invc_ustep.
+  - exfalso. eapply app_cons_not_nil. eauto.
+  - match goal with
+    | H1A : ?m1 \ ?ths1 ~~[?tc       ]~~>* ?mA \ ?thsA
+    , HAB : ?mA \ ?thsA ~~[?tid1, ?e1]~~>  ?mB \ ?thsB
+    , HB2 : ?mB \ ?thsB ~~[?tid2, ?e2]~~>  ?m2 \ ?ths2
+    , Heq : (?tid1, ?e1) :: ?tc = _ ++ _ :: _
+    |- _ =>
+      assert (H1B : m1 \ ths1 ~~[(tid1, e1) :: tc]~~>* mB \ thsB)
+        by eauto using multistep;
+      rewrite Heq in H1B;
+      decompose record (IHtc2 m1 mB ths1 thsB H1B);
+      eauto using multistep
+    end.
+Qed.
+
+Ltac destruct_ustep4 :=
+  match goal with
+  | H : _ \ _  ~~[_ ++ _]~~>* _ \ _ |- _ =>
+    eapply _destruct_ustep4 in H as [mA [thsA [H1A HA2]]]
+  end.
+
