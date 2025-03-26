@@ -212,7 +212,7 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* safety                                                                    *)
+(* safety with happens-before                                                *)
 (* ------------------------------------------------------------------------- *)
 
 Local Ltac solve_safety H1A HAB HB2 :=
@@ -323,72 +323,44 @@ Proof.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
-(* safety from base                                                          *)
+(* data-race                                                                 *)
 (* ------------------------------------------------------------------------- *)
 
-Theorem safety_write_write_from_base :
-  forall t m ths tc1 tc2 tc' tid1 tid2 ev1 ev2 ad t1 t2,
-    no_refs   t                ->
-    no_inits  t                ->
-    no_crs    t                ->
-    no_reacqs t                ->
-    keywords  t                ->
-    consistent_waits WR_none t ->
-    well_typed_term t          ->
-    (* --- *)
-    nil \ (base t) ~~[tc2 ++ tc1]~~>* m \ ths ->
-    ev1 = (tid1, e_write ad t1)               ->
-    ev2 = (tid2, e_write ad t2)               ->
-    tc2 = <(ev1 -{tc'}- ev2)>                 ->
-    happens_before tc2.
-Proof.
-  intros. subst. destruct_ustep4.
-  assert (invariants nil (base t)) by eauto using invariants_preservation_base.
-  assert (invariants mA thsA) by eauto using invariants_preservation_ustep.
-  eauto using safety_write_write.
-Qed.
+Inductive data_race : trace -> Prop :=
+  | race_rw : forall tc ad tid1 tid2 t1 t2,
+    ~ happens_before <((tid1, e_read ad t1) -{tc}- (tid2, e_write ad t2))> ->
+    data_race <((tid1, e_read ad t1) -{tc}- (tid2, e_write ad t2))>
 
-Theorem safety_write_read_from_base :
-  forall t m ths tc1 tc2 tc' tid1 tid2 ev1 ev2 ad t1 t2,
-    no_refs   t                ->
-    no_inits  t                ->
-    no_crs    t                ->
-    no_reacqs t                ->
-    keywords  t                ->
-    consistent_waits WR_none t ->
-    well_typed_term t          ->
-    (* --- *)
-    nil \ (base t) ~~[tc2 ++ tc1]~~>* m \ ths ->
-    ev1 = (tid1, e_write ad t1)               ->
-    ev2 = (tid2, e_read  ad t2)               ->
-    tc2 = <(ev1 -{tc'}- ev2)>                 ->
-    happens_before tc2.
-Proof.
-  intros. subst. destruct_ustep4.
-  assert (invariants nil (base t)) by eauto using invariants_preservation_base.
-  assert (invariants mA thsA) by eauto using invariants_preservation_ustep.
-  eauto using safety_write_read.
-Qed.
+  | race_wr : forall tc ad tid1 tid2 t1 t2,
+    ~ happens_before <((tid1, e_write ad t1) -{tc}- (tid2, e_read ad t2))> ->
+    data_race <((tid1, e_write ad t1) -{tc}- (tid2, e_read ad t2))>
 
-Theorem safety_read_write_from_base :
-  forall t m ths tc1 tc2 tc' tid1 tid2 ev1 ev2 ad t1 t2,
-    no_refs   t                ->
-    no_inits  t                ->
-    no_crs    t                ->
-    no_reacqs t                ->
-    keywords  t                ->
-    consistent_waits WR_none t ->
-    well_typed_term t          ->
-    (* --- *)
-    nil \ (base t) ~~[tc2 ++ tc1]~~>* m \ ths ->
-    ev1 = (tid1, e_read  ad t1)               ->
-    ev2 = (tid2, e_write ad t2)               ->
-    tc2 = <(ev1 -{tc'}- ev2)>                 ->
-    happens_before tc2.
+  | race_ww : forall tc ad tid1 tid2 t1 t2,
+    ~ happens_before <((tid1, e_write ad t1) -{tc}- (tid2, e_write ad t2))> ->
+    data_race <((tid1, e_write ad t1) -{tc}- (tid2, e_write ad t2))>
+  .
+
+(* ------------------------------------------------------------------------- *)
+(* safety                                                                    *)
+(* ------------------------------------------------------------------------- *)
+
+Theorem safety : forall t m ths tc1 tc2,
+  no_refs   t                ->
+  no_inits  t                ->
+  no_crs    t                ->
+  no_reacqs t                ->
+  keywords  t                ->
+  consistent_waits WR_none t ->
+  well_typed_term t          ->
+  (* --- *)
+  nil \ (base t) ~~[tc2 ++ tc1]~~>* m \ ths ->
+  ~ data_race tc2.
 Proof.
-  intros. subst. destruct_ustep4.
-  assert (invariants nil (base t)) by eauto using invariants_preservation_base.
-  assert (invariants mA thsA) by eauto using invariants_preservation_ustep.
-  eauto using safety_read_write.
+  intros ** Hdr. destruct_ustep4.
+  assert (invariants mA thsA)
+    by eauto using invariants_preservation_base, invariants_preservation_ustep.
+  clear H1A.
+  invc Hdr; match goal with Hhb : ~ _ |- False => apply Hhb; clear Hhb end;
+  eauto using safety_read_write, safety_write_read, safety_write_write. 
 Qed.
 
