@@ -359,7 +359,6 @@ Proof.
   intros ** Hdr. destruct_ustep4.
   assert (invariants mA thsA)
     by eauto using invariants_preservation_base, invariants_preservation_ustep.
-  clear H1A.
   invc Hdr; match goal with Hhb : ~ _ |- False => apply Hhb; clear Hhb end;
   eauto using safety_read_write, safety_write_read, safety_write_write. 
 Qed.

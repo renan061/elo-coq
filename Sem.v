@@ -311,15 +311,15 @@ Inductive type_of : ctx -> tm -> ty -> Prop :=
     Gamma |-- <{new t : w&T}> is `w&T`
 
   | T_initR : forall Gamma ad t T,
-    Gamma |-- t is `Safe T` ->
+    empty |-- t is `Safe T` ->
     Gamma |-- <{init ad t : r&T}> is `r&T`
 
   | T_initX : forall Gamma ad t T,
-    Gamma |-- t is T ->
+    empty |-- t is T ->
     Gamma |-- <{init ad t : x&T}> is `x&T`
 
   | T_initW : forall Gamma ad t T,
-    Gamma |-- t is T ->
+    empty |-- t is T ->
     Gamma |-- <{init ad t : w&T}> is `w&T`
 
   | T_loadR : forall Gamma t T,

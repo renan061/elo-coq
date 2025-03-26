@@ -188,9 +188,12 @@ Proof.
   invc_typeof; invc_stm; eauto using safe_term;
   eauto using typeof_permutation, safe_term;
   eauto 6 using typeof_safe_triple, nowrefs_subst2, safe_term;
-  eauto using safe_term,
-        nowrefs_subst1,
-        context_weakening, update_safe_includes_safe_update.
+  eauto using safe_term, nowrefs_subst1,
+    context_weakening, update_safe_includes_safe_update;
+  try solve [match goal with H : safe_term ?t, _ : empty |-- ?t is ?T |- _ =>
+    specialize (IHt H T empty);
+    eauto using safe_term, context_weakening_empty
+  end].
   match goal with H : exists _, _ |- _ => destruct H end.
   erewrite <- hasvar_subst; eauto using hasvar_type_contradiction, safe_term.
 Qed.
