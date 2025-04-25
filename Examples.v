@@ -10,8 +10,11 @@ Ltac solve_ty :=
   repeat match goal with
   | |- _ |-- <{unit                  }> is _ => eapply T_unit
   | |- _ |-- <{nat _                 }> is _ => eapply T_nat
+  | |- _ |-- <{_ + _                 }> is _ => eapply T_plus
+  | |- _ |-- <{_ - _                 }> is _ => eapply T_monus
   | |- _ |-- <{_; _                  }> is _ => eapply T_seq
   | |- _ |-- <{if _ then _ else _ end}> is _ => eapply T_if
+  | |- _ |-- <{while _ do _ end      }> is _ => eapply T_while
   | |- _ |-- <{var _                 }> is _ => eapply T_var
   | |- _ |-- <{fn _ _ _              }> is _ => eapply T_fun
   | |- _ |-- <{call _ _              }> is _ => eapply T_call
@@ -147,7 +150,8 @@ Definition example2 : tm := <{
 
 Compute (last_result (elo nil (base example2) 5000 0)).
 
-(* gas = 10000
+(*
+  gas = 10000
 
   ((Some <{ &1 : w&Nat }>, `x&w& Nat `, true,  R_invalid)
 :: (Some <{ nat 555    }>, `w&Nat    `, false, R_invalid)
@@ -172,38 +176,43 @@ Compute (last_result (elo nil (base example2) 5000 0)).
 
 *)
 
+(* ------------------------------------------------------------------------- *)
+(* fib                                                                       *)
+(* ------------------------------------------------------------------------- *)
 
+Definition fib : tm := <{
+  let "fib" : Nat --> Nat = (fn "n" Nat
+    if (var "n" - N` 2) then ( 
+      let "a" : w&Nat = new (N` 0) : w&Nat in
+      let "b" : w&Nat = new (N` 1) : w&Nat in
+      let "x" : w&Nat = new (N` 1) : w&Nat in
+      let "i" : w&Nat = new (V` "n" - N` 2) : w&Nat in
+      while *(var "i") do
+        (V` "a") := *(V` "b");
+        (V` "b") := *(V` "x");
+        (V` "x") := *(V` "a") + *(var "b");
+        (V` "i") := *(V` "i") - N` 1
+      end;
+      *(V` "x")
+    ) else (V` "n") end
+  ) in
+  call (var "fib") (N` 10)
+}>.
 
-(*
-  let down := fn m: (x&T) {
-    acq m p {
-      n := *p
-      while !n {
-        wait cv
-      }
-      n := n - 1
-    }
-  }
+Compute (last_result (elo nil (base fib) 1000 0)).
 
-  let up := fn m: (x&T) {
-    acq m p {
-      n := n + 1 
-      broadcast cv
-    }
-  }
+Local Ltac try_rewrite :=
+  (rewrite lookup_update_neq || rewrite lookup_update_eq); try discriminate.
 
-  p:
-    down queroproduzir
-    enter CR
-      produz
-    leave CR
-    up queroconsumir
-
-  c:
-    down queroconsumir
-    enter CR
-      consume
-    leave CR
-    up queroproduzir
-*)
+Lemma fib_is_well_typed :
+  empty |-- fib is `Nat`.
+Proof.
+  unfold fib. solve_ty; eauto using type_of.
+  - do 3 try_rewrite. rewrite lookup_update_eq. trivial.
+  - eapply T_loadW. solve_ty.
+    do 2 try_rewrite. rewrite lookup_update_eq. trivial.
+  - do 2 try_rewrite. rewrite lookup_update_eq. trivial.
+  - eapply T_loadW. solve_ty.
+    do 1 try_rewrite. rewrite lookup_update_eq. trivial.
+Qed.
 
